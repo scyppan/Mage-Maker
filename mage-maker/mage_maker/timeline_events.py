@@ -1,0 +1,213 @@
+import re
+import uuid
+from copy import deepcopy
+from datetime import date
+
+
+EVENT_TYPES = (
+    ("gave_birth", "Gave birth!"),
+    ("had_child", "Had a child!"),
+    ("got_married", "Got married"),
+    ("started_school", "Started at school"),
+    ("relocated", "Relocated"),
+    ("custom", "Custom event"),
+)
+EVENT_TYPE_LABELS = dict(EVENT_TYPES)
+EVENT_LABEL_TYPES = {label: event_type for event_type, label in EVENT_TYPES}
+PARTIAL_DATE_PATTERN = re.compile(r"^(\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$")
+
+
+def normalize_timeline_events(events):
+    if events in (None, ""):
+        return []
+
+    if not isinstance(events, list):
+        raise TypeError("Timeline events must be a list.")
+
+    normalized_events = []
+    seen_ids = set()
+
+    for event in events:
+        normalized_event = normalize_timeline_event(event)
+        event_id = normalized_event["event_id"]
+
+        if event_id in seen_ids:
+            normalized_event["event_id"] = str(uuid.uuid4())
+
+        seen_ids.add(normalized_event["event_id"])
+        normalized_events.append(normalized_event)
+
+    return sort_timeline_events(normalized_events)
+
+
+def normalize_timeline_event(event):
+    if not isinstance(event, dict):
+        raise TypeError("Every timeline event must be an object.")
+
+    normalized = deepcopy(event)
+    normalized["event_id"] = str(normalized.get("event_id") or uuid.uuid4()).strip()
+    normalized["event_type"] = str(
+        normalized.get("event_type") or "custom"
+    ).strip()
+    normalized["detail"] = str(normalized.get("detail") or "").strip()
+    normalized["date"] = normalize_event_date(normalized.get("date"))
+    normalized["note"] = str(normalized.get("note") or "").strip()
+    normalized["related_person_id"] = str(
+        normalized.get("related_person_id") or ""
+    ).strip()
+    normalized["automatic_source"] = str(
+        normalized.get("automatic_source") or ""
+    ).strip()
+
+    if normalized["event_type"] not in EVENT_TYPE_LABELS:
+        normalized["event_type"] = "custom"
+
+    if normalized["event_type"] == "custom" and not normalized["detail"]:
+        raise ValueError("A custom timeline event needs an event description.")
+
+    return normalized
+
+
+def normalize_event_date(value):
+    event_date = str(value or "").strip()
+
+    if not event_date:
+        return ""
+
+    match = PARTIAL_DATE_PATTERN.fullmatch(event_date)
+
+    if match is None:
+        raise ValueError("Timeline dates must use YYYY, YYYY-MM, or YYYY-MM-DD.")
+
+    year = int(match.group(1))
+    month = int(match.group(2)) if match.group(2) else None
+    day = int(match.group(3)) if match.group(3) else None
+
+    if not 1 <= year <= 9999:
+        raise ValueError("Timeline year must be between 1 and 9999.")
+
+    if month is not None and not 1 <= month <= 12:
+        raise ValueError("Timeline month must be between 1 and 12.")
+
+    if day is not None:
+        if month is None:
+            raise ValueError("A timeline day requires a month.")
+
+        try:
+            date(year, month, day)
+        except ValueError as error:
+            raise ValueError("Timeline date is not a valid calendar date.") from error
+
+    normalized_date = str(year).zfill(4)
+
+    if month is not None:
+        normalized_date += f"-{month:02d}"
+
+    if day is not None:
+        normalized_date += f"-{day:02d}"
+
+    return normalized_date
+
+
+def sort_timeline_events(events):
+    return sorted(
+        deepcopy(list(events)),
+        key=timeline_event_sort_key,
+    )
+
+
+def timeline_event_sort_key(event):
+    event_date = str(event.get("date") or "")
+
+    if not event_date:
+        return 1, 10000, 13, 32, str(event.get("event_id") or "")
+
+    parts = [int(part) for part in event_date.split("-")]
+    year = parts[0]
+    month = parts[1] if len(parts) > 1 else 0
+    day = parts[2] if len(parts) > 2 else 0
+    return 0, year, month, day, str(event.get("event_id") or "")
+
+
+def timeline_event_summary(event):
+    event_type = str(event.get("event_type") or "custom")
+    detail = str(event.get("detail") or "").strip()
+
+    if event_type == "gave_birth":
+        return f"Gave birth to {detail}!" if detail else "Gave birth!"
+
+    if event_type == "had_child":
+        return "Had a child!"
+
+    if event_type == "got_married":
+        return f"Got married to {detail}" if detail else "Got married"
+
+    if event_type == "started_school":
+        return f"Started at {detail} school!" if detail else "Started at school!"
+
+    if event_type == "relocated":
+        return f"Relocated to {detail}" if detail else "Relocated"
+
+    return detail or "Custom event"
+
+
+def timeline_detail_label(event_type):
+    labels = {
+        "gave_birth": "Child or event detail",
+        "had_child": "Child's name",
+        "got_married": "Spouse or event detail",
+        "started_school": "School name",
+        "relocated": "New location",
+        "custom": "Event description",
+    }
+    return labels.get(event_type, "Event detail")
+
+
+def person_birth_timeline_date(person):
+    if not isinstance(person, dict):
+        return ""
+
+    year = person.get("birth_year")
+    month = person.get("birth_month")
+    day = person.get("birth_day")
+
+    if year in (None, ""):
+        return ""
+
+    date_parts = [str(year).zfill(4)]
+
+    if month not in (None, ""):
+        date_parts.append(str(month).zfill(2))
+
+    if day not in (None, ""):
+        date_parts.append(str(day).zfill(2))
+
+    return "-".join(date_parts)
+
+
+def automatic_child_timeline_event(child, existing_event=None):
+    if not isinstance(child, dict):
+        raise TypeError("A child timeline event needs a person record.")
+
+    child_id = str(child.get("record_id", "") or "").strip()
+
+    if not child_id:
+        raise ValueError("A child timeline event needs a person identifier.")
+
+    child_name = str(
+        child.get("displayed_name", "") or "Unnamed child"
+    ).strip()
+    event = deepcopy(existing_event) if isinstance(existing_event, dict) else {}
+    previous_detail = str(event.get("detail") or "").strip()
+    previous_note = str(event.get("note") or "").strip()
+    event.setdefault("event_id", f"had-child:{child_id}")
+
+    if not previous_note or previous_note == f"Child: {previous_detail}":
+        event["note"] = f"Child: {child_name}"
+
+    event["event_type"] = "had_child"
+    event["detail"] = child_name
+    event["date"] = person_birth_timeline_date(child)
+    event["related_person_id"] = child_id
+    event["automatic_source"] = "child_assignment"
+    return normalize_timeline_event(event)

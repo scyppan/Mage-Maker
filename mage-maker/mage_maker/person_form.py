@@ -2,9 +2,10 @@ import tkinter as tk
 from copy import deepcopy
 from functools import partial
 
+from mage_maker.family_tree import FamilyTreeView
 from mage_maker.name_details import NameDetailsDialog
+from mage_maker.timeline_view import TimelineView
 from mage_maker.theme import (
-    BORDER_SOFT,
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
     FIELD_BACKGROUND,
@@ -13,11 +14,11 @@ from mage_maker.theme import (
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
-    TEXT_LIGHT,
     TEXT_MUTED,
     app_font,
 )
 from mage_maker.widgets import (
+    HoverTooltip,
     LabeledEntry,
     MultilineField,
     SectionPanel,
@@ -30,22 +31,33 @@ class PersonForm(tk.Frame):
         ("deceased", "Dead or permanently neutralized"),
         ("canon", "Canon"),
         ("player_character", "Player character"),
-    )
-    family_status_fields = (
-        ("muggle", "Muggle"),
-        ("squib", "Squib"),
+        ("non_magical", "Non-magical"),
+        ("can_give_birth", "Can give birth"),
     )
 
-    def __init__(self, parent, change_command):
+    def __init__(
+        self,
+        parent,
+        change_command,
+        people_provider,
+        create_person_command,
+        update_person_command,
+        refresh_people_command,
+        navigate_command,
+    ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
+        self.people_provider = people_provider
         self.loading = False
         self.variables = {}
+        self.boolean_widgets = {}
+        self.tooltips = {}
         self.text_widgets = {}
         self.name_details = {}
         self.pages = {}
         self.navigation_buttons = {}
         self.active_page_name = "profile"
+        self.current_record_id = None
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -58,7 +70,13 @@ class PersonForm(tk.Frame):
         self.content.grid_rowconfigure(0, weight=1)
 
         self.build_profile_page()
-        self.build_family_tree_page()
+        self.build_family_tree_page(
+            create_person_command,
+            update_person_command,
+            refresh_people_command,
+            navigate_command,
+        )
+        self.build_timeline_page(navigate_command)
         self.build_development_page()
         self.show_page("profile")
 
@@ -69,6 +87,7 @@ class PersonForm(tk.Frame):
         page_definitions = (
             ("profile", "Profile", 98),
             ("family_tree", "Family Tree", 122),
+            ("timeline", "Timeline", 104),
             ("development", "Development", 126),
         )
 
@@ -116,47 +135,44 @@ class PersonForm(tk.Frame):
             padx=(0, 7),
             pady=(0, 7),
         )
-        identity_panel.content.grid_columnconfigure(0, weight=3)
-        identity_panel.content.grid_columnconfigure(1, weight=2)
+        identity_panel.content.grid_columnconfigure(0, weight=1)
+
+        name_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
+        name_row.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        name_row.grid_columnconfigure(0, weight=1)
 
         displayed_name_value = tk.StringVar()
         displayed_name_value.trace_add("write", self.variable_changed)
         self.variables["displayed_name"] = displayed_name_value
         displayed_name_field = LabeledEntry(
-            identity_panel.content,
+            name_row,
             "Displayed name",
             displayed_name_value,
             background=SURFACE_MUTED,
             font_size=12,
         )
-        displayed_name_field.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-            padx=(0, 10),
-            pady=(0, 12),
-        )
+        displayed_name_field.grid(row=0, column=0, sticky="ew")
+
         self.name_details_button = SoftButton(
-            identity_panel.content,
-            text="Open Name Details",
+            name_row,
+            text="Name Details",
             command=self.open_name_details,
             background=SURFACE_MUTED,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
-            width=164,
+            foreground=TEXT_DARK,
+            width=122,
             height=40,
         )
-        self.name_details_button.grid(
-            row=0,
-            column=1,
-            sticky="se",
-            pady=(0, 12),
-        )
+        self.name_details_button.grid(row=0, column=1, sticky="s", padx=(7, 0))
 
+        details_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
+        details_row.grid(row=1, column=0, sticky="ew")
+        details_row.grid_columnconfigure(0, weight=3)
+        details_row.grid_columnconfigure(1, weight=2)
         self.add_entry_field(
-            identity_panel.content,
-            1,
+            details_row,
+            0,
             0,
             "school",
             "School",
@@ -164,8 +180,8 @@ class PersonForm(tk.Frame):
             (0, 10),
         )
 
-        birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        birth_frame.grid(row=1, column=1, sticky="ew")
+        birth_frame = tk.Frame(details_row, bg=SURFACE_MUTED)
+        birth_frame.grid(row=0, column=1, sticky="ew")
         birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
         self.add_entry_field(
             birth_frame,
@@ -192,12 +208,11 @@ class PersonForm(tk.Frame):
             "birth_day",
             "Day",
             SURFACE_MUTED,
-            0,
         )
 
         status_panel = SectionPanel(
             page,
-            "Record Status",
+            "Profile Overview",
             "Quick classifications used to identify this magician's role and state.",
         )
         status_panel.grid(
@@ -227,7 +242,7 @@ class PersonForm(tk.Frame):
             wraplength=500,
         )
         imported_label.grid(
-            row=1,
+            row=2,
             column=0,
             columnspan=3,
             sticky="ew",
@@ -268,91 +283,29 @@ class PersonForm(tk.Frame):
         notes_field.text.bind("<<Modified>>", self.text_changed)
         self.text_widgets["notes"] = notes_field.text
 
-    def build_family_tree_page(self):
+    def build_family_tree_page(
+        self,
+        create_person_command,
+        update_person_command,
+        refresh_people_command,
+        navigate_command,
+    ):
         page = tk.Frame(self.content, bg=SURFACE)
         page.grid(row=0, column=0, sticky="nsew")
-        page.grid_columnconfigure((0, 1), weight=1, uniform="family")
+        page.grid_columnconfigure(0, weight=1)
         page.grid_rowconfigure(0, weight=1)
         self.pages["family_tree"] = page
 
-        relationships_panel = SectionPanel(
+        self.family_tree = FamilyTreeView(
             page,
-            "Biological Parents",
-            "Record known biological relationships here. A full tree editor can build on these links later.",
+            change_command=self.family_tree_changed,
+            people_provider=self.people_provider,
+            create_person_command=create_person_command,
+            update_person_command=update_person_command,
+            refresh_people_command=refresh_people_command,
+            navigate_command=navigate_command,
         )
-        relationships_panel.grid(
-            row=0,
-            column=0,
-            sticky="nsew",
-            padx=(0, 7),
-        )
-        relationships_panel.content.grid_columnconfigure((0, 1), weight=1)
-        self.add_entry_field(
-            relationships_panel.content,
-            0,
-            0,
-            "biological_mother",
-            "Biological mother",
-            SURFACE_MUTED,
-            (0, 8),
-        )
-        self.add_entry_field(
-            relationships_panel.content,
-            0,
-            1,
-            "biological_father",
-            "Biological father",
-            SURFACE_MUTED,
-            (8, 0),
-        )
-
-        lineage_panel = SectionPanel(
-            page,
-            "Magical Lineage",
-            "Blood status and exceptions belong with the person's family background.",
-        )
-        lineage_panel.grid(
-            row=0,
-            column=1,
-            sticky="nsew",
-            padx=(7, 0),
-        )
-        lineage_panel.content.grid_columnconfigure(0, weight=2)
-        lineage_panel.content.grid_columnconfigure(1, weight=3)
-        self.add_entry_field(
-            lineage_panel.content,
-            0,
-            0,
-            "blood_status",
-            "Blood status",
-            SURFACE_MUTED,
-            (0, 16),
-        )
-        magical_status = tk.Frame(lineage_panel.content, bg=SURFACE_MUTED)
-        magical_status.grid(row=0, column=1, sticky="ew")
-        magical_status.grid_columnconfigure((0, 1), weight=1)
-        magical_status_label = tk.Label(
-            magical_status,
-            text="Magical status",
-            bg=SURFACE_MUTED,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        magical_status_label.grid(
-            row=0,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-            pady=(0, 5),
-        )
-        self.add_boolean_fields(
-            magical_status,
-            self.family_status_fields,
-            2,
-            SURFACE_MUTED,
-            start_row=1,
-        )
+        self.family_tree.grid(row=0, column=0, sticky="nsew")
 
     def build_development_page(self):
         page = tk.Frame(self.content, bg=SURFACE)
@@ -380,6 +333,21 @@ class PersonForm(tk.Frame):
         )
         placeholder.grid(row=0, column=0, sticky="nsew")
 
+    def build_timeline_page(self, navigate_command):
+        page = tk.Frame(self.content, bg=SURFACE)
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=1)
+        page.grid_rowconfigure(0, weight=1)
+        self.pages["timeline"] = page
+
+        self.timeline = TimelineView(
+            page,
+            self.timeline_changed,
+            people_provider=self.people_provider,
+            navigate_command=navigate_command,
+        )
+        self.timeline.grid(row=0, column=0, sticky="nsew")
+
     def add_entry_field(
         self,
         parent,
@@ -393,12 +361,7 @@ class PersonForm(tk.Frame):
         variable = tk.StringVar()
         variable.trace_add("write", self.variable_changed)
         self.variables[field_name] = variable
-        field = LabeledEntry(
-            parent,
-            label_text,
-            variable,
-            background=background,
-        )
+        field = LabeledEntry(parent, label_text, variable, background=background)
         field.grid(
             row=row,
             column=column,
@@ -439,17 +402,25 @@ class PersonForm(tk.Frame):
                 padx=(0, 12),
                 pady=4,
             )
+            self.boolean_widgets[field_name] = checkbutton
+
+            if field_name == "can_give_birth":
+                self.tooltips[field_name] = HoverTooltip(checkbutton)
 
     def show_page(self, page_name):
         if page_name not in self.pages:
             return
 
         self.active_page_name = page_name
+
+        if page_name == "family_tree" and self.current_record_id:
+            self.family_tree.update_current_person(self.current_profile_values())
+
         self.pages[page_name].tkraise()
 
         for name, button in self.navigation_buttons.items():
             if name == page_name:
-                button.set_colors(PRIMARY, PRIMARY_HOVER, TEXT_LIGHT)
+                button.set_colors(PRIMARY, PRIMARY_HOVER, TEXT_DARK)
             else:
                 button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
 
@@ -467,11 +438,15 @@ class PersonForm(tk.Frame):
 
         self.name_details = deepcopy(name_details)
 
+        if self.current_record_id:
+            self.family_tree.update_current_person(self.current_profile_values())
+
         if not self.loading:
             self.change_command()
 
     def set_person(self, person):
         self.loading = True
+        self.current_record_id = person.get("record_id")
         displayed_name = person.get("displayed_name", "")
         self.current_name_value.set(displayed_name or "Unnamed magician")
 
@@ -500,8 +475,23 @@ class PersonForm(tk.Frame):
             f"{imported_count} original Formidable fields are preserved with this record. "
             "Additional sections can expose them as Mage Maker develops."
         )
+        self.family_tree.set_person(person)
+        self.timeline.set_events(person.get("timeline_events", []))
+        self.update_can_give_birth_control()
         self.show_page(self.active_page_name)
         self.loading = False
+
+    def current_profile_values(self):
+        return {
+            "record_id": self.current_record_id,
+            "displayed_name": self.variables["displayed_name"].get(),
+            "birth_year": self.variables["birth_year"].get(),
+            "birth_month": self.variables["birth_month"].get(),
+            "birth_day": self.variables["birth_day"].get(),
+            "deceased": self.variables["deceased"].get(),
+            "can_give_birth": self.variables["can_give_birth"].get(),
+            "name_details": deepcopy(self.name_details),
+        }
 
     def get_values(self):
         values = {}
@@ -513,8 +503,111 @@ class PersonForm(tk.Frame):
             values[field_name] = text_widget.get("1.0", "end-1c")
 
         values["name_details"] = deepcopy(self.name_details)
+        values["timeline_events"] = self.timeline.get_events()
+        values.update(self.family_tree.get_relationship_values())
 
         return values
+
+    def family_tree_changed(self):
+        self.update_can_give_birth_control()
+
+        if not self.loading:
+            self.change_command()
+
+    def timeline_changed(self):
+        if not self.loading:
+            self.change_command()
+
+    def update_can_give_birth_control(self):
+        checkbutton = self.boolean_widgets.get("can_give_birth")
+        tooltip = self.tooltips.get("can_give_birth")
+
+        if checkbutton is None or tooltip is None:
+            return
+
+        record_id = str(self.current_record_id or "")
+
+        if not record_id:
+            checkbutton.configure(state="disabled")
+            tooltip.set_text("Select a magician before changing this setting.")
+            return
+
+        relationship_map = self.family_tree.relationship_map
+        birthing_children = relationship_map.children_for_parent_role(
+            record_id,
+            "mother",
+        )
+        non_birthing_children = relationship_map.children_for_parent_role(
+            record_id,
+            "father",
+        )
+
+        if birthing_children:
+            child_names = [
+                str(child.get("displayed_name", "Unnamed"))
+                for child in birthing_children
+            ]
+            visible_names = ", ".join(child_names[:3])
+
+            if len(child_names) > 3:
+                visible_names += f", and {len(child_names) - 3} more"
+
+            checkbutton.configure(state="disabled")
+            tooltip.set_text(
+                "Can give birth is locked because this person is the birthing "
+                f"parent of {visible_names}. Remove those family links before "
+                "changing it."
+            )
+            return
+
+        if non_birthing_children:
+            child_names = [
+                str(child.get("displayed_name", "Unnamed"))
+                for child in non_birthing_children
+            ]
+            visible_names = ", ".join(child_names[:3])
+
+            if len(child_names) > 3:
+                visible_names += f", and {len(child_names) - 3} more"
+
+            checkbutton.configure(state="disabled")
+            tooltip.set_text(
+                "Can give birth is locked because this person is the non-birthing "
+                f"parent of {visible_names}. Remove those family links before "
+                "changing it."
+            )
+            return
+
+        mate_ids = relationship_map.mates_of(record_id)
+
+        if mate_ids:
+            mate_names = []
+
+            for mate_id in mate_ids:
+                mate = relationship_map.person(mate_id)
+                mate_names.append(
+                    str(mate.get("displayed_name", "Unnamed"))
+                    if mate
+                    else "Unnamed"
+                )
+
+            visible_names = ", ".join(mate_names[:3])
+
+            if len(mate_names) > 3:
+                visible_names += f", and {len(mate_names) - 3} more"
+
+            checkbutton.configure(state="disabled")
+            tooltip.set_text(
+                "Can give birth is locked because this person is linked as a mate "
+                f"to {visible_names}. Remove those mate links before changing it."
+            )
+            return
+
+        checkbutton.configure(state="normal")
+        tooltip.set_text(
+            "This setting becomes locked once the person is linked as a mate or "
+            "as a birthing or non-birthing parent."
+        )
 
     def variable_changed(self, *arguments):
         if not self.loading:

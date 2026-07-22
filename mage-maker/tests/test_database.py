@@ -101,7 +101,7 @@ class JsonDatabaseTests(unittest.TestCase):
                 for entry in person["name_details"]["entries"]
             ],
         )
-        self.assertEqual(3, old_database.data["_database"]["schema_version"])
+        self.assertEqual(6, old_database.data["_database"]["schema_version"])
         self.assertNotIn("image_url", person)
         self.assertNotIn("generosity", person)
 
@@ -140,6 +140,87 @@ class JsonDatabaseTests(unittest.TestCase):
             ],
             [(entry["name_type"], entry["name_entry"]) for entry in entries],
         )
+
+    def test_version_three_family_fields_are_migrated(self):
+        old_database_path = Path(self.temporary_directory.name) / "version-three.json"
+        old_database_path.write_text(
+            json.dumps(
+                {
+                    "_database": {"schema_version": 3, "last_saved": None},
+                    "people": [
+                        {
+                            "record_id": "mother",
+                            "displayed_name": "Known Mother",
+                            "muggle": False,
+                            "squib": False,
+                            "blood_status": "Pureblood",
+                        },
+                        {
+                            "record_id": "child",
+                            "displayed_name": "Known Child",
+                            "biological_mother": "Known Mother",
+                            "biological_father": "",
+                            "muggle": False,
+                            "squib": True,
+                            "blood_status": "Squib",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        old_database = JsonDatabase(old_database_path)
+        old_database.load()
+        mother = old_database.read_person("mother")
+        child = old_database.read_person("child")
+        self.assertTrue(mother["can_give_birth"])
+        self.assertEqual("mother", child["biological_mother_id"])
+        self.assertTrue(child["non_magical"])
+        self.assertNotIn("blood_status", child)
+        self.assertNotIn("muggle", child)
+        self.assertNotIn("squib", child)
+
+    def test_version_four_database_adds_parent_states_timeline_and_coparents(self):
+        old_database_path = Path(self.temporary_directory.name) / "version-four.json"
+        old_database_path.write_text(
+            json.dumps(
+                {
+                    "_database": {"schema_version": 4, "last_saved": None},
+                    "people": [
+                        {
+                            "record_id": "mother",
+                            "displayed_name": "Migration Mother",
+                            "can_give_birth": True,
+                            "mate_ids": [],
+                        },
+                        {
+                            "record_id": "father",
+                            "displayed_name": "Migration Father",
+                            "can_give_birth": False,
+                            "mate_ids": [],
+                        },
+                        {
+                            "record_id": "child",
+                            "displayed_name": "Migration Child",
+                            "biological_mother_id": "mother",
+                            "biological_father_id": "father",
+                            "mate_ids": [],
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        old_database = JsonDatabase(old_database_path)
+        old_database.load()
+        mother = old_database.read_person("mother")
+        father = old_database.read_person("father")
+        child = old_database.read_person("child")
+        self.assertIn("father", mother["mate_ids"])
+        self.assertIn("mother", father["mate_ids"])
+        self.assertEqual("person", child["biological_mother_status"])
+        self.assertEqual("person", child["biological_father_status"])
+        self.assertEqual([], child["timeline_events"])
 
 
 if __name__ == "__main__":

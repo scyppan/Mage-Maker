@@ -118,7 +118,7 @@ class PeopleList(tk.Frame):
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=148,
             height=38,
         )

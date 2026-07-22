@@ -137,7 +137,15 @@ class MageMakerApp(tk.Tk):
         editor_card.grid_rowconfigure(1, weight=1)
         editor_card.grid_columnconfigure(0, weight=1)
         self.build_editor_toolbar(editor_card)
-        self.person_form = PersonForm(editor_card, self.mark_form_dirty)
+        self.person_form = PersonForm(
+            editor_card,
+            self.mark_form_dirty,
+            self.controller.list_people,
+            self.create_related_person,
+            self.update_related_person,
+            self.refresh_related_people,
+            self.select_person,
+        )
         self.person_form.grid(
             row=1,
             column=0,
@@ -173,7 +181,7 @@ class MageMakerApp(tk.Tk):
             background=PRIMARY_DARK,
             fill=PRIMARY_SOFT,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=82,
             height=38,
         )
@@ -186,7 +194,7 @@ class MageMakerApp(tk.Tk):
             background=PRIMARY_DARK,
             fill=DELETE_SOFT,
             hover_fill=DELETE_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=88,
             height=38,
         )
@@ -212,7 +220,7 @@ class MageMakerApp(tk.Tk):
             background=PRIMARY_DARK,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=92,
             height=38,
         )
@@ -275,6 +283,23 @@ class MageMakerApp(tk.Tk):
         self.status_value.set(f"Created {created_person['displayed_name']}")
 
         return created_person
+
+    def create_related_person(self, values):
+        created_person = self.controller.create_person(values)
+        self.refresh_people(self.current_record_id)
+        self.status_value.set(f"Created {created_person['displayed_name']} as a relative")
+        return created_person
+
+    def update_related_person(self, record_id, values):
+        updated_person = self.controller.update_person(record_id, values)
+        self.refresh_people(self.current_record_id)
+        self.status_value.set(
+            f"Updated family links for {updated_person['displayed_name']}"
+        )
+        return updated_person
+
+    def refresh_related_people(self):
+        self.refresh_people(self.current_record_id)
 
     def save_person(self):
         if self.current_record_id is None:

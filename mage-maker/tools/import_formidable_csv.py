@@ -18,9 +18,6 @@ from mage_maker.name_history import migrate_legacy_name_details
 TEXT_FIELD_MAP = {
     "Name": "displayed_name",
     "Narrative": "narrative",
-    "Blood Status": "blood_status",
-    "Biological Mother": "biological_mother",
-    "Biological Father": "biological_father",
     "School": "school",
     "Notes": "notes",
 }
@@ -28,8 +25,6 @@ BOOLEAN_FIELD_MAP = {
     "Dead or permanently neutralized": "deceased",
     "Canon": "canon",
     "Player Character": "player_character",
-    "Muggle": "muggle",
-    "Squib": "squib",
 }
 NUMBER_FIELD_MAP = {
     "Birth Year": "birth_year",
@@ -96,6 +91,23 @@ def build_person(row, unique_headers, column_indexes, row_number):
     for source_name, field_name in NUMBER_FIELD_MAP.items():
         person[field_name] = parse_number(row[column_indexes[source_name]])
 
+    person["non_magical"] = parse_boolean(row[column_indexes["Muggle"]]) or parse_boolean(
+        row[column_indexes["Squib"]]
+    )
+    person["can_give_birth"] = False
+    person["biological_mother_id"] = ""
+    person["biological_father_id"] = ""
+    person["biological_mother_status"] = "unknown"
+    person["biological_father_status"] = "unknown"
+    person["mate_ids"] = []
+    person["timeline_events"] = []
+    person["_biological_mother_name"] = str(
+        row[column_indexes["Biological Mother"]] or ""
+    ).strip()
+    person["_biological_father_name"] = str(
+        row[column_indexes["Biological Father"]] or ""
+    ).strip()
+
     source_id = str(row[column_indexes["ID"]] or "").strip()
     source_key = str(row[column_indexes["Key"]] or "").strip()
     person["record_id"] = f"formidable-{source_id or source_key or row_number}"
@@ -138,7 +150,18 @@ def convert_csv(input_path, output_path):
     required_headers.update(BOOLEAN_FIELD_MAP)
     required_headers.update(NUMBER_FIELD_MAP)
     required_headers.update(
-        ("ID", "Key", "Timestamp", "Last Updated", "Maiden Name", "Nickname/Alias")
+        (
+            "ID",
+            "Key",
+            "Timestamp",
+            "Last Updated",
+            "Maiden Name",
+            "Nickname/Alias",
+            "Biological Mother",
+            "Biological Father",
+            "Muggle",
+            "Squib",
+        )
     )
     missing_headers = sorted(required_headers.difference(column_indexes))
 
@@ -155,6 +178,53 @@ def convert_csv(input_path, output_path):
 
         people.append(build_person(row, unique_headers, column_indexes, row_number))
 
+    ids_by_name = {
+        person["displayed_name"].casefold(): person["record_id"]
+        for person in people
+        if person["displayed_name"]
+    }
+    inferred_mother_ids = set()
+
+    for person in people:
+        mother_name = person.pop("_biological_mother_name")
+        father_name = person.pop("_biological_father_name")
+        mother_id = ids_by_name.get(mother_name.casefold(), "") if mother_name else ""
+        father_id = ids_by_name.get(father_name.casefold(), "") if father_name else ""
+        person["biological_mother_id"] = mother_id
+        person["biological_father_id"] = father_id
+        person["biological_mother_status"] = "person" if mother_id else "unknown"
+        person["biological_father_status"] = "person" if father_id else "unknown"
+
+        if mother_id:
+            inferred_mother_ids.add(mother_id)
+
+    for person in people:
+        if person["record_id"] in inferred_mother_ids:
+            person["can_give_birth"] = True
+
+        mother_id = person["biological_mother_id"]
+        father_id = person["biological_father_id"]
+
+        if not mother_id or not father_id or mother_id == father_id:
+            continue
+
+        mother = next(
+            candidate
+            for candidate in people
+            if candidate["record_id"] == mother_id
+        )
+        father = next(
+            candidate
+            for candidate in people
+            if candidate["record_id"] == father_id
+        )
+
+        if father_id not in mother["mate_ids"]:
+            mother["mate_ids"].append(father_id)
+
+        if mother_id not in father["mate_ids"]:
+            father["mate_ids"].append(mother_id)
+
     people.sort(
         key=lambda person: (
             person.get("birth_year") if person.get("birth_year") is not None else 10000,
@@ -165,8 +235,8 @@ def convert_csv(input_path, output_path):
     )
     database = {
         "_database": {
-            "schema_version": 3,
-            "database_version": "0.3.0",
+            "schema_version": 5,
+            "database_version": "0.5.0",
             "source_file": input_file_path.name,
             "imported_at": datetime.now(timezone.utc).isoformat(),
             "last_saved": None,

@@ -141,7 +141,7 @@ class CreationWizardDialog(tk.Toplevel):
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=142,
             height=38,
         )

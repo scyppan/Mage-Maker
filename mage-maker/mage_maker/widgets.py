@@ -35,6 +35,72 @@ def rounded_points(width, height, radius):
     )
 
 
+class HoverTooltip:
+    def __init__(self, widget, text="", delay=450, wraplength=340):
+        self.widget = widget
+        self.text = str(text or "")
+        self.delay = delay
+        self.wraplength = wraplength
+        self.after_id = None
+        self.window = None
+        self.widget.bind("<Enter>", self.handle_enter, add="+")
+        self.widget.bind("<Leave>", self.handle_leave, add="+")
+        self.widget.bind("<ButtonPress>", self.handle_leave, add="+")
+
+    def set_text(self, text):
+        self.text = str(text or "")
+
+        if not self.text:
+            self.cancel_pending()
+            self.hide()
+
+    def handle_enter(self, event=None):
+        self.cancel_pending()
+
+        if self.text:
+            self.after_id = self.widget.after(self.delay, self.show)
+
+    def handle_leave(self, event=None):
+        self.cancel_pending()
+        self.hide()
+
+    def cancel_pending(self):
+        if self.after_id is not None:
+            self.widget.after_cancel(self.after_id)
+            self.after_id = None
+
+    def show(self):
+        self.after_id = None
+
+        if not self.text or self.window is not None:
+            return
+
+        x_position = self.widget.winfo_rootx() + 12
+        y_position = self.widget.winfo_rooty() + self.widget.winfo_height() + 7
+        self.window = tk.Toplevel(self.widget)
+        self.window.wm_overrideredirect(True)
+        self.window.wm_geometry(f"+{x_position}+{y_position}")
+        label = tk.Label(
+            self.window,
+            text=self.text,
+            bg=TEXT_DARK,
+            fg=SURFACE,
+            font=app_font(9),
+            justify="left",
+            wraplength=self.wraplength,
+            padx=10,
+            pady=7,
+            relief="solid",
+            borderwidth=1,
+        )
+        label.pack()
+
+    def hide(self):
+        if self.window is not None:
+            self.window.destroy()
+            self.window = None
+
+
 class RoundedEntry(tk.Frame):
     def __init__(
         self,

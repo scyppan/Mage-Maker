@@ -186,7 +186,7 @@ class NameDetailsDialog(tk.Toplevel):
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=104,
             height=38,
         )
@@ -221,7 +221,7 @@ class NameDetailsDialog(tk.Toplevel):
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=88,
             height=38,
         )
@@ -232,10 +232,10 @@ class NameDetailsDialog(tk.Toplevel):
         self.listbox.delete(0, "end")
 
         for index, entry in enumerate(self.entries):
-            date_text = f"  |  {entry['date']}" if entry.get("date") else ""
+            date_text = str(entry.get("date", "") or "").strip() or "nd."
             self.listbox.insert(
                 "end",
-                f"{entry['name_type']} — {entry['name_entry']}{date_text}",
+                f"{date_text}: {entry['name_entry']} ({entry['name_type']})",
             )
             self.listbox.itemconfigure(
                 index,
@@ -506,7 +506,7 @@ class NameEntryDialog(tk.Toplevel):
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_LIGHT,
+            foreground=TEXT_DARK,
             width=106,
             height=38,
         )

@@ -7,6 +7,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from mage_maker.name_history import migrate_legacy_name_details
+from mage_maker.timeline_events import (
+    automatic_child_timeline_event,
+    normalize_timeline_events,
+)
 
 
 class JsonDatabase:
@@ -36,7 +40,7 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version >= 3:
+        if not isinstance(schema_version, int) or schema_version >= 6:
             return False
 
         migrated = False
@@ -101,8 +105,205 @@ class JsonDatabase:
 
             migrated = True
 
-        metadata["schema_version"] = 3
-        metadata["database_version"] = "0.3.0"
+        if schema_version < 4:
+            people = [
+                person
+                for person in database_data.get("people", [])
+                if isinstance(person, dict)
+            ]
+            ids_by_name = {
+                str(person.get("displayed_name", "")).strip().casefold(): person.get(
+                    "record_id", ""
+                )
+                for person in people
+                if str(person.get("displayed_name", "")).strip()
+            }
+            inferred_mother_ids = set()
+
+            for person in people:
+                mother_name = str(person.get("biological_mother", "") or "").strip()
+                mother_id = str(
+                    person.get("biological_mother_id", "") or ""
+                ).strip()
+
+                if not mother_id and mother_name:
+                    mother_id = str(ids_by_name.get(mother_name.casefold(), "") or "")
+
+                if mother_id:
+                    inferred_mother_ids.add(mother_id)
+
+            for person in people:
+                mother_name = str(person.pop("biological_mother", "") or "").strip()
+                father_name = str(person.pop("biological_father", "") or "").strip()
+                mother_id = str(
+                    person.get("biological_mother_id", "") or ""
+                ).strip()
+                father_id = str(
+                    person.get("biological_father_id", "") or ""
+                ).strip()
+
+                if not mother_id and mother_name:
+                    mother_id = str(ids_by_name.get(mother_name.casefold(), "") or "")
+
+                if not father_id and father_name:
+                    father_id = str(ids_by_name.get(father_name.casefold(), "") or "")
+
+                person["biological_mother_id"] = mother_id
+                person["biological_father_id"] = father_id
+                person["mate_ids"] = [
+                    str(mate_id).strip()
+                    for mate_id in person.get("mate_ids", [])
+                    if str(mate_id).strip()
+                ]
+                person["non_magical"] = bool(
+                    person.get("non_magical")
+                    or person.get("muggle")
+                    or person.get("squib")
+                )
+                person["can_give_birth"] = bool(
+                    person.get("can_give_birth")
+                    or person.get("record_id") in inferred_mother_ids
+                )
+                person.pop("blood_status", None)
+                person.pop("muggle", None)
+                person.pop("squib", None)
+
+            migrated = True
+
+        if schema_version < 5:
+            people = [
+                person
+                for person in database_data.get("people", [])
+                if isinstance(person, dict)
+            ]
+            people_by_id = {
+                str(person.get("record_id", "")): person
+                for person in people
+                if str(person.get("record_id", ""))
+            }
+
+            for person in people:
+                mother_id = str(
+                    person.get("biological_mother_id", "") or ""
+                ).strip()
+                father_id = str(
+                    person.get("biological_father_id", "") or ""
+                ).strip()
+                mother_status = str(
+                    person.get("biological_mother_status", "unknown") or "unknown"
+                ).strip().casefold()
+                father_status = str(
+                    person.get("biological_father_status", "unknown") or "unknown"
+                ).strip().casefold()
+                person["biological_mother_status"] = (
+                    "person"
+                    if mother_id
+                    else "muggle" if mother_status == "muggle" else "unknown"
+                )
+                person["biological_father_status"] = (
+                    "person"
+                    if father_id
+                    else "muggle" if father_status == "muggle" else "unknown"
+                )
+                person["timeline_events"] = normalize_timeline_events(
+                    person.get("timeline_events", [])
+                )
+                person["mate_ids"] = [
+                    str(mate_id).strip()
+                    for mate_id in person.get("mate_ids", [])
+                    if str(mate_id).strip()
+                ]
+
+                if not mother_id or not father_id or mother_id == father_id:
+                    continue
+
+                mother = people_by_id.get(mother_id)
+                father = people_by_id.get(father_id)
+
+                if mother is None or father is None:
+                    continue
+
+                mother_mates = mother.setdefault("mate_ids", [])
+                father_mates = father.setdefault("mate_ids", [])
+
+                if father_id not in mother_mates:
+                    mother_mates.append(father_id)
+
+                if mother_id not in father_mates:
+                    father_mates.append(mother_id)
+
+            migrated = True
+
+        if schema_version < 6:
+            people = [
+                person
+                for person in database_data.get("people", [])
+                if isinstance(person, dict)
+            ]
+            children_by_parent = {}
+
+            for child in people:
+                for parent_id in (
+                    child.get("biological_mother_id"),
+                    child.get("biological_father_id"),
+                ):
+                    normalized_parent_id = str(parent_id or "").strip()
+
+                    if normalized_parent_id:
+                        children_by_parent.setdefault(
+                            normalized_parent_id,
+                            [],
+                        ).append(child)
+
+            for parent in people:
+                parent_id = str(parent.get("record_id", "") or "")
+                children = children_by_parent.get(parent_id, [])
+                child_ids = {
+                    str(child.get("record_id", "") or "")
+                    for child in children
+                }
+                events = [
+                    event
+                    for event in normalize_timeline_events(
+                        parent.get("timeline_events", [])
+                    )
+                    if not (
+                        event.get("automatic_source") == "child_assignment"
+                        and event.get("related_person_id") not in child_ids
+                    )
+                ]
+
+                for child in children:
+                    child_id = str(child.get("record_id", "") or "")
+                    matching_index = None
+
+                    for index, event in enumerate(events):
+                        if (
+                            event.get("automatic_source") == "child_assignment"
+                            and event.get("related_person_id") == child_id
+                        ):
+                            matching_index = index
+                            break
+
+                    synchronized_event = automatic_child_timeline_event(
+                        child,
+                        events[matching_index]
+                        if matching_index is not None
+                        else None,
+                    )
+
+                    if matching_index is None:
+                        events.append(synchronized_event)
+                    else:
+                        events[matching_index] = synchronized_event
+
+                parent["timeline_events"] = normalize_timeline_events(events)
+
+            schema_version = 6
+            migrated = True
+
+        metadata["schema_version"] = 6
+        metadata["database_version"] = "0.6.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -150,6 +351,34 @@ class JsonDatabase:
                 raise ValueError(f"Duplicate displayed name: {displayed_name}")
 
             seen_displayed_names.add(normalized_name)
+
+            for field_name in ("biological_mother_id", "biological_father_id"):
+                parent_id = person.get(field_name, "")
+
+                if not isinstance(parent_id, str):
+                    raise TypeError(f"{field_name} must be a person identifier.")
+
+            for field_name in (
+                "biological_mother_status",
+                "biological_father_status",
+            ):
+                if person.get(field_name, "unknown") not in (
+                    "unknown",
+                    "muggle",
+                    "person",
+                ):
+                    raise ValueError(
+                        f"{field_name} must be unknown, muggle, or person."
+                    )
+
+            mate_ids = person.get("mate_ids", [])
+
+            if not isinstance(mate_ids, list) or any(
+                not isinstance(mate_id, str) for mate_id in mate_ids
+            ):
+                raise TypeError("mate_ids must be a list of person identifiers.")
+
+            normalize_timeline_events(person.get("timeline_events", []))
 
     def list_people(self):
         return deepcopy(self.data["people"])
@@ -229,6 +458,20 @@ class JsonDatabase:
                 continue
 
             deleted_person = self.data["people"].pop(index)
+
+            for related_person in self.data["people"]:
+                if related_person.get("biological_mother_id") == record_id:
+                    related_person["biological_mother_id"] = ""
+
+                if related_person.get("biological_father_id") == record_id:
+                    related_person["biological_father_id"] = ""
+
+                related_person["mate_ids"] = [
+                    mate_id
+                    for mate_id in related_person.get("mate_ids", [])
+                    if mate_id != record_id
+                ]
+
             self.dirty = True
 
             return deepcopy(deleted_person)
