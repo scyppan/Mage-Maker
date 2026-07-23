@@ -2,7 +2,7 @@
   "_database": {
     "schema_version": 9,
     "database_version": "0.9.0",
-    "last_saved": "2026-07-23T00:46:35.743690+00:00"
+    "last_saved": "2026-07-23T11:55:46.898743+00:00"
   },
   "people": [
     {
@@ -110,7 +110,7 @@
         {
           "event_id": "life-start:starting-location",
           "event_type": "starting_location",
-          "detail": "Limerick",
+          "detail": "Mungret",
           "date": "0901",
           "note": "",
           "related_person_id": "",
@@ -139,12 +139,12 @@
         }
       ],
       "school": "",
-      "notes": "",
+      "notes": "Maeve trained the healers that eventually started the Erehnoll line.",
       "imported_fields": {},
       "record_id": "6cea2c79-66b4-4018-88f1-6238ad15ebd7",
       "created_at": "2026-07-22T13:12:34.505848+00:00",
-      "last_updated": "2026-07-23T00:46:35.742595+00:00",
-      "death_year": null,
+      "last_updated": "2026-07-23T10:42:43.852550+00:00",
+      "death_year": 1040,
       "death_month": null,
       "death_day": null,
       "famous_person": true
@@ -221,7 +221,7 @@
       "birth_year": null,
       "birth_month": null,
       "birth_day": null,
-      "deceased": false,
+      "deceased": true,
       "canon": false,
       "player_character": false,
       "non_magical": false,
@@ -269,9 +269,528 @@
       "imported_fields": {},
       "record_id": "ccde7cef-2aff-4be4-974f-c72ffe652c71",
       "created_at": "2026-07-22T23:53:53.103383+00:00",
-      "last_updated": "2026-07-22T23:53:53.103383+00:00"
+      "last_updated": "2026-07-23T03:34:42.046432+00:00",
+      "death_year": null,
+      "death_month": null,
+      "death_day": null,
+      "famous_person": false
     }
   ],
-  "locations": [],
-  "organizations": []
+  "locations": [
+    {
+      "name": "Limerick",
+      "parent_location_id": "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
+      "demographics": "",
+      "notes": "",
+      "timeline_events": [],
+      "record_id": "9ea34a81-6c79-4524-90fc-7c61c4b7d2a3",
+      "created_at": "2026-07-23T04:00:17.527968+00:00",
+      "last_updated": "2026-07-23T09:10:57.509415+00:00",
+      "extinct": false,
+      "extinction_year": ""
+    },
+    {
+      "name": "London",
+      "parent_location_id": "fd02c4e8-9159-48c6-8143-d329cb7af046",
+      "demographics": "",
+      "notes": "",
+      "timeline_events": [],
+      "record_id": "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
+      "created_at": "2026-07-23T04:00:17.528033+00:00",
+      "last_updated": "2026-07-23T04:57:20.328691+00:00",
+      "extinct": false,
+      "extinction_year": ""
+    },
+    {
+      "name": "Wessex",
+      "parent_location_id": "57d0dfb7-c6ac-4f6d-baa8-4a0eb0ff89f1",
+      "demographics": "",
+      "notes": "",
+      "timeline_events": [],
+      "record_id": "007cba6d-7f7a-4c8e-b46d-0f0f41372631",
+      "created_at": "2026-07-23T04:00:17.528059+00:00",
+      "last_updated": "2026-07-23T09:10:29.963197+00:00",
+      "extinct": false,
+      "extinction_year": ""
+    },
+    {
+      "name": "Amazonia",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "Including Brazil and Uruguay",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
+      "created_at": "2026-07-23T04:45:05.642791+00:00",
+      "last_updated": "2026-07-23T04:45:05.642791+00:00"
+    },
+    {
+      "name": "Anatolia and the Caucasus",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "e05e5b3e-920c-481b-a83e-74653bf0041d",
+      "created_at": "2026-07-23T04:45:30.920973+00:00",
+      "last_updated": "2026-07-23T04:45:44.117277+00:00"
+    },
+    {
+      "name": "Antarctica & Sth Ocean Lands",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "c313fe65-a0f6-48d1-8cbc-930afd40e7a1",
+      "created_at": "2026-07-23T04:46:01.330074+00:00",
+      "last_updated": "2026-07-23T04:46:21.353775+00:00"
+    },
+    {
+      "name": "Australasia",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "2aaea415-1b04-4746-acfe-9e506dfa0821",
+      "created_at": "2026-07-23T04:46:41.789080+00:00",
+      "last_updated": "2026-07-23T04:46:41.789080+00:00"
+    },
+    {
+      "name": "British Isles",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "96103198-d236-4041-92af-7fb8580ae909",
+      "created_at": "2026-07-23T04:46:56.306646+00:00",
+      "last_updated": "2026-07-23T04:46:56.306646+00:00"
+    },
+    {
+      "name": "Caribbean and the Guianas",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "08274fd3-f173-42a1-af64-d9dee8b2e954",
+      "created_at": "2026-07-23T04:47:09.859391+00:00",
+      "last_updated": "2026-07-23T04:47:09.859391+00:00"
+    },
+    {
+      "name": "Central and East Asia",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "9cd62c58-683b-4a71-b688-8a2e8f767f0a",
+      "created_at": "2026-07-23T04:47:16.069439+00:00",
+      "last_updated": "2026-07-23T04:47:19.910753+00:00"
+    },
+    {
+      "name": "East Africa",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "4472b7a0-b560-4f03-9c4b-e17c6fc6298f",
+      "created_at": "2026-07-23T04:47:25.441378+00:00",
+      "last_updated": "2026-07-23T04:47:29.856186+00:00"
+    },
+    {
+      "name": "Eastern Europe & North Asia",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "12e87d6e-0570-483c-a53d-abb744981705",
+      "created_at": "2026-07-23T04:47:48.904683+00:00",
+      "last_updated": "2026-07-23T04:47:48.904683+00:00"
+    },
+    {
+      "name": "Himilayas",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "c7490d17-4237-4605-8d21-5e35daf7d3cd",
+      "created_at": "2026-07-23T04:48:03.932778+00:00",
+      "last_updated": "2026-07-23T04:48:03.932778+00:00"
+    },
+    {
+      "name": "Japan",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "6c2cbcd9-1f55-4145-a16b-48527adfec42",
+      "created_at": "2026-07-23T04:48:19.841348+00:00",
+      "last_updated": "2026-07-23T04:48:19.841348+00:00"
+    },
+    {
+      "name": "Korea",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "b3efff04-47c9-4f7f-bb3e-c43d623845c9",
+      "created_at": "2026-07-23T04:48:26.500777+00:00",
+      "last_updated": "2026-07-23T04:48:26.500777+00:00"
+    },
+    {
+      "name": "Malay Archipelago",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "2429b538-2277-47bd-a4a7-10d5c4313295",
+      "created_at": "2026-07-23T04:48:36.963196+00:00",
+      "last_updated": "2026-07-23T04:48:36.963196+00:00"
+    },
+    {
+      "name": "Medioamericana",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "0cea734a-7a05-4327-9c8c-30fbb79aa497",
+      "created_at": "2026-07-23T04:48:46.327796+00:00",
+      "last_updated": "2026-07-23T04:48:46.327796+00:00"
+    },
+    {
+      "name": "Mediterranean",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "f490692b-7d19-4399-8f19-d1a48ca1bf27",
+      "created_at": "2026-07-23T04:48:55.089499+00:00",
+      "last_updated": "2026-07-23T04:48:55.089499+00:00"
+    },
+    {
+      "name": "Mexico",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "b140ddd1-77e2-4387-9a6d-d773c6b1fbb1",
+      "created_at": "2026-07-23T04:49:04.112859+00:00",
+      "last_updated": "2026-07-23T04:49:04.112859+00:00"
+    },
+    {
+      "name": "West Asia & North Africa",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "b8db052f-3f7d-4a18-84bf-b82297d37553",
+      "created_at": "2026-07-23T04:51:27.689527+00:00",
+      "last_updated": "2026-07-23T04:51:42.936849+00:00"
+    },
+    {
+      "name": "North America & Greenland",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "75038204-dd2e-41ce-83fb-c1ca009f0120",
+      "created_at": "2026-07-23T04:52:02.562681+00:00",
+      "last_updated": "2026-07-23T04:52:14.230565+00:00"
+    },
+    {
+      "name": "Nordic Lands and the Baltics",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "89f1088e-0d18-4490-9bb9-f16622473e9a",
+      "created_at": "2026-07-23T04:52:34.025761+00:00",
+      "last_updated": "2026-07-23T04:52:34.025761+00:00"
+    },
+    {
+      "name": "Oceania",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "274823c0-acc2-4303-b637-789e5e4201ca",
+      "created_at": "2026-07-23T04:52:59.193089+00:00",
+      "last_updated": "2026-07-23T04:52:59.193089+00:00"
+    },
+    {
+      "name": "Patagonia",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "f86be06c-3619-4451-8ffa-7b07fc9bb729",
+      "created_at": "2026-07-23T04:53:10.142507+00:00",
+      "last_updated": "2026-07-23T04:53:10.142507+00:00"
+    },
+    {
+      "name": "South and Southeast Asia",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "f67161b0-26f6-42f1-a38a-f8eff63764a5",
+      "created_at": "2026-07-23T04:53:20.800608+00:00",
+      "last_updated": "2026-07-23T04:53:20.800608+00:00"
+    },
+    {
+      "name": "Southern Africa",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "466b6a13-2064-49ec-865e-d4cad092bf70",
+      "created_at": "2026-07-23T04:53:28.951417+00:00",
+      "last_updated": "2026-07-23T04:53:28.951417+00:00"
+    },
+    {
+      "name": "West Africa",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "3892e5ff-64ff-4e48-9a24-236c4c0ffb62",
+      "created_at": "2026-07-23T04:53:37.391791+00:00",
+      "last_updated": "2026-07-23T04:53:37.391791+00:00"
+    },
+    {
+      "name": "Western Europe",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "cce73c77-b94d-47a5-b386-66387b3dcd8d",
+      "created_at": "2026-07-23T04:53:45.736334+00:00",
+      "last_updated": "2026-07-23T04:53:45.736334+00:00"
+    },
+    {
+      "name": "Western South America",
+      "parent_location_id": "",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "a9f4af34-8d43-4b22-a38a-3ce8786e219c",
+      "created_at": "2026-07-23T04:53:57.791832+00:00",
+      "last_updated": "2026-07-23T04:53:57.791832+00:00"
+    },
+    {
+      "name": "England",
+      "parent_location_id": "96103198-d236-4041-92af-7fb8580ae909",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "fd02c4e8-9159-48c6-8143-d329cb7af046",
+      "created_at": "2026-07-23T04:54:28.974899+00:00",
+      "last_updated": "2026-07-23T04:54:28.974899+00:00"
+    },
+    {
+      "name": "Wales",
+      "parent_location_id": "96103198-d236-4041-92af-7fb8580ae909",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "6f9fe3a8-2965-4562-bb9a-8dbd2b9b47a7",
+      "created_at": "2026-07-23T04:54:32.023401+00:00",
+      "last_updated": "2026-07-23T04:54:32.023401+00:00"
+    },
+    {
+      "name": "Scotland",
+      "parent_location_id": "96103198-d236-4041-92af-7fb8580ae909",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "d3ba12b1-afe7-443b-a75b-31de101048c6",
+      "created_at": "2026-07-23T04:54:36.187623+00:00",
+      "last_updated": "2026-07-23T04:54:36.187623+00:00"
+    },
+    {
+      "name": "Northern Ireland",
+      "parent_location_id": "96103198-d236-4041-92af-7fb8580ae909",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "44ac45e5-e027-4505-ac14-01df65bbc2a7",
+      "created_at": "2026-07-23T04:54:42.076171+00:00",
+      "last_updated": "2026-07-23T04:54:42.076171+00:00"
+    },
+    {
+      "name": "Ireland",
+      "parent_location_id": "96103198-d236-4041-92af-7fb8580ae909",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
+      "created_at": "2026-07-23T04:54:46.905076+00:00",
+      "last_updated": "2026-07-23T04:54:46.905076+00:00"
+    },
+    {
+      "name": "North of England",
+      "parent_location_id": "fd02c4e8-9159-48c6-8143-d329cb7af046",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "6a1ad229-4cd5-4a5f-8240-ca1da38abb7e",
+      "created_at": "2026-07-23T04:56:04.465814+00:00",
+      "last_updated": "2026-07-23T04:56:04.465814+00:00"
+    },
+    {
+      "name": "South of England",
+      "parent_location_id": "fd02c4e8-9159-48c6-8143-d329cb7af046",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "57d0dfb7-c6ac-4f6d-baa8-4a0eb0ff89f1",
+      "created_at": "2026-07-23T04:56:12.362727+00:00",
+      "last_updated": "2026-07-23T04:56:12.362727+00:00"
+    },
+    {
+      "name": "Midlands",
+      "parent_location_id": "fd02c4e8-9159-48c6-8143-d329cb7af046",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "da9f9f1e-2244-44b9-94de-28d679b0cd40",
+      "created_at": "2026-07-23T04:56:27.198544+00:00",
+      "last_updated": "2026-07-23T04:56:27.198544+00:00"
+    },
+    {
+      "name": "Mungret",
+      "parent_location_id": "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
+      "demographics": "",
+      "notes": "",
+      "timeline_events": [],
+      "extinct": false,
+      "extinction_year": "",
+      "record_id": "6d806b4b-6308-428f-a332-7581faed8cfc",
+      "created_at": "2026-07-23T10:42:43.871649+00:00",
+      "last_updated": "2026-07-23T11:50:12.193166+00:00"
+    }
+  ],
+  "organizations": [],
+  "events": [
+    {
+      "event_type": "other",
+      "title": "Monastery at Mungret established",
+      "date": "551",
+      "description": "Muggle established the monastery.",
+      "person_ids": [],
+      "period_names": [],
+      "location_ids": [
+        "6d806b4b-6308-428f-a332-7581faed8cfc"
+      ],
+      "record_id": "9c83b2f5-02c8-4057-88dc-29efdbbf309c",
+      "created_at": "2026-07-23T11:40:02.541008+00:00",
+      "last_updated": "2026-07-23T11:40:02.541008+00:00"
+    },
+    {
+      "event_type": "other",
+      "title": "Viking raids elsewhere in Ireland begin",
+      "date": "795",
+      "description": "Vikings begin raiding Irish coasts. Mungret was more resilient to these attacks leading to its population growth and the eventual establishment of a small magical community.",
+      "person_ids": [],
+      "period_names": [],
+      "location_ids": [
+        "6d806b4b-6308-428f-a332-7581faed8cfc"
+      ],
+      "record_id": "fda6bed7-6574-4137-b394-6460f0775f18",
+      "created_at": "2026-07-23T11:41:18.455518+00:00",
+      "last_updated": "2026-07-23T11:41:18.455518+00:00"
+    },
+    {
+      "event_type": "founding",
+      "title": "Limerick founded by the Vikings",
+      "date": "922",
+      "description": "Limerick was established as a trade hub by the vikings.",
+      "person_ids": [],
+      "period_names": [],
+      "location_ids": [
+        "9ea34a81-6c79-4524-90fc-7c61c4b7d2a3"
+      ],
+      "record_id": "3a51f338-35f7-446d-b641-9ebb1153a37f",
+      "created_at": "2026-07-23T11:50:56.194090+00:00",
+      "last_updated": "2026-07-23T11:50:56.194090+00:00"
+    },
+    {
+      "event_type": "other",
+      "title": "Limerick becomes larger than Mungret",
+      "date": "951",
+      "description": "The population of Limerick becomes larger than the population of Mungret.",
+      "person_ids": [],
+      "period_names": [],
+      "location_ids": [
+        "9ea34a81-6c79-4524-90fc-7c61c4b7d2a3"
+      ],
+      "record_id": "322ffa45-7b89-43c6-943a-dd6cd30286e1",
+      "created_at": "2026-07-23T11:55:46.897862+00:00",
+      "last_updated": "2026-07-23T11:55:46.897862+00:00"
+    }
+  ]
 }

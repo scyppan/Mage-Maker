@@ -17,6 +17,7 @@ from mage_maker.sections.timeline.events import (
     normalize_timeline_events,
 )
 from mage_maker.sections.timeline.locations import ensure_life_start_events
+from mage_maker.sections.events.models import normalize_world_events
 
 
 class JsonDatabase:
@@ -39,7 +40,7 @@ class JsonDatabase:
     def ensure_application_collections(self, database_data):
         changed = False
 
-        for collection_name in ("locations", "organizations"):
+        for collection_name in ("locations", "organizations", "events"):
             if collection_name not in database_data:
                 database_data[collection_name] = []
                 changed = True
@@ -365,7 +366,7 @@ class JsonDatabase:
         if not isinstance(database_data.get("people"), list):
             raise TypeError("The database must contain a people collection.")
 
-        for collection_name in ("locations", "organizations"):
+        for collection_name in ("locations", "organizations", "events"):
             if not isinstance(database_data.get(collection_name), list):
                 raise TypeError(
                     f"The database must contain a {collection_name} collection."
@@ -445,7 +446,7 @@ class JsonDatabase:
 
             normalize_timeline_events(person.get("timeline_events", []))
 
-        for collection_name in ("locations", "organizations"):
+        for collection_name in ("locations", "organizations", "events"):
             seen_record_ids = set()
 
             for record in database_data[collection_name]:
@@ -467,6 +468,8 @@ class JsonDatabase:
                     )
 
                 seen_record_ids.add(record_id)
+
+        normalize_world_events(database_data["events"])
 
     def list_people(self):
         return deepcopy(self.data["people"])
@@ -567,6 +570,19 @@ class JsonDatabase:
                     if relationship["person_id"] != record_id
                 ]
 
+            retained_events = []
+
+            for event in self.data.get("events", []):
+                event["person_ids"] = [
+                    person_id
+                    for person_id in event.get("person_ids", [])
+                    if person_id != record_id
+                ]
+
+                retained_events.append(event)
+
+            self.data["events"] = retained_events
+
             self.dirty = True
 
             return deepcopy(deleted_person)
@@ -574,7 +590,7 @@ class JsonDatabase:
         raise KeyError(f"Unknown person record_id: {record_id}")
 
     def list_records(self, collection_name):
-        if collection_name not in ("locations", "organizations"):
+        if collection_name not in ("locations", "organizations", "events"):
             raise KeyError(f"Unknown application collection: {collection_name}")
 
         return deepcopy(self.data[collection_name])

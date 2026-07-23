@@ -12,6 +12,8 @@ EVENT_TYPES = (
     ("had_child", "Had a child"),
     ("got_married", "Got married"),
     ("started_school", "Started at school"),
+    ("opened_business", "Opened a business"),
+    ("got_job", "Got a job"),
     ("relocated", "Relocated"),
     ("name_change", "Name change"),
     ("custom", "Custom event"),
@@ -138,6 +140,16 @@ def timeline_event_summary(event):
     if event_type == "started_school":
         return f"Started at {detail} school" if detail else "Started at school"
 
+    if event_type == "opened_business":
+        return (
+            f"Opened a business: {detail}"
+            if detail
+            else "Opened a business"
+        )
+
+    if event_type == "got_job":
+        return f"Got a job: {detail}" if detail else "Got a job"
+
     if event_type == "relocated":
         return f"Relocated to {detail}" if detail else "Relocated"
 
@@ -156,6 +168,8 @@ def timeline_detail_label(event_type):
         "had_child": "Child's name",
         "got_married": "Spouse or event detail",
         "started_school": "School name",
+        "opened_business": "Business name",
+        "got_job": "Job or employer",
         "relocated": "New location",
         "name_change": "New name",
         "custom": "Event description",

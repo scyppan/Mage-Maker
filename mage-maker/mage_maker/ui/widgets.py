@@ -1,4 +1,5 @@
 import tkinter as tk
+from functools import partial
 
 from mage_maker.ui.theme import (
     BORDER,
@@ -11,6 +12,7 @@ from mage_maker.ui.theme import (
     FIELD_DISABLED,
     FIELD_FOCUS,
     FIELD_HOVER,
+    LIST_HOVER,
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
@@ -236,6 +238,252 @@ class RoundedEntry(tk.Frame):
         self.bind(sequence, command)
         self.canvas.bind(sequence, command)
         self.entry.bind(sequence, command)
+
+
+class RoundedSelect(tk.Frame):
+    def __init__(
+        self,
+        parent,
+        textvariable,
+        values,
+        background=SURFACE,
+        fill=FIELD_BACKGROUND,
+        width=180,
+        height=40,
+        radius=CONTROL_RADIUS,
+        font=app_font(11),
+    ):
+        super().__init__(
+            parent,
+            bg=background,
+            width=width,
+            height=height,
+            takefocus=1,
+            cursor="hand2",
+        )
+        self.textvariable = textvariable
+        self.values = [str(value) for value in values]
+        self.background = background
+        self.normal_fill = fill
+        self.hover_fill = FIELD_HOVER
+        self.focus_outline = FIELD_FOCUS
+        self.border_outline = BORDER
+        self.disabled_fill = FIELD_DISABLED
+        self.font = font
+        self.radius = radius
+        self.is_enabled = True
+        self.has_focus = False
+        self.grid_propagate(False)
+        self.pack_propagate(False)
+        self.canvas = tk.Canvas(
+            self,
+            bg=background,
+            highlightthickness=0,
+            borderwidth=0,
+            takefocus=1,
+            cursor="hand2",
+        )
+        self.canvas.pack(fill="both", expand=True)
+        self.shape = self.canvas.create_polygon(
+            rounded_points(width, height, radius),
+            smooth=True,
+            splinesteps=24,
+            fill=fill,
+            outline=BORDER,
+            width=1,
+        )
+        self.label = self.canvas.create_text(
+            12,
+            height // 2,
+            text=str(self.textvariable.get() or ""),
+            fill=TEXT_DARK,
+            font=font,
+            anchor="w",
+        )
+        self.arrow = self.canvas.create_text(
+            width - 15,
+            height // 2,
+            text="▾",
+            fill=TEXT_MUTED,
+            font=app_font(10, "bold"),
+            anchor="center",
+        )
+        self.menu = tk.Menu(
+            self,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            disabledforeground=TEXT_DISABLED,
+            relief="solid",
+            borderwidth=1,
+            font=font,
+        )
+        self.variable_trace = self.textvariable.trace_add(
+            "write",
+            self.variable_changed,
+        )
+        self.rebuild_menu()
+        self.bind("<Configure>", self.handle_resize)
+        self.bind("<Button-1>", self.show_menu)
+        self.bind("<Enter>", self.handle_enter)
+        self.bind("<Leave>", self.handle_leave)
+        self.bind("<FocusIn>", self.handle_focus_in)
+        self.bind("<FocusOut>", self.handle_focus_out)
+        self.bind("<Return>", self.show_menu)
+        self.bind("<space>", self.show_menu)
+        self.bind("<Up>", self.select_previous)
+        self.bind("<Down>", self.select_next)
+        self.canvas.bind("<Button-1>", self.show_menu)
+        self.canvas.bind("<Enter>", self.handle_enter)
+        self.canvas.bind("<Leave>", self.handle_leave)
+        self.canvas.bind("<FocusIn>", self.handle_focus_in)
+        self.canvas.bind("<FocusOut>", self.handle_focus_out)
+        self.canvas.bind("<Return>", self.show_menu)
+        self.canvas.bind("<space>", self.show_menu)
+        self.canvas.bind("<Up>", self.select_previous)
+        self.canvas.bind("<Down>", self.select_next)
+
+    def rebuild_menu(self):
+        self.menu.delete(0, "end")
+
+        for value in self.values:
+            self.menu.add_command(
+                label=value,
+                command=partial(self.select_value, value),
+            )
+
+    def set_values(self, values):
+        self.values = [str(value) for value in values]
+        self.rebuild_menu()
+
+        if self.values and self.textvariable.get() not in self.values:
+            self.textvariable.set(self.values[0])
+
+    def set_enabled(self, enabled):
+        self.is_enabled = bool(enabled)
+        cursor = "hand2" if self.is_enabled else "arrow"
+        self.configure(cursor=cursor)
+        self.canvas.configure(cursor=cursor)
+        self.set_fill(
+            self.normal_fill
+            if self.is_enabled
+            else self.disabled_fill
+        )
+        self.canvas.itemconfigure(
+            self.label,
+            fill=TEXT_DARK if self.is_enabled else TEXT_DISABLED,
+        )
+        self.canvas.itemconfigure(
+            self.arrow,
+            fill=TEXT_MUTED if self.is_enabled else TEXT_DISABLED,
+        )
+
+    def select_value(self, value):
+        if not self.is_enabled:
+            return
+
+        self.textvariable.set(str(value))
+        self.event_generate("<<RoundedSelectSelected>>")
+
+    def select_previous(self, event=None):
+        return self.select_adjacent(-1)
+
+    def select_next(self, event=None):
+        return self.select_adjacent(1)
+
+    def select_adjacent(self, direction):
+        if not self.is_enabled or not self.values:
+            return "break"
+
+        current_value = str(self.textvariable.get() or "")
+        current_index = (
+            self.values.index(current_value)
+            if current_value in self.values
+            else 0
+        )
+        next_index = max(
+            0,
+            min(
+                len(self.values) - 1,
+                current_index + int(direction),
+            ),
+        )
+
+        if next_index != current_index or current_value not in self.values:
+            self.select_value(self.values[next_index])
+
+        return "break"
+
+    def show_menu(self, event=None):
+        if not self.is_enabled or not self.values:
+            return "break"
+
+        self.canvas.focus_set()
+        self.update_idletasks()
+
+        try:
+            self.menu.tk_popup(
+                self.winfo_rootx(),
+                self.winfo_rooty() + self.winfo_height(),
+            )
+        finally:
+            self.menu.grab_release()
+
+        return "break"
+
+    def variable_changed(self, *arguments):
+        self.canvas.itemconfigure(
+            self.label,
+            text=str(self.textvariable.get() or ""),
+        )
+
+    def handle_resize(self, event):
+        width = max(2, event.width)
+        height = max(2, event.height)
+        self.canvas.coords(
+            self.shape,
+            *rounded_points(width, height, self.radius),
+        )
+        self.canvas.coords(self.label, 12, height // 2)
+        self.canvas.coords(self.arrow, width - 15, height // 2)
+
+    def handle_enter(self, event=None):
+        if self.is_enabled and not self.has_focus:
+            self.set_fill(self.hover_fill)
+
+    def handle_leave(self, event=None):
+        if self.is_enabled and not self.has_focus:
+            self.set_fill(self.normal_fill)
+
+    def handle_focus_in(self, event=None):
+        self.has_focus = True
+        self.set_fill(self.normal_fill)
+        self.canvas.itemconfigure(
+            self.shape,
+            outline=self.focus_outline,
+            width=2,
+        )
+
+    def handle_focus_out(self, event=None):
+        self.has_focus = False
+        self.set_fill(
+            self.normal_fill
+            if self.is_enabled
+            else self.disabled_fill
+        )
+        self.canvas.itemconfigure(
+            self.shape,
+            outline=self.border_outline,
+            width=1,
+        )
+
+    def set_fill(self, fill):
+        self.canvas.itemconfigure(self.shape, fill=fill)
+
+    def focus_set(self):
+        self.canvas.focus_set()
 
 
 class RoundedText(tk.Frame):

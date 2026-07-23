@@ -2,8 +2,6 @@ import tkinter as tk
 from tkinter import messagebox
 
 from mage_maker.core.dates import split_partial_date
-from mage_maker.sections.events.dialog import WorldEventDialog
-from mage_maker.sections.events.models import world_event_type_label
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
     WORLD_LOCATION_LABEL,
@@ -11,6 +9,7 @@ from mage_maker.sections.locations.location_hierarchy import (
     location_ids_in_scope,
 )
 from mage_maker.sections.locations.models import descendant_ids
+from mage_maker.sections.locations.periods_page import PeriodsPage
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
@@ -49,87 +48,50 @@ PROPAGATED_EVENT_COLORS = (
 )
 
 
-def location_scope_after_parent_change(
-    scope_location_id,
-    previous_parent_location_id,
-    next_parent_location_id,
-):
-    previous_parent_id = str(
-        previous_parent_location_id or ""
-    ).strip()
-    next_parent_id = str(next_parent_location_id or "").strip()
-
-    if previous_parent_id != next_parent_id:
-        return ""
-
-    return str(scope_location_id or "").strip()
-
-
 class LocationPage(tk.Frame):
-    def __init__(
-        self,
-        parent,
-        controller,
-        status_command,
-        navigate_person_command,
-        scope_change_command=None,
-        event_controller=None,
-        navigate_event_command=None,
-        events_changed_command=None,
-    ):
+    def __init__(self, parent, controller, status_command, navigate_person_command):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
         self.status_command = status_command
         self.navigate_person_command = navigate_person_command
-        self.scope_change_command = scope_change_command
-        self.event_controller = event_controller
-        self.navigate_event_command = navigate_event_command
-        self.events_changed_command = events_changed_command
         self.locations = []
         self.visible_events = []
-        self.selected_timeline_event_id = ""
         self.current_location_id = None
+        self.active_section_name = "locations"
         self.creating_location = False
         self.region_lock_id = ""
         self.selected_parent_location_id = ""
-        self.loaded_parent_location_id = ""
-        self.content = None
+        self.section_pages = {}
+        self.section_buttons = {}
+        self.toolbar_title_value = tk.StringVar(value="Locations")
         self.editor_heading_value = tk.StringVar(value="Location details")
         self.parent_path_value = tk.StringVar(value=WORLD_LOCATION_LABEL)
         self.name_value = tk.StringVar()
         self.extinct_value = tk.BooleanVar(value=False)
         self.extinction_year_value = tk.StringVar()
-        self.timeline_type_value = tk.StringVar(
-            value="No event selected"
-        )
-        self.timeline_date_value = tk.StringVar(value="Date: nd.")
-        self.timeline_people_value = tk.StringVar(value="None")
-        self.timeline_periods_value = tk.StringVar(value="None")
-        self.timeline_locations_value = tk.StringVar(value="None")
-        self.timeline_source_value = tk.StringVar(
-            value="Select an event to view its details."
-        )
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_toolbar()
+        self.build_navigation()
         self.build_content()
         self.refresh()
+        self.show_section("locations")
 
     def build_toolbar(self):
         toolbar = tk.Frame(self, bg=PRIMARY_DARK, height=64)
         toolbar.grid(row=0, column=0, sticky="ew")
         toolbar.grid_propagate(False)
         toolbar.grid_columnconfigure(0, weight=1)
-        title = tk.Label(
+        self.toolbar_title = tk.Label(
             toolbar,
-            text="Locations",
+            textvariable=self.toolbar_title_value,
             bg=PRIMARY_DARK,
             fg=TEXT_LIGHT,
             font=app_font(16, "bold"),
             anchor="w",
             padx=20,
         )
-        title.grid(row=0, column=0, sticky="nsew")
+        self.toolbar_title.grid(row=0, column=0, sticky="nsew")
         self.new_location_button = SoftButton(
             toolbar,
             text="New location",
@@ -160,12 +122,50 @@ class LocationPage(tk.Frame):
             pady=13,
         )
 
+    def build_navigation(self):
+        navigation = tk.Frame(self, bg=APP_BACKGROUND)
+        navigation.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=18,
+            pady=(10, 0),
+        )
+
+        for section_name, label, width in (
+            ("locations", "Locations", 104),
+            ("periods", "Periods", 96),
+        ):
+            button = SoftButton(
+                navigation,
+                text=label,
+                command=LocationSectionCommand(self, section_name),
+                background=APP_BACKGROUND,
+                fill=BUTTON_SOFT,
+                hover_fill=BUTTON_SOFT_HOVER,
+                foreground=TEXT_DARK,
+                width=width,
+                height=36,
+            )
+            button.pack(side="left", padx=(0, 6))
+            self.section_buttons[section_name] = button
+
     def build_content(self):
-        self.content = tk.Frame(self, bg=APP_BACKGROUND)
-        self.content.grid(row=1, column=0, sticky="nsew")
-        self.content.grid_rowconfigure(0, weight=1)
-        self.content.grid_columnconfigure(0, weight=1)
-        self.build_workspace(self.content)
+        content = tk.Frame(self, bg=APP_BACKGROUND)
+        content.grid(row=2, column=0, sticky="nsew")
+        content.grid_rowconfigure(0, weight=1)
+        content.grid_columnconfigure(0, weight=1)
+        self.build_workspace(content)
+        self.periods_page = PeriodsPage(
+            content,
+            self.controller,
+            self.status_command,
+            self.navigate_person_command,
+            self.region_lock_changed,
+            self.open_location_from_periods,
+        )
+        self.periods_page.grid(row=0, column=0, sticky="nsew")
+        self.section_pages["periods"] = self.periods_page
 
     def build_workspace(self, parent):
         workspace = tk.PanedWindow(
@@ -184,6 +184,8 @@ class LocationPage(tk.Frame):
             padx=18,
             pady=(10, 18),
         )
+        self.section_pages["locations"] = workspace
+
         list_card = tk.Frame(
             workspace,
             bg=SURFACE,
@@ -227,10 +229,43 @@ class LocationPage(tk.Frame):
         workspace.add(list_card, minsize=290, width=330)
         workspace.add(editor_card, minsize=680)
 
+    def show_section(self, section_name):
+        if section_name not in self.section_pages:
+            return False
+
+        self.active_section_name = section_name
+
+        if section_name == "periods":
+            self.toolbar_title_value.set("Periods")
+            self.new_location_button.grid_remove()
+            self.delete_location_button.grid_remove()
+            self.periods_page.refresh()
+            self.periods_page.set_region_lock(self.region_lock_id)
+        else:
+            self.toolbar_title_value.set("Locations")
+            self.new_location_button.grid()
+            self.delete_location_button.grid()
+
+        self.section_pages[section_name].tkraise()
+
+        for name, button in self.section_buttons.items():
+            if name == section_name:
+                button.set_colors(PRIMARY, PRIMARY_HOVER, TEXT_DARK)
+            else:
+                button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
+
+        return True
+
     def save_shortcut(self):
+        if self.active_section_name == "periods":
+            return self.periods_page.save_period_details()
+
         return self.save_location()
 
     def create_shortcut(self):
+        if self.active_section_name != "locations":
+            return False
+
         self.create_location()
         return True
 
@@ -546,17 +581,8 @@ class LocationPage(tk.Frame):
             wraplength=760,
         )
         legend.grid(row=1, column=0, sticky="ew", pady=(3, 8))
-        workspace = tk.Frame(timeline_panel, bg=SURFACE_MUTED)
-        workspace.grid(row=2, column=0, sticky="nsew")
-        workspace.grid_rowconfigure(0, weight=1)
-        workspace.grid_columnconfigure(0, weight=5, uniform="location_events")
-        workspace.grid_columnconfigure(1, weight=4, uniform="location_events")
-        list_panel = tk.Frame(workspace, bg=SURFACE_MUTED)
-        list_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
-        list_panel.grid_rowconfigure(0, weight=1)
-        list_panel.grid_columnconfigure(0, weight=1)
-        list_frame = tk.Frame(list_panel, bg=SURFACE_MUTED)
-        list_frame.grid(row=0, column=0, sticky="nsew")
+        list_frame = tk.Frame(timeline_panel, bg=SURFACE_MUTED)
+        list_frame.grid(row=2, column=0, sticky="nsew")
         list_frame.grid_rowconfigure(0, weight=1)
         list_frame.grid_columnconfigure(0, weight=1)
         self.timeline_list = tk.Listbox(
@@ -574,117 +600,10 @@ class LocationPage(tk.Frame):
             exportselection=False,
         )
         self.timeline_list.grid(row=0, column=0, sticky="nsew")
-        self.timeline_list.bind(
-            "<<ListboxSelect>>",
-            self.timeline_event_selected,
-        )
-        self.timeline_list.bind("<Double-Button-1>", self.edit_event)
+        self.timeline_list.bind("<Double-Button-1>", self.open_timeline_selection)
         timeline_scrollbar = tk.Scrollbar(list_frame, command=self.timeline_list.yview)
         timeline_scrollbar.grid(row=0, column=1, sticky="ns")
         self.timeline_list.configure(yscrollcommand=timeline_scrollbar.set)
-        details_panel = tk.Frame(
-            workspace,
-            bg=FIELD_BACKGROUND,
-            highlightbackground=BORDER_SOFT,
-            highlightthickness=1,
-            padx=14,
-            pady=12,
-        )
-        details_panel.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
-        details_panel.grid_columnconfigure(0, weight=1)
-        details_panel.grid_rowconfigure(12, weight=1)
-        details_heading = tk.Label(
-            details_panel,
-            text="Selected event",
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_DARK,
-            font=app_font(11, "bold"),
-            anchor="w",
-        )
-        details_heading.grid(row=0, column=0, sticky="ew")
-        type_label = tk.Label(
-            details_panel,
-            textvariable=self.timeline_type_value,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-            justify="left",
-            wraplength=390,
-        )
-        type_label.grid(row=1, column=0, sticky="ew", pady=(11, 2))
-        date_label = tk.Label(
-            details_panel,
-            textvariable=self.timeline_date_value,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_MUTED,
-            font=app_font(9),
-            anchor="w",
-        )
-        date_label.grid(row=2, column=0, sticky="ew")
-        self.build_timeline_association_detail(
-            details_panel,
-            3,
-            "People",
-            self.timeline_people_value,
-        )
-        self.build_timeline_association_detail(
-            details_panel,
-            5,
-            "Periods",
-            self.timeline_periods_value,
-        )
-        self.build_timeline_association_detail(
-            details_panel,
-            7,
-            "Locations",
-            self.timeline_locations_value,
-        )
-        source_heading = tk.Label(
-            details_panel,
-            text="Source",
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        source_heading.grid(row=9, column=0, sticky="ew", pady=(10, 2))
-        source_label = tk.Label(
-            details_panel,
-            textvariable=self.timeline_source_value,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_DARK,
-            font=app_font(9),
-            anchor="w",
-            justify="left",
-            wraplength=390,
-        )
-        source_label.grid(row=10, column=0, sticky="ew")
-        note_heading = tk.Label(
-            details_panel,
-            text="Description",
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        note_heading.grid(row=11, column=0, sticky="ew", pady=(10, 4))
-        self.timeline_note_text = tk.Text(
-            details_panel,
-            height=5,
-            bg=SURFACE,
-            fg=TEXT_DARK,
-            relief="flat",
-            highlightbackground=BORDER_SOFT,
-            highlightthickness=1,
-            borderwidth=0,
-            font=app_font(9),
-            wrap="word",
-            padx=9,
-            pady=8,
-            state="disabled",
-        )
-        self.timeline_note_text.grid(row=12, column=0, sticky="nsew")
         event_buttons = tk.Frame(timeline_panel, bg=SURFACE_MUTED)
         event_buttons.grid(row=3, column=0, sticky="e", pady=(9, 0))
         add_button = SoftButton(
@@ -699,7 +618,7 @@ class LocationPage(tk.Frame):
             height=36,
         )
         add_button.pack(side="left", padx=(0, 6))
-        self.timeline_edit_button = SoftButton(
+        edit_button = SoftButton(
             event_buttons,
             text="Edit",
             command=self.edit_event,
@@ -710,8 +629,8 @@ class LocationPage(tk.Frame):
             width=82,
             height=36,
         )
-        self.timeline_edit_button.pack(side="left", padx=(0, 6))
-        self.timeline_remove_button = SoftButton(
+        edit_button.pack(side="left", padx=(0, 6))
+        remove_button = SoftButton(
             event_buttons,
             text="Remove",
             command=self.remove_event,
@@ -722,36 +641,7 @@ class LocationPage(tk.Frame):
             width=92,
             height=36,
         )
-        self.timeline_remove_button.pack(side="left")
-        self.update_timeline_details()
-
-    def build_timeline_association_detail(
-        self,
-        parent,
-        row,
-        title,
-        variable,
-    ):
-        heading = tk.Label(
-            parent,
-            text=title,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        heading.grid(row=row, column=0, sticky="ew", pady=(9, 2))
-        value = tk.Label(
-            parent,
-            textvariable=variable,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_DARK,
-            font=app_font(9),
-            anchor="w",
-            justify="left",
-            wraplength=390,
-        )
-        value.grid(row=row + 1, column=0, sticky="ew")
+        remove_button.pack(side="left")
 
     def refresh(self, selected_location_id=None):
         selected_id = selected_location_id or self.current_location_id
@@ -806,6 +696,11 @@ class LocationPage(tk.Frame):
             self.location_tree.select_location("")
             self.clear_form()
 
+        self.periods_page.set_region_lock(self.region_lock_id)
+
+        if self.active_section_name == "periods":
+            self.periods_page.refresh()
+
     def refresh_person_data(self):
         self.refresh(self.current_location_id)
 
@@ -832,9 +727,6 @@ class LocationPage(tk.Frame):
         self.creating_location = False
         self.editor_heading_value.set("Location details")
         self.name_value.set(str(location.get("name", "") or ""))
-        self.loaded_parent_location_id = str(
-            location.get("parent_location_id", "") or ""
-        ).strip()
         self.set_parent_location(location.get("parent_location_id", ""))
         self.extinct_value.set(bool(location.get("extinct")))
         self.extinction_year_value.set(
@@ -855,7 +747,7 @@ class LocationPage(tk.Frame):
         self.refresh_timeline()
         self.status_command(f"Loaded location {location.get('name', 'Unnamed')}")
 
-    def set_region_lock(self, location_id="", notify=False):
+    def region_lock_changed(self, location_id):
         requested_id = str(location_id or "").strip()
         available_ids = {
             str(location.get("record_id", "") or "")
@@ -866,7 +758,8 @@ class LocationPage(tk.Frame):
             requested_id = ""
 
         self.region_lock_id = requested_id
-        self.location_tree.set_scope(requested_id, notify=False)
+        self.location_tree.set_scope(requested_id)
+        self.periods_page.set_region_lock(requested_id)
 
         if (
             self.current_location_id
@@ -915,15 +808,7 @@ class LocationPage(tk.Frame):
         else:
             self.status_command("Showing all location regions")
 
-        if notify and self.scope_change_command is not None:
-            self.scope_change_command(self.region_lock_id)
-
-        return self.region_lock_id
-
-    def region_lock_changed(self, location_id):
-        return self.set_region_lock(location_id, notify=True)
-
-    def open_location(self, location_id):
+    def open_location_from_periods(self, location_id):
         requested_id = str(location_id or "").strip()
 
         if not location_id_is_in_scope(
@@ -936,6 +821,7 @@ class LocationPage(tk.Frame):
             )
             return False
 
+        self.show_section("locations")
         self.location_tree.select_location(requested_id)
         self.load_location(requested_id)
         return True
@@ -945,22 +831,9 @@ class LocationPage(tk.Frame):
 
         if not self.current_location_id:
             self.visible_events = []
-            self.selected_timeline_event_id = ""
-            self.update_timeline_details()
             return
 
         self.visible_events = self.controller.timeline_for(self.current_location_id)
-        visible_event_ids = {
-            str(event.get("event_id", "") or "")
-            for event in self.visible_events
-        }
-
-        if self.selected_timeline_event_id not in visible_event_ids:
-            self.selected_timeline_event_id = (
-                str(self.visible_events[0].get("event_id", "") or "")
-                if self.visible_events
-                else ""
-            )
 
         for index, event in enumerate(self.visible_events):
             date_text = str(event.get("date", "") or "nd.")
@@ -972,13 +845,7 @@ class LocationPage(tk.Frame):
                     f"(level {event.get('source_level', 0)})"
                 )
 
-            kind_text = (
-                "  ·  mage"
-                if event.get("event_kind") == "mage"
-                else "  ·  shared"
-                if event.get("event_kind") == "global"
-                else ""
-            )
+            kind_text = "  ·  mage" if event.get("event_kind") == "mage" else ""
             self.timeline_list.insert(
                 "end",
                 f"{date_text}  ·  {event.get('title', 'Event')}{source_text}{kind_text}",
@@ -994,157 +861,9 @@ class LocationPage(tk.Frame):
 
             self.timeline_list.itemconfigure(index, background=color)
 
-            if (
-                str(event.get("event_id", "") or "")
-                == self.selected_timeline_event_id
-            ):
-                self.timeline_list.selection_set(index)
-                self.timeline_list.see(index)
-
-        self.update_timeline_details()
-
-    def timeline_event_selected(self, event=None):
-        selected = self.timeline_list.curselection()
-
-        if not selected:
-            return
-
-        self.selected_timeline_event_id = str(
-            self.visible_events[selected[0]].get("event_id", "") or ""
-        )
-        self.update_timeline_details()
-
-    def update_timeline_details(self):
-        event = self.selected_timeline_event()
-        self.timeline_note_text.configure(state="normal")
-        self.timeline_note_text.delete("1.0", "end")
-
-        if event is None:
-            self.timeline_type_value.set("No event selected")
-            self.timeline_date_value.set("Date: nd.")
-            self.timeline_people_value.set("None")
-            self.timeline_periods_value.set("None")
-            self.timeline_locations_value.set("None")
-            self.timeline_source_value.set(
-                "Select an event to view its details."
-            )
-            self.timeline_edit_button.set_enabled(False)
-            self.timeline_remove_button.set_enabled(False)
-        else:
-            labels = self.timeline_event_association_labels(event)
-            self.timeline_type_value.set(
-                f"{self.timeline_event_type_text(event)} · "
-                f"{event.get('title', 'Event')}"
-            )
-            self.timeline_date_value.set(
-                f"Date: {event.get('date') or 'nd.'}"
-            )
-            self.timeline_people_value.set(
-                ", ".join(labels.get("people", [])) or "None"
-            )
-            self.timeline_periods_value.set(
-                ", ".join(labels.get("periods", [])) or "None"
-            )
-            self.timeline_locations_value.set(
-                ", ".join(labels.get("locations", [])) or "None"
-            )
-            self.timeline_source_value.set(
-                self.timeline_event_source_text(event)
-            )
-            self.timeline_note_text.insert(
-                "1.0",
-                str(event.get("note", "") or ""),
-            )
-            self.timeline_edit_button.set_enabled(True)
-            self.timeline_remove_button.set_enabled(
-                bool(
-                    event.get("event_kind") == "global"
-                    or (
-                        event.get("event_kind") == "location"
-                        and not event.get("propagation_distance", 0)
-                    )
-                )
-            )
-
-        self.timeline_note_text.configure(state="disabled")
-
-    def timeline_event_type_text(self, event):
-        if event.get("event_kind") == "global":
-            return world_event_type_label(event)
-
-        if event.get("event_kind") == "mage":
-            return "Personal timeline"
-
-        return "Location event"
-
-    def timeline_event_association_labels(self, event):
-        if (
-            event.get("event_kind") == "global"
-            and self.event_controller is not None
-        ):
-            return self.event_controller.association_labels(event)
-
-        people_labels = {}
-        location_labels = {}
-
-        if self.event_controller is not None:
-            people_labels = {
-                option["value"]: option["label"]
-                for option in self.event_controller.people_options()
-            }
-            location_labels = {
-                option["value"]: option["label"]
-                for option in self.event_controller.location_options()
-            }
-
-        person_id = str(event.get("related_person_id", "") or "")
-        location_id = str(event.get("origin_location_id", "") or "")
-        period_names = (
-            self.event_controller.period_names_for_date(
-                event.get("date", "")
-            )
-            if self.event_controller is not None
-            else []
-        )
-        return {
-            "people": (
-                [people_labels.get(person_id, "Missing person")]
-                if person_id
-                else []
-            ),
-            "periods": period_names,
-            "locations": (
-                [
-                    location_labels.get(
-                        location_id,
-                        event.get("origin_location_name", "Missing location"),
-                    )
-                ]
-                if location_id
-                else []
-            ),
-        }
-
-    def timeline_event_source_text(self, event):
-        if event.get("event_kind") == "global":
-            return "Shared event · visible from every linked record"
-
-        if event.get("event_kind") == "mage":
-            return "Mage timeline · edit from the linked mage"
-
-        origin_name = str(
-            event.get("origin_location_name", "") or "this location"
-        )
-
-        if event.get("propagation_distance", 0):
-            return f"Inherited from {origin_name}"
-
-        return f"Saved directly to {origin_name}"
-
     def clear_form(self, parent_location_id="", creating=False):
         self.current_location_id = None
         self.creating_location = bool(creating)
-        self.loaded_parent_location_id = ""
         self.editor_heading_value.set(
             "New location"
             if self.creating_location
@@ -1159,11 +878,10 @@ class LocationPage(tk.Frame):
         self.notes_control.text.delete("1.0", "end")
         self.timeline_list.delete(0, "end")
         self.visible_events = []
-        self.selected_timeline_event_id = ""
-        self.update_timeline_details()
         self.save_location_button.set_enabled(self.creating_location)
 
     def create_location(self):
+        self.show_section("locations")
         parent_id = (
             self.current_location_id
             if location_id_is_in_scope(
@@ -1191,12 +909,6 @@ class LocationPage(tk.Frame):
             "extinction_year": self.extinction_year_value.get(),
         }
 
-        parent_changed = bool(
-            self.current_location_id
-            and self.loaded_parent_location_id
-            != str(self.selected_parent_location_id or "").strip()
-        )
-
         try:
             if self.current_location_id:
                 saved_location = self.controller.update_location(
@@ -1212,32 +924,10 @@ class LocationPage(tk.Frame):
             return False
 
         self.creating_location = False
-        next_scope_id = location_scope_after_parent_change(
-            self.region_lock_id,
-            self.loaded_parent_location_id,
-            saved_location.get("parent_location_id", ""),
-        )
-
-        if next_scope_id != self.region_lock_id:
-            self.region_lock_id = next_scope_id
-            self.location_tree.set_scope(next_scope_id, notify=False)
-
-            if self.scope_change_command is not None:
-                self.scope_change_command(next_scope_id)
-
         self.refresh(saved_location["record_id"])
-
-        if parent_changed:
-            parent_name = self.parent_path_value.get()
-            self.status_command(
-                f"Moved {saved_location['name']} within {parent_name} "
-                "and restored the full location hierarchy"
-            )
-        else:
-            self.status_command(
-                f"{action} location {saved_location['name']}"
-            )
-
+        self.status_command(
+            f"{action} location {saved_location['name']}"
+        )
         return True
 
     def delete_location(self):
@@ -1272,29 +962,7 @@ class LocationPage(tk.Frame):
             )
             return
 
-        if self.event_controller is not None:
-            WorldEventDialog(
-                self,
-                self.event_controller,
-                saved_command=self.shared_event_saved,
-                default_location_ids=(self.current_location_id,),
-                locked_location_ids=(self.current_location_id,),
-            )
-            return
-
         LocationEventDialog(self, {}, self.save_new_event)
-
-    def shared_event_saved(self, event):
-        self.selected_timeline_event_id = str(
-            event.get("record_id", "") or ""
-        )
-        self.refresh_timeline()
-        self.status_command(
-            f"Saved shared event {event.get('title', 'Event')}"
-        )
-
-        if self.events_changed_command is not None:
-            self.events_changed_command()
 
     def save_new_event(self, values):
         try:
@@ -1319,25 +987,6 @@ class LocationPage(tk.Frame):
         event = self.selected_timeline_event()
 
         if event is None:
-            return
-
-        if event.get("event_kind") == "global":
-            if self.event_controller is None:
-                return
-
-            shared_event = self.event_controller.get_event(
-                event.get("record_id", "")
-            )
-
-            if shared_event is None:
-                return
-
-            WorldEventDialog(
-                self,
-                self.event_controller,
-                shared_event,
-                self.shared_event_saved,
-            )
             return
 
         if event.get("event_kind") != "location" or event.get(
@@ -1366,7 +1015,6 @@ class LocationPage(tk.Frame):
             messagebox.showerror("Cannot edit event", str(error), parent=self)
             return False
 
-        self.selected_timeline_event_id = event_id
         self.refresh_timeline()
         self.status_command("Updated location event")
         return True
@@ -1375,39 +1023,6 @@ class LocationPage(tk.Frame):
         event = self.selected_timeline_event()
 
         if event is None:
-            return
-
-        if event.get("event_kind") == "global":
-            if self.event_controller is None:
-                return
-
-            if not messagebox.askyesno(
-                "Remove shared event",
-                f"Remove {event.get('title', 'this event')} everywhere?",
-                parent=self,
-            ):
-                return
-
-            try:
-                deleted = self.event_controller.delete_event(
-                    event.get("record_id", "")
-                )
-            except (KeyError, TypeError, ValueError) as error:
-                messagebox.showerror(
-                    "Cannot remove event",
-                    str(error),
-                    parent=self,
-                )
-                return
-
-            self.refresh_timeline()
-            self.status_command(
-                f"Removed shared event {deleted.get('title', 'Event')}"
-            )
-
-            if self.events_changed_command is not None:
-                self.events_changed_command()
-
             return
 
         if event.get("event_kind") != "location" or event.get(
@@ -1441,8 +1056,17 @@ class LocationPage(tk.Frame):
         self.status_command("Removed location event")
 
     def open_timeline_selection(self, event=None):
-        self.timeline_event_selected(event)
-        return "break"
+        selected_event = self.selected_timeline_event()
+
+        if selected_event is None:
+            return
+
+        person_id = str(selected_event.get("related_person_id", "") or "")
+
+        if person_id:
+            self.navigate_person_command(person_id)
+        else:
+            self.edit_event()
 
 
 class LocationParentDialog(tk.Toplevel):
@@ -1694,3 +1318,12 @@ class LocationEventDialog(tk.Toplevel):
     def close_dialog(self, event=None):
         self.destroy()
         return "break"
+
+
+class LocationSectionCommand:
+    def __init__(self, page, section_name):
+        self.page = page
+        self.section_name = section_name
+
+    def __call__(self):
+        self.page.show_section(self.section_name)

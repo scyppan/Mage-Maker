@@ -1,5 +1,5 @@
-from app import App
+from launcher import run_application
 
 
-app = App()
-app.mainloop()
+if __name__ == "__main__":
+    run_application()

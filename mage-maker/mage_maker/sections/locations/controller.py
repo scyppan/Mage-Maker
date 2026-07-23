@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from mage_maker.sections.locations.models import (
     descendant_ids,
+    location_events_for_period,
     location_depth,
     location_path,
     normalize_location_event,
@@ -9,6 +10,46 @@ from mage_maker.sections.locations.models import (
     visible_location_timeline,
 )
 from mage_maker.sections.locations.periods import categorized_people_for_period
+from mage_maker.sections.timeline.locations import normalize_location
+
+
+def mage_location_names(people):
+    names = []
+    used_names = set()
+
+    for person in people if isinstance(people, list) else []:
+        if not isinstance(person, dict):
+            continue
+
+        candidates = [
+            person.get("starting_location"),
+            person.get("birth_location"),
+            person.get("current_location"),
+            person.get("location"),
+        ]
+
+        for event in person.get("timeline_events", []):
+            if not isinstance(event, dict):
+                continue
+
+            event_type = str(event.get("event_type", "") or "").strip()
+
+            if event_type in ("starting_location", "relocated"):
+                candidates.append(event.get("detail"))
+
+            candidates.append(event.get("location"))
+
+        for candidate in candidates:
+            name = " ".join(str(candidate or "").strip().split())
+            name_key = normalize_location(name)
+
+            if not name_key or name_key in used_names:
+                continue
+
+            used_names.add(name_key)
+            names.append(name)
+
+    return names
 
 
 class LocationController:
@@ -17,6 +58,7 @@ class LocationController:
         self.people_provider = people_provider
 
     def list_locations(self):
+        self.synchronize_mage_locations()
         locations = self.database.list_records("locations")
         decorated = []
 
@@ -31,6 +73,40 @@ class LocationController:
 
         decorated.sort(key=self.decorated_location_sort_key)
         return [location for path, location in decorated]
+
+    def synchronize_mage_locations(self):
+        locations = self.database.list_records("locations")
+        known_names = {
+            normalize_location(location.get("name", ""))
+            for location in locations
+            if normalize_location(location.get("name", ""))
+        }
+        created_locations = []
+
+        for location_name in mage_location_names(self.people_provider()):
+            location_key = normalize_location(location_name)
+
+            if location_key in known_names:
+                continue
+
+            normalized = normalize_location_record(
+                {
+                    "name": location_name,
+                    "parent_location_id": "",
+                    "demographics": "",
+                    "notes": "",
+                    "timeline_events": [],
+                }
+            )
+            created_locations.append(
+                self.database.create_record("locations", normalized)
+            )
+            known_names.add(location_key)
+
+        if created_locations:
+            self.database.save()
+
+        return created_locations
 
     def decorated_location_sort_key(self, decorated_location):
         return decorated_location[0]
@@ -65,6 +141,7 @@ class LocationController:
 
     def delete_location(self, record_id):
         locations = self.list_locations()
+        location = self.get_location(record_id)
         children = [
             location
             for location in locations
@@ -83,6 +160,30 @@ class LocationController:
         if linked_organizations:
             raise ValueError(
                 "Move or delete the organizations tied to this location first."
+            )
+
+        linked_events = [
+            event
+            for event in self.database.list_records("events")
+            if record_id in event.get("location_ids", [])
+        ]
+
+        if linked_events:
+            raise ValueError(
+                "Move or remove the shared events tied to this location first."
+            )
+
+        referenced_names = {
+            normalize_location(name)
+            for name in mage_location_names(self.people_provider())
+        }
+        location_name = normalize_location(
+            (location or {}).get("name", "")
+        )
+
+        if location_name and location_name in referenced_names:
+            raise ValueError(
+                "Change the mages who reference this location before deleting it."
             )
 
         deleted = self.database.delete_record("locations", record_id)
@@ -154,15 +255,32 @@ class LocationController:
             location_id,
             self.list_locations(),
             self.people_provider(),
+            self.database.list_records("events"),
         )
 
-    def people_for_period(self, start_year, end_year, location_id=""):
+    def people_for_period(
+        self,
+        start_year,
+        end_year,
+        location_id="",
+        reproductive_without_children=False,
+    ):
         return categorized_people_for_period(
             self.people_provider(),
             self.list_locations(),
             start_year,
             end_year,
             location_id,
+            reproductive_without_children,
+        )
+
+    def events_for_period(self, start_year, end_year, location_id=""):
+        return location_events_for_period(
+            start_year,
+            end_year,
+            location_id,
+            self.list_locations(),
+            self.people_provider(),
         )
 
     def parent_options(self, excluded_location_id=""):

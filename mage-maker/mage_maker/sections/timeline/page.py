@@ -1,7 +1,8 @@
 import tkinter as tk
 from copy import deepcopy
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 
+from mage_maker.core.dates import split_partial_date
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
@@ -9,6 +10,7 @@ from mage_maker.ui.theme import (
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
     FIELD_BACKGROUND,
+    LIST_ALTERNATE,
     LIST_SELECTED,
     PRIMARY,
     PRIMARY_HOVER,
@@ -18,6 +20,7 @@ from mage_maker.ui.theme import (
     TEXT_MUTED,
     app_font,
 )
+from mage_maker.sections.events.models import world_event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_LABEL_TYPES,
     EVENT_TYPES,
@@ -28,7 +31,12 @@ from mage_maker.sections.timeline.events import (
     timeline_detail_label,
     timeline_event_summary,
 )
-from mage_maker.ui.widgets import LabeledEntry, RoundedText, SoftButton
+from mage_maker.ui.widgets import (
+    LabeledEntry,
+    RoundedSelect,
+    RoundedText,
+    SoftButton,
+)
 
 
 EVENT_COLORS = {
@@ -39,6 +47,8 @@ EVENT_COLORS = {
     "had_child": "#E7D5F0",
     "got_married": "#D5EAD9",
     "started_school": "#D9E3F1",
+    "opened_business": "#E8D9C4",
+    "got_job": "#D8E3EC",
     "relocated": "#EFE3C7",
     "name_change": "#DDD2EA",
     "custom": "#E0D2E8",
@@ -53,13 +63,18 @@ class TimelineView(tk.Frame):
         people_provider=None,
         navigate_command=None,
         name_change_command=None,
+        linked_event_create_command=None,
+        linked_event_edit_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
         self.people_provider = people_provider
         self.navigate_command = navigate_command
         self.name_change_command = name_change_command
+        self.linked_event_create_command = linked_event_create_command
+        self.linked_event_edit_command = linked_event_edit_command
         self.events = []
+        self.linked_events = []
         self.visible_events = []
         self.selected_event_id = None
         self.related_person_id = ""
@@ -101,6 +116,27 @@ class TimelineView(tk.Frame):
         )
         self.add_button.grid(row=0, column=1, padx=(6, 0), pady=4)
 
+        self.add_linked_button = None
+
+        if self.linked_event_create_command is not None:
+            self.add_linked_button = SoftButton(
+                toolbar,
+                text="Add shared event",
+                command=self.linked_event_create_command,
+                background=SURFACE,
+                fill=PRIMARY,
+                hover_fill=PRIMARY_HOVER,
+                foreground=TEXT_DARK,
+                width=138,
+                height=36,
+            )
+            self.add_linked_button.grid(
+                row=0,
+                column=2,
+                padx=(6, 0),
+                pady=4,
+            )
+
         self.edit_button = SoftButton(
             toolbar,
             text="Edit event",
@@ -109,7 +145,7 @@ class TimelineView(tk.Frame):
             width=104,
             height=36,
         )
-        self.edit_button.grid(row=0, column=2, padx=(6, 0), pady=4)
+        self.edit_button.grid(row=0, column=3, padx=(6, 0), pady=4)
 
         self.remove_button = SoftButton(
             toolbar,
@@ -119,7 +155,7 @@ class TimelineView(tk.Frame):
             width=92,
             height=36,
         )
-        self.remove_button.grid(row=0, column=3, padx=(6, 0), pady=4)
+        self.remove_button.grid(row=0, column=4, padx=(6, 0), pady=4)
 
     def build_workspace(self):
         workspace = tk.Frame(self, bg=SURFACE)
@@ -294,8 +330,12 @@ class TimelineView(tk.Frame):
         self.events = normalize_timeline_events(events)
 
         if self.selected_event_id not in {
-            event["event_id"] for event in self.events
-        }:
+            event["event_id"]
+            for event in self.events
+        }.union({
+            str(event.get("record_id", "") or "")
+            for event in self.linked_events
+        }):
             self.selected_event_id = None
 
         self.filter_events()
@@ -304,28 +344,72 @@ class TimelineView(tk.Frame):
     def get_events(self):
         return deepcopy(self.events)
 
+    def set_linked_events(self, events):
+        self.linked_events = [
+            deepcopy(event)
+            for event in events
+            if isinstance(event, dict)
+            and str(event.get("record_id", "") or "").strip()
+        ]
+
+        if self.selected_event_id not in {
+            event["event_id"]
+            for event in self.events
+        }.union({
+            str(event.get("record_id", "") or "")
+            for event in self.linked_events
+        }):
+            self.selected_event_id = None
+
+        self.filter_events()
+
     def filter_events(self, *arguments):
         query = self.search_value.get().strip().casefold()
-        self.visible_events = [
-            event
-            for event in self.events
-            if not query
-            or query in timeline_event_summary(event).casefold()
-            or query in str(event.get("detail") or "").casefold()
-            or query in str(event.get("note") or "").casefold()
-            or query in str(event.get("date") or "").casefold()
-        ]
+        candidate_events = [deepcopy(event) for event in self.events]
+
+        for linked_event in self.linked_events:
+            display_event = deepcopy(linked_event)
+            display_event["event_id"] = display_event["record_id"]
+            display_event["_shared_event"] = True
+            display_event["detail"] = display_event.get("title", "")
+            display_event["note"] = display_event.get("description", "")
+            candidate_events.append(display_event)
+
+        self.visible_events = []
+
+        for event in candidate_events:
+            summary = self.event_summary_text(event)
+
+            if (
+                query
+                and query not in summary.casefold()
+                and query not in str(event.get("detail") or "").casefold()
+                and query not in str(event.get("note") or "").casefold()
+                and query not in str(event.get("date") or "").casefold()
+            ):
+                continue
+
+            self.visible_events.append(event)
+
+        self.visible_events.sort(key=self.display_event_sort_key)
         self.listbox.delete(0, "end")
 
         for index, event in enumerate(self.visible_events):
             event_date = str(event.get("date") or "nd.")
             self.listbox.insert(
                 "end",
-                f"{event_date}: {timeline_event_summary(event)}",
+                f"{event_date}: {self.event_summary_text(event)}",
             )
             self.listbox.itemconfigure(
                 index,
-                background=EVENT_COLORS.get(event.get("event_type"), FIELD_BACKGROUND),
+                background=(
+                    LIST_ALTERNATE
+                    if event.get("_shared_event")
+                    else EVENT_COLORS.get(
+                        event.get("event_type"),
+                        FIELD_BACKGROUND,
+                    )
+                ),
             )
 
             if event.get("event_id") == self.selected_event_id:
@@ -333,6 +417,48 @@ class TimelineView(tk.Frame):
                 self.listbox.see(index)
 
         self.refresh_details()
+
+    def event_summary_text(self, event):
+        if event.get("_shared_event"):
+            return (
+                f"Shared · {world_event_type_label(event)} · "
+                f"{event.get('title', 'Event')}"
+            )
+
+        return timeline_event_summary(event)
+
+    def display_event_sort_key(self, event):
+        date_text = str(event.get("date", "") or "")
+        date_parts = date_text.split("-")
+
+        if date_text.startswith("-"):
+            date_parts = date_text[1:].split("-")
+            year_text = f"-{date_parts[0]}"
+        else:
+            year_text = date_parts[0] if date_parts else ""
+
+        try:
+            year = int(year_text)
+        except (TypeError, ValueError):
+            year = 10000
+
+        try:
+            month = int(date_parts[1]) if len(date_parts) > 1 else 0
+        except (TypeError, ValueError):
+            month = 0
+
+        try:
+            day = int(date_parts[2]) if len(date_parts) > 2 else 0
+        except (TypeError, ValueError):
+            day = 0
+
+        return (
+            year,
+            month,
+            day,
+            self.event_summary_text(event).casefold(),
+            str(event.get("event_id", "") or ""),
+        )
 
     def select_event(self, event=None):
         selected_indexes = self.listbox.curselection()
@@ -344,7 +470,7 @@ class TimelineView(tk.Frame):
         self.refresh_details()
 
     def selected_event(self):
-        for event in self.events:
+        for event in self.visible_events:
             if event.get("event_id") == self.selected_event_id:
                 return event
 
@@ -362,14 +488,28 @@ class TimelineView(tk.Frame):
             self.date_value.set("Date: nd.")
             self.summary_value.set("Select an event to view its details.")
         else:
-            self.type_value.set(
-                EVENT_TYPE_LABELS.get(event.get("event_type"), "Custom event")
-            )
+            if event.get("_shared_event"):
+                self.type_value.set(
+                    f"Shared event · {world_event_type_label(event)}"
+                )
+            else:
+                self.type_value.set(
+                    EVENT_TYPE_LABELS.get(
+                        event.get("event_type"),
+                        "Custom event",
+                    )
+                )
             self.date_value.set(f"Date: {event.get('date') or 'nd.'}")
-            self.summary_value.set(timeline_event_summary(event))
+            self.summary_value.set(self.event_summary_text(event))
             self.note_text.insert("1.0", str(event.get("note") or ""))
             related_person_id = str(
-                event.get("related_person_id") or ""
+                (
+                    event.get("person_ids", [""])[0]
+                    if event.get("_shared_event")
+                    and event.get("person_ids")
+                    else event.get("related_person_id")
+                )
+                or ""
             ).strip()
             related_person = self.related_person(related_person_id)
 
@@ -401,12 +541,22 @@ class TimelineView(tk.Frame):
     def update_button_state(self):
         selected_event = self.selected_event()
         has_selection = selected_event is not None
+        is_shared = bool(
+            has_selection and selected_event.get("_shared_event")
+        )
         can_remove = bool(
             has_selection
+            and not is_shared
             and selected_event.get("automatic_source") != "life_start"
             and selected_event.get("automatic_source") != "name_change"
         )
-        self.edit_button.set_enabled(has_selection)
+        self.edit_button.set_enabled(
+            has_selection
+            and (
+                not is_shared
+                or self.linked_event_edit_command is not None
+            )
+        )
         self.remove_button.set_enabled(can_remove)
 
     def open_add_dialog(self):
@@ -421,6 +571,12 @@ class TimelineView(tk.Frame):
         selected_event = self.selected_event()
 
         if selected_event is None:
+            return
+
+        if selected_event.get("_shared_event"):
+            if self.linked_event_edit_command is not None:
+                self.linked_event_edit_command(selected_event)
+
             return
 
         if (
@@ -469,10 +625,16 @@ class TimelineView(tk.Frame):
         if selected_event is None:
             return
 
+        if selected_event.get("_shared_event"):
+            return
+
         if selected_event.get("automatic_source") == "life_start":
             messagebox.showinfo(
                 "Required timeline event",
-                "Starting location and Born are required at the beginning of every timeline.",
+                (
+                    "Starting location and Born are required at the "
+                    "beginning of every timeline."
+                ),
                 parent=self,
             )
             return
@@ -517,18 +679,23 @@ class TimelineEventDialog(tk.Toplevel):
         self.name_change_command = name_change_command
         self.event = deepcopy(event) if isinstance(event, dict) else {}
         self.event_type_value = tk.StringVar()
-        self.date_value = tk.StringVar()
+        self.year_value = tk.StringVar()
+        self.month_value = tk.StringVar()
+        self.day_value = tk.StringVar()
         self.detail_value = tk.StringVar()
         self.detail_label_value = tk.StringVar(value="Event detail")
 
         event_type = str(self.event.get("event_type") or "custom")
         self.event_type_value.set(EVENT_TYPE_LABELS.get(event_type, "Custom event"))
-        self.date_value.set(str(self.event.get("date") or ""))
+        year, month, day = split_partial_date(self.event.get("date", ""))
+        self.year_value.set(year)
+        self.month_value.set(month)
+        self.day_value.set(day)
         self.detail_value.set(str(self.event.get("detail") or ""))
         self.event_type_value.trace_add("write", self.update_detail_label)
 
-        self.title("Edit timeline event" if event else "Add timeline event")
-        self.geometry("590x510")
+        self.title("Edit event" if event else "Add event")
+        self.geometry("620x585")
         self.resizable(False, False)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent.winfo_toplevel())
@@ -549,7 +716,7 @@ class TimelineEventDialog(tk.Toplevel):
 
         heading = tk.Label(
             card,
-            text="Timeline event",
+            text="Event",
             bg=SURFACE,
             fg=TEXT_DARK,
             font=app_font(14, "bold"),
@@ -591,23 +758,26 @@ class TimelineEventDialog(tk.Toplevel):
                 )
             )
         )
-        self.type_picker = ttk.Combobox(
+        self.type_picker = RoundedSelect(
             card,
             textvariable=self.event_type_value,
             values=[label for event_key, label in available_event_types],
-            state="readonly",
+            background=SURFACE,
+            height=40,
             font=app_font(10),
         )
         self.type_picker.grid(row=3, column=0, sticky="ew")
-        self.type_picker.bind("<<ComboboxSelected>>", self.event_type_selected)
+        self.type_picker.bind(
+            "<<RoundedSelectSelected>>",
+            self.event_type_selected,
+        )
 
         if self.event.get("automatic_source") == "life_start":
-            self.type_picker.configure(state="disabled")
+            self.type_picker.set_enabled(False)
 
         fields = tk.Frame(card, bg=SURFACE)
         fields.grid(row=4, column=0, sticky="ew", pady=(12, 0))
-        fields.grid_columnconfigure(0, weight=3)
-        fields.grid_columnconfigure(1, weight=2)
+        fields.grid_columnconfigure(0, weight=1)
 
         detail_field = LabeledEntry(
             fields,
@@ -615,16 +785,33 @@ class TimelineEventDialog(tk.Toplevel):
             self.detail_value,
             background=SURFACE,
         )
-        detail_field.grid(row=0, column=0, sticky="ew", padx=(0, 7))
+        detail_field.grid(row=0, column=0, sticky="ew")
         detail_field.label.configure(textvariable=self.detail_label_value)
 
-        date_field = LabeledEntry(
-            fields,
-            "Date · YYYY, YYYY-MM, or YYYY-MM-DD",
-            self.date_value,
+        date_fields = tk.Frame(fields, bg=SURFACE)
+        date_fields.grid(row=1, column=0, sticky="ew", pady=(12, 0))
+        date_fields.grid_columnconfigure((0, 1, 2), weight=1)
+        year_field = LabeledEntry(
+            date_fields,
+            "Year",
+            self.year_value,
             background=SURFACE,
         )
-        date_field.grid(row=0, column=1, sticky="ew", padx=(7, 0))
+        year_field.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        month_field = LabeledEntry(
+            date_fields,
+            "Month",
+            self.month_value,
+            background=SURFACE,
+        )
+        month_field.grid(row=0, column=1, sticky="ew", padx=6)
+        day_field = LabeledEntry(
+            date_fields,
+            "Day",
+            self.day_value,
+            background=SURFACE,
+        )
+        day_field.grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
         notes_label = tk.Label(
             card,
@@ -691,11 +878,22 @@ class TimelineEventDialog(tk.Toplevel):
 
     def save_event(self):
         event_type = EVENT_LABEL_TYPES.get(self.event_type_value.get(), "custom")
+        year = self.year_value.get().strip()
+        month = self.month_value.get().strip()
+        day = self.day_value.get().strip()
+        date_value = year
+
+        if month:
+            date_value += f"-{month}"
+
+        if day:
+            date_value += f"-{day}"
+
         event = {
             "event_id": self.event.get("event_id"),
             "event_type": event_type,
             "detail": self.detail_value.get(),
-            "date": self.date_value.get(),
+            "date": date_value,
             "note": self.notes_control.text.get("1.0", "end-1c"),
             "related_person_id": self.event.get("related_person_id", ""),
             "automatic_source": self.event.get("automatic_source", ""),

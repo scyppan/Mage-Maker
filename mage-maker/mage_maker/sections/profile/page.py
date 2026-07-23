@@ -3,6 +3,7 @@ from copy import deepcopy
 from functools import partial
 
 from mage_maker.sections.development.page import DevelopmentView
+from mage_maker.sections.events.dialog import WorldEventDialog
 from mage_maker.sections.family_tree.page import FamilyTreeView
 from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
 from mage_maker.sections.names.history import (
@@ -62,11 +63,17 @@ class PersonForm(tk.Frame):
         refresh_people_command,
         navigate_command,
         game_database=None,
+        event_controller=None,
+        events_changed_command=None,
+        navigate_event_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
         self.people_provider = people_provider
         self.game_database = game_database
+        self.event_controller = event_controller
+        self.events_changed_command = events_changed_command
+        self.navigate_event_command = navigate_event_command
         self.loading = False
         self.variables = {}
         self.boolean_widgets = {}
@@ -466,6 +473,16 @@ class PersonForm(tk.Frame):
             people_provider=self.people_provider,
             navigate_command=navigate_command,
             name_change_command=self.open_timeline_name_change,
+            linked_event_create_command=(
+                self.add_shared_event
+                if self.event_controller is not None
+                else None
+            ),
+            linked_event_edit_command=(
+                self.edit_shared_event
+                if self.event_controller is not None
+                else self.navigate_event_command
+            ),
         )
         self.timeline.grid(row=0, column=0, sticky="nsew")
 
@@ -697,6 +714,7 @@ class PersonForm(tk.Frame):
                 ensure_life_start_events(timeline_person),
             )
         )
+        self.refresh_linked_events()
         self.update_can_give_birth_control()
         self.update_famous_connections()
         self.show_page(self.active_page_name)
@@ -746,6 +764,59 @@ class PersonForm(tk.Frame):
     def timeline_changed(self):
         if not self.loading:
             self.change_command()
+
+    def refresh_linked_events(self):
+        if (
+            self.event_controller is None
+            or not self.current_record_id
+        ):
+            self.timeline.set_linked_events([])
+            return
+
+        self.timeline.set_linked_events(
+            self.event_controller.events_for_person(
+                self.current_record_id
+            )
+        )
+
+    def add_shared_event(self):
+        if (
+            self.event_controller is None
+            or not self.current_record_id
+        ):
+            return
+
+        WorldEventDialog(
+            self,
+            self.event_controller,
+            saved_command=self.shared_event_saved,
+            default_person_ids=(self.current_record_id,),
+        )
+
+    def edit_shared_event(self, event):
+        if self.event_controller is None:
+            return
+
+        record_id = str(
+            (event or {}).get("record_id", "") or ""
+        )
+        shared_event = self.event_controller.get_event(record_id)
+
+        if shared_event is None:
+            return
+
+        WorldEventDialog(
+            self,
+            self.event_controller,
+            shared_event,
+            self.shared_event_saved,
+        )
+
+    def shared_event_saved(self, event):
+        self.refresh_linked_events()
+
+        if self.events_changed_command is not None:
+            self.events_changed_command()
 
     def deceased_changed(self, *arguments):
         self.update_death_date_visibility()

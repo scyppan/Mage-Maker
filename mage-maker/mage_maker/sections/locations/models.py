@@ -1,3 +1,4 @@
+import re
 import uuid
 from copy import deepcopy
 
@@ -5,8 +6,17 @@ from mage_maker.core.dates import format_date_parts, normalize_partial_date
 from mage_maker.sections.family_tree.spouse_relationships import (
     normalize_spouse_relationships,
 )
-from mage_maker.sections.timeline.events import normalize_timeline_events
+from mage_maker.sections.timeline.events import (
+    normalize_timeline_events,
+    timeline_event_summary,
+)
 from mage_maker.sections.timeline.locations import location_at_date, normalize_location
+from mage_maker.sections.events.models import normalize_world_events
+
+
+LOCATION_EVENT_DATE_PATTERN = re.compile(
+    r"^(-?\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
+)
 
 
 def normalize_location_event(event):
@@ -66,6 +76,11 @@ def normalize_location_record(values):
         normalized.get("demographics", "") or ""
     ).strip()
     normalized["notes"] = str(normalized.get("notes", "") or "").strip()
+    normalized["extinct"] = bool(normalized.get("extinct"))
+    normalized["extinction_year"] = normalize_extinction_year(
+        normalized.get("extinction_year"),
+        normalized["extinct"],
+    )
     normalized["timeline_events"] = normalize_location_events(
         normalized.get("timeline_events", [])
     )
@@ -74,6 +89,53 @@ def normalize_location_record(values):
         raise ValueError("A location must have a name.")
 
     return normalized
+
+
+def normalize_extinction_year(value, extinct):
+    if not extinct:
+        return ""
+
+    if isinstance(value, bool):
+        raise ValueError("Enter the year this location became extinct.")
+
+    normalized_text = str(value if value is not None else "").strip()
+
+    if not normalized_text:
+        raise ValueError("Enter the year this location became extinct.")
+
+    try:
+        normalized_year = int(normalized_text)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "Enter the year this location became extinct."
+        ) from error
+
+    if normalized_year == 0 or normalized_year < -9999 or normalized_year > 9999:
+        raise ValueError(
+            "The extinction year must be between -9999 and 9999, excluding 0."
+        )
+
+    return normalized_year
+
+
+def location_extinction_state(location, period_start_year, period_end_year):
+    if not isinstance(location, dict) or not bool(location.get("extinct")):
+        return ""
+
+    try:
+        extinction_year = int(location.get("extinction_year"))
+        start_year = int(period_start_year)
+        end_year = int(period_end_year)
+    except (TypeError, ValueError):
+        return ""
+
+    if extinction_year < start_year:
+        return "before"
+
+    if start_year <= extinction_year <= end_year:
+        return "during"
+
+    return "after"
 
 
 def locations_by_id(locations):
@@ -182,23 +244,34 @@ def descendant_ids(location_id, locations):
 
 
 def location_event_sort_key(event):
-    date_text = str(event.get("date", "") or "").strip()
-
-    if not date_text:
-        date_key = (10000, 13, 32)
-    else:
-        parts = [int(part) for part in date_text.split("-")]
-        date_key = (
-            parts[0],
-            parts[1] if len(parts) > 1 else 0,
-            parts[2] if len(parts) > 2 else 0,
-        )
-
     return (
-        date_key,
+        location_event_date_key(event.get("date")),
         str(event.get("title", "") or "").casefold(),
         str(event.get("event_id", "") or ""),
     )
+
+
+def location_event_date_key(value):
+    date_text = str(value or "").strip()
+    match = LOCATION_EVENT_DATE_PATTERN.fullmatch(date_text)
+
+    if match is None:
+        return 10000, 13, 32
+
+    return (
+        int(match.group(1)),
+        int(match.group(2) or 0),
+        int(match.group(3) or 0),
+    )
+
+
+def location_event_year(value):
+    date_key = location_event_date_key(value)
+
+    if date_key[0] == 10000:
+        return None
+
+    return date_key[0]
 
 
 def person_location_events(people, locations):
@@ -225,14 +298,14 @@ def person_location_events(people, locations):
         for event in normalize_timeline_events(person.get("timeline_events", [])):
             event_type = str(event.get("event_type", "") or "")
 
-            if event_type not in ("born", "got_married"):
+            if event_type in ("starting_location", "birth_name"):
                 continue
 
             event_date = str(event.get("date", "") or "")
             location_name = location_at_date(person, event_date)
             location = known_locations.get(normalize_location(location_name))
 
-            if location is None:
+            if location is None or not event_date:
                 continue
 
             detail = str(event.get("detail", "") or "").strip()
@@ -241,7 +314,10 @@ def person_location_events(people, locations):
                 if event_type == "born"
                 else f"{person_name} married {detail}"
                 if detail
+                and event_type == "got_married"
                 else f"{person_name} got married"
+                if event_type == "got_married"
+                else f"{person_name}: {timeline_event_summary(event)}"
             )
             unique_key = (
                 person_id,
@@ -320,7 +396,12 @@ def person_location_events(people, locations):
     return generated_events
 
 
-def visible_location_timeline(location_id, locations, people):
+def visible_location_timeline(
+    location_id,
+    locations,
+    people,
+    world_events=None,
+):
     selected_id = str(location_id or "").strip()
     visible_origins = ancestor_locations(selected_id, locations)
     person_events = person_location_events(people, locations)
@@ -358,6 +439,214 @@ def visible_location_timeline(location_id, locations, people):
                 }
             )
             visible_events.append(visible_event)
+
+    visible_events.extend(
+        world_events_for_location_timeline(
+            selected_id,
+            locations,
+            world_events,
+        )
+    )
+    visible_events.sort(key=location_event_sort_key)
+    return visible_events
+
+
+def world_events_for_location_timeline(
+    location_id,
+    locations,
+    world_events,
+):
+    selected_id = str(location_id or "").strip()
+
+    if not selected_id:
+        return []
+
+    visible_origins = ancestor_locations(selected_id, locations)
+    origins_by_id = {
+        str(location.get("record_id", "") or ""): location
+        for location in visible_origins
+    }
+    distances_by_id = {
+        str(location.get("record_id", "") or ""): distance
+        for distance, location in enumerate(visible_origins)
+    }
+    visible_events = []
+
+    for event in normalize_world_events(world_events or []):
+        linked_origin_ids = [
+            location_id
+            for location_id in event["location_ids"]
+            if location_id in origins_by_id
+        ]
+
+        if not linked_origin_ids:
+            continue
+
+        origin_id = closest_linked_location_id(
+            linked_origin_ids,
+            distances_by_id,
+        )
+        origin = origins_by_id[origin_id]
+        visible_events.append(
+            {
+                "event_id": event["record_id"],
+                "record_id": event["record_id"],
+                "date": event["date"],
+                "title": event["title"],
+                "note": event["description"],
+                "origin_location_id": origin_id,
+                "origin_location_name": str(
+                    origin.get("name", "") or "Unnamed"
+                ).strip(),
+                "source_level": location_depth(origin_id, locations),
+                "propagation_distance": distances_by_id[origin_id],
+                "event_kind": "global",
+                "related_person_id": (
+                    event["person_ids"][0]
+                    if event["person_ids"]
+                    else ""
+                ),
+                "person_ids": list(event["person_ids"]),
+                "period_names": list(event["period_names"]),
+                "location_ids": list(event["location_ids"]),
+                "event_type": event["event_type"],
+            }
+        )
+
+    return visible_events
+
+
+def closest_linked_location_id(location_ids, distances_by_id):
+    closest_id = ""
+    closest_distance = None
+
+    for location_id in location_ids:
+        distance = distances_by_id.get(location_id)
+
+        if distance is None:
+            continue
+
+        if closest_distance is None or distance < closest_distance:
+            closest_id = location_id
+            closest_distance = distance
+
+    return closest_id
+
+
+def location_events_for_period(
+    start_year,
+    end_year,
+    location_id,
+    locations,
+    people,
+):
+    try:
+        normalized_start_year = int(start_year)
+        normalized_end_year = int(end_year)
+    except (TypeError, ValueError) as error:
+        raise ValueError("The selected period does not have valid years.") from error
+
+    if normalized_end_year < normalized_start_year:
+        raise ValueError("The ending year cannot be earlier than the starting year.")
+
+    records = locations_by_id(locations)
+    selected_id = str(location_id or "").strip()
+
+    if selected_id and selected_id not in records:
+        raise ValueError("The selected location no longer exists.")
+
+    if selected_id:
+        visible_origin_ids = descendant_ids(selected_id, locations)
+        visible_origin_ids.add(selected_id)
+        selected_ancestors = ancestor_locations(selected_id, locations)
+        ancestor_distances = {
+            str(location.get("record_id", "") or ""): distance
+            for distance, location in enumerate(selected_ancestors)
+        }
+        visible_origin_ids.update(ancestor_distances)
+    else:
+        visible_origin_ids = set(records)
+        ancestor_distances = {}
+
+    visible_events = []
+    used_event_keys = set()
+
+    for origin_id in visible_origin_ids:
+        origin = records.get(origin_id)
+
+        if origin is None:
+            continue
+
+        origin_name = str(origin.get("name", "") or "Unnamed").strip()
+        source_level = location_depth(origin_id, locations)
+        propagation_distance = ancestor_distances.get(origin_id, 0)
+
+        for event in normalize_location_events(origin.get("timeline_events", [])):
+            event_year = location_event_year(event.get("date"))
+
+            if (
+                event_year is None
+                or event_year < normalized_start_year
+                or event_year > normalized_end_year
+            ):
+                continue
+
+            event_key = (
+                "location",
+                origin_id,
+                str(event.get("event_id", "") or ""),
+            )
+
+            if event_key in used_event_keys:
+                continue
+
+            used_event_keys.add(event_key)
+            visible_event = deepcopy(event)
+            visible_event.update(
+                {
+                    "origin_location_id": origin_id,
+                    "origin_location_name": origin_name,
+                    "source_level": source_level,
+                    "propagation_distance": propagation_distance,
+                    "event_kind": "location",
+                    "related_person_id": "",
+                }
+            )
+            visible_events.append(visible_event)
+
+    for event in person_location_events(people, locations):
+        origin_id = str(event.get("origin_location_id", "") or "")
+        event_year = location_event_year(event.get("date"))
+
+        if (
+            origin_id not in visible_origin_ids
+            or event_year is None
+            or event_year < normalized_start_year
+            or event_year > normalized_end_year
+        ):
+            continue
+
+        event_key = (
+            "mage",
+            origin_id,
+            str(event.get("event_id", "") or ""),
+        )
+
+        if event_key in used_event_keys:
+            continue
+
+        used_event_keys.add(event_key)
+        visible_event = deepcopy(event)
+        visible_event.update(
+            {
+                "origin_location_name": str(
+                    records.get(origin_id, {}).get("name", "") or "Unnamed"
+                ).strip(),
+                "source_level": location_depth(origin_id, locations),
+                "propagation_distance": ancestor_distances.get(origin_id, 0),
+            }
+        )
+        visible_events.append(visible_event)
 
     visible_events.sort(key=location_event_sort_key)
     return visible_events

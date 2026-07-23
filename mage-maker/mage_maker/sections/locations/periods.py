@@ -15,11 +15,13 @@ PERIOD_CATEGORY_KEYS = (
 
 
 def normalize_period_years(start_year, end_year):
-    normalized_start = normalized_year(start_year)
-    normalized_end = normalized_year(end_year)
+    normalized_start = normalized_period_year(start_year)
+    normalized_end = normalized_period_year(end_year)
 
     if normalized_start is None or normalized_end is None:
-        raise ValueError("Enter both period years between 1 and 9999.")
+        raise ValueError(
+            "Enter both period years between -9999 and 9999, excluding 0."
+        )
 
     if normalized_end < normalized_start:
         raise ValueError("The ending year cannot be earlier than the starting year.")
@@ -33,6 +35,7 @@ def categorized_people_for_period(
     start_year,
     end_year,
     location_id="",
+    reproductive_without_children=False,
 ):
     period_start, period_end = normalize_period_years(start_year, end_year)
     normalized_people = [
@@ -45,6 +48,15 @@ def categorized_people_for_period(
     ]
     location_scope = location_keys_in_scope(location_id, normalized_locations)
     results = {category_key: [] for category_key in PERIOD_CATEGORY_KEYS}
+    parent_ids = {
+        str(parent_id or "").strip()
+        for child in normalized_people
+        for parent_id in (
+            child.get("biological_mother_id"),
+            child.get("biological_father_id"),
+        )
+        if str(parent_id or "").strip()
+    }
 
     for person in normalized_people:
         birth_year = normalized_year(person.get("birth_year"))
@@ -135,6 +147,10 @@ def categorized_people_for_period(
                 reproductive_start,
                 reproductive_end,
                 location_scope,
+            )
+            and (
+                not reproductive_without_children
+                or str(person.get("record_id", "") or "").strip() not in parent_ids
             )
         ):
             results["reproductively_active"].append(
@@ -265,6 +281,21 @@ def normalized_year(value):
     return year if 1 <= year <= 9999 else None
 
 
+def normalized_period_year(value):
+    if isinstance(value, bool):
+        return None
+
+    try:
+        year = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    if year == 0 or year < -9999 or year > 9999:
+        return None
+
+    return year
+
+
 def location_event_sort_key(item):
     return item[0], item[1].casefold()
 
@@ -295,7 +326,7 @@ def lifespan_text(person):
     )
 
     if death_date:
-        return f"{birth_date}–{death_date}"
+        return f"{birth_date} to {death_date}"
 
     return f"born {birth_date}"
 

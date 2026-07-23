@@ -8,19 +8,19 @@
         {
           "name": "Prehistorical",
           "start_year": "Prehistory",
-          "end_year": -3500,
+          "end_year": -3501,
           "descriptor": "Mages were anomalies in society and no formalized communities or knowledge transfer existed"
         },
         {
           "name": "Dawn of Civilization",
           "start_year": -3500,
-          "end_year": -1275,
+          "end_year": -1276,
           "descriptor": "The first magical communities develop especially in Mesopotamia"
         },
         {
           "name": "Herpo & the Sea Peoples",
           "start_year": -1275,
-          "end_year": -1125,
+          "end_year": -1126,
           "descriptor": "Bronze age collapse led by Herpo and his Sea Peoples"
         }
       ]
@@ -32,43 +32,43 @@
         {
           "name": "Western Seedings",
           "start_year": -1125,
-          "end_year": -950,
+          "end_year": -951,
           "descriptor": "Wizarding communities migrate into Western Europe, West Africa, and Arabia."
         },
         {
           "name": "The Great Outrush",
           "start_year": -950,
-          "end_year": -750,
+          "end_year": -751,
           "descriptor": "Wizards migrate into the Baltic, Danube, Greece, Rome, India, Southeast Asia, and southern Africa"
         },
         {
           "name": "First Eastward Push",
           "start_year": -750,
-          "end_year": -600,
+          "end_year": -601,
           "descriptor": "Wizards migrate into Central Asia, the Tarim Basin, the Himalayas, and the western Pacific islands"
         },
         {
           "name": "Second Eastward Push",
           "start_year": -600,
-          "end_year": -450,
+          "end_year": -451,
           "descriptor": "Wizards migrate into Korea and Japan along the Liaodong corridor and Yayoi routes."
         },
         {
           "name": "Final Great Migration",
           "start_year": -450,
-          "end_year": 100,
+          "end_year": 99,
           "descriptor": "All regions of the world have a wizarding presence"
         },
         {
           "name": "Early Global Period",
           "start_year": 100,
-          "end_year": 378,
+          "end_year": 377,
           "descriptor": "Teotihuacan begins radiating influence becoming the “arcane metropole of Mesoamerica.”"
         },
         {
           "name": "Period of Consolidation",
           "start_year": 378,
-          "end_year": 990,
+          "end_year": 989,
           "descriptor": "First of the Wizarding schools are built (Uagadou & Hogwarts)"
         }
       ]
@@ -85,15 +85,15 @@
         },
         {
           "name": "Early Period of Institutionalization",
-          "start_year": 1051,
+          "start_year": 1052,
           "end_year": 1169,
           "descriptor": "Normans invade Ireland and the Founding of the Council of Warlocks"
         },
         {
           "name": "Late Period of Institutionalization",
-          "start_year": 1169,
-          "end_year": 1206,
-          "descriptor": "Ghengis Khan unifies the Mongol tribes"
+          "start_year": 1170,
+          "end_year": 1205,
+          "descriptor": "End when Ghengis Khan unifies the Mongol tribes"
         }
       ]
     },
@@ -105,47 +105,47 @@
           "name": "Mongol Period",
           "start_year": 1206,
           "end_year": 1227,
-          "descriptor": "Ghengis Khan dies"
+          "descriptor": "Begins when Ghengis Khan unifies the Mongol Tribes and Ends when Ghengis Khan dies"
         },
         {
           "name": "First Epoch of Persecution",
-          "start_year": 1227,
-          "end_year": 1320,
-          "descriptor": "Pope authorizes the inquisition to prosecute witchcraft as a form of heresy"
+          "start_year": 1228,
+          "end_year": 1319,
+          "descriptor": "Begins immediately after Khan's death and ends when the Pope authorizes the inquisition to prosecute witchcraft as a form of heresy. This period marks a the beginning of formal persecution of magical folk."
         },
         {
           "name": "Second Epoch of Persecution",
           "start_year": 1320,
           "end_year": 1347,
-          "descriptor": "Black Death Begins"
+          "descriptor": "Ends when the Black Death Begins"
         },
         {
           "name": "Period of Muggle Mortality",
-          "start_year": 1347,
+          "start_year": 1348,
           "end_year": 1368,
           "descriptor": "Red Turban Rebellion establishes the Ming Dynasty"
         },
         {
           "name": "Period of the Ming and Ottomans",
-          "start_year": 1368,
+          "start_year": 1369,
           "end_year": 1473,
           "descriptor": "Wizards improve protection and alarm spells and begin to fear Muggles somewhat less"
         },
         {
           "name": "Period of Commercialization & Sport",
-          "start_year": 1473,
+          "start_year": 1474,
           "end_year": 1539,
           "descriptor": "Ordinance of Villers-Cotterêts & Wizengamot Established"
         },
         {
           "name": "Nominal Period",
-          "start_year": 1539,
+          "start_year": 1540,
           "end_year": 1612,
           "descriptor": "St Mungos & Gringotts founded; First Goblin Rebellion"
         },
         {
           "name": "Period of Goblin and Muggle Upheaval",
-          "start_year": 1612,
+          "start_year": 1613,
           "end_year": 1692,
           "descriptor": "Statute of Secrecy is fully enacted"
         }
@@ -157,31 +157,31 @@
       "periods": [
         {
           "name": "Interregnum of Secrecy",
-          "start_year": 1692,
+          "start_year": 1693,
           "end_year": 1707,
           "descriptor": "Ministry of Magic is established to aid in the organization of secrecy efforts"
         },
         {
           "name": "Quinquagenary of the Veil",
-          "start_year": 1707,
+          "start_year": 1708,
           "end_year": 1753,
           "descriptor": "End of the Second Goblin Rebellion"
         },
         {
           "name": "Quadrancentennial of the Veil",
-          "start_year": 1753,
+          "start_year": 1754,
           "end_year": 1790,
           "descriptor": "Rappaport’s Law passed in the US"
         },
         {
           "name": "Age of Estrangement",
-          "start_year": 1790,
+          "start_year": 1791,
           "end_year": 1891,
           "descriptor": "End of the Ranrok Rebellion"
         },
         {
           "name": "Interbellum of Shadows",
-          "start_year": 1891,
+          "start_year": 1892,
           "end_year": 1926,
           "descriptor": "Start of the Global Wizarding War"
         }
@@ -193,49 +193,49 @@
       "periods": [
         {
           "name": "The Period of the Global Wizarding War",
-          "start_year": 1926,
+          "start_year": 1927,
           "end_year": 1945,
           "descriptor": "Grindelwald defeated by Dumbledore"
         },
         {
           "name": "The Vicennial of Peace",
-          "start_year": 1945,
+          "start_year": 1946,
           "end_year": 1965,
           "descriptor": "Repeal of rappaport's law"
         },
         {
           "name": "The Lustrum of Unveiling",
-          "start_year": 1965,
+          "start_year": 1966,
           "end_year": 1970,
           "descriptor": "Disappearances begin"
         },
         {
           "name": "The Period of the First Wizarding War",
-          "start_year": 1970,
+          "start_year": 1971,
           "end_year": 1981,
           "descriptor": "Voldemort is \"killed\" the first time"
         },
         {
           "name": "The Respite of the Recessional",
-          "start_year": 1981,
+          "start_year": 1982,
           "end_year": 1995,
           "descriptor": "Return of Voldemort"
         },
         {
           "name": "The Period of the Second Wizarding War",
-          "start_year": 1995,
+          "start_year": 1996,
           "end_year": 1998,
           "descriptor": "Fall of Voldemort"
         },
         {
           "name": "The Naïve Interlude",
-          "start_year": 1998,
+          "start_year": 1999,
           "end_year": 2000,
           "descriptor": "The Council of the Seven is formed"
         },
         {
           "name": "The Period of the Third Wizarding War",
-          "start_year": 2000,
+          "start_year": 2001,
           "end_year": "future",
           "descriptor": "The Third Wizarding War"
         }

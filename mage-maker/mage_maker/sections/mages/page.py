@@ -32,12 +32,16 @@ class MagesPage(tk.Frame):
         game_database,
         status_command,
         records_changed_command,
+        event_controller=None,
+        navigate_event_command=None,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
         self.game_database = game_database
         self.status_command = status_command
         self.records_changed_command = records_changed_command
+        self.event_controller = event_controller
+        self.navigate_event_command = navigate_event_command
         self.people = []
         self.current_record_id = None
         self.form_dirty = False
@@ -98,6 +102,9 @@ class MagesPage(tk.Frame):
             self.refresh_related_people,
             self.select_person,
             self.game_database,
+            self.event_controller,
+            self.records_changed_command,
+            self.navigate_event_command,
         )
         self.person_form.grid(
             row=1,
@@ -240,6 +247,9 @@ class MagesPage(tk.Frame):
 
     def refresh_related_people(self):
         self.refresh_people(self.current_record_id)
+
+    def refresh_linked_events(self):
+        self.person_form.refresh_linked_events()
 
     def save_person(self):
         if self.current_record_id is None:
