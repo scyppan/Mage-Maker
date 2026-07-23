@@ -91,6 +91,7 @@ class FamilyTreeView(tk.Frame):
         self.spouse_relationships = []
         self.active_mate_id = None
         self.active_spouse_owner_id = None
+        self.spouse_picker_dialog = None
         self.node_coordinates = {}
 
         self.grid_rowconfigure(1, weight=1)
@@ -193,6 +194,15 @@ class FamilyTreeView(tk.Frame):
         previous_record_id = str(
             self.current_person.get("record_id", "") or ""
         )
+        next_record_id = str(
+            (person or {}).get("record_id", "")
+            if isinstance(person, dict)
+            else ""
+        )
+
+        if previous_record_id != next_record_id:
+            self.close_spouse_picker()
+
         self.current_person = deepcopy(person) if isinstance(person, dict) else {}
         current_record_id = str(
             self.current_person.get("record_id", "") or ""
@@ -1033,6 +1043,20 @@ class FamilyTreeView(tk.Frame):
         self.change_command()
 
     def open_mate_picker(self):
+        if self.spouse_picker_dialog is not None:
+            try:
+                if self.spouse_picker_dialog.winfo_exists():
+                    self.spouse_picker_dialog.deiconify()
+                    self.spouse_picker_dialog.lift()
+                    self.spouse_picker_dialog.after_idle(
+                        self.spouse_picker_dialog.focus_search
+                    )
+                    return
+            except tk.TclError:
+                pass
+
+            self.spouse_picker_dialog = None
+
         current_id = str(self.current_person.get("record_id", "") or "")
 
         if integer_year(self.current_person.get("birth_year")) is None:
@@ -1051,7 +1075,7 @@ class FamilyTreeView(tk.Frame):
             self.people,
             excluded_ids,
         )
-        SpousePickerDialog(
+        self.spouse_picker_dialog = SpousePickerDialog(
             self,
             self.current_person,
             candidates,
@@ -1065,7 +1089,25 @@ class FamilyTreeView(tk.Frame):
                 )
                 if child is not None
             ],
+            self.spouse_picker_closed,
         )
+
+    def close_spouse_picker(self):
+        dialog = self.spouse_picker_dialog
+
+        if dialog is None:
+            return
+
+        self.spouse_picker_dialog = None
+
+        try:
+            if dialog.winfo_exists():
+                dialog.close_dialog()
+        except tk.TclError:
+            return
+
+    def spouse_picker_closed(self):
+        self.spouse_picker_dialog = None
 
     def select_mate(self, record_id, change_birth_assignment=False):
         if change_birth_assignment:
@@ -1257,6 +1299,7 @@ class FamilyTreeView(tk.Frame):
         other_parent_id,
         change_other_parent_assignment=False,
         other_parent_kind="person",
+        new_child_profile=None,
     ):
         current_id = str(self.current_person.get("record_id", "") or "")
         current_can_give_birth = bool(self.current_person.get("can_give_birth"))
@@ -1306,10 +1349,15 @@ class FamilyTreeView(tk.Frame):
             relationship_values[other_parent_status_field] = "unknown"
 
         if new_child_name:
-            creation_values = {
-                "displayed_name": new_child_name,
-                "can_give_birth": bool(new_child_can_give_birth),
-            }
+            creation_values = deepcopy(
+                new_child_profile if isinstance(new_child_profile, dict) else {}
+            )
+            creation_values.update(
+                {
+                    "displayed_name": new_child_name,
+                    "can_give_birth": bool(new_child_can_give_birth),
+                }
+            )
             creation_values.update(relationship_values)
 
             try:

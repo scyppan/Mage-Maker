@@ -140,27 +140,19 @@ class FamousConnectionsView(tk.Frame):
         self.maximum_visible = maximum_visible
         self.connections = []
         self.grid_columnconfigure(0, weight=1)
-        heading = tk.Label(
-            self,
-            text="Famous connections",
-            bg=background,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        heading.grid(row=0, column=0, sticky="ew", pady=(0, 4))
         self.summary = tk.Label(
             self,
-            text="None",
-            bg=FIELD_BACKGROUND,
+            text="",
+            bg=background,
             fg=TEXT_DARK,
             font=app_font(9),
             anchor="nw",
             justify="left",
-            padx=10,
-            pady=7,
+            padx=0,
+            pady=1,
         )
-        self.summary.grid(row=1, column=0, sticky="ew")
+        self.summary.grid(row=0, column=0, sticky="ew")
+        self.summary.grid_remove()
         self.more_button = tk.Button(
             self,
             text="...",
@@ -176,7 +168,7 @@ class FamousConnectionsView(tk.Frame):
             padx=7,
             pady=2,
         )
-        self.more_button.grid(row=2, column=0, sticky="w", pady=(3, 0))
+        self.more_button.grid(row=1, column=0, sticky="w", pady=(3, 0))
         self.more_button.grid_remove()
 
     def set_connections(self, connections):
@@ -186,9 +178,13 @@ class FamousConnectionsView(tk.Frame):
             if str(connection).strip()
         ]
         visible_connections = self.connections[: self.maximum_visible]
-        self.summary.configure(
-            text="\n".join(visible_connections) if visible_connections else "None"
-        )
+
+        if visible_connections:
+            self.summary.configure(text="\n".join(visible_connections))
+            self.summary.grid()
+        else:
+            self.summary.configure(text="")
+            self.summary.grid_remove()
 
         if len(self.connections) > self.maximum_visible:
             self.more_button.grid()

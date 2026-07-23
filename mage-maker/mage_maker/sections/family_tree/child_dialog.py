@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 
+from mage_maker.core.dates import normalize_date_parts
 from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap, format_person_date
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
@@ -46,6 +47,7 @@ class AddChildDialog(tk.Toplevel):
         self.eligible_children = []
         self.new_child_name = ""
         self.new_child_can_give_birth = False
+        self.new_child_profile = {}
         self.other_parent_id = ""
         self.other_parent_kind = "unknown"
         self.other_parent_is_alternate = False
@@ -788,16 +790,35 @@ class AddChildDialog(tk.Toplevel):
 
         self.new_child_name = ""
         self.new_child_can_give_birth = False
+        self.new_child_profile = {}
         self.new_child_value.set("Using the selected existing child")
 
     def open_new_child_dialog(self):
         BasicChildDialog(self, self.set_new_child)
 
-    def set_new_child(self, displayed_name, can_give_birth):
-        self.new_child_name = displayed_name
-        self.new_child_can_give_birth = bool(can_give_birth)
-        role_text = "birthing" if can_give_birth else "non-birthing"
-        self.new_child_value.set(f"New child: {displayed_name} ({role_text})")
+    def set_new_child(self, profile_values):
+        values = dict(profile_values or {})
+        self.new_child_name = str(values.get("displayed_name", "") or "").strip()
+        self.new_child_can_give_birth = bool(values.get("can_give_birth"))
+        self.new_child_profile = {
+            "birth_year": values.get("birth_year"),
+            "birth_month": values.get("birth_month"),
+            "birth_day": values.get("birth_day"),
+            "deceased": bool(values.get("deceased")),
+            "death_year": values.get("death_year"),
+            "death_month": values.get("death_month"),
+            "death_day": values.get("death_day"),
+        }
+        role_text = (
+            "birthing" if self.new_child_can_give_birth else "non-birthing"
+        )
+        date_text = format_person_date(self.new_child_profile)
+        date_suffix = f" · {date_text}" if date_text != "nd." else ""
+        death_suffix = " · dead" if self.new_child_profile["deceased"] else ""
+        self.new_child_value.set(
+            f"New child: {self.new_child_name} ({role_text})"
+            f"{date_suffix}{death_suffix}"
+        )
         self.child_listbox.selection_clear(0, "end")
         return True
 
@@ -844,6 +865,7 @@ class AddChildDialog(tk.Toplevel):
                 self.other_parent_id,
                 self.other_parent_is_alternate,
                 self.other_parent_kind,
+                self.new_child_profile,
             )
         except (KeyError, TypeError, ValueError) as error:
             messagebox.showerror("Cannot add child", str(error), parent=self)
@@ -863,15 +885,24 @@ class BasicChildDialog(tk.Toplevel):
         self.save_command = save_command
         self.displayed_name_value = tk.StringVar()
         self.can_give_birth_value = tk.BooleanVar(value=False)
+        self.birth_year_value = tk.StringVar()
+        self.birth_month_value = tk.StringVar()
+        self.birth_day_value = tk.StringVar()
+        self.deceased_value = tk.BooleanVar(value=False)
+        self.death_year_value = tk.StringVar()
+        self.death_month_value = tk.StringVar()
+        self.death_day_value = tk.StringVar()
+        self.deceased_value.trace_add("write", self.deceased_changed)
 
         self.title("Enter new child")
-        self.geometry("470x290")
+        self.geometry("560x550")
         self.resizable(False, False)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent)
         self.grab_set()
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
 
         card = tk.Frame(
             self,
@@ -896,12 +927,16 @@ class BasicChildDialog(tk.Toplevel):
 
         explanation = tk.Label(
             card,
-            text="Only the displayed name and Can give birth setting are entered.",
+            text=(
+                "Enter the basic identity and any known birth or death date. "
+                "Date parts may be left blank when they are unknown."
+            ),
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9),
             anchor="w",
             justify="left",
+            wraplength=480,
         )
         explanation.grid(row=1, column=0, sticky="ew", pady=(4, 10))
 
@@ -912,6 +947,46 @@ class BasicChildDialog(tk.Toplevel):
             background=SURFACE,
         )
         name_field.grid(row=2, column=0, sticky="ew")
+
+        birth_frame = tk.Frame(card, bg=SURFACE)
+        birth_frame.grid(row=3, column=0, sticky="ew", pady=(12, 0))
+        birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        birth_heading = tk.Label(
+            birth_frame,
+            text="Date of birth",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        birth_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        birth_year_field = LabeledEntry(
+            birth_frame,
+            "Year",
+            self.birth_year_value,
+            background=SURFACE,
+        )
+        birth_year_field.grid(row=1, column=0, sticky="ew", padx=(0, 5))
+        birth_month_field = LabeledEntry(
+            birth_frame,
+            "Month",
+            self.birth_month_value,
+            background=SURFACE,
+        )
+        birth_month_field.grid(row=1, column=1, sticky="ew", padx=5)
+        birth_day_field = LabeledEntry(
+            birth_frame,
+            "Day",
+            self.birth_day_value,
+            background=SURFACE,
+        )
+        birth_day_field.grid(row=1, column=2, sticky="ew", padx=(5, 0))
 
         can_give_birth_check = tk.Checkbutton(
             card,
@@ -926,10 +1001,66 @@ class BasicChildDialog(tk.Toplevel):
             borderwidth=0,
             highlightthickness=0,
         )
-        can_give_birth_check.grid(row=3, column=0, sticky="w", pady=(10, 0))
+        can_give_birth_check.grid(row=4, column=0, sticky="w", pady=(12, 0))
+
+        deceased_check = tk.Checkbutton(
+            card,
+            text="Dead",
+            variable=self.deceased_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        deceased_check.grid(row=5, column=0, sticky="w", pady=(8, 0))
+
+        self.death_frame = tk.Frame(card, bg=SURFACE)
+        self.death_frame.grid(row=6, column=0, sticky="ew", pady=(10, 0))
+        self.death_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        death_heading = tk.Label(
+            self.death_frame,
+            text="Date of death",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        death_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        death_year_field = LabeledEntry(
+            self.death_frame,
+            "Year",
+            self.death_year_value,
+            background=SURFACE,
+        )
+        death_year_field.grid(row=1, column=0, sticky="ew", padx=(0, 5))
+        death_month_field = LabeledEntry(
+            self.death_frame,
+            "Month",
+            self.death_month_value,
+            background=SURFACE,
+        )
+        death_month_field.grid(row=1, column=1, sticky="ew", padx=5)
+        death_day_field = LabeledEntry(
+            self.death_frame,
+            "Day",
+            self.death_day_value,
+            background=SURFACE,
+        )
+        death_day_field.grid(row=1, column=2, sticky="ew", padx=(5, 0))
+        self.death_frame.grid_remove()
 
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=4, column=0, sticky="e", pady=(14, 0))
+        footer.grid(row=7, column=0, sticky="e", pady=(16, 0))
 
         cancel_button = SoftButton(
             footer,
@@ -969,8 +1100,47 @@ class BasicChildDialog(tk.Toplevel):
             )
             return
 
-        if self.save_command(displayed_name, self.can_give_birth_value.get()):
+        try:
+            birth_year, birth_month, birth_day = normalize_date_parts(
+                self.birth_year_value.get(),
+                self.birth_month_value.get(),
+                self.birth_day_value.get(),
+                "Birth",
+            )
+
+            if self.deceased_value.get():
+                death_year, death_month, death_day = normalize_date_parts(
+                    self.death_year_value.get(),
+                    self.death_month_value.get(),
+                    self.death_day_value.get(),
+                    "Death",
+                )
+            else:
+                death_year, death_month, death_day = None, None, None
+        except ValueError as error:
+            messagebox.showerror("Cannot use child", str(error), parent=self)
+            return
+
+        profile_values = {
+            "displayed_name": displayed_name,
+            "can_give_birth": self.can_give_birth_value.get(),
+            "birth_year": birth_year,
+            "birth_month": birth_month,
+            "birth_day": birth_day,
+            "deceased": self.deceased_value.get(),
+            "death_year": death_year,
+            "death_month": death_month,
+            "death_day": death_day,
+        }
+
+        if self.save_command(profile_values):
             self.destroy()
+
+    def deceased_changed(self, *arguments):
+        if self.deceased_value.get():
+            self.death_frame.grid()
+        else:
+            self.death_frame.grid_remove()
 
     def close_dialog(self, event=None):
         self.destroy()

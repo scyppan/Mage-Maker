@@ -19,6 +19,7 @@ from mage_maker.sections.profile.famous_connections import (
     FamousConnectionsView,
 )
 from mage_maker.sections.profile.school_field import SchoolField
+from mage_maker.sections.relationships.page import RelationshipsView
 from mage_maker.sections.timeline.page import TimelineView
 from mage_maker.sections.timeline.locations import ensure_life_start_events
 from mage_maker.ui.theme import (
@@ -94,6 +95,7 @@ class PersonForm(tk.Frame):
             refresh_people_command,
             navigate_command,
         )
+        self.build_relationships_page()
         self.build_timeline_page(navigate_command)
         self.build_development_page()
         self.show_page("profile")
@@ -105,6 +107,7 @@ class PersonForm(tk.Frame):
         page_definitions = (
             ("profile", "Profile", 98),
             ("family_tree", "Family Tree", 122),
+            ("relationships", "Relationships", 130),
             ("timeline", "Timeline", 104),
             ("development", "Development", 126),
         )
@@ -170,7 +173,7 @@ class PersonForm(tk.Frame):
             background=SURFACE_MUTED,
             font_size=12,
         )
-        displayed_name_field.grid(row=0, column=0, sticky="ew")
+        displayed_name_field.grid(row=0, column=0, sticky="new")
 
         self.name_details_button = SoftButton(
             name_school_row,
@@ -183,7 +186,13 @@ class PersonForm(tk.Frame):
             width=122,
             height=40,
         )
-        self.name_details_button.grid(row=0, column=1, sticky="s", padx=7)
+        self.name_details_button.grid(
+            row=0,
+            column=1,
+            sticky="n",
+            padx=7,
+            pady=(22, 0),
+        )
         school_names = (
             self.game_database.school_names()
             if self.game_database is not None and self.game_database.loaded
@@ -195,7 +204,7 @@ class PersonForm(tk.Frame):
             self.variable_changed,
             SURFACE_MUTED,
         )
-        self.school_field.grid(row=0, column=2, sticky="ew")
+        self.school_field.grid(row=0, column=2, sticky="new")
 
         birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
         birth_frame.grid(row=1, column=0, sticky="ew", pady=(0, 9))
@@ -310,35 +319,39 @@ class PersonForm(tk.Frame):
             SURFACE_MUTED,
         )
         self.death_date_frame.grid_remove()
-        self.famous_connections = FamousConnectionsView(
-            identity_panel.content,
-            SURFACE_MUTED,
-        )
-        self.famous_connections.grid(row=4, column=0, sticky="ew")
-
-        status_panel = SectionPanel(
-            page,
-            "Profile Overview",
-            "Quick classifications used to identify this magician's role and state.",
-        )
-        status_panel.grid(
+        overview = tk.Frame(page, bg=SURFACE)
+        overview.grid(
             row=1,
             column=0,
             sticky="nsew",
             padx=(0, 7),
             pady=(7, 0),
         )
-        status_panel.content.grid_columnconfigure((0, 1, 2), weight=1)
+        overview.grid_rowconfigure(0, weight=1)
+        overview.grid_columnconfigure((0, 1), weight=1, uniform="overview")
+
+        classifications_panel = SectionPanel(
+            overview,
+            "Classifications",
+            "Quick classifications used to identify this magician's role and state.",
+        )
+        classifications_panel.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            padx=(0, 7),
+        )
+        classifications_panel.content.grid_columnconfigure((0, 1), weight=1)
         self.add_boolean_fields(
-            status_panel.content,
+            classifications_panel.content,
             self.status_fields,
-            3,
+            2,
             SURFACE_MUTED,
         )
 
         self.imported_count_value = tk.StringVar(value="")
         imported_label = tk.Label(
-            status_panel.content,
+            classifications_panel.content,
             textvariable=self.imported_count_value,
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -348,12 +361,29 @@ class PersonForm(tk.Frame):
             wraplength=500,
         )
         imported_label.grid(
-            row=2,
+            row=3,
             column=0,
-            columnspan=3,
+            columnspan=2,
             sticky="ew",
             pady=(8, 0),
         )
+
+        connections_panel = SectionPanel(
+            overview,
+            "Connections",
+            "Family links to people marked as famous.",
+        )
+        connections_panel.grid(
+            row=0,
+            column=1,
+            sticky="nsew",
+            padx=(7, 0),
+        )
+        self.famous_connections = FamousConnectionsView(
+            connections_panel.content,
+            SURFACE_MUTED,
+        )
+        self.famous_connections.grid(row=0, column=0, sticky="ew")
 
         narrative_field = MultilineField(
             page,
@@ -417,6 +447,11 @@ class PersonForm(tk.Frame):
         page = DevelopmentView(self.content, self.game_database)
         page.grid(row=0, column=0, sticky="nsew")
         self.pages["development"] = page
+
+    def build_relationships_page(self):
+        page = RelationshipsView(self.content)
+        page.grid(row=0, column=0, sticky="nsew")
+        self.pages["relationships"] = page
 
     def build_timeline_page(self, navigate_command):
         page = tk.Frame(self.content, bg=SURFACE)

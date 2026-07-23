@@ -38,6 +38,7 @@ class SpousePickerDialog(tk.Toplevel):
         save_command,
         create_person_command,
         children=None,
+        close_command=None,
     ):
         super().__init__(parent)
         self.focus_person = dict(focus_person or {})
@@ -45,7 +46,10 @@ class SpousePickerDialog(tk.Toplevel):
         self.visible_candidates = []
         self.save_command = save_command
         self.create_person_command = create_person_command
-        self.children = [
+        self.close_command = close_command
+        self.closed = False
+        self.new_person_dialog = None
+        self.existing_children = [
             dict(child)
             for child in children or []
             if isinstance(child, dict)
@@ -156,7 +160,6 @@ class SpousePickerDialog(tk.Toplevel):
         self.bind("<Escape>", self.close_dialog)
         self.bind("<Return>", self.save_spouse)
         self.filter_candidates()
-        self.after_idle(self.activate_modal)
         self.after_idle(self.focus_search)
 
     def build_candidate_panel(self, parent):
@@ -399,13 +402,34 @@ class SpousePickerDialog(tk.Toplevel):
         self.close_dialog()
 
     def open_new_person_dialog(self):
-        self.release_modal_grab()
-        NewSpousePersonDialog(
+        if self.new_person_dialog is not None:
+            try:
+                if self.new_person_dialog.winfo_exists():
+                    self.new_person_dialog.deiconify()
+                    self.new_person_dialog.lift()
+                    self.new_person_dialog.after_idle(
+                        self.new_person_dialog.focus_name
+                    )
+                    return
+            except tk.TclError:
+                pass
+
+            self.new_person_dialog = None
+
+        self.new_person_dialog = NewSpousePersonDialog(
             self,
             self.focus_person,
             self.create_new_person,
-            self.children,
+            self.existing_children,
         )
+
+    def new_person_dialog_closed(self):
+        self.new_person_dialog = None
+
+        if not self.closed and self.winfo_exists():
+            self.deiconify()
+            self.lift()
+            self.after_idle(self.focus_search)
 
     def create_new_person(self, values):
         try:
@@ -441,25 +465,26 @@ class SpousePickerDialog(tk.Toplevel):
         return abs(person_year - focus_year)
 
     def close_dialog(self, event=None):
-        self.release_modal_grab()
+        if self.closed:
+            return "break"
+
+        self.closed = True
+        nested_dialog = self.new_person_dialog
+        self.new_person_dialog = None
+
+        if nested_dialog is not None:
+            try:
+                if nested_dialog.winfo_exists():
+                    nested_dialog.destroy()
+            except tk.TclError:
+                pass
+
         self.destroy()
+
+        if self.close_command is not None:
+            self.close_command()
+
         return "break"
-
-    def activate_modal(self):
-        if not self.winfo_exists():
-            return
-
-        try:
-            self.grab_set()
-        except tk.TclError:
-            self.after(40, self.activate_modal)
-
-    def release_modal_grab(self):
-        try:
-            if self.grab_current() == self:
-                self.grab_release()
-        except tk.TclError:
-            return
 
     def focus_search(self):
         self.search_entry.focus_set()
@@ -471,7 +496,7 @@ class NewSpousePersonDialog(tk.Toplevel):
         self.owner_dialog = parent
         self.focus_person = dict(focus_person or {})
         self.save_command = save_command
-        self.children = [
+        self.existing_children = [
             dict(child)
             for child in children or []
             if isinstance(child, dict)
@@ -483,9 +508,14 @@ class NewSpousePersonDialog(tk.Toplevel):
         self.birth_year_value = tk.StringVar()
         self.birth_month_value = tk.StringVar()
         self.birth_day_value = tk.StringVar()
+        self.deceased_value = tk.BooleanVar(value=False)
+        self.death_year_value = tk.StringVar()
+        self.death_month_value = tk.StringVar()
+        self.death_day_value = tk.StringVar()
+        self.deceased_value.trace_add("write", self.deceased_changed)
 
         self.title("Enter new spouse")
-        self.geometry("540x400")
+        self.geometry("560x590")
         self.resizable(False, False)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent)
@@ -519,6 +549,7 @@ class NewSpousePersonDialog(tk.Toplevel):
             self.displayed_name_value,
             background=SURFACE,
         )
+        self.name_field = name_field
         name_field.grid(row=1, column=0, sticky="ew", pady=(12, 10))
 
         can_give_birth_check = tk.Checkbutton(
@@ -564,8 +595,65 @@ class NewSpousePersonDialog(tk.Toplevel):
         )
         day_field.grid(row=0, column=2, sticky="ew", padx=(5, 0))
 
+        deceased_check = tk.Checkbutton(
+            card,
+            text="Dead",
+            variable=self.deceased_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        deceased_check.grid(row=4, column=0, sticky="w", pady=(12, 0))
+
+        self.death_frame = tk.Frame(card, bg=SURFACE)
+        self.death_frame.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+        self.death_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        death_heading = tk.Label(
+            self.death_frame,
+            text="Date of death",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        death_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        death_year_field = LabeledEntry(
+            self.death_frame,
+            "Year",
+            self.death_year_value,
+            background=SURFACE,
+        )
+        death_year_field.grid(row=1, column=0, sticky="ew", padx=(0, 5))
+        death_month_field = LabeledEntry(
+            self.death_frame,
+            "Month",
+            self.death_month_value,
+            background=SURFACE,
+        )
+        death_month_field.grid(row=1, column=1, sticky="ew", padx=5)
+        death_day_field = LabeledEntry(
+            self.death_frame,
+            "Day",
+            self.death_day_value,
+            background=SURFACE,
+        )
+        death_day_field.grid(row=1, column=2, sticky="ew", padx=(5, 0))
+        self.death_frame.grid_remove()
+
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=4, column=0, sticky="e", pady=(18, 0))
+        footer.grid(row=6, column=0, sticky="e", pady=(18, 0))
         cancel_button = SoftButton(
             footer,
             text="Cancel",
@@ -590,8 +678,7 @@ class NewSpousePersonDialog(tk.Toplevel):
 
         self.bind("<Escape>", self.close_dialog)
         self.bind("<Return>", self.save_person)
-        self.after_idle(self.activate_modal)
-        self.after_idle(name_field.focus_set)
+        self.after_idle(self.focus_name)
 
     def save_person(self, event=None):
         displayed_name = self.displayed_name_value.get().strip()
@@ -610,12 +697,22 @@ class NewSpousePersonDialog(tk.Toplevel):
             "birth_month": self.birth_month_value.get(),
             "birth_day": self.birth_day_value.get(),
             "can_give_birth": self.can_give_birth_value.get(),
+            "deceased": self.deceased_value.get(),
+            "death_year": (
+                self.death_year_value.get() if self.deceased_value.get() else ""
+            ),
+            "death_month": (
+                self.death_month_value.get() if self.deceased_value.get() else ""
+            ),
+            "death_day": (
+                self.death_day_value.get() if self.deceased_value.get() else ""
+            ),
         }
 
         try:
             values = prepare_new_spouse_values(
                 self.focus_person,
-                self.children,
+                self.existing_children,
                 values,
             )
         except (TypeError, ValueError) as error:
@@ -627,27 +724,22 @@ class NewSpousePersonDialog(tk.Toplevel):
         if created_person is not None:
             self.close_dialog()
 
+    def deceased_changed(self, *arguments):
+        if self.deceased_value.get():
+            self.death_frame.grid()
+        else:
+            self.death_frame.grid_remove()
+
+    def focus_name(self):
+        self.name_field.control.focus_set()
+
     def close_dialog(self, event=None):
-        self.release_modal_grab()
         self.destroy()
 
-        if self.owner_dialog.winfo_exists():
-            self.owner_dialog.after_idle(self.owner_dialog.activate_modal)
+        try:
+            if self.owner_dialog.winfo_exists():
+                self.owner_dialog.new_person_dialog_closed()
+        except tk.TclError:
+            pass
 
         return "break"
-
-    def activate_modal(self):
-        if not self.winfo_exists():
-            return
-
-        try:
-            self.grab_set()
-        except tk.TclError:
-            self.after(40, self.activate_modal)
-
-    def release_modal_grab(self):
-        try:
-            if self.grab_current() == self:
-                self.grab_release()
-        except tk.TclError:
-            return
