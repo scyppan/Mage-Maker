@@ -1,7 +1,6 @@
 import tkinter as tk
 from copy import deepcopy
 from functools import partial
-from tkinter import ttk
 
 from mage_maker.sections.development.page import DevelopmentView
 from mage_maker.sections.family_tree.page import FamilyTreeView
@@ -15,6 +14,11 @@ from mage_maker.sections.names.timeline import (
     name_entry_for_timeline_event,
     synchronize_name_change_events,
 )
+from mage_maker.sections.profile.famous_connections import (
+    FamousConnectionMap,
+    FamousConnectionsView,
+)
+from mage_maker.sections.profile.school_field import SchoolField
 from mage_maker.sections.timeline.page import TimelineView
 from mage_maker.sections.timeline.locations import ensure_life_start_events
 from mage_maker.ui.theme import (
@@ -40,11 +44,11 @@ from mage_maker.ui.widgets import (
 
 class PersonForm(tk.Frame):
     status_fields = (
-        ("deceased", "Dead or permanently neutralized"),
         ("canon", "Canon"),
         ("player_character", "Player character"),
         ("non_magical", "Non-magical"),
         ("can_give_birth", "Can give birth"),
+        ("famous_person", "This is a famous person"),
     )
 
     def __init__(
@@ -131,9 +135,9 @@ class PersonForm(tk.Frame):
     def build_profile_page(self):
         page = tk.Frame(self.content, bg=SURFACE)
         page.grid(row=0, column=0, sticky="nsew")
-        page.grid_columnconfigure(0, weight=5, uniform="profile")
+        page.grid_columnconfigure(0, weight=6, uniform="profile")
         page.grid_columnconfigure(1, weight=4, uniform="profile")
-        page.grid_rowconfigure(0, weight=3, uniform="profile_rows")
+        page.grid_rowconfigure(0, weight=4, uniform="profile_rows")
         page.grid_rowconfigure(1, weight=2, uniform="profile_rows")
         self.pages["profile"] = page
 
@@ -151,15 +155,16 @@ class PersonForm(tk.Frame):
         )
         identity_panel.content.grid_columnconfigure(0, weight=1)
 
-        name_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        name_row.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        name_row.grid_columnconfigure(0, weight=1)
+        name_school_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
+        name_school_row.grid(row=0, column=0, sticky="ew", pady=(0, 11))
+        name_school_row.grid_columnconfigure(0, weight=5)
+        name_school_row.grid_columnconfigure(2, weight=4)
 
         displayed_name_value = tk.StringVar()
         displayed_name_value.trace_add("write", self.variable_changed)
         self.variables["displayed_name"] = displayed_name_value
         displayed_name_field = LabeledEntry(
-            name_row,
+            name_school_row,
             "Displayed name",
             displayed_name_value,
             background=SURFACE_MUTED,
@@ -168,7 +173,7 @@ class PersonForm(tk.Frame):
         displayed_name_field.grid(row=0, column=0, sticky="ew")
 
         self.name_details_button = SoftButton(
-            name_row,
+            name_school_row,
             text="Name Details",
             command=self.open_name_details,
             background=SURFACE_MUTED,
@@ -178,35 +183,50 @@ class PersonForm(tk.Frame):
             width=122,
             height=40,
         )
-        self.name_details_button.grid(row=0, column=1, sticky="s", padx=(7, 0))
-
-        details_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        details_row.grid(row=1, column=0, sticky="ew")
-        details_row.grid_columnconfigure(0, weight=3)
-        details_row.grid_columnconfigure(1, weight=5)
-        self.add_school_field(
-            details_row,
-            0,
-            0,
-            SURFACE_MUTED,
-            (0, 10),
+        self.name_details_button.grid(row=0, column=1, sticky="s", padx=7)
+        school_names = (
+            self.game_database.school_names()
+            if self.game_database is not None and self.game_database.loaded
+            else []
         )
+        self.school_field = SchoolField(
+            name_school_row,
+            school_names,
+            self.variable_changed,
+            SURFACE_MUTED,
+        )
+        self.school_field.grid(row=0, column=2, sticky="ew")
 
-        birth_frame = tk.Frame(details_row, bg=SURFACE_MUTED)
-        birth_frame.grid(row=0, column=1, sticky="ew")
+        birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
+        birth_frame.grid(row=1, column=0, sticky="ew", pady=(0, 9))
         birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        birth_heading = tk.Label(
+            birth_frame,
+            text="Date of birth",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        birth_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
         self.add_entry_field(
             birth_frame,
-            0,
+            1,
             0,
             "birth_year",
-            "Birth year",
+            "Year",
             SURFACE_MUTED,
             (0, 6),
         )
         self.add_entry_field(
             birth_frame,
-            0,
+            1,
             1,
             "birth_month",
             "Month",
@@ -215,12 +235,86 @@ class PersonForm(tk.Frame):
         )
         self.add_entry_field(
             birth_frame,
-            0,
+            1,
             2,
             "birth_day",
             "Day",
             SURFACE_MUTED,
         )
+
+        deceased_value = tk.BooleanVar(value=False)
+        deceased_value.trace_add("write", self.deceased_changed)
+        self.variables["deceased"] = deceased_value
+        deceased_check = tk.Checkbutton(
+            identity_panel.content,
+            text="Dead",
+            variable=deceased_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            activebackground=SURFACE_MUTED,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(10),
+            anchor="w",
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        deceased_check.grid(row=2, column=0, sticky="w", pady=(0, 7))
+        self.boolean_widgets["deceased"] = deceased_check
+
+        self.death_date_frame = tk.Frame(
+            identity_panel.content,
+            bg=SURFACE_MUTED,
+        )
+        self.death_date_frame.grid(row=3, column=0, sticky="ew", pady=(0, 9))
+        self.death_date_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        death_heading = tk.Label(
+            self.death_date_frame,
+            text="Date of death",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        death_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        self.add_entry_field(
+            self.death_date_frame,
+            1,
+            0,
+            "death_year",
+            "Year",
+            SURFACE_MUTED,
+            (0, 6),
+        )
+        self.add_entry_field(
+            self.death_date_frame,
+            1,
+            1,
+            "death_month",
+            "Month",
+            SURFACE_MUTED,
+            (0, 6),
+        )
+        self.add_entry_field(
+            self.death_date_frame,
+            1,
+            2,
+            "death_day",
+            "Day",
+            SURFACE_MUTED,
+        )
+        self.death_date_frame.grid_remove()
+        self.famous_connections = FamousConnectionsView(
+            identity_panel.content,
+            SURFACE_MUTED,
+        )
+        self.famous_connections.grid(row=4, column=0, sticky="ew")
 
         status_panel = SectionPanel(
             page,
@@ -361,48 +455,6 @@ class PersonForm(tk.Frame):
             padx=horizontal_padding,
         )
 
-    def add_school_field(
-        self,
-        parent,
-        row,
-        column,
-        background=SURFACE,
-        horizontal_padding=0,
-    ):
-        variable = tk.StringVar()
-        variable.trace_add("write", self.variable_changed)
-        self.variables["school"] = variable
-        field = tk.Frame(parent, bg=background)
-        field.grid_columnconfigure(0, weight=1)
-        field.grid(
-            row=row,
-            column=column,
-            sticky="ew",
-            padx=horizontal_padding,
-        )
-        label = tk.Label(
-            field,
-            text="School",
-            bg=background,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        school_names = (
-            self.game_database.school_names()
-            if self.game_database is not None and self.game_database.loaded
-            else []
-        )
-        self.school_picker = ttk.Combobox(
-            field,
-            textvariable=variable,
-            values=school_names,
-            state="readonly" if school_names else "disabled",
-            font=app_font(10),
-        )
-        self.school_picker.grid(row=1, column=0, sticky="ew", ipady=7)
-
     def add_boolean_fields(
         self,
         parent,
@@ -449,6 +501,9 @@ class PersonForm(tk.Frame):
 
         if page_name == "family_tree" and self.current_record_id:
             self.family_tree.update_current_person(self.current_profile_values())
+
+        if page_name == "profile":
+            self.update_famous_connections()
 
         self.pages[page_name].tkraise()
 
@@ -573,6 +628,9 @@ class PersonForm(tk.Frame):
             else:
                 variable.set("" if value is None else str(value))
 
+        self.school_field.set_value(person.get("school", ""))
+        self.update_death_date_visibility()
+
         for field_name, text_widget in self.text_widgets.items():
             text_widget.delete("1.0", "end")
             text_widget.insert("1.0", str(person.get(field_name, "") or ""))
@@ -605,6 +663,7 @@ class PersonForm(tk.Frame):
             )
         )
         self.update_can_give_birth_control()
+        self.update_famous_connections()
         self.show_page(self.active_page_name)
         self.loading = False
 
@@ -616,7 +675,12 @@ class PersonForm(tk.Frame):
             "birth_month": self.variables["birth_month"].get(),
             "birth_day": self.variables["birth_day"].get(),
             "deceased": self.variables["deceased"].get(),
+            "death_year": self.variables["death_year"].get(),
+            "death_month": self.variables["death_month"].get(),
+            "death_day": self.variables["death_day"].get(),
             "can_give_birth": self.variables["can_give_birth"].get(),
+            "famous_person": self.variables["famous_person"].get(),
+            "school": self.school_field.get_value(),
             "timeline_events": self.timeline.get_events(),
             "name_details": deepcopy(self.name_details),
         }
@@ -630,6 +694,7 @@ class PersonForm(tk.Frame):
         for field_name, text_widget in self.text_widgets.items():
             values[field_name] = text_widget.get("1.0", "end-1c")
 
+        values["school"] = self.school_field.get_value()
         values["name_details"] = deepcopy(self.name_details)
         values["timeline_events"] = self.timeline.get_events()
         values.update(self.family_tree.get_relationship_values())
@@ -638,6 +703,7 @@ class PersonForm(tk.Frame):
 
     def family_tree_changed(self):
         self.update_can_give_birth_control()
+        self.update_famous_connections()
 
         if not self.loading:
             self.change_command()
@@ -645,6 +711,37 @@ class PersonForm(tk.Frame):
     def timeline_changed(self):
         if not self.loading:
             self.change_command()
+
+    def deceased_changed(self, *arguments):
+        self.update_death_date_visibility()
+
+        if not self.loading:
+            self.change_command()
+
+    def update_death_date_visibility(self):
+        if not hasattr(self, "death_date_frame"):
+            return
+
+        if self.variables["deceased"].get():
+            self.death_date_frame.grid()
+        else:
+            self.death_date_frame.grid_remove()
+
+    def update_famous_connections(self):
+        if not self.current_record_id or not hasattr(self, "family_tree"):
+            self.famous_connections.set_connections([])
+            return
+
+        current_person = deepcopy(self.family_tree.current_person)
+        current_person.update(self.current_profile_values())
+        current_person.update(self.family_tree.get_relationship_values())
+        connection_map = FamousConnectionMap(
+            self.people_provider(),
+            current_person,
+        )
+        self.famous_connections.set_connections(
+            connection_map.labels_for(self.current_record_id)
+        )
 
     def update_can_give_birth_control(self):
         checkbutton = self.boolean_widgets.get("can_give_birth")

@@ -59,7 +59,13 @@ class MagesPage(tk.Frame):
             sashrelief="flat",
             showhandle=False,
         )
-        workspace.grid(row=0, column=0, sticky="nsew", padx=22, pady=22)
+        workspace.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            padx=18,
+            pady=(10, 18),
+        )
         list_card = tk.Frame(
             workspace,
             bg=SURFACE,
@@ -237,6 +243,14 @@ class MagesPage(tk.Frame):
 
     def save_person(self):
         if self.current_record_id is None:
+            return False
+
+        if self.person_form.school_field.specialty_is_blank():
+            messagebox.showerror(
+                "Specialty school required",
+                "Enter the specialty school name.",
+                parent=self,
+            )
             return False
 
         values = self.person_form.get_values()

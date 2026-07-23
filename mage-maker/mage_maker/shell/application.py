@@ -86,7 +86,7 @@ class MageMakerApp(tk.Tk):
             self.set_status(self.game_database.error)
 
     def build_header(self):
-        header = tk.Frame(self, bg=PRIMARY_DARK, height=72)
+        header = tk.Frame(self, bg=PRIMARY_DARK, height=64)
         header.grid(row=0, column=0, sticky="ew")
         header.grid_propagate(False)
         header.grid_columnconfigure(1, weight=1)
@@ -96,12 +96,19 @@ class MageMakerApp(tk.Tk):
             bg=PRIMARY_DARK,
             fg=TEXT_LIGHT,
             font=app_font(19, "bold"),
-            anchor="w",
+            anchor="sw",
             padx=24,
+            pady=8,
         )
         title.grid(row=0, column=0, sticky="nsew")
         navigation = tk.Frame(header, bg=PRIMARY_DARK)
-        navigation.grid(row=0, column=1, sticky="w", padx=(12, 0))
+        navigation.grid(
+            row=0,
+            column=1,
+            sticky="sw",
+            padx=(12, 0),
+            pady=(0, 7),
+        )
 
         for page_name, label, width in (
             ("mages", "Mages", 104),
@@ -129,8 +136,10 @@ class MageMakerApp(tk.Tk):
             fg=PRIMARY_LIGHT,
             font=app_font(10),
             padx=24,
+            pady=9,
+            anchor="se",
         )
-        subtitle.grid(row=0, column=2, sticky="e")
+        subtitle.grid(row=0, column=2, sticky="nsew")
 
     def navigation_command(self, page_name):
         return NavigationCommand(self, page_name)

@@ -1,6 +1,7 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox
 
+from mage_maker.sections.profile.school_field import SchoolField
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
@@ -79,7 +80,6 @@ class CreationWizardDialog(tk.Toplevel):
         self.birth_month_value = tk.StringVar()
         self.birth_day_value = tk.StringVar()
         self.starting_location_value = tk.StringVar()
-        self.school_value = tk.StringVar()
         self.can_give_birth_value = tk.BooleanVar(value=False)
 
         displayed_name_field = LabeledEntry(
@@ -140,37 +140,23 @@ class CreationWizardDialog(tk.Toplevel):
             pady=(14, 0),
         )
 
-        school_frame = tk.Frame(card, bg=SURFACE)
-        school_frame.grid(
+        school_names = (
+            self.game_database.school_names()
+            if self.game_database is not None and self.game_database.loaded
+            else []
+        )
+        self.school_field = SchoolField(
+            card,
+            school_names,
+            background=SURFACE,
+        )
+        self.school_field.grid(
             row=4,
             column=0,
             sticky="ew",
             padx=16,
             pady=(14, 0),
         )
-        school_frame.grid_columnconfigure(0, weight=1)
-        school_label = tk.Label(
-            school_frame,
-            text="School",
-            bg=SURFACE,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        school_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        school_names = (
-            self.game_database.school_names()
-            if self.game_database is not None and self.game_database.loaded
-            else []
-        )
-        self.school_picker = ttk.Combobox(
-            school_frame,
-            textvariable=self.school_value,
-            values=school_names,
-            state="readonly" if school_names else "disabled",
-            font=app_font(10),
-        )
-        self.school_picker.grid(row=1, column=0, sticky="ew", ipady=7)
 
         can_give_birth_check = tk.Checkbutton(
             card,
@@ -235,13 +221,21 @@ class CreationWizardDialog(tk.Toplevel):
             )
             return
 
+        if self.school_field.specialty_is_blank():
+            messagebox.showerror(
+                "Specialty school required",
+                "Enter the specialty school name.",
+                parent=self,
+            )
+            return
+
         values = {
             "displayed_name": self.displayed_name_value.get(),
             "birth_year": self.birth_year_value.get(),
             "birth_month": self.birth_month_value.get(),
             "birth_day": self.birth_day_value.get(),
             "starting_location": starting_location,
-            "school": self.school_value.get(),
+            "school": self.school_field.get_value(),
             "can_give_birth": self.can_give_birth_value.get(),
         }
 

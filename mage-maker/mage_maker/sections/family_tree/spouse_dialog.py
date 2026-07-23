@@ -68,9 +68,9 @@ class SpousePickerDialog(tk.Toplevel):
         self.minsize(760, 590)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent.winfo_toplevel())
-        self.grab_set()
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
 
         card = tk.Frame(
             self,
@@ -134,7 +134,7 @@ class SpousePickerDialog(tk.Toplevel):
         cancel_button = SoftButton(
             footer,
             text="Cancel",
-            command=self.destroy,
+            command=self.close_dialog,
             background=SURFACE,
             width=88,
             height=36,
@@ -156,6 +156,7 @@ class SpousePickerDialog(tk.Toplevel):
         self.bind("<Escape>", self.close_dialog)
         self.bind("<Return>", self.save_spouse)
         self.filter_candidates()
+        self.after_idle(self.activate_modal)
         self.after_idle(self.focus_search)
 
     def build_candidate_panel(self, parent):
@@ -395,9 +396,10 @@ class SpousePickerDialog(tk.Toplevel):
             messagebox.showerror("Cannot add spouse", str(error), parent=self)
             return
 
-        self.destroy()
+        self.close_dialog()
 
     def open_new_person_dialog(self):
+        self.release_modal_grab()
         NewSpousePersonDialog(
             self,
             self.focus_person,
@@ -439,8 +441,25 @@ class SpousePickerDialog(tk.Toplevel):
         return abs(person_year - focus_year)
 
     def close_dialog(self, event=None):
+        self.release_modal_grab()
         self.destroy()
         return "break"
+
+    def activate_modal(self):
+        if not self.winfo_exists():
+            return
+
+        try:
+            self.grab_set()
+        except tk.TclError:
+            self.after(40, self.activate_modal)
+
+    def release_modal_grab(self):
+        try:
+            if self.grab_current() == self:
+                self.grab_release()
+        except tk.TclError:
+            return
 
     def focus_search(self):
         self.search_entry.focus_set()
@@ -449,6 +468,7 @@ class SpousePickerDialog(tk.Toplevel):
 class NewSpousePersonDialog(tk.Toplevel):
     def __init__(self, parent, focus_person, save_command, children=None):
         super().__init__(parent)
+        self.owner_dialog = parent
         self.focus_person = dict(focus_person or {})
         self.save_command = save_command
         self.children = [
@@ -469,9 +489,9 @@ class NewSpousePersonDialog(tk.Toplevel):
         self.resizable(False, False)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent)
-        self.grab_set()
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
 
         card = tk.Frame(
             self,
@@ -549,7 +569,7 @@ class NewSpousePersonDialog(tk.Toplevel):
         cancel_button = SoftButton(
             footer,
             text="Cancel",
-            command=self.destroy,
+            command=self.close_dialog,
             background=SURFACE,
             width=88,
             height=36,
@@ -570,6 +590,7 @@ class NewSpousePersonDialog(tk.Toplevel):
 
         self.bind("<Escape>", self.close_dialog)
         self.bind("<Return>", self.save_person)
+        self.after_idle(self.activate_modal)
         self.after_idle(name_field.focus_set)
 
     def save_person(self, event=None):
@@ -604,8 +625,29 @@ class NewSpousePersonDialog(tk.Toplevel):
         created_person = self.save_command(values)
 
         if created_person is not None:
-            self.destroy()
+            self.close_dialog()
 
     def close_dialog(self, event=None):
+        self.release_modal_grab()
         self.destroy()
+
+        if self.owner_dialog.winfo_exists():
+            self.owner_dialog.after_idle(self.owner_dialog.activate_modal)
+
         return "break"
+
+    def activate_modal(self):
+        if not self.winfo_exists():
+            return
+
+        try:
+            self.grab_set()
+        except tk.TclError:
+            self.after(40, self.activate_modal)
+
+    def release_modal_grab(self):
+        try:
+            if self.grab_current() == self:
+                self.grab_release()
+        except tk.TclError:
+            return

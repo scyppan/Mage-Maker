@@ -91,7 +91,13 @@ class OrganizationPage(tk.Frame):
             sashrelief="flat",
             showhandle=False,
         )
-        workspace.grid(row=1, column=0, sticky="nsew", padx=22, pady=22)
+        workspace.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            padx=18,
+            pady=(10, 18),
+        )
         list_card = tk.Frame(
             workspace,
             bg=SURFACE,

@@ -44,11 +44,15 @@ class PeopleController:
         "player_character",
         "non_magical",
         "can_give_birth",
+        "famous_person",
     )
     number_fields = (
         "birth_year",
         "birth_month",
         "birth_day",
+        "death_year",
+        "death_month",
+        "death_day",
     )
 
     def __init__(self, database):
@@ -93,10 +97,14 @@ class PeopleController:
             "birth_month": None,
             "birth_day": None,
             "deceased": False,
+            "death_year": None,
+            "death_month": None,
+            "death_day": None,
             "canon": False,
             "player_character": False,
             "non_magical": False,
             "can_give_birth": False,
+            "famous_person": False,
             "biological_mother_id": "",
             "biological_father_id": "",
             "biological_mother_status": "unknown",
@@ -352,6 +360,12 @@ class PeopleController:
             values.get("birth_month"),
             values.get("birth_day"),
             "Birth",
+        )
+        normalize_date_parts(
+            values.get("death_year"),
+            values.get("death_month"),
+            values.get("death_day"),
+            "Death",
         )
 
         self.validate_relationships(values)
