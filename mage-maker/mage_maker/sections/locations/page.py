@@ -3,6 +3,7 @@ from tkinter import messagebox, simpledialog, ttk
 
 from mage_maker.core.dates import split_partial_date
 from mage_maker.sections.locations.models import location_path
+from mage_maker.sections.locations.periods_page import PeriodsPage
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
@@ -45,14 +46,19 @@ class LocationPage(tk.Frame):
         self.locations = []
         self.visible_events = []
         self.current_location_id = None
+        self.active_section_name = "overview"
+        self.section_pages = {}
+        self.section_buttons = {}
         self.parent_ids_by_label = {}
         self.name_value = tk.StringVar()
         self.parent_value = tk.StringVar()
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_toolbar()
-        self.build_workspace()
+        self.build_navigation()
+        self.build_content()
         self.refresh()
+        self.show_section("overview")
 
     def build_toolbar(self):
         toolbar = tk.Frame(self, bg=PRIMARY_DARK, height=64)
@@ -94,9 +100,52 @@ class LocationPage(tk.Frame):
         )
         delete_button.grid(row=0, column=2, padx=(4, 16), pady=13)
 
-    def build_workspace(self):
+    def build_navigation(self):
+        navigation = tk.Frame(self, bg=APP_BACKGROUND)
+        navigation.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=18,
+            pady=(10, 0),
+        )
+
+        for section_name, label, width in (
+            ("overview", "Overview", 104),
+            ("periods", "Periods", 96),
+        ):
+            button = SoftButton(
+                navigation,
+                text=label,
+                command=LocationSectionCommand(self, section_name),
+                background=APP_BACKGROUND,
+                fill=BUTTON_SOFT,
+                hover_fill=BUTTON_SOFT_HOVER,
+                foreground=TEXT_DARK,
+                width=width,
+                height=36,
+            )
+            button.pack(side="left", padx=(0, 6))
+            self.section_buttons[section_name] = button
+
+    def build_content(self):
+        content = tk.Frame(self, bg=APP_BACKGROUND)
+        content.grid(row=2, column=0, sticky="nsew")
+        content.grid_rowconfigure(0, weight=1)
+        content.grid_columnconfigure(0, weight=1)
+        self.build_workspace(content)
+        self.periods_page = PeriodsPage(
+            content,
+            self.controller,
+            self.status_command,
+            self.navigate_person_command,
+        )
+        self.periods_page.grid(row=0, column=0, sticky="nsew")
+        self.section_pages["periods"] = self.periods_page
+
+    def build_workspace(self, parent):
         workspace = tk.PanedWindow(
-            self,
+            parent,
             orient="horizontal",
             bg=BORDER,
             borderwidth=0,
@@ -105,12 +154,13 @@ class LocationPage(tk.Frame):
             showhandle=False,
         )
         workspace.grid(
-            row=1,
+            row=0,
             column=0,
             sticky="nsew",
             padx=18,
             pady=(10, 18),
         )
+        self.section_pages["overview"] = workspace
 
         list_card = tk.Frame(
             workspace,
@@ -166,6 +216,25 @@ class LocationPage(tk.Frame):
 
         workspace.add(list_card, minsize=290, width=330)
         workspace.add(editor_card, minsize=680)
+
+    def show_section(self, section_name):
+        if section_name not in self.section_pages:
+            return False
+
+        self.active_section_name = section_name
+
+        if section_name == "periods":
+            self.periods_page.refresh()
+
+        self.section_pages[section_name].tkraise()
+
+        for name, button in self.section_buttons.items():
+            if name == section_name:
+                button.set_colors(PRIMARY, PRIMARY_HOVER, TEXT_DARK)
+            else:
+                button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
+
+        return True
 
     def build_location_fields(self, parent):
         identity = tk.Frame(parent, bg=SURFACE_MUTED, padx=14, pady=12)
@@ -370,6 +439,14 @@ class LocationPage(tk.Frame):
             self.load_location(self.locations[0]["record_id"])
         else:
             self.clear_form()
+
+        self.periods_page.refresh()
+
+    def refresh_person_data(self):
+        if self.current_location_id:
+            self.refresh_timeline()
+
+        self.periods_page.refresh()
 
     def location_depth(self, location):
         record_id = str(location.get("record_id", "") or "")
@@ -801,3 +878,12 @@ class LocationEventDialog(tk.Toplevel):
     def close_dialog(self, event=None):
         self.destroy()
         return "break"
+
+
+class LocationSectionCommand:
+    def __init__(self, page, section_name):
+        self.page = page
+        self.section_name = section_name
+
+    def __call__(self):
+        self.page.show_section(self.section_name)

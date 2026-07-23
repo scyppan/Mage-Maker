@@ -8,6 +8,7 @@ from mage_maker.sections.locations.models import (
     normalize_location_record,
     visible_location_timeline,
 )
+from mage_maker.sections.locations.periods import categorized_people_for_period
 
 
 class LocationController:
@@ -153,6 +154,15 @@ class LocationController:
             location_id,
             self.list_locations(),
             self.people_provider(),
+        )
+
+    def people_for_period(self, start_year, end_year, location_id=""):
+        return categorized_people_for_period(
+            self.people_provider(),
+            self.list_locations(),
+            start_year,
+            end_year,
+            location_id,
         )
 
     def parent_options(self, excluded_location_id=""):

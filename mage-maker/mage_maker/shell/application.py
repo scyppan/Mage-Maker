@@ -222,8 +222,8 @@ class MageMakerApp(tk.Tk):
     def refresh_cross_page_data(self):
         location_page = self.pages.get("locations")
 
-        if location_page is not None and location_page.current_location_id:
-            location_page.refresh_timeline()
+        if location_page is not None:
+            location_page.refresh_person_data()
 
     def set_status(self, message):
         self.status_value.set(str(message or "Ready"))
