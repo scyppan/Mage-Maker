@@ -1,7 +1,7 @@
 import tkinter as tk
 from functools import partial
 
-from mage_maker.theme import (
+from mage_maker.ui.theme import (
     BORDER_SOFT,
     FIELD_BACKGROUND,
     LIST_ALTERNATE,
@@ -15,7 +15,7 @@ from mage_maker.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.widgets import RoundedEntry, SoftButton
+from mage_maker.ui.widgets import RoundedEntry, SoftButton
 
 
 class PeopleList(tk.Frame):

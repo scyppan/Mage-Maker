@@ -1,10 +1,29 @@
 from copy import deepcopy
 
-from mage_maker.family_relationships import FamilyRelationshipMap
-from mage_maker.name_history import empty_name_details, normalize_name_details
-from mage_maker.timeline_events import (
+from mage_maker.core.dates import is_at_least_age, normalize_date_parts
+from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap
+from mage_maker.sections.family_tree.spouse_relationships import (
+    empty_spouse_relationship,
+    merge_mate_ids,
+    normalize_spouse_relationships,
+    reciprocal_relationship,
+    relationship_ids,
+)
+from mage_maker.sections.names.history import empty_name_details, normalize_name_details
+from mage_maker.sections.names.timeline import synchronize_name_change_events
+from mage_maker.sections.timeline.events import (
     automatic_child_timeline_event,
     normalize_timeline_events,
+)
+from mage_maker.sections.timeline.locations import (
+    ParentLocationConflict,
+    add_long_distance_note,
+    born_long_distance_parent_ids,
+    born_note_from_events,
+    child_parent_location_context,
+    ensure_life_start_events,
+    remove_long_distance_note,
+    starting_location_from_events,
 )
 
 
@@ -60,6 +79,12 @@ class PeopleController:
         return self.database.read_person(record_id)
 
     def create_person(self, values):
+        creation_values = deepcopy(values)
+        starting_location = creation_values.pop("starting_location", None)
+        long_distance_override = self.normalize_boolean(
+            creation_values.pop("long_distance_parent_override", False),
+            "long_distance_parent_override",
+        )
         defaults = {
             "displayed_name": "",
             "name_details": empty_name_details(),
@@ -77,20 +102,37 @@ class PeopleController:
             "biological_mother_status": "unknown",
             "biological_father_status": "unknown",
             "mate_ids": [],
+            "spouse_relationships": [],
             "timeline_events": [],
             "school": "",
             "notes": "",
             "imported_fields": {},
         }
-        defaults.update(deepcopy(values))
+        defaults.update(creation_values)
         normalized = self.normalize_values(defaults)
+        normalized = self.reconcile_spouse_fields(normalized)
         normalized = self.canonicalize_parent_states(normalized)
+        normalize_date_parts(
+            normalized.get("birth_year"),
+            normalized.get("birth_month"),
+            normalized.get("birth_day"),
+            "Birth",
+        )
+        normalized = self.synchronize_life_start_timeline(
+            normalized,
+            starting_location,
+            long_distance_override,
+        )
+        normalized["timeline_events"] = synchronize_name_change_events(
+            normalized["name_details"],
+            normalized["timeline_events"],
+        )
         self.validate_values(normalized)
         created_person = self.database.create_person(normalized)
-        self.synchronize_mates(
+        self.synchronize_spouses(
             created_person["record_id"],
             [],
-            created_person.get("mate_ids", []),
+            created_person.get("spouse_relationships", []),
         )
         self.synchronize_coparents(created_person)
         self.reconcile_child_parent_timelines(created_person, [])
@@ -106,24 +148,49 @@ class PeopleController:
         if current_person is None:
             raise KeyError(f"Unknown person record_id: {record_id}")
 
-        normalized = self.normalize_values(values)
+        update_values = deepcopy(values)
+        starting_location = update_values.pop("starting_location", None)
+        long_distance_override = self.normalize_boolean(
+            update_values.pop("long_distance_parent_override", False),
+            "long_distance_parent_override",
+        )
+        normalized = self.normalize_values(update_values)
+        normalized = self.reconcile_spouse_fields(normalized, current_person)
         prospective_person = deepcopy(current_person)
         prospective_person.update(normalized)
         prospective_person = self.canonicalize_parent_states(prospective_person)
+        normalize_date_parts(
+            prospective_person.get("birth_year"),
+            prospective_person.get("birth_month"),
+            prospective_person.get("birth_day"),
+            "Birth",
+        )
+        prospective_person = self.synchronize_life_start_timeline(
+            prospective_person,
+            starting_location,
+            long_distance_override,
+        )
+        prospective_person["timeline_events"] = synchronize_name_change_events(
+            prospective_person.get("name_details", empty_name_details()),
+            prospective_person["timeline_events"],
+        )
         normalized["biological_mother_status"] = prospective_person[
             "biological_mother_status"
         ]
         normalized["biological_father_status"] = prospective_person[
             "biological_father_status"
         ]
+        normalized["timeline_events"] = prospective_person["timeline_events"]
         self.validate_values(prospective_person)
-        old_mate_ids = list(current_person.get("mate_ids", []) or [])
+        old_spouse_relationships = normalize_spouse_relationships(
+            current_person.get("spouse_relationships", [])
+        )
         old_parent_ids = self.parent_ids_from_person(current_person)
         updated_person = self.database.update_person(record_id, normalized)
-        self.synchronize_mates(
+        self.synchronize_spouses(
             record_id,
-            old_mate_ids,
-            updated_person.get("mate_ids", []),
+            old_spouse_relationships,
+            updated_person.get("spouse_relationships", []),
         )
         self.synchronize_coparents(updated_person)
         self.reconcile_child_parent_timelines(updated_person, old_parent_ids)
@@ -168,6 +235,11 @@ class PeopleController:
                 normalized["mate_ids"]
             )
 
+        if "spouse_relationships" in normalized:
+            normalized["spouse_relationships"] = normalize_spouse_relationships(
+                normalized["spouse_relationships"]
+            )
+
         if "name_details" in normalized:
             normalized["name_details"] = normalize_name_details(
                 normalized["name_details"]
@@ -177,6 +249,28 @@ class PeopleController:
             normalized["timeline_events"] = normalize_timeline_events(
                 normalized["timeline_events"]
             )
+
+        return normalized
+
+    def reconcile_spouse_fields(self, values, current_person=None):
+        normalized = deepcopy(values)
+        current = current_person if isinstance(current_person, dict) else {}
+
+        if "spouse_relationships" in normalized:
+            relationships = normalize_spouse_relationships(
+                normalized.get("spouse_relationships")
+            )
+            normalized["spouse_relationships"] = relationships
+            normalized["mate_ids"] = relationship_ids(relationships)
+            return normalized
+
+        if "mate_ids" in normalized:
+            relationships = merge_mate_ids(
+                current.get("spouse_relationships", []),
+                normalized.get("mate_ids", []),
+            )
+            normalized["spouse_relationships"] = relationships
+            normalized["mate_ids"] = relationship_ids(relationships)
 
         return normalized
 
@@ -253,20 +347,70 @@ class PeopleController:
         if not values.get("displayed_name", "").strip():
             raise ValueError("A magician must have a displayed name.")
 
-        birth_year = values.get("birth_year")
-        birth_month = values.get("birth_month")
-        birth_day = values.get("birth_day")
-
-        if birth_year is not None and not 1 <= birth_year <= 9999:
-            raise ValueError("Birth year must be between 1 and 9999.")
-
-        if birth_month is not None and not 1 <= birth_month <= 12:
-            raise ValueError("Birth month must be between 1 and 12.")
-
-        if birth_day is not None and not 1 <= birth_day <= 31:
-            raise ValueError("Birth day must be between 1 and 31.")
+        normalize_date_parts(
+            values.get("birth_year"),
+            values.get("birth_month"),
+            values.get("birth_day"),
+            "Birth",
+        )
 
         self.validate_relationships(values)
+
+    def synchronize_life_start_timeline(
+        self,
+        person,
+        requested_starting_location=None,
+        long_distance_override=False,
+    ):
+        synchronized = deepcopy(person)
+        events = normalize_timeline_events(
+            synchronized.get("timeline_events", [])
+        )
+        starting_location = (
+            str(requested_starting_location or "").strip()
+            if requested_starting_location is not None
+            else starting_location_from_events(events)
+        )
+        born_note = born_note_from_events(events)
+        previous_override_ids = born_long_distance_parent_ids(events)
+        location_context = child_parent_location_context(
+            synchronized,
+            self.database.list_people(),
+        )
+        override_parent_ids = []
+
+        if location_context["conflict"]:
+            override_is_current = (
+                bool(previous_override_ids)
+                and previous_override_ids == location_context["parent_ids"]
+            )
+
+            if not long_distance_override and not override_is_current:
+                raise ParentLocationConflict(
+                    synchronized.get("displayed_name", "This child"),
+                    location_context["birthing_parent_name"],
+                    location_context["birthing_location"],
+                    location_context["non_birthing_parent_name"],
+                    location_context["non_birthing_location"],
+                    location_context["parent_ids"],
+                )
+
+            starting_location = location_context["birthing_location"]
+            born_note = add_long_distance_note(born_note)
+            override_parent_ids = location_context["parent_ids"]
+        else:
+            if location_context["inherited_location"]:
+                starting_location = location_context["inherited_location"]
+
+            born_note = remove_long_distance_note(born_note)
+
+        synchronized["timeline_events"] = ensure_life_start_events(
+            synchronized,
+            starting_location=starting_location,
+            born_note=born_note,
+            long_distance_parent_ids=override_parent_ids,
+        )
+        return synchronized
 
     def validate_relationships(self, values):
         record_id = str(values.get("record_id", "") or "")
@@ -299,6 +443,14 @@ class PeopleController:
                 requirement = "checked" if required_capability else "unchecked"
                 raise ValueError(
                     f"A {role_label} must have Can give birth {requirement}."
+                )
+
+            age_check = is_at_least_age(parent, values, 18)
+
+            if age_check is False:
+                raise ValueError(
+                    f"The selected {role_label} must be at least 18 when the "
+                    "child is born."
                 )
 
             if record_id and parent_id in relationship_map.descendants_of(record_id):
@@ -340,29 +492,68 @@ class PeopleController:
                         "as a non-birthing parent."
                     )
 
-    def synchronize_mates(self, record_id, old_mate_ids, new_mate_ids):
-        old_ids = set(self.normalize_identifier_list(old_mate_ids))
-        new_ids = set(self.normalize_identifier_list(new_mate_ids))
+                if record_id in (
+                    str(child.get("biological_mother_id", "") or ""),
+                    str(child.get("biological_father_id", "") or ""),
+                ) and is_at_least_age(values, child, 18) is False:
+                    raise ValueError(
+                        "This birth date would make the person younger than 18 "
+                        f"when {child.get('displayed_name', 'their child')} was born."
+                    )
 
-        for mate_id in old_ids | new_ids:
+    def synchronize_spouses(
+        self,
+        record_id,
+        old_spouse_relationships,
+        new_spouse_relationships,
+    ):
+        old_relationships = normalize_spouse_relationships(
+            old_spouse_relationships
+        )
+        new_relationships = normalize_spouse_relationships(
+            new_spouse_relationships
+        )
+        old_by_id = {
+            relationship["person_id"]: relationship
+            for relationship in old_relationships
+        }
+        new_by_id = {
+            relationship["person_id"]: relationship
+            for relationship in new_relationships
+        }
+
+        for mate_id in set(old_by_id) | set(new_by_id):
             mate = self.database.read_person(mate_id)
 
             if mate is None:
                 continue
 
-            reciprocal_ids = self.normalize_identifier_list(mate.get("mate_ids", []))
+            reciprocal_relationships = normalize_spouse_relationships(
+                mate.get("spouse_relationships", [])
+            )
+            reciprocal_relationships = [
+                relationship
+                for relationship in reciprocal_relationships
+                if relationship["person_id"] != record_id
+            ]
 
-            if mate_id in new_ids and record_id not in reciprocal_ids:
-                reciprocal_ids.append(record_id)
+            if mate_id in new_by_id:
+                reciprocal_relationships.append(
+                    reciprocal_relationship(new_by_id[mate_id], record_id)
+                )
 
-            if mate_id not in new_ids:
-                reciprocal_ids = [
-                    reciprocal_id
-                    for reciprocal_id in reciprocal_ids
-                    if reciprocal_id != record_id
-                ]
+            self.database.update_person(
+                mate_id,
+                {
+                    "mate_ids": relationship_ids(reciprocal_relationships),
+                    "spouse_relationships": reciprocal_relationships,
+                },
+            )
 
-            self.database.update_person(mate_id, {"mate_ids": reciprocal_ids})
+    def synchronize_mates(self, record_id, old_mate_ids, new_mate_ids):
+        old_relationships = merge_mate_ids([], old_mate_ids)
+        new_relationships = merge_mate_ids([], new_mate_ids)
+        self.synchronize_spouses(record_id, old_relationships, new_relationships)
 
     def synchronize_coparents(self, child):
         mother_id = str(child.get("biological_mother_id", "") or "").strip()
@@ -377,16 +568,38 @@ class PeopleController:
         if mother is None or father is None:
             return
 
-        mother_mates = self.normalize_identifier_list(mother.get("mate_ids", []))
-        father_mates = self.normalize_identifier_list(father.get("mate_ids", []))
+        mother_relationships = merge_mate_ids(
+            mother.get("spouse_relationships", []),
+            mother.get("mate_ids", []),
+        )
+        father_relationships = merge_mate_ids(
+            father.get("spouse_relationships", []),
+            father.get("mate_ids", []),
+        )
+        mother_mates = relationship_ids(mother_relationships)
+        father_mates = relationship_ids(father_relationships)
 
         if father_id not in mother_mates:
             mother_mates.append(father_id)
-            self.database.update_person(mother_id, {"mate_ids": mother_mates})
+            mother_relationships.append(empty_spouse_relationship(father_id))
+            self.database.update_person(
+                mother_id,
+                {
+                    "mate_ids": mother_mates,
+                    "spouse_relationships": mother_relationships,
+                },
+            )
 
         if mother_id not in father_mates:
             father_mates.append(mother_id)
-            self.database.update_person(father_id, {"mate_ids": father_mates})
+            father_relationships.append(empty_spouse_relationship(mother_id))
+            self.database.update_person(
+                father_id,
+                {
+                    "mate_ids": father_mates,
+                    "spouse_relationships": father_relationships,
+                },
+            )
 
     def parent_ids_from_person(self, person):
         if not isinstance(person, dict):

@@ -1,12 +1,23 @@
 from copy import deepcopy
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
+from mage_maker.core.dates import normalize_partial_date
+
 
 NAME_ENTRY_FIELDS = (
     "name_type",
     "name_entry",
     "date",
     "note",
+)
+
+NAME_TYPES = (
+    "nickname",
+    "sobriquet",
+    "alias",
+    "maiden name",
+    "birth name",
+    "name change",
 )
 
 
@@ -32,6 +43,10 @@ def normalize_name_entry(entry):
         field_name: str(entry.get(field_name, "") or "").strip()
         for field_name in NAME_ENTRY_FIELDS
     }
+    normalized["date"] = normalize_partial_date(
+        normalized["date"],
+        "Name date",
+    )
     normalized["entry_id"] = str(entry.get("entry_id", "") or "").strip()
 
     if not normalized["entry_id"]:
@@ -67,6 +82,27 @@ def normalize_name_details(name_details):
         seen_entry_ids.add(entry["entry_id"])
 
     return {"entries": normalized_entries}
+
+
+def birth_name_entry(name_details):
+    entries = (
+        name_details.get("entries", [])
+        if isinstance(name_details, dict)
+        else []
+    )
+
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict):
+            continue
+
+        name_type = " ".join(
+            str(entry.get("name_type", "") or "").strip().casefold().split()
+        )
+
+        if name_type in ("birth name", "birthname"):
+            return deepcopy(entry)
+
+    return None
 
 
 def legacy_entry_id(record_id, ordinal, name_type, name_entry):

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mage_maker.database import JsonDatabase
+from mage_maker.core.database import JsonDatabase
 
 
 class JsonDatabaseTests(unittest.TestCase):
@@ -101,7 +101,9 @@ class JsonDatabaseTests(unittest.TestCase):
                 for entry in person["name_details"]["entries"]
             ],
         )
-        self.assertEqual(6, old_database.data["_database"]["schema_version"])
+        self.assertEqual(9, old_database.data["_database"]["schema_version"])
+        self.assertNotIn("sex", person)
+        self.assertEqual([], person["spouse_relationships"])
         self.assertNotIn("image_url", person)
         self.assertNotIn("generosity", person)
 
@@ -220,7 +222,86 @@ class JsonDatabaseTests(unittest.TestCase):
         self.assertIn("mother", father["mate_ids"])
         self.assertEqual("person", child["biological_mother_status"])
         self.assertEqual("person", child["biological_father_status"])
-        self.assertEqual([], child["timeline_events"])
+        self.assertEqual(
+            ["starting_location", "born"],
+            [event["event_type"] for event in child["timeline_events"]],
+        )
+
+    def test_version_seven_database_removes_the_discarded_classification(self):
+        old_database_path = Path(self.temporary_directory.name) / "version-seven.json"
+        old_database_path.write_text(
+            json.dumps(
+                {
+                    "_database": {
+                        "schema_version": 7,
+                        "database_version": "0.7.0",
+                        "last_saved": None,
+                    },
+                    "people": [
+                        {
+                            "record_id": "legacy-person",
+                            "displayed_name": "Legacy Person",
+                            "sex": "female",
+                            "can_give_birth": True,
+                            "biological_mother_id": "",
+                            "biological_father_id": "",
+                            "biological_mother_status": "unknown",
+                            "biological_father_status": "unknown",
+                            "mate_ids": [],
+                            "spouse_relationships": [],
+                            "timeline_events": [],
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        old_database = JsonDatabase(old_database_path)
+        old_database.load()
+        person = old_database.read_person("legacy-person")
+        self.assertEqual(9, old_database.data["_database"]["schema_version"])
+        self.assertEqual("0.9.0", old_database.data["_database"]["database_version"])
+        self.assertNotIn("sex", person)
+        self.assertTrue(person["can_give_birth"])
+
+    def test_version_eight_database_adds_required_lifecycle_events(self):
+        old_database_path = Path(self.temporary_directory.name) / "version-eight.json"
+        old_database_path.write_text(
+            json.dumps(
+                {
+                    "_database": {
+                        "schema_version": 8,
+                        "database_version": "0.8.0",
+                        "last_saved": None,
+                    },
+                    "people": [
+                        {
+                            "record_id": "version-eight-person",
+                            "displayed_name": "Version Eight Person",
+                            "birth_year": 1987,
+                            "biological_mother_id": "",
+                            "biological_father_id": "",
+                            "biological_mother_status": "unknown",
+                            "biological_father_status": "unknown",
+                            "mate_ids": [],
+                            "spouse_relationships": [],
+                            "timeline_events": [],
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        old_database = JsonDatabase(old_database_path)
+        old_database.load()
+        person = old_database.read_person("version-eight-person")
+        self.assertEqual(
+            ["starting_location", "born"],
+            [event["event_type"] for event in person["timeline_events"]],
+        )
+        self.assertEqual(["1987", "1987"], [
+            event["date"] for event in person["timeline_events"]
+        ])
 
 
 if __name__ == "__main__":

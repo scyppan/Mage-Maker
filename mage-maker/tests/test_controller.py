@@ -3,8 +3,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mage_maker.controller import PeopleController
-from mage_maker.database import JsonDatabase
+from mage_maker.core.controller import PeopleController
+from mage_maker.core.database import JsonDatabase
+from mage_maker.sections.timeline.locations import (
+    LONG_DISTANCE_NOTE,
+    ParentLocationConflict,
+)
 
 
 class PeopleControllerTests(unittest.TestCase):
@@ -321,6 +325,247 @@ class PeopleControllerTests(unittest.TestCase):
         self.assertEqual("muggle", child["biological_mother_status"])
         self.assertEqual("unknown", child["biological_father_status"])
         self.assertEqual("", child["biological_mother_id"])
+
+    def test_parent_must_be_at_least_eighteen_when_child_is_born(self):
+        parent = self.controller.create_person(
+            {
+                "displayed_name": "Too Young Parent",
+                "birth_year": 1990,
+                "can_give_birth": True,
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "at least 18"):
+            self.controller.create_person(
+                {
+                    "displayed_name": "Too Close Child",
+                    "birth_year": 2007,
+                    "biological_mother_id": parent["record_id"],
+                }
+            )
+
+    def test_exact_eighteenth_birthday_is_allowed(self):
+        parent = self.controller.create_person(
+            {
+                "displayed_name": "Eighteen Parent",
+                "birth_year": 1990,
+                "birth_month": 12,
+                "birth_day": 31,
+                "can_give_birth": True,
+            }
+        )
+        child = self.controller.create_person(
+            {
+                "displayed_name": "Birthday Child",
+                "birth_year": 2008,
+                "birth_month": 12,
+                "birth_day": 31,
+                "biological_mother_id": parent["record_id"],
+            }
+        )
+        self.assertEqual(parent["record_id"], child["biological_mother_id"])
+
+    def test_parent_birth_date_cannot_be_changed_to_break_age_rule(self):
+        parent = self.controller.create_person(
+            {
+                "displayed_name": "Editable Parent",
+                "birth_year": 1980,
+                "can_give_birth": False,
+            }
+        )
+        self.controller.create_person(
+            {
+                "displayed_name": "Existing Child",
+                "birth_year": 2000,
+                "biological_father_id": parent["record_id"],
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "younger than 18"):
+            self.controller.update_person(
+                parent["record_id"],
+                {"birth_year": 1985},
+            )
+
+    def test_spouse_history_is_reciprocal(self):
+        first = self.controller.create_person(
+            {
+                "displayed_name": "Spouse One",
+                "birth_year": 1980,
+                "can_give_birth": False,
+            }
+        )
+        second = self.controller.create_person(
+            {
+                "displayed_name": "Spouse Two",
+                "birth_year": 1983,
+                "can_give_birth": True,
+            }
+        )
+        relationship = {
+            "person_id": second["record_id"],
+            "married": True,
+            "marriage_year": 2004,
+            "marriage_month": 6,
+            "marriage_day": None,
+            "divorced": True,
+            "divorce_year": 2012,
+            "divorce_month": None,
+            "divorce_day": None,
+        }
+        self.controller.update_person(
+            first["record_id"],
+            {"spouse_relationships": [relationship]},
+        )
+        saved_second = self.controller.get_person(second["record_id"])
+        reciprocal = saved_second["spouse_relationships"][0]
+        self.assertEqual(first["record_id"], reciprocal["person_id"])
+        self.assertTrue(reciprocal["married"])
+        self.assertTrue(reciprocal["divorced"])
+        self.assertEqual(2004, reciprocal["marriage_year"])
+        self.assertEqual(2012, reciprocal["divorce_year"])
+
+    def test_creation_builds_starting_location_then_born(self):
+        created = self.controller.create_person(
+            {
+                "displayed_name": "Lifecycle Person",
+                "birth_year": 1984,
+                "birth_month": 3,
+                "starting_location": "Godric's Hollow",
+            }
+        )
+        events = created["timeline_events"]
+        self.assertEqual(
+            ["starting_location", "born"],
+            [event["event_type"] for event in events[:2]],
+        )
+        self.assertEqual("Godric's Hollow", events[0]["detail"])
+        self.assertEqual("1984-03", events[0]["date"])
+        self.assertEqual("1984-03", events[1]["date"])
+
+    def test_assigning_same_location_parents_updates_child_starting_location(self):
+        birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "London Birthing Parent",
+                "birth_year": 1970,
+                "starting_location": "London",
+                "can_give_birth": True,
+            }
+        )
+        non_birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "London Non-birthing Parent",
+                "birth_year": 1968,
+                "starting_location": " london ",
+                "can_give_birth": False,
+            }
+        )
+        child = self.controller.create_person(
+            {
+                "displayed_name": "Location Child",
+                "birth_year": 2000,
+                "starting_location": "Elsewhere",
+            }
+        )
+        updated_child = self.controller.update_person(
+            child["record_id"],
+            {
+                "biological_mother_id": birthing_parent["record_id"],
+                "biological_father_id": non_birthing_parent["record_id"],
+            },
+        )
+        self.assertEqual("London", updated_child["timeline_events"][0]["detail"])
+        self.assertEqual("born", updated_child["timeline_events"][1]["event_type"])
+
+    def test_different_parent_locations_require_long_distance_override(self):
+        birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "Paris Parent",
+                "birth_year": 1970,
+                "starting_location": "Paris",
+                "can_give_birth": True,
+            }
+        )
+        non_birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "London Parent",
+                "birth_year": 1970,
+                "starting_location": "London",
+                "can_give_birth": False,
+            }
+        )
+        values = {
+            "displayed_name": "Long Distance Child",
+            "birth_year": 2000,
+            "biological_mother_id": birthing_parent["record_id"],
+            "biological_father_id": non_birthing_parent["record_id"],
+        }
+
+        with self.assertRaises(ParentLocationConflict):
+            self.controller.create_person(values)
+
+        values["long_distance_parent_override"] = True
+        child = self.controller.create_person(values)
+        self.assertEqual("Paris", child["timeline_events"][0]["detail"])
+        self.assertEqual(LONG_DISTANCE_NOTE, child["timeline_events"][1]["note"])
+        updated_child = self.controller.update_person(
+            child["record_id"],
+            {"notes": "The override should remain valid."},
+        )
+        self.assertEqual(LONG_DISTANCE_NOTE, updated_child["timeline_events"][1]["note"])
+
+    def test_parent_location_is_resolved_at_the_childs_birth_date(self):
+        birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "Moving Parent",
+                "birth_year": 1970,
+                "starting_location": "London",
+                "can_give_birth": True,
+                "timeline_events": [
+                    {
+                        "event_id": "move-to-paris",
+                        "event_type": "relocated",
+                        "detail": "Paris",
+                        "date": "2005",
+                        "note": "",
+                    }
+                ],
+            }
+        )
+        non_birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "Staying Parent",
+                "birth_year": 1970,
+                "starting_location": "London",
+                "can_give_birth": False,
+            }
+        )
+        child = self.controller.create_person(
+            {
+                "displayed_name": "Earlier Child",
+                "birth_year": 2000,
+                "biological_mother_id": birthing_parent["record_id"],
+                "biological_father_id": non_birthing_parent["record_id"],
+            }
+        )
+        self.assertEqual("London", child["timeline_events"][0]["detail"])
+
+    def test_birth_date_changes_keep_lifecycle_event_dates_synchronized(self):
+        person = self.controller.create_person(
+            {
+                "displayed_name": "Changing Birth Date",
+                "birth_year": 1990,
+                "starting_location": "York",
+            }
+        )
+        updated = self.controller.update_person(
+            person["record_id"],
+            {"birth_month": 8, "birth_day": 14},
+        )
+        self.assertEqual(
+            ["1990-08-14", "1990-08-14"],
+            [event["date"] for event in updated["timeline_events"][:2]],
+        )
 
 
 if __name__ == "__main__":

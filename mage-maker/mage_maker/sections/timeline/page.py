@@ -2,7 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox, ttk
 
-from mage_maker.theme import (
+from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
     BORDER_SOFT,
@@ -18,7 +18,7 @@ from mage_maker.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.timeline_events import (
+from mage_maker.sections.timeline.events import (
     EVENT_LABEL_TYPES,
     EVENT_TYPES,
     EVENT_TYPE_LABELS,
@@ -28,15 +28,19 @@ from mage_maker.timeline_events import (
     timeline_detail_label,
     timeline_event_summary,
 )
-from mage_maker.widgets import LabeledEntry, RoundedText, SoftButton
+from mage_maker.ui.widgets import LabeledEntry, RoundedText, SoftButton
 
 
 EVENT_COLORS = {
+    "starting_location": "#DDD2EA",
+    "born": "#EAD7E7",
+    "birth_name": "#E2D6ED",
     "gave_birth": "#F1D9E4",
     "had_child": "#E7D5F0",
     "got_married": "#D5EAD9",
     "started_school": "#D9E3F1",
     "relocated": "#EFE3C7",
+    "name_change": "#DDD2EA",
     "custom": "#E0D2E8",
 }
 
@@ -48,11 +52,13 @@ class TimelineView(tk.Frame):
         change_command,
         people_provider=None,
         navigate_command=None,
+        name_change_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
         self.people_provider = people_provider
         self.navigate_command = navigate_command
+        self.name_change_command = name_change_command
         self.events = []
         self.visible_events = []
         self.selected_event_id = None
@@ -393,12 +399,23 @@ class TimelineView(tk.Frame):
             self.navigate_command(self.related_person_id)
 
     def update_button_state(self):
-        has_selection = self.selected_event() is not None
+        selected_event = self.selected_event()
+        has_selection = selected_event is not None
+        can_remove = bool(
+            has_selection
+            and selected_event.get("automatic_source") != "life_start"
+            and selected_event.get("automatic_source") != "name_change"
+        )
         self.edit_button.set_enabled(has_selection)
-        self.remove_button.set_enabled(has_selection)
+        self.remove_button.set_enabled(can_remove)
 
     def open_add_dialog(self):
-        TimelineEventDialog(self, None, self.save_event)
+        TimelineEventDialog(
+            self,
+            None,
+            self.save_event,
+            name_change_command=self.name_change_command,
+        )
 
     def open_edit_dialog(self, event=None):
         selected_event = self.selected_event()
@@ -406,10 +423,25 @@ class TimelineView(tk.Frame):
         if selected_event is None:
             return
 
+        if (
+            selected_event.get("event_type") in ("name_change", "birth_name")
+            and self.name_change_command is not None
+        ):
+            self.name_change_command(selected_event)
+            return
+
         TimelineEventDialog(self, selected_event, self.save_event)
 
     def save_event(self, event):
         normalized_event = normalize_timeline_event(event)
+
+        if (
+            normalized_event.get("event_type") == "name_change"
+            and self.name_change_command is not None
+        ):
+            self.after_idle(self.name_change_command, None)
+            return True
+
         replacement_index = None
 
         for index, existing_event in enumerate(self.events):
@@ -437,6 +469,22 @@ class TimelineView(tk.Frame):
         if selected_event is None:
             return
 
+        if selected_event.get("automatic_source") == "life_start":
+            messagebox.showinfo(
+                "Required timeline event",
+                "Starting location and Born are required at the beginning of every timeline.",
+                parent=self,
+            )
+            return
+
+        if selected_event.get("automatic_source") == "name_change":
+            messagebox.showinfo(
+                "Name change event",
+                "Edit or remove this event through Name Details.",
+                parent=self,
+            )
+            return
+
         if not messagebox.askyesno(
             "Remove timeline event",
             f"Remove {timeline_event_summary(selected_event)}?",
@@ -457,9 +505,16 @@ class TimelineView(tk.Frame):
 
 
 class TimelineEventDialog(tk.Toplevel):
-    def __init__(self, parent, event, save_command):
+    def __init__(
+        self,
+        parent,
+        event,
+        save_command,
+        name_change_command=None,
+    ):
         super().__init__(parent)
         self.save_command = save_command
+        self.name_change_command = name_change_command
         self.event = deepcopy(event) if isinstance(event, dict) else {}
         self.event_type_value = tk.StringVar()
         self.date_value = tk.StringVar()
@@ -523,14 +578,31 @@ class TimelineEventDialog(tk.Toplevel):
         )
         type_label.grid(row=2, column=0, sticky="ew", pady=(0, 5))
 
-        type_picker = ttk.Combobox(
+        available_event_types = (
+            EVENT_TYPES
+            if self.event.get("automatic_source") == "life_start"
+            else tuple(
+                event_definition
+                for event_definition in EVENT_TYPES
+                if event_definition[0] not in (
+                    "starting_location",
+                    "born",
+                    "birth_name",
+                )
+            )
+        )
+        self.type_picker = ttk.Combobox(
             card,
             textvariable=self.event_type_value,
-            values=[label for event_key, label in EVENT_TYPES],
+            values=[label for event_key, label in available_event_types],
             state="readonly",
             font=app_font(10),
         )
-        type_picker.grid(row=3, column=0, sticky="ew")
+        self.type_picker.grid(row=3, column=0, sticky="ew")
+        self.type_picker.bind("<<ComboboxSelected>>", self.event_type_selected)
+
+        if self.event.get("automatic_source") == "life_start":
+            self.type_picker.configure(state="disabled")
 
         fields = tk.Frame(card, bg=SURFACE)
         fields.grid(row=4, column=0, sticky="ew", pady=(12, 0))
@@ -605,6 +677,17 @@ class TimelineEventDialog(tk.Toplevel):
     def update_detail_label(self, *arguments):
         event_type = EVENT_LABEL_TYPES.get(self.event_type_value.get(), "custom")
         self.detail_label_value.set(timeline_detail_label(event_type))
+
+    def event_type_selected(self, event=None):
+        self.update_detail_label()
+
+        if (
+            not self.event
+            and self.event_type_value.get() == EVENT_TYPE_LABELS["name_change"]
+            and self.name_change_command is not None
+        ):
+            self.destroy()
+            self.master.after_idle(self.name_change_command, None)
 
     def save_event(self):
         event_type = EVENT_LABEL_TYPES.get(self.event_type_value.get(), "custom")

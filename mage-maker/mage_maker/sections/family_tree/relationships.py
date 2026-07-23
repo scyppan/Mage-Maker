@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from mage_maker.core.dates import is_at_least_age
+
 
 class FamilyRelationshipMap:
     def __init__(self, people, current_person=None):
@@ -178,11 +180,12 @@ class FamilyRelationshipMap:
             if alternate_role and self.mates_of(record_id):
                 continue
 
+            if is_at_least_age(person, focus, 18) is False:
+                continue
+
             candidates.append(person)
 
-        candidates.sort(
-            key=lambda person: str(person.get("displayed_name", "")).casefold()
-        )
+        candidates.sort(key=person_name_sort_key)
         return candidates
 
     def partner_candidates(
@@ -230,9 +233,7 @@ class FamilyRelationshipMap:
 
             candidates.append(person)
 
-        candidates.sort(
-            key=lambda person: str(person.get("displayed_name", "")).casefold()
-        )
+        candidates.sort(key=person_name_sort_key)
         return candidates
 
     def children_for_parent_role(self, record_id, parent_role):
@@ -248,9 +249,7 @@ class FamilyRelationshipMap:
             for person in self.people_by_id.values()
             if str(person.get(field_name, "") or "") == normalized_id
         ]
-        children.sort(
-            key=lambda person: str(person.get("displayed_name", "")).casefold()
-        )
+        children.sort(key=person_name_sort_key)
         return children
 
     def child_candidates(self, focus_id, other_parent_id="", minimum_age_gap=18):
@@ -286,14 +285,7 @@ class FamilyRelationshipMap:
 
             candidates.append(person)
 
-        candidates.sort(
-            key=lambda person: (
-                self.integer_year(person.get("birth_year"))
-                if self.integer_year(person.get("birth_year")) is not None
-                else 10000,
-                str(person.get("displayed_name", "")).casefold(),
-            )
-        )
+        candidates.sort(key=person_birth_sort_key)
         return candidates
 
     def minimum_child_birth_year(
@@ -562,6 +554,19 @@ def format_person_date(person):
         date_parts.append(str(day).zfill(2))
 
     return "-".join(date_parts)
+
+
+def person_name_sort_key(person):
+    return str(person.get("displayed_name", "")).casefold()
+
+
+def person_birth_sort_key(person):
+    try:
+        birth_year = int(person.get("birth_year"))
+    except (TypeError, ValueError):
+        birth_year = 10000
+
+    return birth_year, person_name_sort_key(person)
 
 
 def maiden_name_for(person):

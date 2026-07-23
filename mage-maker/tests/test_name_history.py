@@ -1,6 +1,6 @@
 import unittest
 
-from mage_maker.name_history import (
+from mage_maker.sections.names.history import (
     migrate_legacy_name_details,
     normalize_name_details,
 )

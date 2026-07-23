@@ -1,11 +1,11 @@
 import unittest
 
-from mage_maker.family_relationships import (
+from mage_maker.sections.family_tree.relationships import (
     FamilyRelationshipMap,
     format_person_date,
     maiden_name_for,
 )
-from mage_maker.family_tree import FamilyTreeView
+from mage_maker.sections.family_tree.page import FamilyTreeView
 
 
 class FamilyRelationshipMapTests(unittest.TestCase):

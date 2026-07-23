@@ -1,11 +1,23 @@
 import tkinter as tk
 from copy import deepcopy
 from functools import partial
+from tkinter import ttk
 
-from mage_maker.family_tree import FamilyTreeView
-from mage_maker.name_details import NameDetailsDialog
-from mage_maker.timeline_view import TimelineView
-from mage_maker.theme import (
+from mage_maker.sections.development.page import DevelopmentView
+from mage_maker.sections.family_tree.page import FamilyTreeView
+from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
+from mage_maker.sections.names.history import (
+    new_name_entry,
+    normalize_name_details,
+    normalize_name_entry,
+)
+from mage_maker.sections.names.timeline import (
+    name_entry_for_timeline_event,
+    synchronize_name_change_events,
+)
+from mage_maker.sections.timeline.page import TimelineView
+from mage_maker.sections.timeline.locations import ensure_life_start_events
+from mage_maker.ui.theme import (
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
     FIELD_BACKGROUND,
@@ -17,7 +29,7 @@ from mage_maker.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.widgets import (
+from mage_maker.ui.widgets import (
     HoverTooltip,
     LabeledEntry,
     MultilineField,
@@ -44,10 +56,12 @@ class PersonForm(tk.Frame):
         update_person_command,
         refresh_people_command,
         navigate_command,
+        game_database=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
         self.people_provider = people_provider
+        self.game_database = game_database
         self.loading = False
         self.variables = {}
         self.boolean_widgets = {}
@@ -169,13 +183,11 @@ class PersonForm(tk.Frame):
         details_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
         details_row.grid(row=1, column=0, sticky="ew")
         details_row.grid_columnconfigure(0, weight=3)
-        details_row.grid_columnconfigure(1, weight=2)
-        self.add_entry_field(
+        details_row.grid_columnconfigure(1, weight=5)
+        self.add_school_field(
             details_row,
             0,
             0,
-            "school",
-            "School",
             SURFACE_MUTED,
             (0, 10),
         )
@@ -308,30 +320,9 @@ class PersonForm(tk.Frame):
         self.family_tree.grid(row=0, column=0, sticky="nsew")
 
     def build_development_page(self):
-        page = tk.Frame(self.content, bg=SURFACE)
+        page = DevelopmentView(self.content, self.game_database)
         page.grid(row=0, column=0, sticky="nsew")
-        page.grid_columnconfigure(0, weight=1)
-        page.grid_rowconfigure(0, weight=1)
         self.pages["development"] = page
-
-        placeholder_panel = SectionPanel(
-            page,
-            "Development",
-            "This section is ready for the development fields and workflows you define next.",
-        )
-        placeholder_panel.grid(row=0, column=0, sticky="nsew")
-        placeholder_panel.content.grid_rowconfigure(0, weight=1)
-        placeholder = tk.Label(
-            placeholder_panel.content,
-            text="No development fields have been added yet.",
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_MUTED,
-            font=app_font(11),
-            justify="center",
-            padx=24,
-            pady=42,
-        )
-        placeholder.grid(row=0, column=0, sticky="nsew")
 
     def build_timeline_page(self, navigate_command):
         page = tk.Frame(self.content, bg=SURFACE)
@@ -345,6 +336,7 @@ class PersonForm(tk.Frame):
             self.timeline_changed,
             people_provider=self.people_provider,
             navigate_command=navigate_command,
+            name_change_command=self.open_timeline_name_change,
         )
         self.timeline.grid(row=0, column=0, sticky="nsew")
 
@@ -368,6 +360,48 @@ class PersonForm(tk.Frame):
             sticky="ew",
             padx=horizontal_padding,
         )
+
+    def add_school_field(
+        self,
+        parent,
+        row,
+        column,
+        background=SURFACE,
+        horizontal_padding=0,
+    ):
+        variable = tk.StringVar()
+        variable.trace_add("write", self.variable_changed)
+        self.variables["school"] = variable
+        field = tk.Frame(parent, bg=background)
+        field.grid_columnconfigure(0, weight=1)
+        field.grid(
+            row=row,
+            column=column,
+            sticky="ew",
+            padx=horizontal_padding,
+        )
+        label = tk.Label(
+            field,
+            text="School",
+            bg=background,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        school_names = (
+            self.game_database.school_names()
+            if self.game_database is not None and self.game_database.loaded
+            else []
+        )
+        self.school_picker = ttk.Combobox(
+            field,
+            textvariable=variable,
+            values=school_names,
+            state="readonly" if school_names else "disabled",
+            font=app_font(10),
+        )
+        self.school_picker.grid(row=1, column=0, sticky="ew", ipady=7)
 
     def add_boolean_fields(
         self,
@@ -433,10 +467,91 @@ class PersonForm(tk.Frame):
         )
 
     def save_name_details(self, name_details):
-        if name_details == self.name_details:
+        normalized_details = normalize_name_details(name_details)
+        timeline_person = self.current_profile_values()
+        timeline_person["name_details"] = deepcopy(normalized_details)
+        timeline_person["timeline_events"] = self.timeline.get_events()
+        synchronized_events = synchronize_name_change_events(
+            normalized_details,
+            ensure_life_start_events(timeline_person),
+        )
+
+        if (
+            normalized_details == self.name_details
+            and synchronized_events == self.timeline.get_events()
+        ):
             return
 
-        self.name_details = deepcopy(name_details)
+        self.name_details = deepcopy(normalized_details)
+        self.timeline.set_events(synchronized_events)
+
+        if self.current_record_id:
+            self.family_tree.update_current_person(self.current_profile_values())
+
+        if not self.loading:
+            self.change_command()
+
+    def open_timeline_name_change(self, event=None):
+        event_values = event if isinstance(event, dict) else {}
+        entry = name_entry_for_timeline_event(self.name_details, event_values)
+
+        if entry is None:
+            entry = new_name_entry()
+            entry.update(
+                {
+                    "name_type": (
+                        "birth name"
+                        if event_values.get("event_type") == "birth_name"
+                        else ""
+                    ),
+                    "name_entry": str(event_values.get("detail", "") or ""),
+                    "date": str(event_values.get("date", "") or ""),
+                    "note": str(event_values.get("note", "") or ""),
+                }
+            )
+
+        source_event_id = str(event_values.get("event_id", "") or "")
+        NameEntryDialog(
+            self,
+            entry,
+            partial(self.save_timeline_name_change, source_event_id),
+            "Edit Name" if event_values else "Add Name",
+        )
+
+    def save_timeline_name_change(self, source_event_id, entry):
+        normalized_entry = normalize_name_entry(entry)
+        entries = deepcopy(self.name_details.get("entries", []))
+        replacement_index = None
+
+        for index, existing_entry in enumerate(entries):
+            if existing_entry.get("entry_id") == normalized_entry["entry_id"]:
+                replacement_index = index
+                break
+
+        if replacement_index is None:
+            entries.append(normalized_entry)
+        else:
+            entries[replacement_index] = normalized_entry
+
+        events = [
+            event
+            for event in self.timeline.get_events()
+            if not source_event_id or event.get("event_id") != source_event_id
+        ]
+        self.name_details = normalize_name_details({"entries": entries})
+        timeline_person = self.current_profile_values()
+        timeline_person["name_details"] = deepcopy(self.name_details)
+        timeline_person["timeline_events"] = events
+        synchronized_events = synchronize_name_change_events(
+            self.name_details,
+            ensure_life_start_events(timeline_person),
+        )
+        self.timeline.selected_event_id = (
+            "life-start:birth-name"
+            if normalized_entry["name_type"].strip().casefold() == "birth name"
+            else f"name-change:{normalized_entry['entry_id']}"
+        )
+        self.timeline.set_events(synchronized_events)
 
         if self.current_record_id:
             self.family_tree.update_current_person(self.current_profile_values())
@@ -472,11 +587,23 @@ class PersonForm(tk.Frame):
         imported_fields = person.get("imported_fields", {})
         imported_count = len(imported_fields) if isinstance(imported_fields, dict) else 0
         self.imported_count_value.set(
-            f"{imported_count} original Formidable fields are preserved with this record. "
-            "Additional sections can expose them as Mage Maker develops."
+            (
+                f"{imported_count} original Formidable fields are preserved with this record. "
+                "Additional sections can expose them as Mage Maker develops."
+            )
+            if imported_count
+            else ""
         )
         self.family_tree.set_person(person)
-        self.timeline.set_events(person.get("timeline_events", []))
+        timeline_person = deepcopy(person)
+        timeline_person["name_details"] = deepcopy(self.name_details)
+        timeline_person["timeline_events"] = person.get("timeline_events", [])
+        self.timeline.set_events(
+            synchronize_name_change_events(
+                self.name_details,
+                ensure_life_start_events(timeline_person),
+            )
+        )
         self.update_can_give_birth_control()
         self.show_page(self.active_page_name)
         self.loading = False
@@ -490,6 +617,7 @@ class PersonForm(tk.Frame):
             "birth_day": self.variables["birth_day"].get(),
             "deceased": self.variables["deceased"].get(),
             "can_give_birth": self.variables["can_give_birth"].get(),
+            "timeline_events": self.timeline.get_events(),
             "name_details": deepcopy(self.name_details),
         }
 

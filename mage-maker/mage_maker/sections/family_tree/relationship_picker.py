@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
 
-from mage_maker.family_relationships import format_person_date
-from mage_maker.theme import (
+from mage_maker.sections.family_tree.relationships import format_person_date
+from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
     BORDER_SOFT,
@@ -18,7 +18,7 @@ from mage_maker.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.widgets import LabeledEntry, RoundedEntry, SoftButton
+from mage_maker.ui.widgets import LabeledEntry, RoundedEntry, SoftButton
 
 
 class RelationshipPickerDialog(tk.Toplevel):

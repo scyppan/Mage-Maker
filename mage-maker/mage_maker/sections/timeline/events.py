@@ -1,20 +1,23 @@
-import re
 import uuid
 from copy import deepcopy
-from datetime import date
+
+from mage_maker.core.dates import normalize_partial_date
 
 
 EVENT_TYPES = (
-    ("gave_birth", "Gave birth!"),
-    ("had_child", "Had a child!"),
+    ("starting_location", "Starting location"),
+    ("born", "Born"),
+    ("birth_name", "Birth name"),
+    ("gave_birth", "Gave birth"),
+    ("had_child", "Had a child"),
     ("got_married", "Got married"),
     ("started_school", "Started at school"),
     ("relocated", "Relocated"),
+    ("name_change", "Name change"),
     ("custom", "Custom event"),
 )
 EVENT_TYPE_LABELS = dict(EVENT_TYPES)
 EVENT_LABEL_TYPES = {label: event_type for event_type, label in EVENT_TYPES}
-PARTIAL_DATE_PATTERN = re.compile(r"^(\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$")
 
 
 def normalize_timeline_events(events):
@@ -55,6 +58,9 @@ def normalize_timeline_event(event):
     normalized["related_person_id"] = str(
         normalized.get("related_person_id") or ""
     ).strip()
+    normalized["related_name_entry_id"] = str(
+        normalized.get("related_name_entry_id") or ""
+    ).strip()
     normalized["automatic_source"] = str(
         normalized.get("automatic_source") or ""
     ).strip()
@@ -69,44 +75,7 @@ def normalize_timeline_event(event):
 
 
 def normalize_event_date(value):
-    event_date = str(value or "").strip()
-
-    if not event_date:
-        return ""
-
-    match = PARTIAL_DATE_PATTERN.fullmatch(event_date)
-
-    if match is None:
-        raise ValueError("Timeline dates must use YYYY, YYYY-MM, or YYYY-MM-DD.")
-
-    year = int(match.group(1))
-    month = int(match.group(2)) if match.group(2) else None
-    day = int(match.group(3)) if match.group(3) else None
-
-    if not 1 <= year <= 9999:
-        raise ValueError("Timeline year must be between 1 and 9999.")
-
-    if month is not None and not 1 <= month <= 12:
-        raise ValueError("Timeline month must be between 1 and 12.")
-
-    if day is not None:
-        if month is None:
-            raise ValueError("A timeline day requires a month.")
-
-        try:
-            date(year, month, day)
-        except ValueError as error:
-            raise ValueError("Timeline date is not a valid calendar date.") from error
-
-    normalized_date = str(year).zfill(4)
-
-    if month is not None:
-        normalized_date += f"-{month:02d}"
-
-    if day is not None:
-        normalized_date += f"-{day:02d}"
-
-    return normalized_date
+    return normalize_partial_date(value, "Timeline date")
 
 
 def sort_timeline_events(events):
@@ -117,47 +86,78 @@ def sort_timeline_events(events):
 
 
 def timeline_event_sort_key(event):
+    event_type = str(event.get("event_type") or "custom")
+    life_start_priority = {
+        "starting_location": 0,
+        "born": 1,
+        "birth_name": 2,
+    }.get(event_type)
     event_date = str(event.get("date") or "")
 
+    if life_start_priority is not None:
+        return (
+            life_start_priority,
+            0,
+            0,
+            0,
+            str(event.get("event_id") or ""),
+        )
+
     if not event_date:
-        return 1, 10000, 13, 32, str(event.get("event_id") or "")
+        return 4, 10000, 13, 32, str(event.get("event_id") or "")
 
     parts = [int(part) for part in event_date.split("-")]
     year = parts[0]
     month = parts[1] if len(parts) > 1 else 0
     day = parts[2] if len(parts) > 2 else 0
-    return 0, year, month, day, str(event.get("event_id") or "")
+    return 3, year, month, day, str(event.get("event_id") or "")
 
 
 def timeline_event_summary(event):
     event_type = str(event.get("event_type") or "custom")
     detail = str(event.get("detail") or "").strip()
 
+    if event_type == "starting_location":
+        return f"Starting location: {detail or 'Unknown'}"
+
+    if event_type == "born":
+        return "Born"
+
+    if event_type == "birth_name":
+        return f"Birth name: {detail}" if detail else "Birth name"
+
     if event_type == "gave_birth":
-        return f"Gave birth to {detail}!" if detail else "Gave birth!"
+        return f"Gave birth to {detail}" if detail else "Gave birth"
 
     if event_type == "had_child":
-        return "Had a child!"
+        return "Had a child"
 
     if event_type == "got_married":
         return f"Got married to {detail}" if detail else "Got married"
 
     if event_type == "started_school":
-        return f"Started at {detail} school!" if detail else "Started at school!"
+        return f"Started at {detail} school" if detail else "Started at school"
 
     if event_type == "relocated":
         return f"Relocated to {detail}" if detail else "Relocated"
+
+    if event_type == "name_change":
+        return f"Name change: {detail}" if detail else "Name change"
 
     return detail or "Custom event"
 
 
 def timeline_detail_label(event_type):
     labels = {
+        "starting_location": "Location",
+        "born": "Birth detail",
+        "birth_name": "Birth name",
         "gave_birth": "Child or event detail",
         "had_child": "Child's name",
         "got_married": "Spouse or event detail",
         "started_school": "School name",
         "relocated": "New location",
+        "name_change": "New name",
         "custom": "Event description",
     }
     return labels.get(event_type, "Event detail")

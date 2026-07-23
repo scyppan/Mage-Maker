@@ -22,25 +22,9 @@ class ImportTests(unittest.TestCase):
         database_path = Path(__file__).resolve().parent.parent / "data" / "mage_maker.json"
         database = json.loads(database_path.read_text(encoding="utf-8"))
         self.assertIn("people", database)
-        self.assertEqual(133, len(database["people"]))
-        self.assertEqual(1000, database["people"][0]["birth_year"])
-        self.assertEqual(5, database["_database"]["schema_version"])
-        self.assertEqual("Ioanis Tivly", database["people"][0]["displayed_name"])
-        self.assertIn("name_details", database["people"][0])
-        self.assertIn("entries", database["people"][0]["name_details"])
-        self.assertNotIn("name", database["people"][0])
-        self.assertNotIn("image_url", database["people"][0])
-        self.assertNotIn("generosity", database["people"][0])
-        self.assertNotIn("blood_status", database["people"][0])
-        self.assertIn("non_magical", database["people"][0])
-        self.assertIn("can_give_birth", database["people"][0])
-        self.assertIn("mate_ids", database["people"][0])
-        self.assertIn("timeline_events", database["people"][0])
-        self.assertIn("biological_mother_status", database["people"][0])
-        self.assertNotIn(
-            "Upload character image",
-            database["people"][0]["imported_fields"],
-        )
+        self.assertEqual([], database["people"])
+        self.assertEqual(9, database["_database"]["schema_version"])
+        self.assertEqual("0.9.0", database["_database"]["database_version"])
 
 
 if __name__ == "__main__":

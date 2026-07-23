@@ -3,14 +3,26 @@ from copy import deepcopy
 from functools import partial
 from tkinter import messagebox
 
-from mage_maker.child_dialog import AddChildDialog
-from mage_maker.family_relationships import (
+from mage_maker.sections.family_tree.child_dialog import AddChildDialog
+from mage_maker.sections.family_tree.relationships import (
     FamilyRelationshipMap,
     format_person_date,
     maiden_name_for,
 )
-from mage_maker.relationship_picker import RelationshipPickerDialog
-from mage_maker.theme import (
+from mage_maker.sections.family_tree.relationship_picker import RelationshipPickerDialog
+from mage_maker.sections.family_tree.spouse_candidates import (
+    integer_year,
+    spouse_candidates,
+)
+from mage_maker.sections.family_tree.spouse_dialog import SpousePickerDialog
+from mage_maker.sections.family_tree.spouse_relationships import (
+    empty_spouse_relationship,
+    merge_mate_ids,
+    normalize_spouse_relationships,
+    relationship_ids,
+)
+from mage_maker.sections.timeline.locations import ParentLocationConflict
+from mage_maker.ui.theme import (
     BORDER,
     BORDER_SOFT,
     BUTTON_SOFT,
@@ -39,7 +51,7 @@ from mage_maker.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.widgets import SoftButton, rounded_points
+from mage_maker.ui.widgets import SoftButton, rounded_points
 
 
 class FamilyTreeView(tk.Frame):
@@ -76,6 +88,7 @@ class FamilyTreeView(tk.Frame):
         self.mother_status = "unknown"
         self.father_status = "unknown"
         self.mate_ids = []
+        self.spouse_relationships = []
         self.active_mate_id = None
         self.active_spouse_owner_id = None
         self.node_coordinates = {}
@@ -139,26 +152,26 @@ class FamilyTreeView(tk.Frame):
 
         self.add_mate_button = SoftButton(
             toolbar,
-            text="Add mate",
+            text="Add spouse",
             command=self.open_mate_picker,
             background=SURFACE,
             fill=FAMILY_GREEN,
             hover_fill=FAMILY_GREEN_FADED,
             foreground=TEXT_DARK,
-            width=96,
+            width=104,
             height=36,
         )
         self.add_mate_button.grid(row=0, column=3, padx=(6, 0), pady=5)
 
         self.remove_mate_button = SoftButton(
             toolbar,
-            text="Remove mate",
+            text="Remove spouse",
             command=self.remove_active_mate,
             background=SURFACE,
             fill=BUTTON_SOFT,
             hover_fill=BUTTON_SOFT_HOVER,
             foreground=TEXT_DARK,
-            width=112,
+            width=122,
             height=36,
         )
         self.remove_mate_button.grid(row=0, column=4, padx=(6, 0), pady=5)
@@ -198,7 +211,11 @@ class FamilyTreeView(tk.Frame):
             self.father_id,
             self.current_person.get("biological_father_status", "unknown"),
         )
-        self.mate_ids = self.normalize_ids(self.current_person.get("mate_ids", []))
+        self.spouse_relationships = merge_mate_ids(
+            self.current_person.get("spouse_relationships", []),
+            self.current_person.get("mate_ids", []),
+        )
+        self.mate_ids = relationship_ids(self.spouse_relationships)
 
         if previous_record_id != current_record_id:
             self.active_mate_id = None
@@ -221,6 +238,9 @@ class FamilyTreeView(tk.Frame):
         self.current_person["biological_mother_status"] = self.mother_status
         self.current_person["biological_father_status"] = self.father_status
         self.current_person["mate_ids"] = list(self.mate_ids)
+        self.current_person["spouse_relationships"] = deepcopy(
+            self.spouse_relationships
+        )
         self.reload_people()
 
     def get_relationship_values(self):
@@ -230,6 +250,7 @@ class FamilyTreeView(tk.Frame):
             "biological_mother_status": self.mother_status,
             "biological_father_status": self.father_status,
             "mate_ids": list(self.mate_ids),
+            "spouse_relationships": deepcopy(self.spouse_relationships),
         }
 
     def reload_people(self):
@@ -239,6 +260,9 @@ class FamilyTreeView(tk.Frame):
         self.current_person["biological_mother_status"] = self.mother_status
         self.current_person["biological_father_status"] = self.father_status
         self.current_person["mate_ids"] = list(self.mate_ids)
+        self.current_person["spouse_relationships"] = deepcopy(
+            self.spouse_relationships
+        )
         self.relationship_map = FamilyRelationshipMap(
             self.people,
             self.current_person,
@@ -1010,47 +1034,37 @@ class FamilyTreeView(tk.Frame):
 
     def open_mate_picker(self):
         current_id = str(self.current_person.get("record_id", "") or "")
-        current_can_give_birth = bool(self.current_person.get("can_give_birth"))
-        primary_candidates = self.relationship_map.partner_candidates(current_id)
-        alternate_candidates = self.relationship_map.partner_candidates(
-            current_id,
-            alternate_role=True,
+
+        if integer_year(self.current_person.get("birth_year")) is None:
+            messagebox.showinfo(
+                "Birth year required",
+                "Enter this person's Birth year on the Profile page before adding a spouse.",
+                parent=self,
+            )
+            return
+
+        excluded_ids = set(self.mate_ids)
+        excluded_ids.update(self.relationship_map.ancestors_of(current_id))
+        excluded_ids.update(self.relationship_map.descendants_of(current_id))
+        candidates = spouse_candidates(
+            self.current_person,
+            self.people,
+            excluded_ids,
         )
-        required_role_label = (
-            "non-birthing parent" if current_can_give_birth else "birthing parent"
-        )
-        alternate_role_label = (
-            "birthing parent" if current_can_give_birth else "non-birthing parent"
-        )
-        required_setting = "unchecked" if current_can_give_birth else "checked"
-        alternate_label = (
-            "See birthing parent options"
-            if current_can_give_birth
-            else "See non-birthing parent options"
-        )
-        RelationshipPickerDialog(
+        SpousePickerDialog(
             self,
-            title="Add mate",
-            heading="Add mate",
-            explanation=(
-                f"Choose an existing {required_role_label}, or use Enter new for "
-                "a name-only character entry."
-            ),
-            primary_people=primary_candidates,
-            alternate_people=alternate_candidates,
-            alternate_label=alternate_label,
-            alternate_note=(
-                f"These {alternate_role_label} options have no parent or mate links "
-                f"that block changing Can give birth to {required_setting}."
-            ),
-            select_label="Add mate",
-            select_command=self.select_mate,
-            create_command=self.create_mate,
-            new_profile_label="Enter a new mate",
-            new_profile_explanation=(
-                "Only the displayed name will be entered. Can give birth will be "
-                f"{required_setting}."
-            ),
+            self.current_person,
+            candidates,
+            self.add_spouse_relationship,
+            self.create_person_command,
+            [
+                child
+                for child in (
+                    self.relationship_map.person(child_id)
+                    for child_id in self.relationship_map.children_of(current_id)
+                )
+                if child is not None
+            ],
         )
 
     def select_mate(self, record_id, change_birth_assignment=False):
@@ -1079,14 +1093,24 @@ class FamilyTreeView(tk.Frame):
         return created_person
 
     def add_mate(self, record_id):
-        if record_id not in self.mate_ids:
-            self.mate_ids.append(record_id)
-            self.active_mate_id = record_id
-            self.active_spouse_owner_id = str(
-                self.current_person.get("record_id", "") or ""
-            )
-            self.reload_people()
-            self.change_command()
+        self.add_spouse_relationship(empty_spouse_relationship(record_id))
+
+    def add_spouse_relationship(self, relationship):
+        normalized = normalize_spouse_relationships([relationship])[0]
+        record_id = normalized["person_id"]
+        self.spouse_relationships = [
+            existing
+            for existing in self.spouse_relationships
+            if existing["person_id"] != record_id
+        ]
+        self.spouse_relationships.append(normalized)
+        self.mate_ids = relationship_ids(self.spouse_relationships)
+        self.active_mate_id = record_id
+        self.active_spouse_owner_id = str(
+            self.current_person.get("record_id", "") or ""
+        )
+        self.reload_people()
+        self.change_command()
 
     def remove_active_mate(self):
         current_id = str(self.current_person.get("record_id", "") or "")
@@ -1098,17 +1122,22 @@ class FamilyTreeView(tk.Frame):
             return
 
         mate = self.relationship_map.person(self.active_mate_id)
-        mate_name = mate.get("displayed_name", "this mate") if mate else "this mate"
+        mate_name = mate.get("displayed_name", "this spouse") if mate else "this spouse"
 
         if not messagebox.askyesno(
-            "Remove mate",
-            f"Remove {mate_name} as a mate? Existing parent links on children will remain.",
+            "Remove spouse",
+            f"Remove {mate_name} as a spouse? Existing parent links on children will remain.",
             parent=self,
         ):
             return
 
         self.mate_ids = [
             mate_id for mate_id in self.mate_ids if mate_id != self.active_mate_id
+        ]
+        self.spouse_relationships = [
+            relationship
+            for relationship in self.spouse_relationships
+            if relationship["person_id"] != self.active_mate_id
         ]
         self.active_mate_id = None
         self.active_spouse_owner_id = None
@@ -1282,7 +1311,15 @@ class FamilyTreeView(tk.Frame):
                 "can_give_birth": bool(new_child_can_give_birth),
             }
             creation_values.update(relationship_values)
-            child = self.create_person_command(creation_values)
+
+            try:
+                child = self.create_person_command(creation_values)
+            except ParentLocationConflict as error:
+                if not self.confirm_long_distance_parent_override(error):
+                    return None
+
+                creation_values["long_distance_parent_override"] = True
+                child = self.create_person_command(creation_values)
         else:
             child = self.relationship_map.person(child_record_id)
 
@@ -1323,7 +1360,20 @@ class FamilyTreeView(tk.Frame):
                     ):
                         return None
 
-            child = self.update_person_command(child_record_id, relationship_values)
+            try:
+                child = self.update_person_command(
+                    child_record_id,
+                    relationship_values,
+                )
+            except ParentLocationConflict as error:
+                if not self.confirm_long_distance_parent_override(error):
+                    return None
+
+                relationship_values["long_distance_parent_override"] = True
+                child = self.update_person_command(
+                    child_record_id,
+                    relationship_values,
+                )
 
         mate_added = (
             normalized_other_parent_kind == "person"
@@ -1340,6 +1390,12 @@ class FamilyTreeView(tk.Frame):
             self.current_person["mate_ids"] = list(
                 updated_current_person.get("mate_ids", self.mate_ids)
             )
+            self.spouse_relationships = normalize_spouse_relationships(
+                updated_current_person.get("spouse_relationships", [])
+            )
+            self.current_person["spouse_relationships"] = deepcopy(
+                self.spouse_relationships
+            )
 
         if other_parent_id:
             self.active_mate_id = other_parent_id
@@ -1348,6 +1404,21 @@ class FamilyTreeView(tk.Frame):
         self.reload_people()
 
         return child
+
+    def confirm_long_distance_parent_override(self, error):
+        return messagebox.askyesno(
+            "Parents are in different locations",
+            (
+                f"{error}\n\n"
+                "Make the parent locations match before assigning this child, "
+                "or choose Yes to use the birthing parent's location and add "
+                "the long-distance relationship note to Born.\n\n"
+                "Use the long-distance override?"
+            ),
+            parent=self,
+            icon="warning",
+            default="no",
+        )
 
     def normalized_parent_status(self, parent_id, status):
         if str(parent_id or "").strip():

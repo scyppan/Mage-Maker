@@ -12,7 +12,10 @@ APPLICATION_DIRECTORY = Path(__file__).resolve().parent.parent
 if str(APPLICATION_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(APPLICATION_DIRECTORY))
 
-from mage_maker.name_history import migrate_legacy_name_details
+from mage_maker.sections.names.history import migrate_legacy_name_details
+from mage_maker.sections.family_tree.spouse_relationships import (
+    empty_spouse_relationship,
+)
 
 
 TEXT_FIELD_MAP = {
@@ -100,6 +103,7 @@ def build_person(row, unique_headers, column_indexes, row_number):
     person["biological_mother_status"] = "unknown"
     person["biological_father_status"] = "unknown"
     person["mate_ids"] = []
+    person["spouse_relationships"] = []
     person["timeline_events"] = []
     person["_biological_mother_name"] = str(
         row[column_indexes["Biological Mother"]] or ""
@@ -221,9 +225,15 @@ def convert_csv(input_path, output_path):
 
         if father_id not in mother["mate_ids"]:
             mother["mate_ids"].append(father_id)
+            mother["spouse_relationships"].append(
+                empty_spouse_relationship(father_id)
+            )
 
         if mother_id not in father["mate_ids"]:
             father["mate_ids"].append(mother_id)
+            father["spouse_relationships"].append(
+                empty_spouse_relationship(mother_id)
+            )
 
     people.sort(
         key=lambda person: (
@@ -235,8 +245,8 @@ def convert_csv(input_path, output_path):
     )
     database = {
         "_database": {
-            "schema_version": 5,
-            "database_version": "0.5.0",
+            "schema_version": 8,
+            "database_version": "0.8.0",
             "source_file": input_file_path.name,
             "imported_at": datetime.now(timezone.utc).isoformat(),
             "last_saved": None,

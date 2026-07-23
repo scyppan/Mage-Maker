@@ -6,11 +6,17 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mage_maker.name_history import migrate_legacy_name_details
-from mage_maker.timeline_events import (
+from mage_maker.sections.names.history import migrate_legacy_name_details
+from mage_maker.sections.family_tree.spouse_relationships import (
+    merge_mate_ids,
+    normalize_spouse_relationships,
+    relationship_ids,
+)
+from mage_maker.sections.timeline.events import (
     automatic_child_timeline_event,
     normalize_timeline_events,
 )
+from mage_maker.sections.timeline.locations import ensure_life_start_events
 
 
 class JsonDatabase:
@@ -25,9 +31,20 @@ class JsonDatabase:
             loaded_data = json.load(database_file)
 
         migrated = self.migrate_database(loaded_data)
+        collections_added = self.ensure_application_collections(loaded_data)
         self.validate_database(loaded_data)
         self.data = loaded_data
-        self.dirty = migrated
+        self.dirty = migrated or collections_added
+
+    def ensure_application_collections(self, database_data):
+        changed = False
+
+        for collection_name in ("locations", "organizations"):
+            if collection_name not in database_data:
+                database_data[collection_name] = []
+                changed = True
+
+        return changed
 
     def migrate_database(self, database_data):
         if not isinstance(database_data, dict):
@@ -40,7 +57,7 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version >= 6:
+        if not isinstance(schema_version, int) or schema_version >= 9:
             return False
 
         migrated = False
@@ -302,8 +319,41 @@ class JsonDatabase:
             schema_version = 6
             migrated = True
 
-        metadata["schema_version"] = 6
-        metadata["database_version"] = "0.6.0"
+        if schema_version < 7:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                relationships = merge_mate_ids(
+                    person.get("spouse_relationships", []),
+                    person.get("mate_ids", []),
+                )
+                person["spouse_relationships"] = relationships
+                person["mate_ids"] = relationship_ids(relationships)
+
+            schema_version = 7
+            migrated = True
+
+        if schema_version < 8:
+            for person in database_data.get("people", []):
+                if isinstance(person, dict):
+                    person.pop("sex", None)
+
+            schema_version = 8
+            migrated = True
+
+        if schema_version < 9:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["timeline_events"] = ensure_life_start_events(person)
+
+            schema_version = 9
+            migrated = True
+
+        metadata["schema_version"] = 9
+        metadata["database_version"] = "0.9.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -314,6 +364,12 @@ class JsonDatabase:
 
         if not isinstance(database_data.get("people"), list):
             raise TypeError("The database must contain a people collection.")
+
+        for collection_name in ("locations", "organizations"):
+            if not isinstance(database_data.get(collection_name), list):
+                raise TypeError(
+                    f"The database must contain a {collection_name} collection."
+                )
 
         metadata = database_data.get("_database")
 
@@ -378,7 +434,39 @@ class JsonDatabase:
             ):
                 raise TypeError("mate_ids must be a list of person identifiers.")
 
+            spouse_relationships = normalize_spouse_relationships(
+                person.get("spouse_relationships", [])
+            )
+
+            if relationship_ids(spouse_relationships) != mate_ids:
+                raise ValueError(
+                    "mate_ids must match the spouse relationship identifiers."
+                )
+
             normalize_timeline_events(person.get("timeline_events", []))
+
+        for collection_name in ("locations", "organizations"):
+            seen_record_ids = set()
+
+            for record in database_data[collection_name]:
+                if not isinstance(record, dict):
+                    raise TypeError(
+                        f"Every record in {collection_name} must be a JSON object."
+                    )
+
+                record_id = str(record.get("record_id", "") or "").strip()
+
+                if not record_id:
+                    raise ValueError(
+                        f"Every record in {collection_name} must have a record_id."
+                    )
+
+                if record_id in seen_record_ids:
+                    raise ValueError(
+                        f"Duplicate {collection_name} record_id: {record_id}"
+                    )
+
+                seen_record_ids.add(record_id)
 
     def list_people(self):
         return deepcopy(self.data["people"])
@@ -471,12 +559,80 @@ class JsonDatabase:
                     for mate_id in related_person.get("mate_ids", [])
                     if mate_id != record_id
                 ]
+                related_person["spouse_relationships"] = [
+                    relationship
+                    for relationship in normalize_spouse_relationships(
+                        related_person.get("spouse_relationships", [])
+                    )
+                    if relationship["person_id"] != record_id
+                ]
 
             self.dirty = True
 
             return deepcopy(deleted_person)
 
         raise KeyError(f"Unknown person record_id: {record_id}")
+
+    def list_records(self, collection_name):
+        if collection_name not in ("locations", "organizations"):
+            raise KeyError(f"Unknown application collection: {collection_name}")
+
+        return deepcopy(self.data[collection_name])
+
+    def read_record(self, collection_name, record_id):
+        for record in self.list_records(collection_name):
+            if record.get("record_id") == record_id:
+                return record
+
+        return None
+
+    def create_record(self, collection_name, values):
+        if not isinstance(values, dict):
+            raise TypeError("A database record must be a dictionary.")
+
+        record = deepcopy(values)
+        record.setdefault("record_id", str(uuid.uuid4()))
+
+        if self.read_record(collection_name, record["record_id"]) is not None:
+            raise ValueError(
+                f"Duplicate {collection_name} record_id: {record['record_id']}"
+            )
+
+        current_time = datetime.now(timezone.utc).isoformat()
+        record.setdefault("created_at", current_time)
+        record["last_updated"] = current_time
+        self.data[collection_name].append(record)
+        self.dirty = True
+        return deepcopy(record)
+
+    def update_record(self, collection_name, record_id, values):
+        if not isinstance(values, dict):
+            raise TypeError("Database record changes must be a dictionary.")
+
+        if "record_id" in values and values["record_id"] != record_id:
+            raise ValueError("A database record_id cannot be changed.")
+
+        for record in self.data[collection_name]:
+            if record.get("record_id") != record_id:
+                continue
+
+            record.update(deepcopy(values))
+            record["last_updated"] = datetime.now(timezone.utc).isoformat()
+            self.dirty = True
+            return deepcopy(record)
+
+        raise KeyError(f"Unknown {collection_name} record_id: {record_id}")
+
+    def delete_record(self, collection_name, record_id):
+        for index, record in enumerate(self.data[collection_name]):
+            if record.get("record_id") != record_id:
+                continue
+
+            deleted_record = self.data[collection_name].pop(index)
+            self.dirty = True
+            return deepcopy(deleted_record)
+
+        raise KeyError(f"Unknown {collection_name} record_id: {record_id}")
 
     def save(self):
         self.validate_database(self.data)

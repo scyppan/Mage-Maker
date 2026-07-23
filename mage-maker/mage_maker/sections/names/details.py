@@ -1,15 +1,21 @@
 import tkinter as tk
 from copy import deepcopy
 from functools import partial
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 
-from mage_maker.name_history import (
+from mage_maker.core.dates import (
+    format_date_parts,
+    normalize_date_parts,
+    split_partial_date,
+)
+from mage_maker.sections.names.history import (
+    NAME_TYPES,
     empty_name_details,
     migrate_legacy_name_details,
     new_name_entry,
     normalize_name_entry,
 )
-from mage_maker.theme import (
+from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
     BORDER_SOFT,
@@ -31,7 +37,7 @@ from mage_maker.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.widgets import LabeledEntry, MultilineField, SoftButton
+from mage_maker.ui.widgets import LabeledEntry, MultilineField, SoftButton
 
 
 class NameDetailsDialog(tk.Toplevel):
@@ -386,15 +392,21 @@ class NameEntryDialog(tk.Toplevel):
         super().__init__(parent)
         self.save_command = save_command
         self.entry_id = str(entry.get("entry_id", "") or "")
+        date_year, date_month, date_day = split_partial_date(
+            entry.get("date", ""),
+            "Name date",
+        )
         self.values = {
             "name_type": tk.StringVar(value=str(entry.get("name_type", "") or "")),
             "name_entry": tk.StringVar(value=str(entry.get("name_entry", "") or "")),
-            "date": tk.StringVar(value=str(entry.get("date", "") or "")),
+            "date_year": tk.StringVar(value=date_year),
+            "date_month": tk.StringVar(value=date_month),
+            "date_day": tk.StringVar(value=date_day),
         }
 
         self.title(title)
-        self.geometry("650x440")
-        self.minsize(560, 400)
+        self.geometry("650x560")
+        self.minsize(560, 540)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent)
         self.grab_set()
@@ -418,7 +430,7 @@ class NameEntryDialog(tk.Toplevel):
         )
         card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
         card.grid_columnconfigure((0, 1), weight=1, uniform="name_fields")
-        card.grid_rowconfigure(3, weight=1)
+        card.grid_rowconfigure(4, weight=1, minsize=122)
 
         heading = tk.Label(
             card,
@@ -430,31 +442,30 @@ class NameEntryDialog(tk.Toplevel):
         )
         heading.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 14))
 
-        self.name_type_field = LabeledEntry(
-            card,
-            "Name type",
-            self.values["name_type"],
-            background=SURFACE,
+        name_type_frame = tk.Frame(card, bg=SURFACE)
+        name_type_frame.grid_columnconfigure(0, weight=1)
+        name_type_label = tk.Label(
+            name_type_frame,
+            text="Name type",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
         )
-        self.name_type_field.grid(
+        name_type_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        self.name_type_field = ttk.Combobox(
+            name_type_frame,
+            textvariable=self.values["name_type"],
+            values=NAME_TYPES,
+            state="readonly",
+            font=app_font(11),
+        )
+        self.name_type_field.grid(row=1, column=0, sticky="ew", ipady=7)
+        name_type_frame.grid(
             row=1,
             column=0,
+            columnspan=2,
             sticky="ew",
-            padx=(0, 7),
-            pady=(0, 12),
-        )
-
-        date_field = LabeledEntry(
-            card,
-            "Date (if applicable)",
-            self.values["date"],
-            background=SURFACE,
-        )
-        date_field.grid(
-            row=1,
-            column=1,
-            sticky="ew",
-            padx=(7, 0),
             pady=(0, 12),
         )
 
@@ -472,6 +483,46 @@ class NameEntryDialog(tk.Toplevel):
             pady=(0, 12),
         )
 
+        date_frame = tk.Frame(card, bg=SURFACE)
+        date_frame.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 12),
+        )
+        date_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        date_heading = tk.Label(
+            date_frame,
+            text="Date (if applicable)",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        date_heading.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 5))
+        date_year_field = LabeledEntry(
+            date_frame,
+            "Year",
+            self.values["date_year"],
+            background=SURFACE,
+        )
+        date_year_field.grid(row=1, column=0, sticky="ew", padx=(0, 5))
+        date_month_field = LabeledEntry(
+            date_frame,
+            "Month",
+            self.values["date_month"],
+            background=SURFACE,
+        )
+        date_month_field.grid(row=1, column=1, sticky="ew", padx=5)
+        date_day_field = LabeledEntry(
+            date_frame,
+            "Day",
+            self.values["date_day"],
+            background=SURFACE,
+        )
+        date_day_field.grid(row=1, column=2, sticky="ew", padx=(5, 0))
+
         note_field = MultilineField(
             card,
             "Note",
@@ -479,12 +530,12 @@ class NameEntryDialog(tk.Toplevel):
             background=SURFACE,
             hint_text="Optional context about this name.",
         )
-        note_field.grid(row=3, column=0, columnspan=2, sticky="nsew")
+        note_field.grid(row=4, column=0, columnspan=2, sticky="nsew")
         note_field.text.insert("1.0", str(entry.get("note", "") or ""))
         self.note_text = note_field.text
 
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+        footer.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(14, 0))
         footer.grid_columnconfigure(0, weight=1)
 
         cancel_button = SoftButton(
@@ -513,11 +564,26 @@ class NameEntryDialog(tk.Toplevel):
         save_button.grid(row=0, column=2, padx=(6, 0))
 
     def get_entry(self):
+        date_year, date_month, date_day = normalize_date_parts(
+            self.values["date_year"].get(),
+            self.values["date_month"].get(),
+            self.values["date_day"].get(),
+            "Name date",
+        )
+
+        if date_year is None and (date_month is not None or date_day is not None):
+            raise ValueError("Name date month and day require a year.")
+
         return {
             "entry_id": self.entry_id,
             "name_type": self.values["name_type"].get(),
             "name_entry": self.values["name_entry"].get(),
-            "date": self.values["date"].get(),
+            "date": format_date_parts(
+                date_year,
+                date_month,
+                date_day,
+                unknown="",
+            ),
             "note": self.note_text.get("1.0", "end-1c"),
         }
 
@@ -540,4 +606,4 @@ class NameEntryDialog(tk.Toplevel):
         return "break"
 
     def focus_name_type(self):
-        self.name_type_field.control.focus_set()
+        self.name_type_field.focus_set()

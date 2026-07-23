@@ -1,6 +1,6 @@
 import tkinter as tk
 
-from mage_maker.theme import (
+from mage_maker.ui.theme import (
     BORDER,
     BORDER_SOFT,
     BUTTON_DISABLED,

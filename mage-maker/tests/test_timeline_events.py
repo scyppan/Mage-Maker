@@ -1,10 +1,11 @@
 import unittest
 
-from mage_maker.timeline_events import (
+from mage_maker.sections.timeline.events import (
     normalize_timeline_event,
     normalize_timeline_events,
     timeline_event_summary,
 )
+from mage_maker.sections.timeline.locations import ensure_life_start_events
 
 
 class TimelineEventTests(unittest.TestCase):
@@ -76,6 +77,28 @@ class TimelineEventTests(unittest.TestCase):
                     "date": "2000-02-31",
                 }
             )
+
+    def test_lifecycle_events_always_occupy_the_first_two_lines(self):
+        events = ensure_life_start_events(
+            {
+                "birth_year": 1980,
+                "timeline_events": [
+                    {
+                        "event_id": "school",
+                        "event_type": "started_school",
+                        "detail": "Hogwarts",
+                        "date": "1991",
+                    }
+                ],
+            },
+            starting_location="London",
+        )
+        self.assertEqual(
+            ["starting_location", "born", "started_school"],
+            [event["event_type"] for event in events],
+        )
+        self.assertEqual("Starting location: London", timeline_event_summary(events[0]))
+        self.assertEqual("Born", timeline_event_summary(events[1]))
 
 
 if __name__ == "__main__":

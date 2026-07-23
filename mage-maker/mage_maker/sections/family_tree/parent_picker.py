@@ -1,4 +1,4 @@
-from mage_maker.relationship_picker import (
+from mage_maker.sections.family_tree.relationship_picker import (
     BasicRelationshipDialog,
     RelationshipPickerDialog,
 )

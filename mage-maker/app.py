@@ -1,1 +1,1 @@
-from mage_maker.app import MageMakerApp as App
+from mage_maker.shell.application import MageMakerApp as App
