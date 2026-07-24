@@ -6,6 +6,7 @@ from mage_maker.sections.events.models import (
     world_event_sort_key,
     world_event_year,
 )
+from mage_maker.sections.events.types import event_type_is_person_only
 from mage_maker.sections.locations.models import (
     ancestor_locations,
     location_path,
@@ -16,7 +17,7 @@ RECENT_ASSOCIATION_STORAGE_KEY = "_recent_event_associations"
 RECENT_ASSOCIATION_STORAGE_LIMIT = 12
 
 
-class WorldEventController:
+class EventController:
     def __init__(
         self,
         database,
@@ -50,7 +51,7 @@ class WorldEventController:
         current = self.get_event(record_id)
 
         if current is None:
-            raise KeyError(f"Unknown shared event record_id: {record_id}")
+            raise KeyError(f"Unknown event record_id: {record_id}")
 
         prospective = deepcopy(current)
         prospective.update(deepcopy(values))
@@ -95,6 +96,28 @@ class WorldEventController:
             for event in self.list_events()
             if normalized_person_id in event["person_ids"]
         ]
+
+    def event_has_famous_person(self, event):
+        linked_person_ids = {
+            str(person_id or "").strip()
+            for person_id in (event or {}).get("person_ids", [])
+            if str(person_id or "").strip()
+        }
+
+        if not linked_person_ids:
+            return False
+
+        return any(
+            bool(person.get("famous_person"))
+            and str(person.get("record_id", "") or "") in linked_person_ids
+            for person in self.people_provider()
+            if isinstance(person, dict)
+        )
+
+    def event_is_individual(self, event):
+        return event_type_is_person_only(
+            (event or {}).get("event_type")
+        )
 
     def events_for_location(self, location_id, include_ancestors=True):
         normalized_location_id = str(location_id or "").strip()
@@ -373,3 +396,6 @@ class WorldEventController:
             raise ValueError(
                 "One or more selected locations no longer exist."
             )
+
+
+WorldEventController = EventController

@@ -3,7 +3,6 @@ from copy import deepcopy
 from functools import partial
 
 from mage_maker.sections.development.page import DevelopmentView
-from mage_maker.sections.events.dialog import WorldEventDialog
 from mage_maker.sections.family_tree.page import FamilyTreeView
 from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
 from mage_maker.sections.names.history import (
@@ -473,16 +472,9 @@ class PersonForm(tk.Frame):
             people_provider=self.people_provider,
             navigate_command=navigate_command,
             name_change_command=self.open_timeline_name_change,
-            linked_event_create_command=(
-                self.add_shared_event
-                if self.event_controller is not None
-                else None
-            ),
-            linked_event_edit_command=(
-                self.edit_shared_event
-                if self.event_controller is not None
-                else self.navigate_event_command
-            ),
+            event_controller=self.event_controller,
+            person_id_provider=self.current_person_identifier,
+            linked_events_changed_command=self.shared_event_saved,
         )
         self.timeline.grid(row=0, column=0, sticky="nsew")
 
@@ -779,38 +771,8 @@ class PersonForm(tk.Frame):
             )
         )
 
-    def add_shared_event(self):
-        if (
-            self.event_controller is None
-            or not self.current_record_id
-        ):
-            return
-
-        WorldEventDialog(
-            self,
-            self.event_controller,
-            saved_command=self.shared_event_saved,
-            default_person_ids=(self.current_record_id,),
-        )
-
-    def edit_shared_event(self, event):
-        if self.event_controller is None:
-            return
-
-        record_id = str(
-            (event or {}).get("record_id", "") or ""
-        )
-        shared_event = self.event_controller.get_event(record_id)
-
-        if shared_event is None:
-            return
-
-        WorldEventDialog(
-            self,
-            self.event_controller,
-            shared_event,
-            self.shared_event_saved,
-        )
+    def current_person_identifier(self):
+        return str(self.current_record_id or "")
 
     def shared_event_saved(self, event):
         self.refresh_linked_events()

@@ -2,26 +2,17 @@ import re
 import uuid
 from copy import deepcopy
 
-
-WORLD_EVENT_TYPES = (
-    ("birth", "Birth"),
-    ("death", "Death"),
-    ("marriage", "Marriage"),
-    ("relocation", "Relocation"),
-    ("founding", "Founding"),
-    ("political", "Political"),
-    ("conflict", "Conflict"),
-    ("discovery", "Discovery"),
-    ("education", "Education"),
-    ("cultural", "Cultural"),
-    ("disaster", "Disaster"),
-    ("other", "Other"),
+from mage_maker.sections.events.types import (
+    EVENT_LABEL_TYPES,
+    EVENT_TYPE_LABELS,
+    canonical_event_type,
+    event_type_label,
+    event_type_options,
 )
-WORLD_EVENT_TYPE_LABELS = dict(WORLD_EVENT_TYPES)
-WORLD_EVENT_LABEL_TYPES = {
-    label: event_type
-    for event_type, label in WORLD_EVENT_TYPES
-}
+
+WORLD_EVENT_TYPES = event_type_options("period")
+WORLD_EVENT_TYPE_LABELS = EVENT_TYPE_LABELS
+WORLD_EVENT_LABEL_TYPES = EVENT_LABEL_TYPES
 WORLD_EVENT_DATE_PATTERN = re.compile(
     r"^(-?\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
@@ -29,15 +20,15 @@ WORLD_EVENT_DATE_PATTERN = re.compile(
 
 def normalize_world_event(event):
     if not isinstance(event, dict):
-        raise TypeError("Every shared event must be an object.")
+        raise TypeError("Every event must be an object.")
 
     normalized = deepcopy(event)
     normalized["record_id"] = str(
         normalized.get("record_id") or uuid.uuid4()
     ).strip()
-    normalized["event_type"] = str(
+    normalized["event_type"] = canonical_event_type(
         normalized.get("event_type") or "other"
-    ).strip()
+    )
     normalized["title"] = " ".join(
         str(normalized.get("title", "") or "").strip().split()
     )
@@ -64,11 +55,11 @@ def normalize_world_event(event):
         if location_id not in normalized["location_ids"]:
             normalized["location_ids"].append(location_id)
 
-    if normalized["event_type"] not in WORLD_EVENT_TYPE_LABELS:
+    if normalized["event_type"] not in EVENT_TYPE_LABELS:
         normalized["event_type"] = "other"
 
     if not normalized["title"]:
-        raise ValueError("A shared event needs a title.")
+        raise ValueError("An event needs a title.")
 
     return normalized
 
@@ -78,7 +69,7 @@ def normalize_world_events(events):
         return []
 
     if not isinstance(events, list):
-        raise TypeError("Shared events must be a list.")
+        raise TypeError("Events must be a list.")
 
     normalized_events = []
     used_ids = set()
@@ -88,7 +79,7 @@ def normalize_world_events(events):
 
         if normalized["record_id"] in used_ids:
             raise ValueError(
-                f'Duplicate shared event record_id: {normalized["record_id"]}'
+                f'Duplicate event record_id: {normalized["record_id"]}'
             )
 
         used_ids.add(normalized["record_id"])
@@ -124,7 +115,7 @@ def normalize_world_event_date(value):
     date_text = str(value or "").strip()
 
     if not date_text:
-        raise ValueError("A shared event needs a year.")
+        raise ValueError("An event needs a year.")
 
     match = WORLD_EVENT_DATE_PATTERN.fullmatch(date_text)
 
@@ -208,7 +199,10 @@ def world_event_sort_key(event):
 
 
 def world_event_type_label(event):
-    event_type = str(
-        (event or {}).get("event_type", "other") or "other"
-    )
-    return WORLD_EVENT_TYPE_LABELS.get(event_type, "Other")
+    return event_type_label(event)
+
+
+normalize_event = normalize_world_event
+normalize_events = normalize_world_events
+event_sort_key = world_event_sort_key
+event_year = world_event_year

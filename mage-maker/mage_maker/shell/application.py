@@ -8,7 +8,7 @@ from tkinter import messagebox
 from mage_maker.core.controller import PeopleController
 from mage_maker.core.database import JsonDatabase
 from mage_maker.core.game_database import GameDatabase, GameDatabaseError
-from mage_maker.sections.events.controller import WorldEventController
+from mage_maker.sections.events.controller import EventController
 from mage_maker.sections.locations.controller import LocationController
 from mage_maker.sections.locations.page import LocationPage
 from mage_maker.sections.locations.period_definitions import (
@@ -96,7 +96,7 @@ class MageMakerApp(tk.Tk):
             self.database,
             self.people_controller.list_people,
         )
-        self.event_controller = WorldEventController(
+        self.event_controller = EventController(
             self.database,
             self.people_controller.list_people,
             self.location_controller.list_locations,
@@ -492,8 +492,21 @@ class MageMakerApp(tk.Tk):
         self.status_value.set(str(message or "Ready"))
 
     def close_application(self):
-        if self.pages["mages"].confirm_unsaved_changes():
-            self.destroy()
+        if not self.pages["mages"].confirm_unsaved_changes():
+            return
+
+        if self.database.dirty:
+            try:
+                self.database.save()
+            except (OSError, TypeError, ValueError) as error:
+                messagebox.showerror(
+                    "Could not save application data",
+                    str(error),
+                    parent=self,
+                )
+                return
+
+        self.destroy()
 
     def save_shortcut(self, event=None):
         if self.active_page_name == "mages":

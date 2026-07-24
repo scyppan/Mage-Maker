@@ -1,16 +1,23 @@
 import re
 import tkinter as tk
 from copy import deepcopy
+from functools import partial
 from tkinter import messagebox
 
-from mage_maker.sections.events.dialog import WorldEventDialog
-from mage_maker.sections.events.models import world_event_type_label
+from mage_maker.sections.events.period_view import (
+    PeriodEventsView as UnifiedPeriodEventsView,
+)
+from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
     WORLD_LOCATION_LABEL,
     location_id_is_in_scope,
 )
-from mage_maker.sections.locations.models import location_extinction_state
+from mage_maker.sections.locations.models import (
+    location_extinction_state,
+    location_path,
+    recent_location_label,
+)
 from mage_maker.sections.locations.period_definitions import (
     PeriodDefinitionError,
     load_period_definitions,
@@ -58,6 +65,7 @@ EXTINCT_DURING_TEXT = "#6A4A18"
 EVENT_DATE_PATTERN = re.compile(
     r"^(-?\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
+RECENT_PERIOD_LOCATION_COUNT = 5
 
 
 class PeriodsPage(tk.Frame):
@@ -158,7 +166,7 @@ class PeriodsPage(tk.Frame):
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
         self.build_overview_page()
-        self.events_view = PeriodEventsView(
+        self.events_view = UnifiedPeriodEventsView(
             self.content,
             self.controller,
             self.event_controller,
@@ -541,16 +549,32 @@ class PeriodsPage(tk.Frame):
         return self.region_lock_id
 
     def event_saved(self, event=None):
+        if self.records_changed_command is not None:
+            self.records_changed_command()
+
         if isinstance(event, dict):
+            inferred_period_name = self.event_controller.infer_period_name(
+                event
+            )
+
+            if (
+                inferred_period_name
+                and inferred_period_name in self.periods_by_name
+                and inferred_period_name != self.selected_period_name
+            ):
+                self.selected_period_name = inferred_period_name
+                self.period_sidebar.select_period(
+                    inferred_period_name,
+                    notify=False,
+                )
+                self.update_selected_period_views()
+
             self.events_view.refresh(event.get("record_id", ""))
             self.status_command(
                 f"Saved event {event.get('title', 'Event')}"
             )
         else:
             self.events_view.refresh()
-
-        if self.records_changed_command is not None:
-            self.records_changed_command()
 
     def open_event(self, record_id):
         event = self.event_controller.get_event(record_id)
@@ -868,7 +892,7 @@ class PeriodSidebar(tk.Frame):
         self.search_control.selection_range(0, "end")
 
 
-class PeriodEventsView(tk.Frame):
+class LegacyPeriodEventsView(tk.Frame):
     def __init__(
         self,
         parent,
@@ -968,8 +992,7 @@ class PeriodEventsView(tk.Frame):
         hint = tk.Label(
             list_panel,
             text=(
-                "Shared events and existing mage/location events in this "
-                "period."
+                "Events associated with this period."
             ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -1232,13 +1255,7 @@ class PeriodEventsView(tk.Frame):
         self.update_details()
 
     def event_type_text(self, event):
-        if event.get("event_kind") == "global":
-            return world_event_type_label(event)
-
-        if event.get("event_kind") == "mage":
-            return "Personal timeline"
-
-        return "Location event"
+        return event_type_label(event)
 
     def event_selected(self, event=None):
         selection = self.listbox.curselection()
@@ -1307,10 +1324,10 @@ class PeriodEventsView(tk.Frame):
 
     def event_source_text(self, event):
         if event.get("event_kind") == "global":
-            return "Shared event · editable here and visible from every link"
+            return "Linked event · editable from every associated record"
 
         if event.get("event_kind") == "mage":
-            return "Existing mage timeline entry · open the mage to edit"
+            return "Existing individual event · open the person to edit"
 
         location_name = str(
             event.get("origin_location_name", "") or "source location"
@@ -1407,6 +1424,147 @@ class PeriodEventsView(tk.Frame):
         return False
 
 
+class PeriodLocationDialog(tk.Toplevel):
+    def __init__(
+        self,
+        parent,
+        locations,
+        selected_location_id,
+        save_command,
+        region_lock_id="",
+    ):
+        super().__init__(parent)
+        self.locations = [
+            deepcopy(location)
+            for location in locations
+            if isinstance(location, dict)
+        ]
+        self.selected_location_id = str(
+            selected_location_id or ""
+        ).strip()
+        self.save_command = save_command
+        self.region_lock_id = str(region_lock_id or "").strip()
+        self.selection_value = tk.StringVar(value=WORLD_LOCATION_LABEL)
+        self.title("Select location")
+        self.geometry("620x680")
+        self.minsize(500, 520)
+        self.configure(bg=APP_BACKGROUND)
+        self.transient(parent.winfo_toplevel())
+        self.grab_set()
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_dialog()
+        self.location_tree.set_locations(
+            self.locations,
+            self.selected_location_id,
+        )
+        self.selected_location_id = (
+            self.location_tree.selected_location_id
+        )
+        self.location_selected(self.selected_location_id)
+        self.bind("<Escape>", self.close_dialog)
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+
+    def build_dialog(self):
+        card = tk.Frame(
+            self,
+            bg=SURFACE,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            padx=18,
+            pady=16,
+        )
+        card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        card.grid_rowconfigure(2, weight=1)
+        card.grid_columnconfigure(0, weight=1)
+        heading = tk.Label(
+            card,
+            text="Select another location",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(14, "bold"),
+            anchor="w",
+        )
+        heading.grid(row=0, column=0, sticky="ew")
+        explanation = tk.Label(
+            card,
+            text=(
+                "Search by a location name or any part of its path, "
+                "then choose the exact place from the hierarchy."
+            ),
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+            wraplength=520,
+        )
+        explanation.grid(row=1, column=0, sticky="ew", pady=(4, 12))
+        self.location_tree = LocationHierarchyTree(
+            card,
+            self.location_selected,
+            background=SURFACE,
+            show_scope_controls=False,
+            initial_scope_location_id=self.region_lock_id,
+        )
+        self.location_tree.grid(row=2, column=0, sticky="nsew")
+        selected_label = tk.Label(
+            card,
+            textvariable=self.selection_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        selected_label.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        footer = tk.Frame(card, bg=SURFACE)
+        footer.grid(row=4, column=0, sticky="e", pady=(14, 0))
+        cancel_button = SoftButton(
+            footer,
+            text="Cancel",
+            command=self.destroy,
+            background=SURFACE,
+            width=88,
+            height=36,
+        )
+        cancel_button.pack(side="left", padx=(0, 6))
+        choose_button = SoftButton(
+            footer,
+            text="Use location",
+            command=self.choose_location,
+            background=SURFACE,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=118,
+            height=36,
+        )
+        choose_button.pack(side="left")
+
+    def location_selected(self, location_id):
+        requested_id = str(location_id or "").strip()
+
+        if not requested_id and self.region_lock_id:
+            requested_id = self.region_lock_id
+
+        self.selected_location_id = requested_id
+        self.selection_value.set(
+            (
+                location_path(requested_id, self.locations)
+                if requested_id
+                else WORLD_LOCATION_LABEL
+            )
+        )
+
+    def choose_location(self):
+        self.save_command(self.selected_location_id)
+        self.destroy()
+
+    def close_dialog(self, event=None):
+        self.destroy()
+        return "break"
+
+
 class PeriodPeopleView(tk.Frame):
     def __init__(
         self,
@@ -1425,6 +1583,11 @@ class PeriodPeopleView(tk.Frame):
         self.location_records = []
         self.selected_location_id = ""
         self.region_lock_id = ""
+        self.recent_location_ids = []
+        self.recent_location_buttons = []
+        self.current_location_value = tk.StringVar(
+            value=WORLD_LOCATION_LABEL
+        )
         self.has_no_children_value = tk.BooleanVar(value=False)
         self.summary_value = tk.StringVar(
             value="Select a period and location."
@@ -1454,11 +1617,11 @@ class PeriodPeopleView(tk.Frame):
             padx=12,
             pady=11,
         )
-        location_panel.grid_rowconfigure(2, weight=1)
+        location_panel.grid_rowconfigure(5, weight=1)
         location_panel.grid_columnconfigure(0, weight=1)
         heading = tk.Label(
             location_panel,
-            text="Filter people by location",
+            text="People location",
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(11, "bold"),
@@ -1467,22 +1630,84 @@ class PeriodPeopleView(tk.Frame):
         heading.grid(row=0, column=0, sticky="ew")
         hint = tk.Label(
             location_panel,
-            text="The World includes people with unknown locations.",
+            text=(
+                "Choose one of the five most recently used locations, "
+                "or search the full hierarchy."
+            ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
             font=app_font(8),
             anchor="w",
             justify="left",
+            wraplength=250,
         )
         hint.grid(row=1, column=0, sticky="ew", pady=(3, 8))
-        self.location_tree = LocationHierarchyTree(
+        current_location = tk.Label(
             location_panel,
-            self.location_selected,
-            background=SURFACE_MUTED,
-            scope_change_command=self.region_scope_changed,
+            textvariable=self.current_location_value,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+            justify="left",
+            padx=10,
+            pady=8,
+            wraplength=238,
         )
-        self.location_tree.grid(row=2, column=0, sticky="nsew")
-        workspace.add(location_panel, minsize=250, width=290)
+        current_location.grid(row=2, column=0, sticky="ew")
+        recent_heading = tk.Label(
+            location_panel,
+            text="Recent locations",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(8, "bold"),
+            anchor="w",
+        )
+        recent_heading.grid(row=3, column=0, sticky="ew", pady=(10, 5))
+        recent_panel = tk.Frame(location_panel, bg=SURFACE_MUTED)
+        recent_panel.grid(row=4, column=0, sticky="ew")
+        recent_panel.grid_columnconfigure(0, weight=1)
+
+        for index in range(RECENT_PERIOD_LOCATION_COUNT):
+            button = SoftButton(
+                recent_panel,
+                text="",
+                command=partial(self.select_recent_location, index),
+                background=SURFACE_MUTED,
+                fill=BUTTON_SOFT,
+                hover_fill=BUTTON_SOFT_HOVER,
+                foreground=TEXT_DARK,
+                width=248,
+                height=36,
+                font=app_font(9, "bold"),
+            )
+            button.grid(
+                row=index,
+                column=0,
+                sticky="ew",
+                pady=(0, 5),
+            )
+            button.grid_remove()
+            self.recent_location_buttons.append(button)
+
+        select_other_button = SoftButton(
+            location_panel,
+            text="Select other",
+            command=self.open_location_dialog,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=126,
+            height=36,
+        )
+        select_other_button.grid(
+            row=6,
+            column=0,
+            sticky="ew",
+            pady=(10, 0),
+        )
+        workspace.add(location_panel, minsize=260, width=285)
         results = tk.Frame(
             workspace,
             bg=SURFACE,
@@ -1582,17 +1807,7 @@ class PeriodPeopleView(tk.Frame):
             )
             else self.region_lock_id
         )
-        self.location_tree.set_locations(
-            self.location_records,
-            self.selected_location_id,
-        )
-        self.location_tree.set_scope(
-            self.region_lock_id,
-            notify=False,
-        )
-        self.selected_location_id = (
-            self.location_tree.selected_location_id
-        )
+        self.refresh_location_choices()
         self.calculate(silent=True)
 
     def set_region_lock(self, location_id=""):
@@ -1608,7 +1823,6 @@ class PeriodPeopleView(tk.Frame):
                 requested_id = ""
 
         self.region_lock_id = requested_id
-        self.location_tree.set_scope(requested_id, notify=False)
 
         if not location_id_is_in_scope(
             self.selected_location_id,
@@ -1617,14 +1831,13 @@ class PeriodPeopleView(tk.Frame):
         ):
             self.selected_location_id = self.region_lock_id
 
-        self.location_tree.select_location(self.selected_location_id)
+        self.refresh_location_choices()
         self.calculate(silent=True)
 
     def region_scope_changed(self, location_id):
         self.region_lock_id = str(location_id or "").strip()
-        self.selected_location_id = (
-            self.location_tree.selected_location_id
-        )
+        self.selected_location_id = self.region_lock_id
+        self.refresh_location_choices()
         self.calculate(silent=True)
 
         if self.scope_change_command is not None:
@@ -1641,7 +1854,100 @@ class PeriodPeopleView(tk.Frame):
             requested_id = self.region_lock_id
 
         self.selected_location_id = requested_id
+        self.controller.remember_location_interaction(requested_id)
+        self.refresh_location_choices()
         self.calculate(silent=True)
+
+    def recent_locations_for_display(self):
+        candidate_ids = [
+            self.selected_location_id,
+            *self.controller.recent_location_ids(
+                RECENT_PERIOD_LOCATION_COUNT * 3
+            ),
+        ]
+        display_ids = []
+
+        for location_id in candidate_ids:
+            normalized_id = str(location_id or "").strip()
+
+            if not location_id_is_in_scope(
+                normalized_id,
+                self.location_records,
+                self.region_lock_id,
+            ):
+                continue
+
+            if normalized_id in display_ids:
+                continue
+
+            display_ids.append(normalized_id)
+
+            if len(display_ids) >= RECENT_PERIOD_LOCATION_COUNT:
+                break
+
+        return display_ids
+
+    def refresh_location_choices(self):
+        self.current_location_value.set(
+            "Current: "
+            + recent_location_label(
+                self.selected_location_id,
+                self.location_records,
+            )
+        )
+        self.recent_location_ids = self.recent_locations_for_display()
+
+        for index, button in enumerate(self.recent_location_buttons):
+            if index >= len(self.recent_location_ids):
+                button.grid_remove()
+                continue
+
+            location_id = self.recent_location_ids[index]
+            button.set_text(
+                recent_location_label(
+                    location_id,
+                    self.location_records,
+                )
+            )
+            button.set_enabled(True)
+
+            if location_id == self.selected_location_id:
+                button.set_colors(
+                    PRIMARY,
+                    PRIMARY_HOVER,
+                    TEXT_DARK,
+                )
+            else:
+                button.set_colors(
+                    BUTTON_SOFT,
+                    BUTTON_SOFT_HOVER,
+                    TEXT_DARK,
+                )
+
+            button.grid()
+
+    def select_recent_location(self, index):
+        normalized_index = int(index)
+
+        if (
+            normalized_index < 0
+            or normalized_index >= len(self.recent_location_ids)
+        ):
+            return False
+
+        self.location_selected(
+            self.recent_location_ids[normalized_index]
+        )
+        return True
+
+    def open_location_dialog(self):
+        PeriodLocationDialog(
+            self,
+            self.location_records,
+            self.selected_location_id,
+            self.location_selected,
+            self.region_lock_id,
+        )
 
     def calculate(self, silent=False):
         if self.period is None:
@@ -1685,17 +1991,10 @@ class PeriodPeopleView(tk.Frame):
         return True
 
     def selected_location_name(self):
-        if not self.selected_location_id:
-            return WORLD_LOCATION_LABEL
-
-        for location in self.location_records:
-            if (
-                str(location.get("record_id", "") or "")
-                == self.selected_location_id
-            ):
-                return str(location.get("name", "") or "Unnamed")
-
-        return WORLD_LOCATION_LABEL
+        return recent_location_label(
+            self.selected_location_id,
+            self.location_records,
+        )
 
     def selected_location_record(self):
         for location in self.location_records:

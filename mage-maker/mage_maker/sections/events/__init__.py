@@ -1,17 +1,26 @@
-__all__ = ("WorldEventController", "WorldEventDialog")
+__all__ = (
+    "EventController",
+    "EventEditor",
+    "WorldEventController",
+)
 
 
 def __getattr__(name):
-    if name == "WorldEventController":
+    if name in ("EventController", "WorldEventController"):
         from mage_maker.sections.events.controller import (
+            EventController,
             WorldEventController,
         )
 
-        return WorldEventController
+        return (
+            EventController
+            if name == "EventController"
+            else WorldEventController
+        )
 
-    if name == "WorldEventDialog":
-        from mage_maker.sections.events.dialog import WorldEventDialog
+    if name == "EventEditor":
+        from mage_maker.sections.events.editor import EventEditor
 
-        return WorldEventDialog
+        return EventEditor
 
     raise AttributeError(name)

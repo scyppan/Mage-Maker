@@ -13,6 +13,11 @@ from mage_maker.sections.locations.periods import categorized_people_for_period
 from mage_maker.sections.timeline.locations import normalize_location
 
 
+RECENT_LOCATION_STORAGE_KEY = "_recent_locations"
+RECENT_LOCATION_STORAGE_LIMIT = 12
+RECENT_WORLD_LOCATION_ID = "__mage_maker_world__"
+
+
 def mage_location_names(people):
     names = []
     used_names = set()
@@ -113,6 +118,107 @@ class LocationController:
 
     def get_location(self, record_id):
         return self.database.read_record("locations", record_id)
+
+    def remember_location_interaction(self, location_id=""):
+        normalized_location_id = str(location_id or "").strip()
+        available_ids = {
+            str(location.get("record_id", "") or "").strip()
+            for location in self.database.list_records("locations")
+            if str(location.get("record_id", "") or "").strip()
+        }
+
+        if normalized_location_id and normalized_location_id not in available_ids:
+            return False
+
+        encoded_location_id = (
+            normalized_location_id
+            if normalized_location_id
+            else RECENT_WORLD_LOCATION_ID
+        )
+        stored_history = self.database.data.get(
+            RECENT_LOCATION_STORAGE_KEY,
+            [],
+        )
+        history = (
+            [
+                str(stored_location_id or "").strip()
+                for stored_location_id in stored_history
+                if str(stored_location_id or "").strip()
+            ]
+            if isinstance(stored_history, list)
+            else []
+        )
+        updated_history = [
+            encoded_location_id,
+            *[
+                stored_location_id
+                for stored_location_id in history
+                if stored_location_id != encoded_location_id
+            ],
+        ][:RECENT_LOCATION_STORAGE_LIMIT]
+
+        if updated_history == history:
+            return False
+
+        self.database.data[RECENT_LOCATION_STORAGE_KEY] = updated_history
+        self.database.dirty = True
+        return True
+
+    def recent_location_ids(self, limit=5):
+        available_ids = {
+            str(location.get("record_id", "") or "").strip()
+            for location in self.database.list_records("locations")
+            if str(location.get("record_id", "") or "").strip()
+        }
+        stored_history = self.database.data.get(
+            RECENT_LOCATION_STORAGE_KEY,
+            [],
+        )
+        candidate_ids = (
+            [
+                str(stored_location_id or "").strip()
+                for stored_location_id in stored_history
+                if str(stored_location_id or "").strip()
+            ]
+            if isinstance(stored_history, list)
+            else []
+        )
+        event_history = self.database.data.get(
+            "_recent_event_associations",
+            {},
+        )
+
+        if isinstance(event_history, dict):
+            event_location_ids = event_history.get("location_ids", [])
+
+            if isinstance(event_location_ids, list):
+                candidate_ids.extend(
+                    str(location_id or "").strip()
+                    for location_id in event_location_ids
+                    if str(location_id or "").strip()
+                )
+
+        recent_ids = []
+
+        for candidate_id in candidate_ids:
+            normalized_id = (
+                ""
+                if candidate_id == RECENT_WORLD_LOCATION_ID
+                else candidate_id
+            )
+
+            if normalized_id and normalized_id not in available_ids:
+                continue
+
+            if normalized_id in recent_ids:
+                continue
+
+            recent_ids.append(normalized_id)
+
+            if len(recent_ids) >= max(0, int(limit)):
+                break
+
+        return recent_ids
 
     def create_location(self, values):
         normalized = normalize_location_record(values)
@@ -274,13 +380,20 @@ class LocationController:
             reproductive_without_children,
         )
 
-    def events_for_period(self, start_year, end_year, location_id=""):
+    def events_for_period(
+        self,
+        start_year,
+        end_year,
+        location_id="",
+        famous_people_only=False,
+    ):
         return location_events_for_period(
             start_year,
             end_year,
             location_id,
             self.list_locations(),
             self.people_provider(),
+            famous_people_only,
         )
 
     def parent_options(self, excluded_location_id=""):

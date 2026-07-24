@@ -2,24 +2,15 @@ import uuid
 from copy import deepcopy
 
 from mage_maker.core.dates import normalize_partial_date
-
-
-EVENT_TYPES = (
-    ("starting_location", "Starting location"),
-    ("born", "Born"),
-    ("birth_name", "Birth name"),
-    ("gave_birth", "Gave birth"),
-    ("had_child", "Had a child"),
-    ("got_married", "Got married"),
-    ("started_school", "Started at school"),
-    ("opened_business", "Opened a business"),
-    ("got_job", "Got a job"),
-    ("relocated", "Relocated"),
-    ("name_change", "Name change"),
-    ("custom", "Custom event"),
+from mage_maker.sections.events.types import (
+    EVENT_LABEL_TYPES,
+    EVENT_TYPE_LABELS,
+    canonical_event_type,
+    event_type_options,
 )
-EVENT_TYPE_LABELS = dict(EVENT_TYPES)
-EVENT_LABEL_TYPES = {label: event_type for event_type, label in EVENT_TYPES}
+
+
+EVENT_TYPES = event_type_options("person", include_automatic=True)
 
 
 def normalize_timeline_events(events):
@@ -51,9 +42,9 @@ def normalize_timeline_event(event):
 
     normalized = deepcopy(event)
     normalized["event_id"] = str(normalized.get("event_id") or uuid.uuid4()).strip()
-    normalized["event_type"] = str(
+    normalized["event_type"] = canonical_event_type(
         normalized.get("event_type") or "custom"
-    ).strip()
+    )
     normalized["detail"] = str(normalized.get("detail") or "").strip()
     normalized["date"] = normalize_event_date(normalized.get("date"))
     normalized["note"] = str(normalized.get("note") or "").strip()
@@ -137,6 +128,9 @@ def timeline_event_summary(event):
     if event_type == "got_married":
         return f"Got married to {detail}" if detail else "Got married"
 
+    if event_type == "died":
+        return f"Died: {detail}" if detail else "Died"
+
     if event_type == "started_school":
         return f"Started at {detail} school" if detail else "Started at school"
 
@@ -167,6 +161,7 @@ def timeline_detail_label(event_type):
         "gave_birth": "Child or event detail",
         "had_child": "Child's name",
         "got_married": "Spouse or event detail",
+        "died": "Death detail",
         "started_school": "School name",
         "opened_business": "Business name",
         "got_job": "Job or employer",

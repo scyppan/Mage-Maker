@@ -493,6 +493,7 @@ class RoundedText(tk.Frame):
         background=SURFACE,
         fill=FIELD_BACKGROUND,
         height=6,
+        minimum_height=76,
         radius=CONTROL_RADIUS,
         font=app_font(11),
     ):
@@ -506,7 +507,7 @@ class RoundedText(tk.Frame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        control_height = max(76, height * 22)
+        control_height = max(int(minimum_height), height * 22)
         self.canvas = tk.Canvas(
             self,
             bg=background,
@@ -746,6 +747,7 @@ class LabeledEntry(tk.Frame):
         variable,
         background=SURFACE,
         font_size=11,
+        control_height=40,
     ):
         super().__init__(parent, bg=background)
         self.grid_columnconfigure(0, weight=1)
@@ -762,7 +764,7 @@ class LabeledEntry(tk.Frame):
             self,
             textvariable=variable,
             background=background,
-            height=40,
+            height=control_height,
             font=app_font(font_size),
         )
         self.control.grid(row=1, column=0, sticky="ew")
