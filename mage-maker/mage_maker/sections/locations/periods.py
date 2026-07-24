@@ -2,6 +2,10 @@ from copy import deepcopy
 
 from mage_maker.core.dates import format_date_parts
 from mage_maker.sections.locations.models import descendant_ids, locations_by_id
+from mage_maker.sections.locations.period_definitions import (
+    EARLIEST_CALCULATION_YEAR,
+    LATEST_CALCULATION_YEAR,
+)
 from mage_maker.sections.timeline.locations import location_at_date, normalize_location
 
 
@@ -20,7 +24,7 @@ def normalize_period_years(start_year, end_year):
 
     if normalized_start is None or normalized_end is None:
         raise ValueError(
-            "Enter both period years between -9999 and 9999, excluding 0."
+            "Enter both period years between -99999 and 99999, excluding 0."
         )
 
     if normalized_end < normalized_start:
@@ -290,7 +294,11 @@ def normalized_period_year(value):
     except (TypeError, ValueError):
         return None
 
-    if year == 0 or year < -9999 or year > 9999:
+    if (
+        year == 0
+        or year < EARLIEST_CALCULATION_YEAR
+        or year > LATEST_CALCULATION_YEAR
+    ):
         return None
 
     return year

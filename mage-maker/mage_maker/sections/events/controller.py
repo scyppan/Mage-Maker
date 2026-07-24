@@ -6,9 +6,13 @@ from mage_maker.sections.events.models import (
     world_event_sort_key,
     world_event_year,
 )
-from mage_maker.sections.events.types import event_type_is_person_only
+from mage_maker.sections.events.types import (
+    canonical_event_type,
+    event_type_is_person_only,
+)
 from mage_maker.sections.locations.models import (
     ancestor_locations,
+    founding_event_title,
     recent_location_label,
 )
 
@@ -27,23 +31,33 @@ class EventController:
         people_provider,
         location_provider,
         period_provider,
+        location_creator=None,
     ):
         self.database = database
         self.people_provider = people_provider
         self.location_provider = location_provider
         self.period_provider = period_provider
+        self.location_creator = location_creator
 
     def list_events(self):
-        return normalize_world_events(
-            self.database.list_records("events")
-        )
+        titled_events = [
+            self.apply_title_rules(event)
+            for event in self.database.list_records("events")
+        ]
+        return normalize_world_events(titled_events)
 
     def get_event(self, record_id):
         event = self.database.read_record("events", record_id)
-        return normalize_world_event(event) if event is not None else None
+        return (
+            normalize_world_event(self.apply_title_rules(event))
+            if event is not None
+            else None
+        )
 
     def create_event(self, values):
-        normalized = normalize_world_event(values)
+        normalized = normalize_world_event(
+            self.apply_title_rules(values)
+        )
         self.validate_associations(normalized)
         created = self.database.create_record("events", normalized)
         self.remember_associations(created)
@@ -59,7 +73,9 @@ class EventController:
         prospective = deepcopy(current)
         prospective.update(deepcopy(values))
         prospective["record_id"] = record_id
-        normalized = normalize_world_event(prospective)
+        normalized = normalize_world_event(
+            self.apply_title_rules(prospective)
+        )
         self.validate_associations(normalized)
         updated = self.database.update_record(
             "events",
@@ -74,6 +90,42 @@ class EventController:
         deleted = self.database.delete_record("events", record_id)
         self.database.save()
         return normalize_world_event(deleted)
+
+    def apply_title_rules(self, event):
+        titled_event = deepcopy(event) if isinstance(event, dict) else {}
+
+        if (
+            canonical_event_type(titled_event.get("event_type"))
+            != "founding"
+        ):
+            return titled_event
+
+        location_ids = [
+            str(location_id or "").strip()
+            for location_id in titled_event.get("locked_location_ids", [])
+            if str(location_id or "").strip()
+        ]
+
+        if not location_ids:
+            location_ids = [
+                str(location_id or "").strip()
+                for location_id in titled_event.get("location_ids", [])
+                if str(location_id or "").strip()
+            ]
+
+        title = (
+            founding_event_title(
+                location_ids[0],
+                self.location_provider(),
+            )
+            if location_ids
+            else ""
+        )
+
+        if title:
+            titled_event["title"] = title
+
+        return titled_event
 
     def events_for_period(self, period_name, start_year, end_year):
         normalized_start = int(start_year)
@@ -181,6 +233,95 @@ class EventController:
             for location in self.location_provider()
             if isinstance(location, dict)
         ]
+
+    def create_placeholder_location(self, place, parent_location_id=""):
+        if self.location_creator is None:
+            raise ValueError("The location collection is unavailable.")
+
+        created = self.location_creator(
+            {
+                "name": str(place or "").strip(),
+                "parent_location_id": str(
+                    parent_location_id or ""
+                ).strip(),
+                "demographics": "",
+                "notes": "",
+                "extinct": False,
+                "extinction_year": "",
+                "timeline_events": [],
+            }
+        )
+        return deepcopy(created)
+
+    def defined_year_bounds(self):
+        start_years = []
+        end_years = []
+
+        for period in self.period_provider():
+            try:
+                start_years.append(
+                    int(period.get("calculation_start_year"))
+                )
+                end_years.append(
+                    int(period.get("calculation_end_year"))
+                )
+            except (AttributeError, TypeError, ValueError):
+                continue
+
+        if not start_years or not end_years:
+            return None, None
+
+        return min(start_years), max(end_years)
+
+    def clamp_year_to_defined_periods(self, year):
+        normalized_year = int(year)
+        periods = []
+
+        for period in self.period_provider():
+            try:
+                start_year = int(
+                    period.get("calculation_start_year")
+                )
+                end_year = int(
+                    period.get("calculation_end_year")
+                )
+            except (AttributeError, TypeError, ValueError):
+                continue
+
+            periods.append((start_year, end_year))
+
+        if not periods:
+            return normalized_year
+
+        periods.sort()
+
+        if normalized_year == 0:
+            normalized_year = 1
+
+        for start_year, end_year in periods:
+            if start_year <= normalized_year <= end_year:
+                return normalized_year
+
+        if normalized_year < periods[0][0]:
+            return periods[0][0]
+
+        if normalized_year > periods[-1][1]:
+            return periods[-1][1]
+
+        for index in range(len(periods) - 1):
+            previous_end = periods[index][1]
+            next_start = periods[index + 1][0]
+
+            if previous_end < normalized_year < next_start:
+                if (
+                    normalized_year - previous_end
+                    <= next_start - normalized_year
+                ):
+                    return previous_end
+
+                return next_start
+
+        return normalized_year
 
     def recent_people_options(self, limit=5):
         return self.recent_association_options(
@@ -417,6 +558,14 @@ class EventController:
             raise ValueError(
                 "Select exactly two locations for a relocation: "
                 "where the person left and where they went."
+            )
+
+        if (
+            event.get("event_type") == "founding"
+            and len(event.get("location_ids", [])) != 1
+        ):
+            raise ValueError(
+                "Select exactly one location for a founding event."
             )
 
         known_person_ids = {

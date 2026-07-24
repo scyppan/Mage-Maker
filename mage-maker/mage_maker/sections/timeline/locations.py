@@ -56,6 +56,7 @@ def ensure_life_start_events(
     starting_location=None,
     born_note=None,
     long_distance_parent_ids=None,
+    starting_location_id=None,
 ):
     person_values = person if isinstance(person, dict) else {}
     events = normalize_timeline_events(person_values.get("timeline_events", []))
@@ -112,6 +113,26 @@ def ensure_life_start_events(
             "automatic_source": LIFE_START_SOURCE,
         }
     )
+
+    if starting_location_id is not None:
+        normalized_location_id = str(
+            starting_location_id or ""
+        ).strip()
+        selected_location_ids = (
+            [normalized_location_id]
+            if normalized_location_id
+            else []
+        )
+
+        for opening_event in (starting_values, born_values):
+            opening_event["location_ids"] = selected_location_ids
+            opening_event["locked_location_ids"] = []
+
+            if normalized_location_id:
+                opening_event["birth_location_source"] = "manual"
+            else:
+                opening_event.pop("birth_location_source", None)
+
     explicit_birth_name = birth_name_entry(person_values.get("name_details", {}))
     birth_name_values = deepcopy(birth_name_event) if birth_name_event else {}
     birth_name_values.update(

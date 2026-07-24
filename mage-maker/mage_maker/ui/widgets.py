@@ -656,6 +656,7 @@ class SoftButton(tk.Canvas):
         self.radius = radius
         self.anchor = anchor
         self.padx = padx
+        self.minimum_width = calculated_width
         self.is_enabled = True
         self.is_hovered = False
         self.shape = self.create_polygon(
@@ -734,6 +735,15 @@ class SoftButton(tk.Canvas):
     def set_text(self, text):
         self.button_text = text
         self.itemconfigure(self.label, text=text)
+        bounds = self.bbox(self.label)
+
+        if bounds is None:
+            return
+
+        text_width = max(0, bounds[2] - bounds[0])
+        self.configure(
+            width=max(self.minimum_width, text_width + self.padx * 2)
+        )
 
     def bind_mousewheel(self, command):
         self.bind("<MouseWheel>", command)

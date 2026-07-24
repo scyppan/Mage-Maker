@@ -9,12 +9,16 @@ from mage_maker.sections.events.types import (
     event_type_label,
     event_type_options,
 )
+from mage_maker.sections.locations.period_definitions import (
+    EARLIEST_CALCULATION_YEAR,
+    LATEST_CALCULATION_YEAR,
+)
 
 WORLD_EVENT_TYPES = event_type_options("period")
 WORLD_EVENT_TYPE_LABELS = EVENT_TYPE_LABELS
 WORLD_EVENT_LABEL_TYPES = EVENT_LABEL_TYPES
 WORLD_EVENT_DATE_PATTERN = re.compile(
-    r"^(-?\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
+    r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
 
 
@@ -117,6 +121,20 @@ def normalize_world_event_date(value):
     if not date_text:
         raise ValueError("An event needs a year.")
 
+    plain_year_match = re.fullmatch(r"-?\d+", date_text)
+
+    if plain_year_match is not None:
+        plain_year = int(date_text)
+
+        if (
+            plain_year == 0
+            or plain_year < EARLIEST_CALCULATION_YEAR
+            or plain_year > LATEST_CALCULATION_YEAR
+        ):
+            raise ValueError(
+                "Event year must be between -99999 and 99999, excluding 0."
+            )
+
     match = WORLD_EVENT_DATE_PATTERN.fullmatch(date_text)
 
     if match is None:
@@ -128,9 +146,13 @@ def normalize_world_event_date(value):
     month = int(match.group(2)) if match.group(2) else None
     day = int(match.group(3)) if match.group(3) else None
 
-    if year == 0 or year < -9999 or year > 9999:
+    if (
+        year == 0
+        or year < EARLIEST_CALCULATION_YEAR
+        or year > LATEST_CALCULATION_YEAR
+    ):
         raise ValueError(
-            "Event year must be between -9999 and 9999, excluding 0."
+            "Event year must be between -99999 and 99999, excluding 0."
         )
 
     if month is not None and not 1 <= month <= 12:
@@ -183,7 +205,7 @@ def world_event_sort_key(event):
     match = WORLD_EVENT_DATE_PATTERN.fullmatch(date_text)
 
     if match is None:
-        date_key = (10000, 13, 32)
+        date_key = (100000, 13, 32)
     else:
         date_key = (
             int(match.group(1)),

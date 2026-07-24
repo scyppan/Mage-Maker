@@ -7,11 +7,13 @@ from tkinter import messagebox
 from mage_maker.sections.events.period_view import (
     PeriodEventsView as UnifiedPeriodEventsView,
 )
+from mage_maker.sections.events.dialog import PlaceholderLocationDialog
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
     WORLD_LOCATION_LABEL,
     location_id_is_in_scope,
+    location_ids_in_scope,
 )
 from mage_maker.sections.locations.models import (
     location_extinction_state,
@@ -62,7 +64,7 @@ EXTINCT_BEFORE_TEXT = "#6A2E3C"
 EXTINCT_DURING_BACKGROUND = "#F1DDB7"
 EXTINCT_DURING_TEXT = "#6A4A18"
 EVENT_DATE_PATTERN = re.compile(
-    r"^(-?\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
+    r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
 RECENT_PERIOD_LOCATION_COUNT = 5
 
@@ -1431,6 +1433,7 @@ class PeriodLocationDialog(tk.Toplevel):
         selected_location_id,
         save_command,
         region_lock_id="",
+        create_location_command=None,
     ):
         super().__init__(parent)
         self.locations = [
@@ -1443,6 +1446,7 @@ class PeriodLocationDialog(tk.Toplevel):
         ).strip()
         self.save_command = save_command
         self.region_lock_id = str(region_lock_id or "").strip()
+        self.create_location_command = create_location_command
         self.selection_value = tk.StringVar(value=WORLD_LOCATION_LABEL)
         self.title("Select location")
         self.geometry("620x680")
@@ -1518,6 +1522,18 @@ class PeriodLocationDialog(tk.Toplevel):
         selected_label.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         footer = tk.Frame(card, bg=SURFACE)
         footer.grid(row=4, column=0, sticky="e", pady=(14, 0))
+
+        if self.create_location_command is not None:
+            new_location_button = SoftButton(
+                footer,
+                text="New location",
+                command=self.open_placeholder_location,
+                background=SURFACE,
+                width=112,
+                height=36,
+            )
+            new_location_button.pack(side="left", padx=(0, 6))
+
         cancel_button = SoftButton(
             footer,
             text="Cancel",
@@ -1550,6 +1566,61 @@ class PeriodLocationDialog(tk.Toplevel):
         self.selection_value.set(
             recent_location_label(requested_id, self.locations)
         )
+
+    def open_placeholder_location(self):
+        if self.create_location_command is None:
+            return False
+
+        scoped_ids = location_ids_in_scope(
+            self.locations,
+            self.region_lock_id,
+        )
+        available_locations = [
+            location
+            for location in self.locations
+            if (
+                not self.region_lock_id
+                or str(location.get("record_id", "") or "").strip()
+                in scoped_ids
+            )
+        ]
+        PlaceholderLocationDialog(
+            self,
+            available_locations,
+            self.selected_location_id or self.region_lock_id,
+            self.create_location_command,
+            self.placeholder_location_created,
+            allow_world_parent=not bool(self.region_lock_id),
+        )
+        return True
+
+    def placeholder_location_created(self, location):
+        if not isinstance(location, dict):
+            return False
+
+        record_id = str(location.get("record_id", "") or "").strip()
+
+        if not record_id:
+            return False
+
+        self.locations = [
+            existing_location
+            for existing_location in self.locations
+            if str(existing_location.get("record_id", "") or "").strip()
+            != record_id
+        ]
+        self.locations.append(deepcopy(location))
+        self.selected_location_id = record_id
+        self.location_tree.set_locations(
+            self.locations,
+            self.selected_location_id,
+        )
+        self.location_tree.set_scope(self.region_lock_id)
+        self.location_tree.select_location(
+            self.selected_location_id,
+        )
+        self.location_selected(self.selected_location_id)
+        return True
 
     def choose_location(self):
         self.save_command(self.selected_location_id)
@@ -1940,9 +2011,14 @@ class PeriodPeopleView(tk.Frame):
             self,
             self.location_records,
             self.selected_location_id,
-            self.location_selected,
+            self.location_dialog_selected,
             self.region_lock_id,
+            self.controller.create_placeholder_location,
         )
+
+    def location_dialog_selected(self, location_id):
+        self.location_records = self.controller.list_locations()
+        self.location_selected(location_id)
 
     def calculate(self, silent=False):
         if self.period is None:
@@ -2197,7 +2273,7 @@ def period_event_sort_key(event):
     match = EVENT_DATE_PATTERN.fullmatch(date_text)
 
     if match is None:
-        date_key = (10000, 13, 32)
+        date_key = (100000, 13, 32)
     else:
         date_key = (
             int(match.group(1)),

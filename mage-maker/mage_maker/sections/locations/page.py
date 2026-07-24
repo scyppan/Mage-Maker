@@ -394,7 +394,8 @@ class LocationPage(tk.Frame):
         self.demographics_control = RoundedText(
             demographics_frame,
             background=SURFACE,
-            height=3,
+            height=2,
+            minimum_height=52,
         )
         self.demographics_control.pack(fill="both", expand=True)
         notes_frame = tk.Frame(narrative, bg=SURFACE)
@@ -411,7 +412,8 @@ class LocationPage(tk.Frame):
         self.notes_control = RoundedText(
             notes_frame,
             background=SURFACE,
-            height=3,
+            height=2,
+            minimum_height=52,
         )
         self.notes_control.pack(fill="both", expand=True)
 
@@ -523,7 +525,7 @@ class LocationPage(tk.Frame):
             highlightbackground=BORDER_SOFT,
             highlightthickness=1,
             padx=14,
-            pady=12,
+            pady=8,
         )
         timeline_panel.grid(row=2, column=0, sticky="nsew", pady=(10, 0))
         timeline_panel.grid_rowconfigure(2, weight=1)
@@ -578,8 +580,8 @@ class LocationPage(tk.Frame):
         legend = tk.Label(
             timeline_panel,
             text=(
-                "White/gray: this location  ·  Colored: inherited from an "
-                "ancestor level  ·  Mage births and marriages are included automatically"
+                "White/gray: this location  ·  Color: inherited  ·  "
+                "Mage births and marriages appear automatically"
             ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -593,7 +595,7 @@ class LocationPage(tk.Frame):
             column=0,
             columnspan=2,
             sticky="ew",
-            pady=(2, 6),
+            pady=(1, 3),
         )
         self.timeline_workspace = tk.Frame(
             timeline_panel,
@@ -1000,12 +1002,18 @@ class LocationPage(tk.Frame):
                     f"(level {event.get('source_level', 0)})"
                 )
 
+            event_title = str(
+                event.get("title", "") or "Event"
+            ).strip()
+            event_summary = (
+                event_title
+                if str(event.get("event_type", "") or "").strip().casefold()
+                == "founding"
+                else f"{event_type_label(event)}  ·  {event_title}"
+            )
             self.timeline_list.insert(
                 "end",
-                (
-                    f"{date_text}  ·  {event_type_label(event)}  ·  "
-                    f"{event.get('title', 'Event')}{source_text}"
-                ),
+                f"{date_text}  ·  {event_summary}{source_text}",
             )
 
             if event.get("propagation_distance", 0):
@@ -1269,6 +1277,7 @@ class LocationPage(tk.Frame):
         )
 
     def save_location(self):
+        creating_new_location = not bool(self.current_location_id)
         values = {
             "name": self.name_value.get(),
             "parent_location_id": self.selected_parent_location_id,
@@ -1299,10 +1308,14 @@ class LocationPage(tk.Frame):
             return False
 
         self.creating_location = False
-        next_scope_id = location_scope_after_parent_change(
-            self.region_lock_id,
-            self.loaded_parent_location_id,
-            saved_location.get("parent_location_id", ""),
+        next_scope_id = (
+            self.region_lock_id
+            if creating_new_location
+            else location_scope_after_parent_change(
+                self.region_lock_id,
+                self.loaded_parent_location_id,
+                saved_location.get("parent_location_id", ""),
+            )
         )
 
         if next_scope_id != self.region_lock_id:

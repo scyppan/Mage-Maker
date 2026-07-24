@@ -164,6 +164,10 @@ class PeopleController:
     def create_person(self, values):
         creation_values = deepcopy(values)
         starting_location = creation_values.pop("starting_location", None)
+        starting_location_id = creation_values.pop(
+            "starting_location_id",
+            None,
+        )
         long_distance_override = self.normalize_boolean(
             creation_values.pop("long_distance_parent_override", False),
             "long_distance_parent_override",
@@ -209,6 +213,7 @@ class PeopleController:
             normalized,
             starting_location,
             long_distance_override,
+            starting_location_id,
         )
         normalized["timeline_events"] = synchronize_name_change_events(
             normalized["name_details"],
@@ -237,6 +242,10 @@ class PeopleController:
 
         update_values = deepcopy(values)
         starting_location = update_values.pop("starting_location", None)
+        starting_location_id = update_values.pop(
+            "starting_location_id",
+            None,
+        )
         long_distance_override = self.normalize_boolean(
             update_values.pop("long_distance_parent_override", False),
             "long_distance_parent_override",
@@ -256,6 +265,7 @@ class PeopleController:
             prospective_person,
             starting_location,
             long_distance_override,
+            starting_location_id,
         )
         prospective_person["timeline_events"] = synchronize_name_change_events(
             prospective_person.get("name_details", empty_name_details()),
@@ -454,6 +464,7 @@ class PeopleController:
         person,
         requested_starting_location=None,
         long_distance_override=False,
+        requested_starting_location_id=None,
     ):
         synchronized = deepcopy(person)
         events = normalize_timeline_events(
@@ -515,6 +526,7 @@ class PeopleController:
         synchronized["timeline_events"] = ensure_life_start_events(
             synchronized,
             starting_location=starting_location,
+            starting_location_id=requested_starting_location_id,
             born_note=born_note,
             long_distance_parent_ids=override_parent_ids,
         )

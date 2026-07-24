@@ -6,6 +6,7 @@ from tkinter import messagebox, ttk
 from mage_maker.core.dates import (
     format_date_parts,
     normalize_date_parts,
+    normalize_partial_date,
     split_partial_date,
 )
 from mage_maker.sections.names.history import (
@@ -41,15 +42,38 @@ from mage_maker.ui.widgets import LabeledEntry, MultilineField, SoftButton
 
 
 class NameDetailsDialog(tk.Toplevel):
-    def __init__(self, parent, name_details, save_command, displayed_name=""):
+    def __init__(
+        self,
+        parent,
+        name_details,
+        save_command,
+        displayed_name="",
+        birth_date="",
+    ):
         super().__init__(parent)
         self.save_command = save_command
         self.displayed_name = str(displayed_name or "").strip() or "Unnamed magician"
+        self.birth_date = normalize_partial_date(
+            birth_date,
+            "Birth date",
+        )
         migrated_details = migrate_legacy_name_details(
             name_details if isinstance(name_details, dict) else empty_name_details(),
             self.displayed_name,
         )
         self.entries = deepcopy(migrated_details["entries"])
+
+        for entry in self.entries:
+            name_type = " ".join(
+                str(entry.get("name_type", "") or "")
+                .strip()
+                .casefold()
+                .split()
+            )
+
+            if name_type in ("birth name", "birthname"):
+                entry["date"] = self.birth_date
+
         self.suppress_click = False
         self.dirty = False
 
@@ -266,12 +290,39 @@ class NameDetailsDialog(tk.Toplevel):
             new_name_entry(),
             self.save_new_entry,
             "Add Name",
+            self.birth_date,
         )
 
     def save_new_entry(self, entry):
-        self.entries.append(normalize_name_entry(entry))
+        normalized_entry = normalize_name_entry(entry)
+        name_type = " ".join(
+            normalized_entry["name_type"].strip().casefold().split()
+        )
+
+        if name_type in ("birth name", "birthname"):
+            if any(
+                " ".join(
+                    str(existing_entry.get("name_type", "") or "")
+                    .strip()
+                    .casefold()
+                    .split()
+                )
+                in ("birth name", "birthname")
+                for existing_entry in self.entries
+            ):
+                messagebox.showerror(
+                    "Cannot add Birth name",
+                    "Only one Birth name is allowed for each person.",
+                    parent=self,
+                )
+                return False
+
+            normalized_entry["date"] = self.birth_date
+
+        self.entries.append(normalized_entry)
         self.dirty = True
         self.refresh_entries(len(self.entries) - 1)
+        return True
 
     def open_clicked_entry(self, event):
         if self.suppress_click or not self.entries:
@@ -312,12 +363,40 @@ class NameDetailsDialog(tk.Toplevel):
             self.entries[entry_index],
             partial(self.save_edited_entry, entry_index),
             "Edit Name",
+            self.birth_date,
         )
 
     def save_edited_entry(self, entry_index, entry):
-        self.entries[entry_index] = normalize_name_entry(entry)
+        normalized_entry = normalize_name_entry(entry)
+        name_type = " ".join(
+            normalized_entry["name_type"].strip().casefold().split()
+        )
+
+        if name_type in ("birth name", "birthname"):
+            if any(
+                index != entry_index
+                and " ".join(
+                    str(existing_entry.get("name_type", "") or "")
+                    .strip()
+                    .casefold()
+                    .split()
+                )
+                in ("birth name", "birthname")
+                for index, existing_entry in enumerate(self.entries)
+            ):
+                messagebox.showerror(
+                    "Cannot save Birth name",
+                    "Only one Birth name is allowed for each person.",
+                    parent=self,
+                )
+                return False
+
+            normalized_entry["date"] = self.birth_date
+
+        self.entries[entry_index] = normalized_entry
         self.dirty = True
         self.refresh_entries(entry_index)
+        return True
 
     def delete_selected_entry(self):
         selected_indices = self.listbox.curselection()
@@ -388,12 +467,41 @@ class NameDetailsDialog(tk.Toplevel):
 
 
 class NameEntryDialog(tk.Toplevel):
-    def __init__(self, parent, entry, save_command, title):
+    def __init__(
+        self,
+        parent,
+        entry,
+        save_command,
+        title,
+        birth_date=None,
+    ):
         super().__init__(parent)
         self.save_command = save_command
         self.entry_id = str(entry.get("entry_id", "") or "")
+        normalized_name_type = " ".join(
+            str(entry.get("name_type", "") or "")
+            .strip()
+            .casefold()
+            .split()
+        )
+        self.birth_name_locked = normalized_name_type in (
+            "birth name",
+            "birthname",
+        )
+        self.birth_date = normalize_partial_date(
+            (
+                entry.get("date", "")
+                if birth_date is None
+                else birth_date
+            ),
+            "Birth date",
+        )
         date_year, date_month, date_day = split_partial_date(
-            entry.get("date", ""),
+            (
+                self.birth_date
+                if self.birth_name_locked
+                else entry.get("date", "")
+            ),
             "Name date",
         )
         self.values = {
@@ -414,6 +522,7 @@ class NameEntryDialog(tk.Toplevel):
         self.grid_columnconfigure(0, weight=1)
 
         self.build_form(title, entry)
+        self.apply_name_type_rules()
         self.bind("<Escape>", self.close_dialog)
         self.bind("<Control-s>", self.save_shortcut)
         self.protocol("WM_DELETE_WINDOW", self.close_dialog)
@@ -461,6 +570,10 @@ class NameEntryDialog(tk.Toplevel):
             font=app_font(11),
         )
         self.name_type_field.grid(row=1, column=0, sticky="ew", ipady=7)
+        self.name_type_field.bind(
+            "<<ComboboxSelected>>",
+            self.apply_name_type_rules,
+        )
         name_type_frame.grid(
             row=1,
             column=0,
@@ -469,13 +582,13 @@ class NameEntryDialog(tk.Toplevel):
             pady=(0, 12),
         )
 
-        name_entry_field = LabeledEntry(
+        self.name_entry_field = LabeledEntry(
             card,
             "Name entry",
             self.values["name_entry"],
             background=SURFACE,
         )
-        name_entry_field.grid(
+        self.name_entry_field.grid(
             row=2,
             column=0,
             columnspan=2,
@@ -492,7 +605,7 @@ class NameEntryDialog(tk.Toplevel):
             pady=(0, 12),
         )
         date_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        date_heading = tk.Label(
+        self.date_heading = tk.Label(
             date_frame,
             text="Date (if applicable)",
             bg=SURFACE,
@@ -500,28 +613,49 @@ class NameEntryDialog(tk.Toplevel):
             font=app_font(9, "bold"),
             anchor="w",
         )
-        date_heading.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 5))
-        date_year_field = LabeledEntry(
+        self.date_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        self.date_year_field = LabeledEntry(
             date_frame,
             "Year",
             self.values["date_year"],
             background=SURFACE,
         )
-        date_year_field.grid(row=1, column=0, sticky="ew", padx=(0, 5))
-        date_month_field = LabeledEntry(
+        self.date_year_field.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=(0, 5),
+        )
+        self.date_month_field = LabeledEntry(
             date_frame,
             "Month",
             self.values["date_month"],
             background=SURFACE,
         )
-        date_month_field.grid(row=1, column=1, sticky="ew", padx=5)
-        date_day_field = LabeledEntry(
+        self.date_month_field.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            padx=5,
+        )
+        self.date_day_field = LabeledEntry(
             date_frame,
             "Day",
             self.values["date_day"],
             background=SURFACE,
         )
-        date_day_field.grid(row=1, column=2, sticky="ew", padx=(5, 0))
+        self.date_day_field.grid(
+            row=1,
+            column=2,
+            sticky="ew",
+            padx=(5, 0),
+        )
 
         note_field = MultilineField(
             card,
@@ -564,28 +698,86 @@ class NameEntryDialog(tk.Toplevel):
         save_button.grid(row=0, column=2, padx=(6, 0))
 
     def get_entry(self):
-        date_year, date_month, date_day = normalize_date_parts(
-            self.values["date_year"].get(),
-            self.values["date_month"].get(),
-            self.values["date_day"].get(),
-            "Name date",
+        name_type = self.values["name_type"].get()
+
+        if self.birth_name_locked:
+            name_type = "birth name"
+
+        normalized_name_type = " ".join(
+            str(name_type or "").strip().casefold().split()
         )
 
-        if date_year is None and (date_month is not None or date_day is not None):
-            raise ValueError("Name date month and day require a year.")
+        if normalized_name_type in ("birth name", "birthname"):
+            date_value = self.birth_date
+        else:
+            date_year, date_month, date_day = normalize_date_parts(
+                self.values["date_year"].get(),
+                self.values["date_month"].get(),
+                self.values["date_day"].get(),
+                "Name date",
+            )
 
-        return {
-            "entry_id": self.entry_id,
-            "name_type": self.values["name_type"].get(),
-            "name_entry": self.values["name_entry"].get(),
-            "date": format_date_parts(
+            if (
+                date_year is None
+                and (date_month is not None or date_day is not None)
+            ):
+                raise ValueError("Name date month and day require a year.")
+
+            date_value = format_date_parts(
                 date_year,
                 date_month,
                 date_day,
                 unknown="",
-            ),
+            )
+
+        return {
+            "entry_id": self.entry_id,
+            "name_type": name_type,
+            "name_entry": self.values["name_entry"].get(),
+            "date": date_value,
             "note": self.note_text.get("1.0", "end-1c"),
         }
+
+    def apply_name_type_rules(self, event=None):
+        normalized_name_type = " ".join(
+            str(self.values["name_type"].get() or "")
+            .strip()
+            .casefold()
+            .split()
+        )
+        is_birth_name = normalized_name_type in (
+            "birth name",
+            "birthname",
+        )
+
+        if is_birth_name:
+            date_year, date_month, date_day = split_partial_date(
+                self.birth_date,
+                "Birth date",
+            )
+            self.values["date_year"].set(date_year)
+            self.values["date_month"].set(date_month)
+            self.values["date_day"].set(date_day)
+
+        date_enabled = not is_birth_name
+
+        for date_field in (
+            self.date_year_field,
+            self.date_month_field,
+            self.date_day_field,
+        ):
+            date_field.control.set_enabled(date_enabled)
+
+        self.date_heading.configure(
+            text=(
+                "Date (matches the magician's birthdate)"
+                if is_birth_name
+                else "Date (if applicable)"
+            )
+        )
+
+        if self.birth_name_locked:
+            self.name_type_field.configure(state="disabled")
 
     def save_entry(self):
         try:
@@ -594,7 +786,9 @@ class NameEntryDialog(tk.Toplevel):
             messagebox.showerror("Cannot save name", str(error), parent=self)
             return
 
-        self.save_command(entry)
+        if self.save_command(entry) is False:
+            return
+
         self.destroy()
 
     def close_dialog(self, event=None):
@@ -606,4 +800,7 @@ class NameEntryDialog(tk.Toplevel):
         return "break"
 
     def focus_name_type(self):
-        self.name_type_field.focus_set()
+        if self.birth_name_locked:
+            self.name_entry_field.control.focus_set()
+        else:
+            self.name_type_field.focus_set()

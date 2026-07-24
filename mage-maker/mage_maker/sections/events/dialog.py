@@ -13,6 +13,7 @@ from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
 )
 from mage_maker.sections.locations.models import (
+    location_path,
     recent_location_label,
 )
 from mage_maker.ui.theme import (
@@ -603,10 +604,17 @@ class WorldEventDialog(tk.Toplevel):
             self.location_records,
             selected_id,
             self.location_chosen,
+            create_location_command=getattr(
+                self.controller,
+                "create_placeholder_location",
+                None,
+            ),
         )
 
     def location_chosen(self, location_id):
         normalized_id = str(location_id or "").strip()
+        self.location_options = self.controller.location_options()
+        self.location_records = self.controller.location_records()
 
         if (
             normalized_id
@@ -979,6 +987,9 @@ class EventLocationPickerDialog(tk.Toplevel):
         locations,
         selected_location_id,
         save_command,
+        dialog_title="Add event location",
+        action_text="Add location",
+        create_location_command=None,
     ):
         super().__init__(parent)
         self.locations = [
@@ -990,10 +1001,15 @@ class EventLocationPickerDialog(tk.Toplevel):
             selected_location_id or ""
         ).strip()
         self.save_command = save_command
+        self.dialog_title = str(
+            dialog_title or "Add event location"
+        )
+        self.action_text = str(action_text or "Add location")
+        self.create_location_command = create_location_command
         self.selection_value = tk.StringVar(
             value="Select a location from the hierarchy."
         )
-        self.title("Add event location")
+        self.title(self.dialog_title)
         self.geometry("620x680")
         self.minsize(500, 520)
         self.configure(bg=APP_BACKGROUND)
@@ -1065,6 +1081,18 @@ class EventLocationPickerDialog(tk.Toplevel):
         selected_label.grid(row=3, column=0, sticky="ew", pady=(10, 0))
         footer = tk.Frame(card, bg=SURFACE)
         footer.grid(row=4, column=0, sticky="e", pady=(14, 0))
+
+        if self.create_location_command is not None:
+            new_location_button = SoftButton(
+                footer,
+                text="New location",
+                command=self.open_placeholder_location,
+                background=SURFACE,
+                width=112,
+                height=36,
+            )
+            new_location_button.pack(side="left", padx=(0, 6))
+
         cancel_button = SoftButton(
             footer,
             text="Cancel",
@@ -1076,7 +1104,7 @@ class EventLocationPickerDialog(tk.Toplevel):
         cancel_button.pack(side="left", padx=(0, 6))
         self.add_button = SoftButton(
             footer,
-            text="Add location",
+            text=self.action_text,
             command=self.choose_location,
             background=SURFACE,
             fill=PRIMARY,
@@ -1103,12 +1131,257 @@ class EventLocationPickerDialog(tk.Toplevel):
         )
         self.add_button.set_enabled(True)
 
+    def open_placeholder_location(self):
+        if self.create_location_command is None:
+            return False
+
+        PlaceholderLocationDialog(
+            self,
+            self.locations,
+            self.selected_location_id,
+            self.create_location_command,
+            self.placeholder_location_created,
+        )
+        return True
+
+    def placeholder_location_created(self, location):
+        if not isinstance(location, dict):
+            return False
+
+        record_id = str(location.get("record_id", "") or "").strip()
+
+        if not record_id:
+            return False
+
+        self.locations = [
+            existing_location
+            for existing_location in self.locations
+            if str(existing_location.get("record_id", "") or "").strip()
+            != record_id
+        ]
+        self.locations.append(deepcopy(location))
+        self.selected_location_id = record_id
+        self.location_tree.set_locations(
+            self.locations,
+            self.selected_location_id,
+        )
+        self.location_tree.select_location(
+            self.selected_location_id,
+        )
+        self.location_selected(self.selected_location_id)
+        return True
+
     def choose_location(self):
         if not self.selected_location_id:
             return
 
         self.save_command(self.selected_location_id)
         self.destroy()
+
+    def close_dialog(self, event=None):
+        self.destroy()
+        return "break"
+
+
+class PlaceholderLocationDialog(tk.Toplevel):
+    def __init__(
+        self,
+        parent,
+        locations,
+        selected_parent_location_id,
+        create_command,
+        saved_command,
+        allow_world_parent=True,
+    ):
+        super().__init__(parent)
+        self.locations = [
+            deepcopy(location)
+            for location in locations
+            if isinstance(location, dict)
+        ]
+        self.create_command = create_command
+        self.saved_command = saved_command
+        self.allow_world_parent = bool(allow_world_parent)
+        self.place_value = tk.StringVar()
+        self.parent_options = []
+
+        if self.allow_world_parent:
+            self.parent_options.append(
+                {
+                    "value": "",
+                    "label": "The World",
+                }
+            )
+
+        self.parent_options.extend(
+            {
+                "value": str(
+                    location.get("record_id", "") or ""
+                ).strip(),
+                "label": location_path(
+                    location.get("record_id", ""),
+                    self.locations,
+                ),
+            }
+            for location in self.locations
+            if str(location.get("record_id", "") or "").strip()
+        )
+        selected_parent_id = str(
+            selected_parent_location_id or ""
+        ).strip()
+        selected_parent_label = next(
+            (
+                option["label"]
+                for option in self.parent_options
+                if option["value"] == selected_parent_id
+            ),
+            (
+                self.parent_options[0]["label"]
+                if self.parent_options
+                else ""
+            ),
+        )
+        self.parent_value = tk.StringVar(
+            value=selected_parent_label
+        )
+        self.title("New location")
+        self.geometry("520x330")
+        self.minsize(480, 310)
+        self.resizable(False, False)
+        self.configure(bg=APP_BACKGROUND)
+        self.transient(parent.winfo_toplevel())
+        self.grab_set()
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_dialog()
+        self.bind("<Escape>", self.close_dialog)
+        self.bind("<Return>", self.save_location)
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+
+    def build_dialog(self):
+        card = tk.Frame(
+            self,
+            bg=SURFACE,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+            padx=18,
+            pady=16,
+        )
+        card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        card.grid_columnconfigure(0, weight=1)
+        heading = tk.Label(
+            card,
+            text="New location placeholder",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(14, "bold"),
+            anchor="w",
+        )
+        heading.grid(row=0, column=0, sticky="ew")
+        explanation = tk.Label(
+            card,
+            text=(
+                "Enter the place and its parent. Additional details can be "
+                "added later from Locations."
+            ),
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+            wraplength=430,
+        )
+        explanation.grid(row=1, column=0, sticky="ew", pady=(4, 12))
+        self.place_field = LabeledEntry(
+            card,
+            "Place",
+            self.place_value,
+            background=SURFACE,
+        )
+        self.place_field.grid(row=2, column=0, sticky="ew")
+        parent_panel = tk.Frame(card, bg=SURFACE)
+        parent_panel.grid(row=3, column=0, sticky="ew", pady=(12, 0))
+        parent_panel.grid_columnconfigure(0, weight=1)
+        parent_label = tk.Label(
+            parent_panel,
+            text="Parent",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        parent_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        self.parent_field = RoundedSelect(
+            parent_panel,
+            textvariable=self.parent_value,
+            values=[
+                option["label"]
+                for option in self.parent_options
+            ],
+            background=SURFACE,
+            height=40,
+            font=app_font(10),
+        )
+        self.parent_field.grid(row=1, column=0, sticky="ew")
+        footer = tk.Frame(card, bg=SURFACE)
+        footer.grid(row=4, column=0, sticky="e", pady=(16, 0))
+        cancel_button = SoftButton(
+            footer,
+            text="Cancel",
+            command=self.destroy,
+            background=SURFACE,
+            width=88,
+            height=36,
+        )
+        cancel_button.pack(side="left", padx=(0, 6))
+        save_button = SoftButton(
+            footer,
+            text="Create location",
+            command=self.save_location,
+            background=SURFACE,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=132,
+            height=36,
+        )
+        save_button.pack(side="left")
+        self.after_idle(self.place_field.control.focus_set)
+
+    def selected_parent_location_id(self):
+        selected_label = self.parent_value.get()
+
+        for option in self.parent_options:
+            if option["label"] == selected_label:
+                return option["value"]
+
+        return ""
+
+    def save_location(self, event=None):
+        try:
+            created = self.create_command(
+                self.place_value.get(),
+                self.selected_parent_location_id(),
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Cannot create location",
+                str(error),
+                parent=self,
+            )
+            return "break"
+
+        if not isinstance(created, dict):
+            messagebox.showerror(
+                "Cannot create location",
+                "The location could not be created.",
+                parent=self,
+            )
+            return "break"
+
+        self.saved_command(created)
+        self.destroy()
+        return "break"
 
     def close_dialog(self, event=None):
         self.destroy()

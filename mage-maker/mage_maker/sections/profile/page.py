@@ -2,7 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 from functools import partial
 
-from mage_maker.core.dates import split_partial_date
+from mage_maker.core.dates import format_date_parts, split_partial_date
 from mage_maker.sections.development.page import DevelopmentView
 from mage_maker.sections.family_tree.page import FamilyTreeView
 from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
@@ -569,10 +569,32 @@ class PersonForm(tk.Frame):
             self.name_details,
             self.save_name_details,
             self.variables["displayed_name"].get(),
+            format_date_parts(
+                self.variables["birth_year"].get(),
+                self.variables["birth_month"].get(),
+                self.variables["birth_day"].get(),
+                unknown="",
+            ),
         )
 
     def save_name_details(self, name_details):
         normalized_details = normalize_name_details(name_details)
+        birth_date = format_date_parts(
+            self.variables["birth_year"].get(),
+            self.variables["birth_month"].get(),
+            self.variables["birth_day"].get(),
+            unknown="",
+        )
+
+        for entry in normalized_details["entries"]:
+            name_type = " ".join(
+                entry["name_type"].strip().casefold().split()
+            )
+
+            if name_type in ("birth name", "birthname"):
+                entry["date"] = birth_date
+
+        normalized_details = normalize_name_details(normalized_details)
         timeline_person = self.current_profile_values()
         timeline_person["name_details"] = deepcopy(normalized_details)
         timeline_person["timeline_events"] = self.timeline.get_events()
@@ -761,10 +783,28 @@ class PersonForm(tk.Frame):
             entry,
             partial(self.save_timeline_name_change, source_event_id),
             "Edit Name" if event_values else "Add Name",
+            format_date_parts(
+                self.variables["birth_year"].get(),
+                self.variables["birth_month"].get(),
+                self.variables["birth_day"].get(),
+                unknown="",
+            ),
         )
 
     def save_timeline_name_change(self, source_event_id, entry):
         normalized_entry = normalize_name_entry(entry)
+        name_type = " ".join(
+            normalized_entry["name_type"].strip().casefold().split()
+        )
+
+        if name_type in ("birth name", "birthname"):
+            normalized_entry["date"] = format_date_parts(
+                self.variables["birth_year"].get(),
+                self.variables["birth_month"].get(),
+                self.variables["birth_day"].get(),
+                unknown="",
+            )
+
         entries = deepcopy(self.name_details.get("entries", []))
         replacement_index = None
 

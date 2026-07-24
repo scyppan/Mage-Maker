@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 
-EARLIEST_CALCULATION_YEAR = -9999
-LATEST_CALCULATION_YEAR = 9999
+EARLIEST_CALCULATION_YEAR = -99999
+LATEST_CALCULATION_YEAR = 99999
 
 
 class PeriodDefinitionError(ValueError):

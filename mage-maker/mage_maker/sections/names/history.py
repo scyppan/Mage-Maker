@@ -72,14 +72,27 @@ def normalize_name_details(name_details):
 
     normalized_entries = [normalize_name_entry(entry) for entry in entries]
     seen_entry_ids = set()
+    birth_name_count = 0
 
     for entry in normalized_entries:
         entry_id = entry["entry_id"]
+        normalized_name_type = " ".join(
+            str(entry.get("name_type", "") or "")
+            .strip()
+            .casefold()
+            .split()
+        )
+
+        if normalized_name_type in ("birth name", "birthname"):
+            birth_name_count += 1
 
         if entry_id in seen_entry_ids:
             entry["entry_id"] = str(uuid4())
 
         seen_entry_ids.add(entry["entry_id"])
+
+    if birth_name_count > 1:
+        raise ValueError("Only one Birth name is allowed.")
 
     return {"entries": normalized_entries}
 

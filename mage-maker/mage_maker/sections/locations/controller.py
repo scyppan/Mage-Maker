@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from mage_maker.sections.locations.models import (
     descendant_ids,
+    founding_event_title,
     location_events_for_period,
     location_depth,
     location_path,
@@ -227,6 +228,21 @@ class LocationController:
         self.database.save()
         return created
 
+    def create_placeholder_location(self, place, parent_location_id=""):
+        return self.create_location(
+            {
+                "name": str(place or "").strip(),
+                "parent_location_id": str(
+                    parent_location_id or ""
+                ).strip(),
+                "demographics": "",
+                "notes": "",
+                "extinct": False,
+                "extinction_year": "",
+                "timeline_events": [],
+            }
+        )
+
     def update_location(self, record_id, values):
         current = self.get_location(record_id)
 
@@ -310,7 +326,15 @@ class LocationController:
         if location is None:
             raise KeyError(f"Unknown location record_id: {location_id}")
 
-        normalized_event = normalize_location_event(event)
+        event_values = deepcopy(event)
+
+        if str(event_values.get("event_type", "") or "") == "founding":
+            event_values["title"] = (
+                founding_event_title(location_id, self.list_locations())
+                or event_values.get("title", "")
+            )
+
+        normalized_event = normalize_location_event(event_values)
         events = list(location.get("timeline_events", []))
         events.append(normalized_event)
         updated = self.update_location(
@@ -325,8 +349,16 @@ class LocationController:
         if location is None:
             raise KeyError(f"Unknown location record_id: {location_id}")
 
+        event_values = deepcopy(values)
+
+        if str(event_values.get("event_type", "") or "") == "founding":
+            event_values["title"] = (
+                founding_event_title(location_id, self.list_locations())
+                or event_values.get("title", "")
+            )
+
         normalized_event = normalize_location_event(
-            {**deepcopy(values), "event_id": event_id}
+            {**event_values, "event_id": event_id}
         )
         events = []
         replaced = False

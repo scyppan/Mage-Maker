@@ -38,6 +38,8 @@ from mage_maker.ui.widgets import SoftButton
 
 WINDOWS_APPLICATION_ID = "CharmsCheck.MageMaker"
 PRIMARY_ICON_FILENAME = "crooked-purple-wand.ico"
+APPLICATION_SETTINGS_KEY = "_application_settings"
+REGION_LOCK_SETTING_KEY = "region_lock_id"
 
 
 def configure_windows_application_identity():
@@ -101,6 +103,7 @@ class MageMakerApp(tk.Tk):
             self.people_controller.list_people,
             self.location_controller.list_locations,
             load_period_definitions,
+            self.location_controller.create_location,
         )
         self.organization_controller = OrganizationController(
             self.database,
@@ -112,7 +115,7 @@ class MageMakerApp(tk.Tk):
         self.active_page_name = "mages"
         self.navigation_history = []
         self.forward_navigation_history = []
-        self.region_lock_id = ""
+        self.region_lock_id = self.saved_region_lock_id()
         self.content = None
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -463,8 +466,49 @@ class MageMakerApp(tk.Tk):
 
         return self.pages["periods"].open_event(record_id)
 
+    def saved_region_lock_id(self):
+        settings = self.database.data.get(APPLICATION_SETTINGS_KEY, {})
+        stored_location_id = (
+            str(settings.get(REGION_LOCK_SETTING_KEY, "") or "").strip()
+            if isinstance(settings, dict)
+            else ""
+        )
+
+        if (
+            stored_location_id
+            and self.location_controller.get_location(stored_location_id)
+            is None
+        ):
+            return ""
+
+        return stored_location_id
+
+    def remember_region_lock(self, location_id):
+        normalized_location_id = str(location_id or "").strip()
+        current_settings = self.database.data.get(
+            APPLICATION_SETTINGS_KEY,
+            {},
+        )
+        settings = (
+            dict(current_settings)
+            if isinstance(current_settings, dict)
+            else {}
+        )
+
+        if (
+            str(settings.get(REGION_LOCK_SETTING_KEY, "") or "").strip()
+            == normalized_location_id
+        ):
+            return False
+
+        settings[REGION_LOCK_SETTING_KEY] = normalized_location_id
+        self.database.data[APPLICATION_SETTINGS_KEY] = settings
+        self.database.dirty = True
+        return True
+
     def region_lock_changed(self, location_id):
         self.region_lock_id = str(location_id or "").strip()
+        self.remember_region_lock(self.region_lock_id)
 
         for page_name in ("locations", "periods"):
             page = self.pages.get(page_name)

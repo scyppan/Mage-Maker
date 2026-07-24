@@ -218,6 +218,7 @@ class MagesPage(tk.Frame):
             self,
             self.create_person,
             self.game_database,
+            self.event_controller,
         )
 
     def create_person(self, values):

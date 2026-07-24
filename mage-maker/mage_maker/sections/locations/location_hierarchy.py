@@ -13,8 +13,12 @@ from mage_maker.ui.theme import (
     FIELD_BACKGROUND,
     LIST_HOVER,
     LIST_SELECTED,
+    LOCKED_BORDER,
+    LOCKED_RED,
+    LOCKED_RED_HOVER,
     SURFACE,
     TEXT_DARK,
+    TEXT_LIGHT,
     TEXT_MUTED,
     app_font,
 )
@@ -200,15 +204,16 @@ class LocationHierarchyTree(tk.Frame):
         self.search_control.bind_input("<Return>", self.select_first_visible)
 
     def build_tree(self):
-        tree_frame = tk.Frame(
+        self.tree_frame = tk.Frame(
             self,
             bg=FIELD_BACKGROUND,
             highlightbackground=BORDER_SOFT,
+            highlightcolor=BORDER_SOFT,
             highlightthickness=1,
         )
-        tree_frame.grid(row=self.tree_row, column=0, sticky="nsew")
-        tree_frame.grid_rowconfigure(0, weight=1)
-        tree_frame.grid_columnconfigure(0, weight=1)
+        self.tree_frame.grid(row=self.tree_row, column=0, sticky="nsew")
+        self.tree_frame.grid_rowconfigure(0, weight=1)
+        self.tree_frame.grid_columnconfigure(0, weight=1)
         style = ttk.Style(self)
         style.configure(
             "LocationHierarchy.Treeview",
@@ -227,14 +232,14 @@ class LocationHierarchyTree(tk.Frame):
             foreground=[("selected", TEXT_DARK)],
         )
         self.tree = ttk.Treeview(
-            tree_frame,
+            self.tree_frame,
             style="LocationHierarchy.Treeview",
             show="tree",
             selectmode="browse",
             takefocus=True,
         )
         self.tree.grid(row=0, column=0, sticky="nsew")
-        scrollbar = tk.Scrollbar(tree_frame, command=self.tree.yview)
+        scrollbar = tk.Scrollbar(self.tree_frame, command=self.tree.yview)
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=scrollbar.set)
         self.tree.tag_configure("extinct", foreground=TEXT_MUTED)
@@ -309,17 +314,37 @@ class LocationHierarchyTree(tk.Frame):
                 location.get("name", "") or "Unnamed region"
             ).strip()
             self.scope_status_value.set(f"Showing only {location_name}")
-            self.scope_button.set_text("Show all")
+            self.scope_button.set_text("Unlock")
+            self.scope_button.set_colors(
+                LOCKED_RED,
+                LOCKED_RED_HOVER,
+                TEXT_LIGHT,
+            )
             self.scope_button.set_enabled(True)
+            self.tree_frame.configure(
+                highlightbackground=LOCKED_BORDER,
+                highlightcolor=LOCKED_BORDER,
+                highlightthickness=2,
+            )
             return
 
         self.scope_status_value.set("All regions")
+        self.scope_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
         self.scope_button.set_text(
             "Lock here"
             if self.selected_location_id
             else "Select to lock"
         )
         self.scope_button.set_enabled(bool(self.selected_location_id))
+        self.tree_frame.configure(
+            highlightbackground=BORDER_SOFT,
+            highlightcolor=BORDER_SOFT,
+            highlightthickness=1,
+        )
 
     def set_locations(self, locations, selected_location_id=""):
         self.locations = [

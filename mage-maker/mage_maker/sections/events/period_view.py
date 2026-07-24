@@ -32,7 +32,7 @@ def period_event_date_key(value):
     date_text = str(value or "").strip()
 
     if not date_text:
-        return 10000, 13, 32
+        return 100000, 13, 32
 
     negative = date_text.startswith("-")
     body = date_text[1:] if negative else date_text
@@ -41,7 +41,7 @@ def period_event_date_key(value):
     try:
         year = int(parts[0])
     except (TypeError, ValueError, IndexError):
-        return 10000, 13, 32
+        return 100000, 13, 32
 
     if negative:
         year = -year

@@ -2,7 +2,7 @@ import re
 import uuid
 from copy import deepcopy
 
-from mage_maker.core.dates import format_date_parts, normalize_partial_date
+from mage_maker.core.dates import format_date_parts
 from mage_maker.sections.family_tree.spouse_relationships import (
     normalize_spouse_relationships,
 )
@@ -11,15 +11,22 @@ from mage_maker.sections.timeline.events import (
     timeline_event_summary,
 )
 from mage_maker.sections.timeline.locations import location_at_date, normalize_location
-from mage_maker.sections.events.models import normalize_world_events
+from mage_maker.sections.events.models import (
+    normalize_world_event_date,
+    normalize_world_events,
+)
 from mage_maker.sections.events.types import (
     canonical_event_type,
     event_visible_outside_person,
 )
+from mage_maker.sections.locations.period_definitions import (
+    EARLIEST_CALCULATION_YEAR,
+    LATEST_CALCULATION_YEAR,
+)
 
 
 LOCATION_EVENT_DATE_PATTERN = re.compile(
-    r"^(-?\d{1,4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
+    r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
 
 
@@ -31,9 +38,11 @@ def normalize_location_event(event):
     normalized["event_id"] = str(
         normalized.get("event_id") or uuid.uuid4()
     ).strip()
-    normalized["date"] = normalize_partial_date(
-        normalized.get("date"),
-        "Location event date",
+    event_date = str(normalized.get("date", "") or "").strip()
+    normalized["date"] = (
+        normalize_world_event_date(event_date)
+        if event_date
+        else ""
     )
     normalized["title"] = str(normalized.get("title", "") or "").strip()
     normalized["note"] = str(normalized.get("note", "") or "").strip()
@@ -117,9 +126,13 @@ def normalize_extinction_year(value, extinct):
             "Enter the year this location became extinct."
         ) from error
 
-    if normalized_year == 0 or normalized_year < -9999 or normalized_year > 9999:
+    if (
+        normalized_year == 0
+        or normalized_year < EARLIEST_CALCULATION_YEAR
+        or normalized_year > LATEST_CALCULATION_YEAR
+    ):
         raise ValueError(
-            "The extinction year must be between -9999 and 9999, excluding 0."
+            "The extinction year must be between -99999 and 99999, excluding 0."
         )
 
     return normalized_year
@@ -263,6 +276,19 @@ def recent_location_label(location_id, locations):
     )
 
 
+def founding_event_title(location_id, locations):
+    normalized_location_id = str(location_id or "").strip()
+    location = locations_by_id(locations).get(normalized_location_id)
+    location_name = str(
+        (location or {}).get("name", "") or ""
+    ).strip()
+
+    if not location_name:
+        return ""
+
+    return f"Founding of {location_name}"
+
+
 def descendant_ids(location_id, locations):
     selected_id = str(location_id or "").strip()
     descendants = set()
@@ -300,7 +326,7 @@ def location_event_date_key(value):
     match = LOCATION_EVENT_DATE_PATTERN.fullmatch(date_text)
 
     if match is None:
-        return 10000, 13, 32
+        return 100000, 13, 32
 
     return (
         int(match.group(1)),
@@ -312,7 +338,7 @@ def location_event_date_key(value):
 def location_event_year(value):
     date_key = location_event_date_key(value)
 
-    if date_key[0] == 10000:
+    if date_key[0] == 100000:
         return None
 
     return date_key[0]
@@ -503,6 +529,13 @@ def visible_location_timeline(
                 continue
 
             visible_event = deepcopy(event)
+
+            if visible_event.get("event_type") == "founding":
+                visible_event["title"] = (
+                    founding_event_title(origin_id, locations)
+                    or visible_event.get("title", "")
+                )
+
             visible_event.update(
                 {
                     "origin_location_id": origin_id,
@@ -589,12 +622,20 @@ def world_events_for_location_timeline(
             distances_by_id,
         )
         origin = origins_by_id[origin_id]
+        title = event["title"]
+
+        if event.get("event_type") == "founding":
+            title = (
+                founding_event_title(origin_id, locations)
+                or title
+            )
+
         visible_events.append(
             {
                 "event_id": event["record_id"],
                 "record_id": event["record_id"],
                 "date": event["date"],
-                "title": event["title"],
+                "title": title,
                 "note": event["description"],
                 "origin_location_id": origin_id,
                 "origin_location_name": str(
@@ -708,6 +749,13 @@ def location_events_for_period(
 
             used_event_keys.add(event_key)
             visible_event = deepcopy(event)
+
+            if visible_event.get("event_type") == "founding":
+                visible_event["title"] = (
+                    founding_event_title(origin_id, locations)
+                    or visible_event.get("title", "")
+                )
+
             visible_event.update(
                 {
                     "origin_location_id": origin_id,

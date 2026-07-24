@@ -156,6 +156,7 @@ class PeopleList(tk.Frame):
                     name_detail_text,
                     person.get("school"),
                     person.get("birth_year"),
+                    person.get("death_year"),
                 )
             ).casefold()
 
@@ -168,17 +169,37 @@ class PeopleList(tk.Frame):
         day = person.get("birth_day")
 
         if year is None:
-            return "Birth date unknown"
+            birth_text = "Birth date unknown"
+        else:
+            date_parts = [str(year)]
 
-        date_parts = [str(year)]
+            if month is not None:
+                date_parts.append(f"{int(month):02d}")
 
-        if month is not None:
-            date_parts.append(f"{month:02d}")
+            if day is not None:
+                date_parts.append(f"{int(day):02d}")
 
-        if day is not None:
-            date_parts.append(f"{day:02d}")
+            birth_text = "Born " + "-".join(date_parts)
 
-        return "Born " + "-".join(date_parts)
+        death_year = person.get("death_year")
+
+        if not bool(person.get("deceased")) and death_year is None:
+            return birth_text
+
+        if death_year is None:
+            return f"{birth_text}  ·  Death date unknown"
+
+        death_parts = [str(death_year)]
+        death_month = person.get("death_month")
+        death_day = person.get("death_day")
+
+        if death_month is not None:
+            death_parts.append(f"{int(death_month):02d}")
+
+        if death_day is not None:
+            death_parts.append(f"{int(death_day):02d}")
+
+        return f"{birth_text}  ·  Died {'-'.join(death_parts)}"
 
     def set_selected_record(self, record_id):
         self.selected_record_id = record_id
