@@ -8,6 +8,7 @@ from mage_maker.sections.events.types import (
     canonical_event_type,
     event_type_options,
 )
+from mage_maker.sections.events.models import normalize_association_values
 
 
 EVENT_TYPES = event_type_options("person", include_automatic=True)
@@ -57,6 +58,26 @@ def normalize_timeline_event(event):
     normalized["automatic_source"] = str(
         normalized.get("automatic_source") or ""
     ).strip()
+
+    if "person_ids" in normalized:
+        normalized["person_ids"] = normalize_association_values(
+            normalized.get("person_ids")
+        )
+
+    if (
+        "location_ids" in normalized
+        or "locked_location_ids" in normalized
+    ):
+        normalized["location_ids"] = normalize_association_values(
+            normalized.get("location_ids")
+        )
+        normalized["locked_location_ids"] = normalize_association_values(
+            normalized.get("locked_location_ids")
+        )
+
+        for location_id in normalized["locked_location_ids"]:
+            if location_id not in normalized["location_ids"]:
+                normalized["location_ids"].append(location_id)
 
     if normalized["event_type"] not in EVENT_TYPE_LABELS:
         normalized["event_type"] = "custom"
@@ -144,6 +165,13 @@ def timeline_event_summary(event):
     if event_type == "got_job":
         return f"Got a job: {detail}" if detail else "Got a job"
 
+    if event_type == "work_change":
+        return (
+            f"Change in work: {detail}"
+            if detail
+            else "Change in work"
+        )
+
     if event_type == "relocated":
         return f"Relocated to {detail}" if detail else "Relocated"
 
@@ -165,6 +193,7 @@ def timeline_detail_label(event_type):
         "started_school": "School name",
         "opened_business": "Business name",
         "got_job": "Job or employer",
+        "work_change": "New role, employer, or work change",
         "relocated": "New location",
         "name_change": "New name",
         "custom": "Event description",

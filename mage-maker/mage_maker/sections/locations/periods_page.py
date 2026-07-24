@@ -15,7 +15,6 @@ from mage_maker.sections.locations.location_hierarchy import (
 )
 from mage_maker.sections.locations.models import (
     location_extinction_state,
-    location_path,
     recent_location_label,
 )
 from mage_maker.sections.locations.period_definitions import (
@@ -1549,11 +1548,7 @@ class PeriodLocationDialog(tk.Toplevel):
 
         self.selected_location_id = requested_id
         self.selection_value.set(
-            (
-                location_path(requested_id, self.locations)
-                if requested_id
-                else WORLD_LOCATION_LABEL
-            )
+            recent_location_label(requested_id, self.locations)
         )
 
     def choose_location(self):

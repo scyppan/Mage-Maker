@@ -2,6 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 from functools import partial
 
+from mage_maker.core.dates import split_partial_date
 from mage_maker.sections.development.page import DevelopmentView
 from mage_maker.sections.family_tree.page import FamilyTreeView
 from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
@@ -21,7 +22,10 @@ from mage_maker.sections.profile.famous_connections import (
 from mage_maker.sections.profile.school_field import SchoolField
 from mage_maker.sections.relationships.page import RelationshipsView
 from mage_maker.sections.timeline.page import TimelineView
-from mage_maker.sections.timeline.locations import ensure_life_start_events
+from mage_maker.sections.timeline.locations import (
+    born_long_distance_parent_ids,
+    ensure_life_start_events,
+)
 from mage_maker.ui.theme import (
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
@@ -475,6 +479,8 @@ class PersonForm(tk.Frame):
             event_controller=self.event_controller,
             person_id_provider=self.current_person_identifier,
             linked_events_changed_command=self.shared_event_saved,
+            life_start_save_command=self.save_life_start_event,
+            name_details_command=self.open_name_details,
         )
         self.timeline.grid(row=0, column=0, sticky="nsew")
 
@@ -589,6 +595,146 @@ class PersonForm(tk.Frame):
 
         if not self.loading:
             self.change_command()
+
+    def save_life_start_event(self, values, original_event):
+        event_type = str(
+            original_event.get("event_type", "") or ""
+        ).strip()
+
+        if event_type not in ("starting_location", "born"):
+            raise ValueError(
+                "Only Starting location and Born can be edited here."
+            )
+
+        location_ids = [
+            str(location_id or "").strip()
+            for location_id in values.get("location_ids", [])
+            if str(location_id or "").strip()
+        ]
+
+        if len(location_ids) != 1:
+            raise ValueError("Select one birth location.")
+
+        location_id = location_ids[0]
+        location_record = next(
+            (
+                location
+                for location in self.event_controller.location_records()
+                if str(location.get("record_id", "") or "").strip()
+                == location_id
+            ),
+            None,
+        )
+
+        if location_record is None:
+            raise ValueError("The selected birth location no longer exists.")
+
+        location_name = str(
+            location_record.get("name", "") or ""
+        ).strip()
+
+        if not location_name:
+            raise ValueError("The selected birth location needs a name.")
+
+        events = deepcopy(self.timeline.get_events())
+        starting_event = next(
+            (
+                event
+                for event in events
+                if event.get("event_type") == "starting_location"
+            ),
+            None,
+        )
+        born_event = next(
+            (
+                event
+                for event in events
+                if event.get("event_type") == "born"
+            ),
+            None,
+        )
+
+        if starting_event is None or born_event is None:
+            raise ValueError(
+                "The required opening events could not be found."
+            )
+
+        starting_event["detail"] = location_name
+        starting_event["location_ids"] = [location_id]
+        starting_event["locked_location_ids"] = []
+        starting_event["birth_location_source"] = "manual"
+        born_event["location_ids"] = [location_id]
+        born_event["locked_location_ids"] = []
+        born_event["birth_location_source"] = "manual"
+
+        if event_type == "starting_location":
+            starting_event["note"] = str(
+                values.get("description", "") or ""
+            ).strip()
+        else:
+            birth_year, birth_month, birth_day = split_partial_date(
+                values.get("date", ""),
+                "Birth date",
+            )
+            previous_loading = self.loading
+            self.loading = True
+            self.variables["birth_year"].set(
+                str(int(birth_year)) if birth_year else ""
+            )
+            self.variables["birth_month"].set(
+                str(int(birth_month)) if birth_month else ""
+            )
+            self.variables["birth_day"].set(
+                str(int(birth_day)) if birth_day else ""
+            )
+            self.loading = previous_loading
+            born_event["note"] = str(
+                values.get("description", "") or ""
+            ).strip()
+            updated_name_details = deepcopy(self.name_details)
+
+            for entry in updated_name_details.get("entries", []):
+                name_type = " ".join(
+                    str(entry.get("name_type", "") or "")
+                    .strip()
+                    .casefold()
+                    .split()
+                )
+
+                if name_type in ("birth name", "birthname"):
+                    entry["date"] = (
+                        ""
+                        if not birth_year
+                        else "-".join(
+                            date_part
+                            for date_part in (
+                                birth_year,
+                                birth_month,
+                                birth_day,
+                            )
+                            if date_part
+                        )
+                    )
+
+            self.name_details = normalize_name_details(
+                updated_name_details
+            )
+
+        timeline_person = self.current_profile_values()
+        timeline_person["name_details"] = deepcopy(self.name_details)
+        timeline_person["timeline_events"] = events
+        synchronized_events = ensure_life_start_events(
+            timeline_person,
+            starting_location=location_name,
+            born_note=str(born_event.get("note", "") or "").strip(),
+            long_distance_parent_ids=born_long_distance_parent_ids(
+                events
+            ),
+        )
+        return synchronize_name_change_events(
+            self.name_details,
+            synchronized_events,
+        )
 
     def open_timeline_name_change(self, event=None):
         event_values = event if isinstance(event, dict) else {}

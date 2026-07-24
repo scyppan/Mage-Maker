@@ -27,6 +27,10 @@ from mage_maker.sections.timeline.locations import (
 )
 
 
+RECENT_PERSON_STORAGE_KEY = "_recent_people"
+RECENT_PERSON_STORAGE_LIMIT = 12
+
+
 class PeopleController:
     text_fields = (
         "displayed_name",
@@ -81,6 +85,81 @@ class PeopleController:
 
     def get_person(self, record_id):
         return self.database.read_person(record_id)
+
+    def remember_person_interaction(self, record_id):
+        normalized_record_id = str(record_id or "").strip()
+        available_ids = {
+            str(person.get("record_id", "") or "").strip()
+            for person in self.database.list_people()
+            if str(person.get("record_id", "") or "").strip()
+        }
+
+        if normalized_record_id not in available_ids:
+            return False
+
+        stored_history = self.database.data.get(
+            RECENT_PERSON_STORAGE_KEY,
+            [],
+        )
+        history = (
+            [
+                str(stored_record_id or "").strip()
+                for stored_record_id in stored_history
+                if str(stored_record_id or "").strip()
+            ]
+            if isinstance(stored_history, list)
+            else []
+        )
+        updated_history = [
+            normalized_record_id,
+            *[
+                stored_record_id
+                for stored_record_id in history
+                if stored_record_id != normalized_record_id
+            ],
+        ][:RECENT_PERSON_STORAGE_LIMIT]
+
+        if updated_history == history:
+            return False
+
+        self.database.data[RECENT_PERSON_STORAGE_KEY] = updated_history
+        self.database.dirty = True
+        return True
+
+    def recent_person_ids(self, limit=5):
+        available_ids = {
+            str(person.get("record_id", "") or "").strip()
+            for person in self.database.list_people()
+            if str(person.get("record_id", "") or "").strip()
+        }
+        stored_history = self.database.data.get(
+            RECENT_PERSON_STORAGE_KEY,
+            [],
+        )
+        candidate_ids = (
+            [
+                str(stored_record_id or "").strip()
+                for stored_record_id in stored_history
+                if str(stored_record_id or "").strip()
+            ]
+            if isinstance(stored_history, list)
+            else []
+        )
+        recent_ids = []
+
+        for candidate_id in candidate_ids:
+            if candidate_id not in available_ids:
+                continue
+
+            if candidate_id in recent_ids:
+                continue
+
+            recent_ids.append(candidate_id)
+
+            if len(recent_ids) >= max(0, int(limit)):
+                break
+
+        return recent_ids
 
     def create_person(self, values):
         creation_values = deepcopy(values)
@@ -387,6 +466,14 @@ class PeopleController:
         )
         born_note = born_note_from_events(events)
         previous_override_ids = born_long_distance_parent_ids(events)
+        manually_selected_birth_location = any(
+            event.get("event_type") in ("starting_location", "born")
+            and str(
+                event.get("birth_location_source", "") or ""
+            ).strip()
+            == "manual"
+            for event in events
+        )
         location_context = child_parent_location_context(
             synchronized,
             self.database.list_people(),
@@ -409,11 +496,18 @@ class PeopleController:
                     location_context["parent_ids"],
                 )
 
-            starting_location = location_context["birthing_location"]
+            if not manually_selected_birth_location:
+                starting_location = location_context[
+                    "birthing_location"
+                ]
+
             born_note = add_long_distance_note(born_note)
             override_parent_ids = location_context["parent_ids"]
         else:
-            if location_context["inherited_location"]:
+            if (
+                location_context["inherited_location"]
+                and not manually_selected_birth_location
+            ):
                 starting_location = location_context["inherited_location"]
 
             born_note = remove_long_distance_note(born_note)

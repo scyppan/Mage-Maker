@@ -192,6 +192,7 @@ class MagesPage(tk.Frame):
             return False
 
         self.current_record_id = record_id
+        self.controller.remember_person_interaction(record_id)
         self.person_form.set_person(person)
         self.people_list.set_selected_record(record_id)
         self.form_dirty = False

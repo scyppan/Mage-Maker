@@ -664,7 +664,7 @@ class LocationPage(tk.Frame):
             self.save_event_editor,
             self.cancel_event_editor,
             context="location",
-            background=FIELD_BACKGROUND,
+            background=SURFACE_MUTED,
         )
         self.event_editor.grid(
             row=0,

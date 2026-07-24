@@ -273,10 +273,18 @@ class LocationController:
             for event in self.database.list_records("events")
             if record_id in event.get("location_ids", [])
         ]
+        linked_person_events = [
+            event
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            for event in person.get("timeline_events", [])
+            if isinstance(event, dict)
+            and record_id in event.get("location_ids", [])
+        ]
 
-        if linked_events:
+        if linked_events or linked_person_events:
             raise ValueError(
-                "Move or remove the shared events tied to this location first."
+                "Move or remove the events tied to this location first."
             )
 
         referenced_names = {

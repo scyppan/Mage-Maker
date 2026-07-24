@@ -7,6 +7,10 @@ from mage_maker.sections.events.types import (
     event_type_label,
     event_type_options,
 )
+from mage_maker.sections.events.dialog import (
+    EventLocationPickerDialog,
+    EventPersonPickerDialog,
+)
 from mage_maker.ui.theme import (
     BORDER_SOFT,
     FIELD_BACKGROUND,
@@ -22,7 +26,6 @@ from mage_maker.ui.theme import (
 )
 from mage_maker.ui.widgets import (
     LabeledEntry,
-    RoundedEntry,
     RoundedSelect,
     RoundedText,
     SoftButton,
@@ -64,8 +67,8 @@ class EventAssociationPicker(tk.Frame):
             bg=background,
             highlightbackground=BORDER_SOFT,
             highlightthickness=1,
-            padx=6,
-            pady=5,
+            padx=5,
+            pady=4,
         )
         self.controller = controller
         self.association_kind = str(association_kind or "")
@@ -74,10 +77,12 @@ class EventAssociationPicker(tk.Frame):
         self.visible_options = []
         self.selected_ids = []
         self.locked_ids = set()
+        self.locked_order = []
         self.is_enabled = True
-        self.search_value = tk.StringVar()
-        self.search_value.trace_add("write", self.refresh_results)
-        self.result_heading_value = tk.StringVar(value="Recently used")
+        self.single_selection = False
+        self.include_recent = True
+        self.change_command = None
+        self.result_heading_value = tk.StringVar(value="Recently viewed")
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_controls()
@@ -96,34 +101,20 @@ class EventAssociationPicker(tk.Frame):
             anchor="w",
         )
         heading.grid(row=0, column=0, sticky="ew")
-        search_hint = (
-            "Search people"
-            if self.association_kind == "people"
-            else "Search locations"
-        )
-        self.search_control = RoundedEntry(
+        recent_heading = tk.Label(
             self,
-            textvariable=self.search_value,
-            background=self.background,
-            height=28,
-            font=app_font(9),
+            textvariable=self.result_heading_value,
+            bg=self.background,
+            fg=TEXT_MUTED,
+            font=app_font(8, "bold"),
+            anchor="w",
         )
-        self.search_control.grid(row=1, column=0, sticky="ew", pady=(4, 0))
-        self.search_control.entry.insert(0, "")
-        self.search_control.entry.configure(
-            insertbackground=TEXT_DARK,
+        recent_heading.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(4, 3),
         )
-        self.search_control.entry.bind(
-            "<FocusIn>",
-            self.search_focused,
-            add="+",
-        )
-        self.search_control.entry.bind(
-            "<FocusOut>",
-            self.search_unfocused,
-            add="+",
-        )
-        self.search_placeholder = search_hint
         list_frame = tk.Frame(
             self,
             bg=FIELD_BACKGROUND,
@@ -140,7 +131,7 @@ class EventAssociationPicker(tk.Frame):
         list_frame.grid_columnconfigure(0, weight=1)
         self.listbox = tk.Listbox(
             list_frame,
-            height=2,
+            height=5,
             bg=FIELD_BACKGROUND,
             fg=TEXT_DARK,
             selectbackground=LIST_SELECTED,
@@ -157,42 +148,33 @@ class EventAssociationPicker(tk.Frame):
             "<<ListboxSelect>>",
             self.selection_changed,
         )
-        self.listbox.bind("<Double-Button-1>", self.toggle_selected)
+        self.listbox.bind("<ButtonRelease-1>", self.toggle_selected)
+        self.listbox.bind("<space>", self.toggle_selected)
+        self.listbox.bind("<Return>", self.toggle_selected)
         scrollbar = tk.Scrollbar(list_frame, command=self.listbox.yview)
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.listbox.configure(yscrollcommand=scrollbar.set)
-        footer = tk.Frame(self, bg=self.background)
-        footer.grid(row=3, column=0, sticky="ew", pady=(3, 0))
-        footer.grid_columnconfigure(0, weight=1)
-        self.selection_hint = tk.Label(
-            footer,
-            text="",
-            bg=self.background,
-            fg=TEXT_MUTED,
-            font=app_font(8),
-            anchor="w",
-        )
-        self.selection_hint.grid(row=0, column=0, sticky="ew")
-        self.toggle_button = SoftButton(
-            footer,
-            text="Link",
-            command=self.toggle_selected,
+        self.select_button = SoftButton(
+            self,
+            text=(
+                "Select another person"
+                if self.association_kind == "people"
+                else "Select another location"
+            ),
+            command=self.open_selector,
             background=self.background,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
+            fill=FIELD_BACKGROUND,
+            hover_fill=LIST_SELECTED,
             foreground=TEXT_DARK,
-            width=72,
-            height=26,
+            height=28,
             font=app_font(8, "bold"),
         )
-        self.toggle_button.grid(row=0, column=1, sticky="e")
-        self.toggle_button.set_enabled(False)
-
-    def search_focused(self, event=None):
-        return None
-
-    def search_unfocused(self, event=None):
-        return None
+        self.select_button.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            pady=(4, 0),
+        )
 
     def set_values(self, selected_ids=(), locked_ids=()):
         self.selected_ids = []
@@ -203,13 +185,17 @@ class EventAssociationPicker(tk.Frame):
             if normalized_id and normalized_id not in self.selected_ids:
                 self.selected_ids.append(normalized_id)
 
-        self.locked_ids = {
-            str(association_id or "").strip()
-            for association_id in locked_ids
-            if str(association_id or "").strip()
-        }
+        self.locked_order = []
 
-        for locked_id in self.locked_ids:
+        for association_id in locked_ids:
+            locked_id = str(association_id or "").strip()
+
+            if locked_id and locked_id not in self.locked_order:
+                self.locked_order.append(locked_id)
+
+        self.locked_ids = set(self.locked_order)
+
+        for locked_id in self.locked_order:
             if locked_id not in self.selected_ids:
                 self.selected_ids.append(locked_id)
 
@@ -226,57 +212,75 @@ class EventAssociationPicker(tk.Frame):
 
         self.refresh_results()
 
-    def recent_options(self):
+    def recent_options(self, limit=12):
         if self.association_kind == "people":
-            return self.controller.recent_people_options(limit=4)
+            return self.controller.recent_people_options(limit=limit)
 
-        return self.controller.recent_location_options(limit=4)
+        return self.controller.recent_location_options(limit=limit)
 
     def refresh_results(self, *arguments):
-        query = " ".join(
-            self.search_value.get().strip().split()
-        ).casefold()
         options_by_id = {
             str(option.get("value", "") or ""): option
             for option in self.options
             if str(option.get("value", "") or "").strip()
         }
+        visible_ids = []
 
-        if query:
-            self.visible_options = [
-                deepcopy(option)
-                for option in self.options
-                if query in str(
-                    option.get("label", "") or ""
-                ).casefold()
-            ]
-            self.result_heading_value.set(
-                f"Search results ({len(self.visible_options)})"
-            )
-        else:
-            visible_ids = []
+        for association_id in self.locked_order:
+            if association_id in options_by_id:
+                visible_ids.append(association_id)
 
-            for association_id in self.selected_ids:
-                if association_id in options_by_id:
-                    visible_ids.append(association_id)
+        for association_id in self.selected_ids:
+            if (
+                association_id in options_by_id
+                and association_id not in visible_ids
+            ):
+                visible_ids.append(association_id)
+
+        if self.include_recent:
+            recent_count = 0
 
             for option in self.recent_options():
                 association_id = str(
                     option.get("value", "") or ""
                 ).strip()
 
-                if association_id and association_id not in visible_ids:
+                if not association_id or association_id in self.locked_ids:
+                    continue
+
+                if association_id not in visible_ids:
                     visible_ids.append(association_id)
 
-            self.visible_options = [
-                deepcopy(options_by_id[association_id])
-                for association_id in visible_ids
-                if association_id in options_by_id
-            ]
+                recent_count += 1
+
+                if recent_count >= 5:
+                    break
+
+        self.visible_options = [
+            deepcopy(options_by_id[association_id])
+            for association_id in visible_ids
+            if association_id in options_by_id
+        ]
+
+        if (
+            self.association_kind == "people"
+            and self.locked_ids
+            and not self.include_recent
+        ):
+            self.result_heading_value.set("Current person")
+        elif self.association_kind == "people" and self.locked_ids:
             self.result_heading_value.set(
-                "Linked and recently used"
+                "Current person and recently viewed"
+            )
+        elif self.selected_ids:
+            self.result_heading_value.set(
+                "Selected and recently viewed"
+            )
+        else:
+            self.result_heading_value.set(
+                "Recently viewed"
                 if self.visible_options
-                else "Type to search"
+                else "No recently viewed records"
             )
 
         self.render_results()
@@ -290,7 +294,11 @@ class EventAssociationPicker(tk.Frame):
             label = str(option.get("label", "") or "Unnamed")
 
             if association_id in self.locked_ids:
-                display_label = f"✓ {label}  ·  fixed"
+                display_label = (
+                    f"✓ {label}  ·  current person"
+                    if self.association_kind == "people"
+                    else f"✓ {label}  ·  fixed"
+                )
             elif association_id in self.selected_ids:
                 display_label = f"✓ {label}"
             else:
@@ -322,29 +330,7 @@ class EventAssociationPicker(tk.Frame):
         ).strip()
 
     def selection_changed(self, event=None):
-        association_id = self.selected_row_id()
-
-        if not association_id:
-            self.selection_hint.configure(
-                text=self.result_heading_value.get()
-            )
-            self.toggle_button.set_enabled(False)
-            return
-
-        if association_id in self.locked_ids:
-            self.selection_hint.configure(text="Fixed by the source record")
-            self.toggle_button.set_text("Fixed")
-            self.toggle_button.set_enabled(False)
-            return
-
-        if association_id in self.selected_ids:
-            self.selection_hint.configure(text="Currently linked")
-            self.toggle_button.set_text("Unlink")
-        else:
-            self.selection_hint.configure(text="Not linked")
-            self.toggle_button.set_text("Link")
-
-        self.toggle_button.set_enabled(self.is_enabled)
+        return self.selected_row_id()
 
     def toggle_selected(self, event=None):
         if not self.is_enabled:
@@ -361,19 +347,96 @@ class EventAssociationPicker(tk.Frame):
                 for selected_id in self.selected_ids
                 if selected_id != association_id
             ]
+        elif self.single_selection:
+            self.selected_ids = [
+                locked_id
+                for locked_id in self.locked_order
+            ]
+            self.selected_ids.append(association_id)
         else:
             self.selected_ids.append(association_id)
 
         self.refresh_results()
+
+        if self.change_command is not None:
+            self.change_command()
+
         return "break"
+
+    def open_selector(self):
+        if not self.is_enabled:
+            return False
+
+        selected_id = next(
+            (
+                association_id
+                for association_id in reversed(self.selected_ids)
+                if association_id not in self.locked_ids
+            ),
+            "",
+        )
+
+        if self.association_kind == "people":
+            recent_options = [
+                option
+                for option in self.recent_options(limit=12)
+                if str(option.get("value", "") or "").strip()
+                not in self.locked_ids
+            ][:5]
+            EventPersonPickerDialog(
+                self,
+                self.options,
+                recent_options,
+                selected_id,
+                self.selector_chosen,
+            )
+        else:
+            EventLocationPickerDialog(
+                self,
+                self.controller.location_records(),
+                selected_id,
+                self.selector_chosen,
+            )
+
+        return True
+
+    def selector_chosen(self, association_id):
+        normalized_id = str(association_id or "").strip()
+
+        if not normalized_id:
+            return False
+
+        if self.single_selection:
+            self.selected_ids = [
+                locked_id
+                for locked_id in self.locked_order
+            ]
+
+        if normalized_id not in self.selected_ids:
+            self.selected_ids.append(normalized_id)
+
+        self.refresh_results()
+
+        for index, option in enumerate(self.visible_options):
+            if str(option.get("value", "") or "") != normalized_id:
+                continue
+
+            self.listbox.selection_clear(0, "end")
+            self.listbox.selection_set(index)
+            self.listbox.see(index)
+            break
+
+        self.selection_changed()
+
+        if self.change_command is not None:
+            self.change_command()
+
+        return True
 
     def set_enabled(self, enabled):
         self.is_enabled = bool(enabled)
-        self.search_control.set_enabled(self.is_enabled)
-        self.listbox.configure(
-            state="normal" if self.is_enabled else "disabled"
-        )
-        self.selection_changed()
+        self.listbox.configure(state="normal")
+        self.select_button.set_enabled(self.is_enabled)
 
 
 class EventEditor(tk.Frame):
@@ -403,8 +466,14 @@ class EventEditor(tk.Frame):
         self.controls_enabled = False
         self.read_only = True
         self.lock_type = False
+        self.lock_title = False
+        self.lock_date = False
+        self.lock_people = False
+        self.title_from_location = False
         self.hide_locations = False
         self.feedback_after_id = None
+        self.minimum_year = None
+        self.maximum_year = None
         self.heading_value = tk.StringVar(value="Event details")
         self.explanation_value = tk.StringVar(
             value="Select an event or add a new one."
@@ -443,8 +512,8 @@ class EventEditor(tk.Frame):
         self.form = tk.Frame(
             self.canvas,
             bg=self.background,
-            padx=12,
-            pady=9,
+            padx=10,
+            pady=7,
         )
         self.form_window = self.canvas.create_window(
             0,
@@ -461,14 +530,14 @@ class EventEditor(tk.Frame):
 
     def build_form(self):
         header = tk.Frame(self.form, bg=self.background)
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 4))
         header.grid_columnconfigure(1, weight=1)
         heading = tk.Label(
             header,
             textvariable=self.heading_value,
             bg=self.background,
             fg=TEXT_DARK,
-            font=app_font(12, "bold"),
+            font=app_font(11, "bold"),
             anchor="w",
         )
         heading.grid(row=0, column=0, sticky="w", padx=(0, 12))
@@ -504,7 +573,7 @@ class EventEditor(tk.Frame):
             textvariable=self.event_type_value,
             values=[],
             background=self.background,
-            height=34,
+            height=32,
             font=app_font(9),
         )
         self.type_picker.grid(row=1, column=0, sticky="ew")
@@ -513,7 +582,7 @@ class EventEditor(tk.Frame):
             "Event title",
             self.title_value,
             background=self.background,
-            control_height=34,
+            control_height=32,
         )
         self.title_field.grid(
             row=0,
@@ -522,14 +591,14 @@ class EventEditor(tk.Frame):
             padx=(5, 0),
         )
         date_panel = tk.Frame(self.form, bg=self.background)
-        date_panel.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+        date_panel.grid(row=2, column=0, sticky="ew", pady=(4, 0))
         date_panel.grid_columnconfigure((0, 1, 2), weight=1)
         self.year_field = LabeledEntry(
             date_panel,
             "Year",
             self.year_value,
             background=self.background,
-            control_height=34,
+            control_height=32,
         )
         self.year_field.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         self.month_field = LabeledEntry(
@@ -537,7 +606,7 @@ class EventEditor(tk.Frame):
             "Month",
             self.month_value,
             background=self.background,
-            control_height=34,
+            control_height=32,
         )
         self.month_field.grid(row=0, column=1, sticky="ew", padx=4)
         self.day_field = LabeledEntry(
@@ -545,7 +614,7 @@ class EventEditor(tk.Frame):
             "Day",
             self.day_value,
             background=self.background,
-            control_height=34,
+            control_height=32,
         )
         self.day_field.grid(row=0, column=2, sticky="ew", padx=(4, 0))
         description_heading = tk.Frame(
@@ -556,7 +625,7 @@ class EventEditor(tk.Frame):
             row=3,
             column=0,
             sticky="ew",
-            pady=(6, 3),
+            pady=(4, 2),
         )
         description_heading.grid_columnconfigure(0, weight=1)
         description_label = tk.Label(
@@ -581,7 +650,7 @@ class EventEditor(tk.Frame):
             self.form,
             background=self.background,
             height=2,
-            minimum_height=56,
+            minimum_height=48,
             font=app_font(9),
         )
         self.description_control.grid(row=4, column=0, sticky="ew")
@@ -593,7 +662,7 @@ class EventEditor(tk.Frame):
             row=5,
             column=0,
             sticky="ew",
-            pady=(6, 0),
+            pady=(4, 0),
         )
         self.association_panel.grid_columnconfigure(
             (0, 1),
@@ -618,6 +687,9 @@ class EventEditor(tk.Frame):
             "locations",
             background=self.background,
         )
+        self.locations_picker.change_command = (
+            self.location_selection_changed
+        )
         self.locations_picker.grid(
             row=0,
             column=1,
@@ -625,7 +697,7 @@ class EventEditor(tk.Frame):
             padx=(4, 0),
         )
         footer = tk.Frame(self.form, bg=self.background)
-        footer.grid(row=6, column=0, sticky="ew", pady=(6, 0))
+        footer.grid(row=6, column=0, sticky="ew", pady=(4, 0))
         footer.grid_columnconfigure(0, weight=1)
         feedback = tk.Label(
             footer,
@@ -644,7 +716,7 @@ class EventEditor(tk.Frame):
             command=self.cancel,
             background=self.background,
             width=76,
-            height=32,
+            height=30,
             font=app_font(8, "bold"),
         )
         self.cancel_button.grid(row=0, column=1, padx=(5, 0))
@@ -657,7 +729,7 @@ class EventEditor(tk.Frame):
             hover_fill=PRIMARY_HOVER,
             foreground=TEXT_DARK,
             width=98,
-            height=32,
+            height=30,
             font=app_font(8, "bold"),
         )
         self.save_button.grid(row=0, column=2, padx=(5, 0))
@@ -709,6 +781,13 @@ class EventEditor(tk.Frame):
         self.editor_mode = "empty"
         self.read_only = True
         self.lock_type = False
+        self.lock_title = False
+        self.lock_date = False
+        self.lock_people = False
+        self.title_from_location = False
+        self.people_picker.include_recent = True
+        self.locations_picker.single_selection = False
+        self.set_year_bounds()
         self.heading_value.set("Event details")
         self.explanation_value.set(message)
         self.title_value.set("")
@@ -729,9 +808,12 @@ class EventEditor(tk.Frame):
         self,
         context=None,
         default_person_ids=(),
+        locked_person_ids=(),
         default_location_ids=(),
         locked_location_ids=(),
         hide_locations=False,
+        minimum_year=None,
+        maximum_year=None,
     ):
         self.event = {}
         self.storage_kind = "shared"
@@ -739,6 +821,13 @@ class EventEditor(tk.Frame):
         self.context = str(context or self.context or "period")
         self.read_only = False
         self.lock_type = False
+        self.lock_title = False
+        self.lock_date = False
+        self.lock_people = False
+        self.title_from_location = False
+        self.people_picker.include_recent = True
+        self.locations_picker.single_selection = False
+        self.set_year_bounds(minimum_year, maximum_year)
         self.heading_value.set("New event")
         self.explanation_value.set(
             "Choose the event type, enter its date, and link the records it belongs to."
@@ -751,7 +840,10 @@ class EventEditor(tk.Frame):
         self.description_control.text.delete("1.0", "end")
         self.configure_type_options()
         self.event_type_value.set(self.default_type_label())
-        self.people_picker.set_values(default_person_ids)
+        self.people_picker.set_values(
+            default_person_ids,
+            locked_person_ids,
+        )
         self.locations_picker.set_values(
             default_location_ids,
             locked_location_ids,
@@ -803,30 +895,52 @@ class EventEditor(tk.Frame):
         storage_kind="shared",
         context=None,
         person_ids=(),
+        locked_person_ids=(),
         location_ids=(),
         locked_location_ids=(),
         hide_locations=False,
         read_only=False,
         explanation="",
+        minimum_year=None,
+        maximum_year=None,
+        lock_title=False,
+        lock_date=False,
+        lock_people=False,
+        single_location=False,
+        title_from_location=False,
+        display_title=None,
     ):
         self.event = deepcopy(event) if isinstance(event, dict) else {}
         self.storage_kind = str(storage_kind or "shared")
         self.context = str(context or self.context or "period")
         self.read_only = bool(read_only)
-        self.editor_mode = "view"
+        self.editor_mode = "view" if self.read_only else "edit"
+        self.set_year_bounds(minimum_year, maximum_year)
         self.lock_type = bool(
             self.event.get("automatic_source")
         )
-        self.heading_value.set("Event details")
+        self.lock_title = bool(lock_title)
+        self.lock_date = bool(lock_date)
+        self.lock_people = bool(lock_people)
+        self.title_from_location = bool(title_from_location)
+        self.people_picker.include_recent = not self.lock_people
+        self.locations_picker.single_selection = bool(single_location)
+        self.heading_value.set(
+            "Event details" if self.read_only else "Edit event"
+        )
         self.explanation_value.set(
             explanation
             or (
                 "This event is generated from its source record."
                 if self.read_only
-                else "Click Edit to change this event."
+                else "Changes saved here update this event everywhere it appears."
             )
         )
-        self.title_value.set(self.loaded_title())
+        self.title_value.set(
+            self.loaded_title()
+            if display_title is None
+            else str(display_title or "")
+        )
         self.configure_type_options()
         self.event_type_value.set(
             event_type_label(self.event.get("event_type"))
@@ -843,24 +957,24 @@ class EventEditor(tk.Frame):
             "1.0",
             self.loaded_description(),
         )
+        stored_person_ids = self.event.get("person_ids", [])
+        stored_location_ids = self.event.get("location_ids", [])
+        stored_locked_location_ids = self.event.get(
+            "locked_location_ids",
+            [],
+        )
         self.people_picker.set_values(
-            self.event.get("person_ids", person_ids)
-            if self.storage_kind == "shared"
-            else person_ids
+            list(stored_person_ids or ()) + list(person_ids or ()),
+            locked_person_ids,
         )
         self.locations_picker.set_values(
-            self.event.get("location_ids", location_ids)
-            if self.storage_kind == "shared"
-            else location_ids,
-            (
-                self.event.get("locked_location_ids", [])
-                if self.storage_kind == "shared"
-                else ()
-            )
-            or locked_location_ids,
+            list(stored_location_ids or ()) + list(location_ids or ()),
+            list(stored_locked_location_ids or ())
+            + list(locked_location_ids or ()),
         )
+        self.location_selection_changed()
         self.show_locations(not hide_locations)
-        self.set_controls_enabled(False)
+        self.set_controls_enabled(not self.read_only)
         self.clear_feedback()
         self.update_period_display()
         self.canvas.yview_moveto(0)
@@ -898,6 +1012,29 @@ class EventEditor(tk.Frame):
 
         return EVENT_TYPE_LABELS["other"]
 
+    def set_year_bounds(self, minimum_year=None, maximum_year=None):
+        self.minimum_year = (
+            int(minimum_year)
+            if minimum_year not in (None, "")
+            else None
+        )
+        self.maximum_year = (
+            int(maximum_year)
+            if maximum_year not in (None, "")
+            else None
+        )
+
+        if self.minimum_year is None or self.maximum_year is None:
+            self.year_field.label.configure(text="Year")
+            return
+
+        self.year_field.label.configure(
+            text=(
+                f"Year ({self.minimum_year:,} to "
+                f"{self.maximum_year:,})"
+            )
+        )
+
     def show_locations(self, visible):
         self.hide_locations = not bool(visible)
 
@@ -931,17 +1068,51 @@ class EventEditor(tk.Frame):
         editable = bool(enabled)
         self.controls_enabled = editable
         self.type_picker.set_enabled(editable and not self.lock_type)
-        self.title_field.control.set_enabled(editable)
-        self.year_field.control.set_enabled(editable)
-        self.month_field.control.set_enabled(editable)
-        self.day_field.control.set_enabled(editable)
+        self.title_field.control.set_enabled(
+            editable and not self.lock_title
+        )
+        self.year_field.control.set_enabled(
+            editable and not self.lock_date
+        )
+        self.month_field.control.set_enabled(
+            editable and not self.lock_date
+        )
+        self.day_field.control.set_enabled(
+            editable and not self.lock_date
+        )
         self.description_control.text.configure(
             state="normal" if editable else "disabled"
         )
-        self.people_picker.set_enabled(editable)
+        self.people_picker.set_enabled(
+            editable and not self.lock_people
+        )
         self.locations_picker.set_enabled(editable)
         self.save_button.set_enabled(editable)
         self.cancel_button.set_enabled(True)
+
+    def location_selection_changed(self):
+        if not self.title_from_location:
+            return
+
+        selected_location_ids = self.locations_picker.get_values()
+
+        if not selected_location_ids:
+            self.title_value.set("")
+            return
+
+        selected_location_id = selected_location_ids[-1]
+
+        for location in self.controller.location_records():
+            if (
+                str(location.get("record_id", "") or "").strip()
+                != selected_location_id
+            ):
+                continue
+
+            self.title_value.set(
+                str(location.get("name", "") or "").strip()
+            )
+            return
 
     def update_period_display(self, *arguments):
         year = self.year_value.get().strip()
@@ -976,7 +1147,7 @@ class EventEditor(tk.Frame):
 
     def values(self):
         selected_locations = self.locations_picker.get_values()
-        locked_locations = list(self.locations_picker.locked_ids)
+        locked_locations = list(self.locations_picker.locked_order)
         return {
             "event_type": event_type_from_label(
                 self.event_type_value.get(),
@@ -1005,6 +1176,39 @@ class EventEditor(tk.Frame):
         if self.storage_kind == "shared" and not values["date"]:
             self.show_error("Enter the year when this event happened.")
             return False
+
+        if (
+            values["event_type"] == "relocated"
+            and len(values["location_ids"]) != 2
+        ):
+            self.show_error(
+                "Select exactly two locations for a relocation: "
+                "where the person left and where they went."
+            )
+            return False
+
+        if (
+            self.minimum_year is not None
+            and self.maximum_year is not None
+        ):
+            try:
+                event_year = int(self.year_value.get().strip())
+            except ValueError:
+                event_year = None
+
+            if (
+                event_year is not None
+                and not (
+                    self.minimum_year
+                    <= event_year
+                    <= self.maximum_year
+                )
+            ):
+                self.show_error(
+                    f"Enter a year from {self.minimum_year:,} to "
+                    f"{self.maximum_year:,} for this period."
+                )
+                return False
 
         try:
             saved = self.save_command(

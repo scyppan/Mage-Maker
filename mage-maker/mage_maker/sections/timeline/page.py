@@ -26,6 +26,7 @@ from mage_maker.ui.theme import (
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
+    TEXT_MUTED,
     app_font,
 )
 from mage_maker.ui.widgets import LabeledEntry, SoftButton
@@ -42,6 +43,7 @@ EVENT_COLORS = {
     "started_school": "#D9E3F1",
     "opened_business": "#E8D9C4",
     "got_job": "#D8E3EC",
+    "work_change": "#DDD9EC",
     "relocated": "#EFE3C7",
     "name_change": "#DDD2EA",
     "custom": "#E0D2E8",
@@ -67,6 +69,8 @@ class TimelineView(tk.Frame):
         linked_events_changed_command=None,
         linked_event_create_command=None,
         linked_event_edit_command=None,
+        life_start_save_command=None,
+        name_details_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
@@ -76,6 +80,8 @@ class TimelineView(tk.Frame):
         self.event_controller = event_controller
         self.person_id_provider = person_id_provider
         self.linked_events_changed_command = linked_events_changed_command
+        self.life_start_save_command = life_start_save_command
+        self.name_details_command = name_details_command
         self.events = []
         self.linked_events = []
         self.visible_events = []
@@ -117,17 +123,6 @@ class TimelineView(tk.Frame):
             height=36,
         )
         self.add_button.grid(row=0, column=1, padx=(6, 0), pady=4)
-        self.edit_button = SoftButton(
-            toolbar,
-            text="Edit event",
-            command=self.edit_selected_event,
-            background=SURFACE,
-            fill=PRIMARY_SOFT,
-            hover_fill=PRIMARY_HOVER,
-            width=104,
-            height=36,
-        )
-        self.edit_button.grid(row=0, column=2, padx=(6, 0), pady=4)
         self.remove_button = SoftButton(
             toolbar,
             text="Remove",
@@ -136,7 +131,7 @@ class TimelineView(tk.Frame):
             width=118,
             height=36,
         )
-        self.remove_button.grid(row=0, column=3, padx=(6, 0), pady=4)
+        self.remove_button.grid(row=0, column=2, padx=(6, 0), pady=4)
 
     def build_workspace(self):
         self.workspace = tk.Frame(self, bg=SURFACE)
@@ -196,7 +191,6 @@ class TimelineView(tk.Frame):
         )
         self.listbox.grid(row=0, column=0, sticky="nsew")
         self.listbox.bind("<<ListboxSelect>>", self.select_event)
-        self.listbox.bind("<Double-Button-1>", self.edit_selected_event)
         scrollbar = tk.Scrollbar(list_frame, command=self.listbox.yview)
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.listbox.configure(yscrollcommand=scrollbar.set)
@@ -214,6 +208,53 @@ class TimelineView(tk.Frame):
             sticky="nsew",
             padx=(7, 0),
         )
+        self.name_details_panel = tk.Frame(
+            self.workspace,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            padx=24,
+            pady=24,
+        )
+        self.name_details_panel.grid_columnconfigure(0, weight=1)
+        name_heading = tk.Label(
+            self.name_details_panel,
+            text="Birth name",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(12, "bold"),
+            anchor="w",
+        )
+        name_heading.grid(row=0, column=0, sticky="ew")
+        name_explanation = tk.Label(
+            self.name_details_panel,
+            text="Birth name is edited in the Name Details panel.",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            anchor="w",
+            justify="left",
+            wraplength=420,
+        )
+        name_explanation.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(12, 18),
+        )
+        self.name_details_button = SoftButton(
+            self.name_details_panel,
+            text="Open Name Details",
+            command=self.open_name_details,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=154,
+            height=36,
+        )
+        self.name_details_button.grid(row=2, column=0, sticky="w")
+        self.name_details_panel.grid_remove()
         self.hide_event_editor()
         self.update_button_state()
 
@@ -221,6 +262,7 @@ class TimelineView(tk.Frame):
         if self.event_editor_visible:
             return
 
+        self.name_details_panel.grid_remove()
         self.workspace.grid_columnconfigure(
             0,
             weight=5,
@@ -246,8 +288,39 @@ class TimelineView(tk.Frame):
         )
         self.event_editor_visible = True
 
+    def show_name_details_panel(self):
+        self.event_editor.grid_remove()
+        self.workspace.grid_columnconfigure(
+            0,
+            weight=5,
+            uniform="timeline",
+        )
+        self.workspace.grid_columnconfigure(
+            1,
+            weight=4,
+            uniform="timeline",
+        )
+        self.list_panel.grid(
+            row=0,
+            column=0,
+            columnspan=1,
+            sticky="nsew",
+            padx=(0, 7),
+        )
+        self.name_details_panel.grid(
+            row=0,
+            column=1,
+            sticky="nsew",
+            padx=(7, 0),
+        )
+        self.name_details_button.set_enabled(
+            self.name_details_command is not None
+        )
+        self.event_editor_visible = False
+
     def hide_event_editor(self):
         self.event_editor.grid_remove()
+        self.name_details_panel.grid_remove()
         self.workspace.grid_columnconfigure(
             0,
             weight=1,
@@ -266,6 +339,12 @@ class TimelineView(tk.Frame):
             padx=0,
         )
         self.event_editor_visible = False
+
+    def open_name_details(self):
+        if self.name_details_command is None:
+            return
+
+        self.name_details_command()
 
     def current_person_id(self):
         if self.person_id_provider is None:
@@ -517,6 +596,7 @@ class TimelineView(tk.Frame):
                 self.event_editor.start_new(
                     context="person",
                     default_person_ids=(self.current_person_id(),),
+                    locked_person_ids=(self.current_person_id(),),
                 )
 
             self.event_editor.ensure_new_event_editable()
@@ -543,6 +623,7 @@ class TimelineView(tk.Frame):
                 storage_kind="shared",
                 context="person",
                 person_ids=(person_id,),
+                locked_person_ids=(person_id,),
                 read_only=False,
             )
             return
@@ -550,6 +631,106 @@ class TimelineView(tk.Frame):
         automatic_source = str(
             selected_event.get("automatic_source", "") or ""
         )
+        event_type = str(
+            selected_event.get("event_type", "") or ""
+        )
+
+        if automatic_source == "life_start" and event_type == "birth_name":
+            self.show_name_details_panel()
+            return
+
+        if (
+            automatic_source == "life_start"
+            and event_type in ("starting_location", "born")
+        ):
+            location_ids = [
+                str(location_id or "").strip()
+                for location_id in selected_event.get("location_ids", [])
+                if str(location_id or "").strip()
+            ]
+            location_name = str(
+                selected_event.get("detail", "") or ""
+            ).strip()
+
+            if event_type == "born":
+                starting_event = next(
+                    (
+                        event
+                        for event in self.events
+                        if event.get("event_type") == "starting_location"
+                    ),
+                    {},
+                )
+
+                if not location_ids:
+                    location_ids = [
+                        str(location_id or "").strip()
+                        for location_id in starting_event.get(
+                            "location_ids",
+                            [],
+                        )
+                        if str(location_id or "").strip()
+                    ]
+
+                if not location_name:
+                    location_name = str(
+                        starting_event.get("detail", "") or ""
+                    ).strip()
+
+            if (
+                not location_ids
+                and location_name
+                and self.event_controller is not None
+            ):
+                for location in self.event_controller.location_records():
+                    if (
+                        str(location.get("name", "") or "")
+                        .strip()
+                        .casefold()
+                        != location_name.casefold()
+                    ):
+                        continue
+
+                    location_id = str(
+                        location.get("record_id", "") or ""
+                    ).strip()
+
+                    if location_id:
+                        location_ids = [location_id]
+
+                    break
+
+            self.event_editor.load_event(
+                selected_event,
+                storage_kind="timeline",
+                context="person",
+                person_ids=(person_id,),
+                locked_person_ids=(person_id,),
+                location_ids=location_ids,
+                read_only=False,
+                explanation=(
+                    "Changing the location updates both Starting location "
+                    "and Born."
+                    if event_type == "starting_location"
+                    else (
+                        "Changing the birth date updates the person and all "
+                        "three opening events. Changing the location also "
+                        "updates Starting location."
+                    )
+                ),
+                lock_title=True,
+                lock_date=event_type == "starting_location",
+                lock_people=True,
+                single_location=True,
+                title_from_location=event_type == "starting_location",
+                display_title=(
+                    location_name
+                    if event_type == "starting_location"
+                    else "Born"
+                ),
+            )
+            return
+
         read_only = bool(automatic_source)
         explanation = ""
 
@@ -568,6 +749,7 @@ class TimelineView(tk.Frame):
             storage_kind="timeline",
             context="person",
             person_ids=(person_id,),
+            locked_person_ids=(person_id,),
             read_only=read_only,
             explanation=explanation,
         )
@@ -652,6 +834,43 @@ class TimelineView(tk.Frame):
 
             return saved
 
+        if (
+            storage_kind == "timeline"
+            and original_event.get("automatic_source") == "life_start"
+            and original_event.get("event_type")
+            in ("starting_location", "born")
+        ):
+            if self.life_start_save_command is None:
+                raise ValueError(
+                    "This opening event cannot be synchronized."
+                )
+
+            synchronized_events = self.life_start_save_command(
+                values,
+                deepcopy(original_event),
+            )
+            self.events = normalize_timeline_events(
+                synchronized_events
+            )
+            self.selected_event_id = str(
+                original_event.get("event_id", "") or ""
+            )
+            self.filter_events()
+
+            if not self.loading:
+                self.change_command()
+
+            for event in self.events:
+                if (
+                    event.get("event_id")
+                    == self.selected_event_id
+                ):
+                    return deepcopy(event)
+
+            raise ValueError(
+                "The synchronized opening event could not be reloaded."
+            )
+
         timeline_event = deepcopy(original_event)
         timeline_event.update(
             {
@@ -659,6 +878,9 @@ class TimelineView(tk.Frame):
                 "detail": values["title"],
                 "date": values["date"],
                 "note": values["description"],
+                "person_ids": values["person_ids"],
+                "location_ids": values["location_ids"],
+                "locked_location_ids": values["locked_location_ids"],
             }
         )
         return self.save_event(timeline_event)
@@ -706,15 +928,10 @@ class TimelineView(tk.Frame):
             has_selection
             and selected_event.get("automatic_source")
         )
-        draft = bool(
-            has_selection
-            and selected_event.get("_draft_event")
-        )
-        self.edit_button.set_enabled(
-            has_selection and not automatic and not draft
-        )
         self.remove_button.set_enabled(
-            has_selection and not automatic and not draft
+            has_selection
+            and not automatic
+            and not selected_event.get("_draft_event")
         )
 
     def remove_event(self):

@@ -1,12 +1,15 @@
 import unittest
 from copy import deepcopy
+from unittest.mock import patch
 
 from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
+    EventAssociationPicker,
     EventEditor,
 )
 from mage_maker.sections.events.period_view import PeriodEventsView
 from mage_maker.sections.locations.page import LocationPage
+from mage_maker.sections.locations.models import recent_location_label
 from mage_maker.sections.timeline.page import TimelineView
 
 
@@ -25,12 +28,16 @@ class FakeControl:
     def __init__(self):
         self.enabled = True
         self.focused = False
+        self.text = ""
 
     def set_enabled(self, enabled):
         self.enabled = bool(enabled)
 
     def focus_set(self):
         self.focused = True
+
+    def set_text(self, text):
+        self.text = str(text)
 
 
 class FakeField:
@@ -117,15 +124,25 @@ class FakeListbox:
     def __init__(self):
         self.rows = []
         self.selection = ()
+        self.state = "normal"
 
     def delete(self, start, end):
+        if self.state == "disabled":
+            return
+
         self.rows = []
         self.selection = ()
 
     def insert(self, index, value):
+        if self.state == "disabled":
+            return
+
         self.rows.append(str(value))
 
     def itemconfigure(self, index, **values):
+        if int(index) >= len(self.rows):
+            raise IndexError(f"item number {index} out of range")
+
         return None
 
     def selection_set(self, index):
@@ -139,6 +156,50 @@ class FakeListbox:
 
     def curselection(self):
         return self.selection
+
+    def configure(self, **values):
+        if "state" in values:
+            self.state = str(values["state"])
+
+
+class FakeAssociationController:
+    def people_options(self):
+        return [
+            {"value": "maeve", "label": "Maeve"},
+            {"value": "merlin", "label": "Merlin"},
+            {"value": "morgana", "label": "Morgana"},
+            {"value": "helga", "label": "Helga"},
+            {"value": "godric", "label": "Godric"},
+            {"value": "rowena", "label": "Rowena"},
+            {"value": "salazar", "label": "Salazar"},
+        ]
+
+    def location_options(self):
+        return [{"value": "limerick", "label": "Limerick"}]
+
+    def location_records(self):
+        return [
+            {
+                "record_id": "limerick",
+                "name": "Limerick",
+                "parent_location_id": "",
+            }
+        ]
+
+    def recent_people_options(self, limit=5):
+        return self.people_options()[:limit]
+
+    def recent_location_options(self, limit=5):
+        return self.location_options()[:limit]
+
+
+class FakeLabel:
+    def __init__(self):
+        self.text = ""
+
+    def configure(self, **values):
+        if "text" in values:
+            self.text = str(values["text"])
 
 
 class FakeInlineEditor:
@@ -356,8 +417,104 @@ class EventEditorFactory:
         return editor
 
 
+class EventAssociationPickerFactory:
+    @staticmethod
+    def build():
+        picker = object.__new__(EventAssociationPicker)
+        picker.controller = FakeAssociationController()
+        picker.association_kind = "people"
+        picker.options = []
+        picker.visible_options = []
+        picker.selected_ids = []
+        picker.locked_ids = set()
+        picker.locked_order = []
+        picker.is_enabled = True
+        picker.result_heading_value = FakeVariable()
+        picker.listbox = FakeListbox()
+        picker.selection_hint = FakeLabel()
+        picker.toggle_button = FakeControl()
+        picker.select_button = FakeControl()
+        return picker
+
+
+class EventAssociationPickerStateTests(unittest.TestCase):
+    def test_read_only_picker_can_repopulate_without_tk_item_error(self):
+        picker = EventAssociationPickerFactory.build()
+
+        picker.set_enabled(False)
+        picker.set_values(("maeve",), ("maeve",))
+
+        self.assertEqual("normal", picker.listbox.state)
+        self.assertEqual(
+            [
+                "✓ Maeve  ·  current person",
+                "Merlin",
+                "Morgana",
+                "Helga",
+                "Godric",
+                "Rowena",
+            ],
+            picker.listbox.rows,
+        )
+        self.assertEqual(
+            "Current person and recently viewed",
+            picker.result_heading_value.get(),
+        )
+        self.assertFalse(picker.select_button.enabled)
+        self.assertFalse(picker.toggle_button.enabled)
+
+    def test_current_person_cannot_be_unlinked(self):
+        picker = EventAssociationPickerFactory.build()
+        picker.set_values(("maeve",), ("maeve",))
+        picker.listbox.selection_set(0)
+        picker.selection_changed()
+
+        self.assertEqual("Fixed", picker.toggle_button.text)
+        self.assertFalse(picker.toggle_button.enabled)
+        self.assertEqual(["maeve"], picker.get_values())
+        picker.toggle_selected()
+        self.assertEqual(["maeve"], picker.get_values())
+
+    def test_selected_person_from_search_joins_current_person(self):
+        picker = EventAssociationPickerFactory.build()
+        picker.set_values(("maeve",), ("maeve",))
+
+        self.assertTrue(picker.selector_chosen("salazar"))
+        self.assertEqual(["maeve", "salazar"], picker.get_values())
+        self.assertIn("✓ Salazar", picker.listbox.rows)
+
+    @patch(
+        "mage_maker.sections.events.editor.EventPersonPickerDialog"
+    )
+    def test_select_another_person_opens_search_dialog(self, dialog):
+        picker = EventAssociationPickerFactory.build()
+        picker.set_values(("maeve",), ("maeve",))
+
+        self.assertTrue(picker.open_selector())
+        dialog.assert_called_once()
+        arguments = dialog.call_args.args
+        self.assertEqual(7, len(arguments[1]))
+        self.assertEqual(
+            ["merlin", "morgana", "helga", "godric", "rowena"],
+            [option["value"] for option in arguments[2]],
+        )
+
+    @patch(
+        "mage_maker.sections.events.editor.EventLocationPickerDialog"
+    )
+    def test_select_another_location_opens_hierarchy_dialog(self, dialog):
+        picker = EventAssociationPickerFactory.build()
+        picker.association_kind = "locations"
+        picker.set_values(())
+
+        self.assertTrue(picker.open_selector())
+        dialog.assert_called_once()
+        arguments = dialog.call_args.args
+        self.assertEqual("limerick", arguments[1][0]["record_id"])
+
+
 class EventEditorStateTests(unittest.TestCase):
-    def test_selected_editable_event_requires_edit_then_unlocks_every_field(self):
+    def test_selected_editable_event_opens_with_every_field_unlocked(self):
         editor = EventEditorFactory.build()
         editor.load_event(
             {
@@ -373,9 +530,9 @@ class EventEditorStateTests(unittest.TestCase):
             read_only=False,
         )
 
-        self.assertEqual("view", editor.editor_mode)
-        self.assertFalse(editor.controls_enabled)
-        self.assertFalse(editor.save_button.enabled)
+        self.assertEqual("edit", editor.editor_mode)
+        self.assertTrue(editor.controls_enabled)
+        self.assertTrue(editor.save_button.enabled)
         self.assertTrue(editor.begin_edit())
         self.assertEqual("edit", editor.editor_mode)
         self.assertTrue(editor.controls_enabled)
@@ -423,6 +580,18 @@ class EventEditorStateTests(unittest.TestCase):
         self.assertEqual(["limerick"], editor.locations_picker.selected_ids)
         self.assertEqual({"limerick"}, editor.locations_picker.locked_ids)
 
+    def test_person_event_keeps_the_current_person_locked(self):
+        editor = EventEditorFactory.build()
+        editor.start_new(
+            context="person",
+            default_person_ids=("maeve",),
+            locked_person_ids=("maeve",),
+        )
+
+        self.assertEqual(["maeve"], editor.people_picker.selected_ids)
+        self.assertEqual({"maeve"}, editor.people_picker.locked_ids)
+        self.assertTrue(editor.people_picker.enabled)
+
 
 class DraftRowWorkflowTests(unittest.TestCase):
     def test_person_add_event_creates_a_selected_visible_draft(self):
@@ -440,6 +609,10 @@ class DraftRowWorkflowTests(unittest.TestCase):
         self.assertEqual(
             ("maeve",),
             view.event_editor.start_arguments["default_person_ids"],
+        )
+        self.assertEqual(
+            ("maeve",),
+            view.event_editor.start_arguments["locked_person_ids"],
         )
 
     def test_location_add_event_creates_a_selected_locked_draft(self):
@@ -472,6 +645,72 @@ class DraftRowWorkflowTests(unittest.TestCase):
         self.assertEqual(
             "period",
             view.event_editor.start_arguments["context"],
+        )
+
+
+class LocationAssociationLabelTests(unittest.TestCase):
+    def setUp(self):
+        self.locations = [
+            {
+                "record_id": "region",
+                "name": "Region",
+                "parent_location_id": "",
+            },
+            {
+                "record_id": "country",
+                "name": "Country",
+                "parent_location_id": "region",
+            },
+            {
+                "record_id": "fourth",
+                "name": "Fourth",
+                "parent_location_id": "country",
+            },
+            {
+                "record_id": "fifth",
+                "name": "Fifth",
+                "parent_location_id": "fourth",
+            },
+            {
+                "record_id": "sixth",
+                "name": "Sixth",
+                "parent_location_id": "fifth",
+            },
+            {
+                "record_id": "seventh",
+                "name": "Seventh",
+                "parent_location_id": "sixth",
+            },
+        ]
+
+    def test_location_labels_follow_world_depth_rules(self):
+        self.assertEqual(
+            "The World",
+            recent_location_label("", self.locations),
+        )
+        self.assertEqual(
+            "Region",
+            recent_location_label("region", self.locations),
+        )
+        self.assertEqual(
+            "Country",
+            recent_location_label("country", self.locations),
+        )
+        self.assertEqual(
+            "Fourth, Country",
+            recent_location_label("fourth", self.locations),
+        )
+        self.assertEqual(
+            "Fifth (Fourth, Country)",
+            recent_location_label("fifth", self.locations),
+        )
+        self.assertEqual(
+            "Sixth (an area in Fourth, Country)",
+            recent_location_label("sixth", self.locations),
+        )
+        self.assertEqual(
+            "Seventh (an area in Fourth, Country)",
+            recent_location_label("seventh", self.locations),
         )
 
 

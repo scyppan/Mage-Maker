@@ -461,7 +461,11 @@ class PeriodEventsView(tk.Frame):
             self.show_event_editor()
 
             if not self.event_editor.is_new_event():
-                self.event_editor.start_new(context="period")
+                self.event_editor.start_new(
+                    context="period",
+                    minimum_year=self.period["calculation_start_year"],
+                    maximum_year=self.period["calculation_end_year"],
+                )
 
             self.event_editor.ensure_new_event_editable()
             return
@@ -483,6 +487,8 @@ class PeriodEventsView(tk.Frame):
                 storage_kind="shared",
                 context="period",
                 read_only=False,
+                minimum_year=self.period["calculation_start_year"],
+                maximum_year=self.period["calculation_end_year"],
             )
             return
 
@@ -519,6 +525,8 @@ class PeriodEventsView(tk.Frame):
                 if event.get("event_kind") == "mage"
                 else "This event is stored on its source location."
             ),
+            minimum_year=self.period["calculation_start_year"],
+            maximum_year=self.period["calculation_end_year"],
         )
 
     def add_event(self):

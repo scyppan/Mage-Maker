@@ -9,6 +9,7 @@ EVENT_TYPE_DEFINITIONS = (
     ("started_school", "Started at school", ("person",), False),
     ("opened_business", "Opened a business", ("person",), False),
     ("got_job", "Got a job", ("person",), False),
+    ("work_change", "Change in work", ("person",), False),
     ("relocated", "Relocated", ("person",), False),
     ("name_change", "Name change", ("person",), False),
     ("custom", "Custom event", ("person",), False),

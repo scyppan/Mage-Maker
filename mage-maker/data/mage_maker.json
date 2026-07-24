@@ -2,7 +2,7 @@
   "_database": {
     "schema_version": 9,
     "database_version": "0.9.0",
-    "last_saved": "2026-07-23T14:34:09.705850+00:00"
+    "last_saved": "2026-07-24T05:19:54.379761+00:00"
   },
   "people": [
     {
@@ -93,7 +93,7 @@
           {
             "name_type": "birth name",
             "name_entry": "Maeve ingen Ailella",
-            "date": "",
+            "date": "0901",
             "note": "",
             "entry_id": "38fe4ddf-7e6f-4806-81ba-2ac84be8426a"
           }
@@ -123,7 +123,12 @@
           "note": "",
           "related_person_id": "",
           "automatic_source": "life_start",
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [
+            "6d806b4b-6308-428f-a332-7581faed8cfc"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual"
         },
         {
           "event_id": "life-start:born",
@@ -133,7 +138,12 @@
           "note": "",
           "related_person_id": "",
           "automatic_source": "life_start",
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [
+            "6d806b4b-6308-428f-a332-7581faed8cfc"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual"
         },
         {
           "event_id": "life-start:birth-name",
@@ -148,12 +158,17 @@
         {
           "event_id": "76b34555-9244-43fb-a964-e8fd510cdc9e",
           "event_type": "opened_business",
-          "detail": "",
+          "detail": "Began working as a healer & teacher",
           "date": "0921",
           "note": "Started providing basic healing services honing her craft.",
           "related_person_id": "",
           "automatic_source": "",
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "person_ids": [
+            "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
+          ],
+          "location_ids": [],
+          "locked_location_ids": []
         },
         {
           "event_id": "633f0969-a2d4-428a-84d9-d25d1d7b6461",
@@ -163,7 +178,15 @@
           "note": "Given the higher population in Limerick, Maeve relocates to continue providing services and teaching to a larger population.",
           "related_person_id": "",
           "automatic_source": "",
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "person_ids": [
+            "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
+          ],
+          "location_ids": [
+            "9ea34a81-6c79-4524-90fc-7c61c4b7d2a3",
+            "6d806b4b-6308-428f-a332-7581faed8cfc"
+          ],
+          "locked_location_ids": []
         }
       ],
       "school": "",
@@ -171,7 +194,7 @@
       "imported_fields": {},
       "record_id": "6cea2c79-66b4-4018-88f1-6238ad15ebd7",
       "created_at": "2026-07-22T13:12:34.505848+00:00",
-      "last_updated": "2026-07-23T14:34:09.704819+00:00",
+      "last_updated": "2026-07-24T05:19:54.378105+00:00",
       "death_year": 998,
       "death_month": null,
       "death_day": null,
@@ -351,7 +374,7 @@
       "timeline_events": [],
       "record_id": "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
       "created_at": "2026-07-23T04:45:05.642791+00:00",
-      "last_updated": "2026-07-23T04:45:05.642791+00:00"
+      "last_updated": "2026-07-24T04:08:26.365381+00:00"
     },
     {
       "name": "Anatolia and the Caucasus",
@@ -819,6 +842,32 @@
       "record_id": "322ffa45-7b89-43c6-943a-dd6cd30286e1",
       "created_at": "2026-07-23T11:55:46.897862+00:00",
       "last_updated": "2026-07-23T11:55:46.897862+00:00"
+    },
+    {
+      "event_type": "other",
+      "title": "test",
+      "date": "-4400",
+      "description": "",
+      "person_ids": [],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "4af542c4-8972-4d72-91f6-7ee029e83d78",
+      "created_at": "2026-07-24T04:12:43.832814+00:00",
+      "last_updated": "2026-07-24T04:12:43.832814+00:00"
     }
-  ]
+  ],
+  "_recent_people": [
+    "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
+  ],
+  "_recent_locations": [
+    "12e14d4f-ac0d-4e31-a144-80c71ac6a53c"
+  ],
+  "_recent_event_associations": {
+    "person_ids": [],
+    "location_ids": [
+      "9ea34a81-6c79-4524-90fc-7c61c4b7d2a3",
+      "6d806b4b-6308-428f-a332-7581faed8cfc"
+    ]
+  }
 }

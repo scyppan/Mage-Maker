@@ -12,7 +12,9 @@ from mage_maker.sections.events.models import (
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
 )
-from mage_maker.sections.locations.models import location_path
+from mage_maker.sections.locations.models import (
+    recent_location_label,
+)
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
@@ -733,7 +735,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         ).strip()
         self.save_command = save_command
         self.search_value = tk.StringVar()
-        self.result_heading_value = tk.StringVar(value="Recently used")
+        self.result_heading_value = tk.StringVar(value="Recently viewed")
         self.selection_value = tk.StringVar(
             value="Select a person to add."
         )
@@ -775,7 +777,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         explanation = tk.Label(
             card,
             text=(
-                "Recently used people appear first. Type any part of a "
+                "Recently viewed people appear first. Type any part of a "
                 "name to search everyone."
             ),
             bg=SURFACE,
@@ -889,7 +891,7 @@ class EventPersonPickerDialog(tk.Toplevel):
             self.visible_options = list(self.recent_people_options)
             self.result_heading_value.set(
                 (
-                    "Recently used"
+                    "Recently viewed"
                     if self.visible_options
                     else "Start typing to search"
                 )
@@ -1097,7 +1099,7 @@ class EventLocationPickerDialog(tk.Toplevel):
             return
 
         self.selection_value.set(
-            location_path(requested_id, self.locations)
+            recent_location_label(requested_id, self.locations)
         )
         self.add_button.set_enabled(True)
 

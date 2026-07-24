@@ -9,12 +9,15 @@ from mage_maker.sections.events.models import (
 from mage_maker.sections.events.types import event_type_is_person_only
 from mage_maker.sections.locations.models import (
     ancestor_locations,
-    location_path,
+    recent_location_label,
 )
 
 
 RECENT_ASSOCIATION_STORAGE_KEY = "_recent_event_associations"
 RECENT_ASSOCIATION_STORAGE_LIMIT = 12
+RECENT_PERSON_STORAGE_KEY = "_recent_people"
+RECENT_LOCATION_STORAGE_KEY = "_recent_locations"
+RECENT_WORLD_LOCATION_ID = "__mage_maker_world__"
 
 
 class EventController:
@@ -161,7 +164,7 @@ class EventController:
         options = [
             {
                 "value": str(location.get("record_id", "") or ""),
-                "label": location_path(
+                "label": recent_location_label(
                     location.get("record_id", ""),
                     locations,
                 ),
@@ -179,29 +182,55 @@ class EventController:
             if isinstance(location, dict)
         ]
 
-    def recent_people_options(self, limit=4):
+    def recent_people_options(self, limit=5):
         return self.recent_association_options(
             "person_ids",
             self.people_options(),
             limit,
+            self.recent_interaction_ids(
+                RECENT_PERSON_STORAGE_KEY,
+            ),
         )
 
-    def recent_location_options(self, limit=4):
+    def recent_location_options(self, limit=5):
         return self.recent_association_options(
             "location_ids",
             self.location_options(),
             limit,
+            self.recent_interaction_ids(
+                RECENT_LOCATION_STORAGE_KEY,
+                excluded_ids=(RECENT_WORLD_LOCATION_ID,),
+            ),
         )
 
-    def recent_association_options(self, field_name, options, limit):
+    def recent_association_options(
+        self,
+        field_name,
+        options,
+        limit,
+        preferred_ids=(),
+    ):
         options_by_id = {
             str(option.get("value", "") or ""): option
             for option in options
             if str(option.get("value", "") or "").strip()
         }
         recent_options = []
+        candidate_ids = [
+            *[
+                str(association_id or "").strip()
+                for association_id in preferred_ids
+                if str(association_id or "").strip()
+            ],
+            *self.recent_association_ids(field_name),
+        ]
+        used_ids = set()
 
-        for association_id in self.recent_association_ids(field_name):
+        for association_id in candidate_ids:
+            if association_id in used_ids:
+                continue
+
+            used_ids.add(association_id)
             option = options_by_id.get(association_id)
 
             if option is None:
@@ -213,6 +242,33 @@ class EventController:
                 break
 
         return recent_options
+
+    def recent_interaction_ids(self, storage_key, excluded_ids=()):
+        stored_history = self.database.data.get(storage_key, [])
+
+        if not isinstance(stored_history, list):
+            return []
+
+        excluded = {
+            str(record_id or "").strip()
+            for record_id in excluded_ids
+            if str(record_id or "").strip()
+        }
+        recent_ids = []
+
+        for record_id in stored_history:
+            normalized_id = str(record_id or "").strip()
+
+            if (
+                not normalized_id
+                or normalized_id in excluded
+                or normalized_id in recent_ids
+            ):
+                continue
+
+            recent_ids.append(normalized_id)
+
+        return recent_ids
 
     def recent_association_ids(self, field_name):
         if field_name not in ("person_ids", "location_ids"):
@@ -300,7 +356,7 @@ class EventController:
         }
         locations = self.location_provider()
         location_labels = {
-            str(location.get("record_id", "") or ""): location_path(
+            str(location.get("record_id", "") or ""): recent_location_label(
                 location.get("record_id", ""),
                 locations,
             )
@@ -354,6 +410,15 @@ class EventController:
         return matching_names
 
     def validate_associations(self, event):
+        if (
+            event.get("event_type") == "relocated"
+            and len(event.get("location_ids", [])) != 2
+        ):
+            raise ValueError(
+                "Select exactly two locations for a relocation: "
+                "where the person left and where they went."
+            )
+
         known_person_ids = {
             str(person.get("record_id", "") or "")
             for person in self.people_provider()

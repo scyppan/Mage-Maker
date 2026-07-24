@@ -324,6 +324,12 @@ def person_location_events(people, locations):
         for location in locations
         if normalize_location(location.get("name", ""))
     }
+    locations_by_record_id = {
+        str(location.get("record_id", "") or "").strip(): location
+        for location in locations
+        if isinstance(location, dict)
+        and str(location.get("record_id", "") or "").strip()
+    }
     people_by_id = {
         str(person.get("record_id", "") or "").strip(): person
         for person in people
@@ -346,10 +352,25 @@ def person_location_events(people, locations):
                 continue
 
             event_date = str(event.get("date", "") or "")
-            location_name = location_at_date(person, event_date)
-            location = known_locations.get(normalize_location(location_name))
+            event_location_ids = [
+                str(location_id or "").strip()
+                for location_id in event.get("location_ids", [])
+                if str(location_id or "").strip()
+                in locations_by_record_id
+            ]
 
-            if location is None or not event_date:
+            if not event_location_ids:
+                location_name = location_at_date(person, event_date)
+                location = known_locations.get(
+                    normalize_location(location_name)
+                )
+
+                if location is not None:
+                    event_location_ids.append(
+                        str(location.get("record_id", "") or "").strip()
+                    )
+
+            if not event_location_ids or not event_date:
                 continue
 
             detail = str(event.get("detail", "") or "").strip()
@@ -380,9 +401,17 @@ def person_location_events(people, locations):
                     "date": event_date,
                     "title": title,
                     "note": str(event.get("note", "") or "").strip(),
-                    "origin_location_id": location.get("record_id", ""),
+                    "origin_location_id": event_location_ids[0],
+                    "location_ids": event_location_ids,
                     "related_person_id": person_id,
-                    "person_ids": [person_id],
+                    "person_ids": list(
+                        dict.fromkeys(
+                            [
+                                person_id,
+                                *event.get("person_ids", []),
+                            ]
+                        )
+                    ),
                     "event_type": event_type,
                     "famous_person": bool(person.get("famous_person")),
                     "event_kind": "mage",
@@ -459,6 +488,10 @@ def visible_location_timeline(
     visible_origins = ancestor_locations(selected_id, locations)
     person_events = person_location_events(people, locations)
     visible_events = []
+    distances_by_id = {
+        str(location.get("record_id", "") or ""): distance
+        for distance, location in enumerate(visible_origins)
+    }
 
     for propagation_distance, origin in enumerate(visible_origins):
         origin_id = str(origin.get("record_id", "") or "").strip()
@@ -483,12 +516,22 @@ def visible_location_timeline(
             visible_events.append(visible_event)
 
         for event in person_events:
-            if event.get("origin_location_id") != origin_id:
+            event_location_ids = list(
+                event.get("location_ids", [])
+                or [event.get("origin_location_id", "")]
+            )
+            closest_origin_id = closest_linked_location_id(
+                event_location_ids,
+                distances_by_id,
+            )
+
+            if closest_origin_id != origin_id:
                 continue
 
             visible_event = deepcopy(event)
             visible_event.update(
                 {
+                    "origin_location_id": origin_id,
                     "origin_location_name": origin_name,
                     "source_level": origin_depth,
                     "propagation_distance": propagation_distance,
@@ -681,12 +724,30 @@ def location_events_for_period(
         if famous_people_only and not bool(event.get("famous_person")):
             continue
 
-        origin_id = str(event.get("origin_location_id", "") or "")
+        event_location_ids = [
+            str(event_location_id or "").strip()
+            for event_location_id in (
+                event.get("location_ids", [])
+                or [event.get("origin_location_id", "")]
+            )
+            if str(event_location_id or "").strip()
+            in visible_origin_ids
+        ]
+
+        if not event_location_ids:
+            continue
+
+        origin_id = (
+            closest_linked_location_id(
+                event_location_ids,
+                ancestor_distances,
+            )
+            or event_location_ids[0]
+        )
         event_year = location_event_year(event.get("date"))
 
         if (
-            origin_id not in visible_origin_ids
-            or event_year is None
+            event_year is None
             or event_year < normalized_start_year
             or event_year > normalized_end_year
         ):

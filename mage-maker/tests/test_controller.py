@@ -51,6 +51,18 @@ class PeopleControllerTests(unittest.TestCase):
         record_ids = [person["record_id"] for person in self.controller.list_people()]
         self.assertEqual(["old", "young", "unknown"], record_ids)
 
+    def test_recent_people_follow_view_order_without_duplicates(self):
+        self.assertTrue(self.controller.remember_person_interaction("young"))
+        self.assertTrue(self.controller.remember_person_interaction("old"))
+        self.assertTrue(self.controller.remember_person_interaction("young"))
+        self.assertEqual(
+            ["young", "old"],
+            self.controller.recent_person_ids(limit=5),
+        )
+        self.assertFalse(
+            self.controller.remember_person_interaction("missing")
+        )
+
     def test_creation_requires_a_name(self):
         with self.assertRaisesRegex(ValueError, "must have a displayed name"):
             self.controller.create_person({"displayed_name": ""})
