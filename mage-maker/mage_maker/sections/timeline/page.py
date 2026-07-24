@@ -1,7 +1,10 @@
 import tkinter as tk
 from copy import deepcopy
 
-from mage_maker.sections.events.editor import EventEditor
+from mage_maker.sections.events.editor import (
+    NEW_EVENT_DRAFT_ID,
+    EventEditor,
+)
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_TYPE_LABELS,
@@ -19,6 +22,7 @@ from mage_maker.ui.theme import (
     LIST_SELECTED,
     PRIMARY,
     PRIMARY_HOVER,
+    PRIMARY_SOFT,
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
@@ -75,6 +79,7 @@ class TimelineView(tk.Frame):
         self.events = []
         self.linked_events = []
         self.visible_events = []
+        self.draft_event = None
         self.selected_event_id = None
         self.event_editor_visible = False
         self.loading = False
@@ -117,6 +122,8 @@ class TimelineView(tk.Frame):
             text="Edit event",
             command=self.edit_selected_event,
             background=SURFACE,
+            fill=PRIMARY_SOFT,
+            hover_fill=PRIMARY_HOVER,
             width=104,
             height=36,
         )
@@ -268,6 +275,14 @@ class TimelineView(tk.Frame):
 
     def set_events(self, events):
         self.loading = True
+
+        if (
+            self.draft_event is not None
+            and self.draft_event.get("_person_id") != self.current_person_id()
+        ):
+            self.draft_event = None
+            self.selected_event_id = None
+
         self.events = normalize_timeline_events(events)
         available_ids = {
             event["event_id"]
@@ -278,6 +293,9 @@ class TimelineView(tk.Frame):
                 for event in self.linked_events
             }
         )
+
+        if self.draft_event is not None:
+            available_ids.add(NEW_EVENT_DRAFT_ID)
 
         if self.selected_event_id not in available_ids:
             self.selected_event_id = None
@@ -305,6 +323,9 @@ class TimelineView(tk.Frame):
             }
         )
 
+        if self.draft_event is not None:
+            available_ids.add(NEW_EVENT_DRAFT_ID)
+
         if self.selected_event_id not in available_ids:
             self.selected_event_id = None
 
@@ -322,13 +343,17 @@ class TimelineView(tk.Frame):
             display_event["note"] = display_event.get("description", "")
             candidate_events.append(display_event)
 
+        if self.draft_event is not None:
+            candidate_events.append(deepcopy(self.draft_event))
+
         self.visible_events = []
 
         for event in candidate_events:
             summary = self.event_summary_text(event)
 
             if (
-                query
+                not event.get("_draft_event")
+                and query
                 and query not in summary.casefold()
                 and query not in str(event.get("detail") or "").casefold()
                 and query not in str(event.get("note") or "").casefold()
@@ -342,19 +367,27 @@ class TimelineView(tk.Frame):
         self.listbox.delete(0, "end")
 
         for index, event in enumerate(self.visible_events):
-            event_date = str(event.get("date") or "nd.")
-            self.listbox.insert(
-                "end",
-                f"{event_date}: {self.event_summary_text(event)}",
-            )
+            if event.get("_draft_event"):
+                self.listbox.insert("end", "New event (unsaved)")
+            else:
+                event_date = str(event.get("date") or "nd.")
+                self.listbox.insert(
+                    "end",
+                    f"{event_date}: {self.event_summary_text(event)}",
+                )
+
             self.listbox.itemconfigure(
                 index,
                 background=(
-                    LIST_ALTERNATE
-                    if event.get("_stored_event")
-                    else EVENT_COLORS.get(
-                        event.get("event_type"),
-                        FIELD_BACKGROUND,
+                    PRIMARY_SOFT
+                    if event.get("_draft_event")
+                    else (
+                        LIST_ALTERNATE
+                        if event.get("_stored_event")
+                        else EVENT_COLORS.get(
+                            event.get("event_type"),
+                            FIELD_BACKGROUND,
+                        )
                     )
                 ),
             )
@@ -367,6 +400,9 @@ class TimelineView(tk.Frame):
         self.update_button_state()
 
     def event_summary_text(self, event):
+        if event.get("_draft_event"):
+            return "New event (unsaved)"
+
         if event.get("_stored_event"):
             return (
                 f"{event_type_label(event)} · "
@@ -376,6 +412,9 @@ class TimelineView(tk.Frame):
         return timeline_event_summary(event)
 
     def display_event_sort_key(self, event):
+        if event.get("_draft_event"):
+            return -1, 0, 0, 0, ""
+
         event_type = str(event.get("event_type", "") or "")
 
         if not event.get("_stored_event") and event_type in LIFE_START_PRIORITIES:
@@ -444,6 +483,16 @@ class TimelineView(tk.Frame):
             if event.get("event_id") == self.selected_event_id:
                 return event
 
+        selected_indexes = self.listbox.curselection()
+
+        if (
+            selected_indexes
+            and selected_indexes[0] < len(self.visible_events)
+        ):
+            selected_event = self.visible_events[selected_indexes[0]]
+            self.selected_event_id = selected_event.get("event_id")
+            return selected_event
+
         return None
 
     def refresh_editor(self):
@@ -459,6 +508,18 @@ class TimelineView(tk.Frame):
                 "Select an event to view it, or click Add event."
             )
             self.hide_event_editor()
+            return
+
+        if selected_event.get("_draft_event"):
+            self.show_event_editor()
+
+            if not self.event_editor.is_new_event():
+                self.event_editor.start_new(
+                    context="person",
+                    default_person_ids=(self.current_person_id(),),
+                )
+
+            self.event_editor.ensure_new_event_editable()
             return
 
         self.show_event_editor()
@@ -512,32 +573,48 @@ class TimelineView(tk.Frame):
         )
 
     def start_add_event(self):
-        if self.event_controller is None or not self.current_person_id():
+        person_id = self.current_person_id()
+
+        if self.event_controller is None or not person_id:
             self.show_event_editor()
             self.event_editor.show_error(
                 "Save this person before adding an event."
             )
             return
 
-        self.selected_event_id = None
-        self.listbox.selection_clear(0, "end")
+        self.draft_event = {
+            "event_id": NEW_EVENT_DRAFT_ID,
+            "event_type": "custom",
+            "detail": "New event",
+            "date": "",
+            "note": "",
+            "_person_id": person_id,
+            "_draft_event": True,
+        }
+        self.selected_event_id = NEW_EVENT_DRAFT_ID
         self.reset_remove_confirmation()
-        self.event_editor.start_new(
-            context="person",
-            default_person_ids=(self.current_person_id(),),
-        )
-        self.show_event_editor()
+        self.filter_events()
         self.event_editor.ensure_new_event_editable()
-        self.update_button_state()
 
     def open_add_dialog(self):
         self.start_add_event()
 
     def edit_selected_event(self, event=None):
-        if self.selected_event() is None:
+        selected_event = self.selected_event()
+
+        if selected_event is None:
+            return
+
+        if selected_event.get("_draft_event"):
+            self.show_event_editor()
+            self.event_editor.ensure_new_event_editable()
+            return
+
+        if selected_event.get("automatic_source"):
             return
 
         self.refresh_editor()
+        self.event_editor.begin_edit()
         self.event_editor.canvas.yview_moveto(0)
 
     def open_edit_dialog(self, event=None):
@@ -560,6 +637,7 @@ class TimelineView(tk.Frame):
             else:
                 saved = self.event_controller.create_event(values)
 
+            self.draft_event = None
             self.selected_event_id = saved["record_id"]
             person_id = self.current_person_id()
             self.linked_events = (
@@ -609,6 +687,16 @@ class TimelineView(tk.Frame):
         return normalized_event
 
     def cancel_editor(self):
+        if (
+            self.draft_event is not None
+            or self.event_editor.is_new_event()
+        ):
+            self.draft_event = None
+            self.selected_event_id = None
+            self.listbox.selection_clear(0, "end")
+            self.filter_events()
+            return
+
         self.refresh_editor()
 
     def update_button_state(self):
@@ -618,11 +706,23 @@ class TimelineView(tk.Frame):
             has_selection
             and selected_event.get("automatic_source")
         )
-        self.edit_button.set_enabled(has_selection and not automatic)
-        self.remove_button.set_enabled(has_selection and not automatic)
+        draft = bool(
+            has_selection
+            and selected_event.get("_draft_event")
+        )
+        self.edit_button.set_enabled(
+            has_selection and not automatic and not draft
+        )
+        self.remove_button.set_enabled(
+            has_selection and not automatic and not draft
+        )
 
     def remove_event(self):
         selected_event = self.selected_event()
+
+        if selected_event and selected_event.get("_draft_event"):
+            self.cancel_editor()
+            return
 
         if selected_event is None or selected_event.get("automatic_source"):
             return

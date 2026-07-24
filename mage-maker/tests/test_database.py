@@ -223,7 +223,7 @@ class JsonDatabaseTests(unittest.TestCase):
         self.assertEqual("person", child["biological_mother_status"])
         self.assertEqual("person", child["biological_father_status"])
         self.assertEqual(
-            ["starting_location", "born"],
+            ["starting_location", "born", "birth_name"],
             [event["event_type"] for event in child["timeline_events"]],
         )
 
@@ -296,10 +296,10 @@ class JsonDatabaseTests(unittest.TestCase):
         old_database.load()
         person = old_database.read_person("version-eight-person")
         self.assertEqual(
-            ["starting_location", "born"],
+            ["starting_location", "born", "birth_name"],
             [event["event_type"] for event in person["timeline_events"]],
         )
-        self.assertEqual(["1987", "1987"], [
+        self.assertEqual(["1987", "1987", "1987"], [
             event["date"] for event in person["timeline_events"]
         ])
 

@@ -1,7 +1,10 @@
 import tkinter as tk
 from copy import deepcopy
 
-from mage_maker.sections.events.editor import EventEditor
+from mage_maker.sections.events.editor import (
+    NEW_EVENT_DRAFT_ID,
+    EventEditor,
+)
 from mage_maker.sections.events.types import (
     event_type_label,
     event_visible_outside_person,
@@ -15,6 +18,7 @@ from mage_maker.ui.theme import (
     LIST_SELECTED,
     PRIMARY,
     PRIMARY_HOVER,
+    PRIMARY_SOFT,
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
@@ -84,6 +88,7 @@ class PeriodEventsView(tk.Frame):
         self.changed_command = changed_command
         self.period = None
         self.events = []
+        self.draft_event = None
         self.selected_event_id = ""
         self.event_editor_visible = False
         self.remove_armed_event_id = ""
@@ -124,6 +129,8 @@ class PeriodEventsView(tk.Frame):
             text="Edit",
             command=self.edit_event,
             background=SURFACE,
+            fill=PRIMARY_SOFT,
+            hover_fill=PRIMARY_HOVER,
             width=82,
             height=36,
         )
@@ -268,6 +275,7 @@ class PeriodEventsView(tk.Frame):
         self.event_editor_visible = False
 
     def set_period(self, period):
+        self.draft_event = None
         self.period = deepcopy(period) if isinstance(period, dict) else None
         self.selected_event_id = ""
         self.reset_remove_confirmation()
@@ -325,6 +333,10 @@ class PeriodEventsView(tk.Frame):
             self.events.append(row)
 
         self.events.sort(key=period_event_sort_key)
+
+        if self.draft_event is not None:
+            self.events.append(deepcopy(self.draft_event))
+
         self.render_events()
 
     def generated_association_labels(self, event):
@@ -364,6 +376,19 @@ class PeriodEventsView(tk.Frame):
         self.title_value.set(f"Events ({len(self.events)})")
 
         for index, event in enumerate(self.events):
+            if event.get("_draft_event"):
+                self.listbox.insert("end", "New event (unsaved)")
+                self.listbox.itemconfigure(
+                    index,
+                    background=PRIMARY_SOFT,
+                )
+
+                if event.get("event_id") == self.selected_event_id:
+                    self.listbox.selection_set(index)
+                    self.listbox.see(index)
+
+                continue
+
             date_text = str(event.get("date", "") or "nd.")
             title = str(event.get("title", "") or "Event")
             self.listbox.insert(
@@ -408,6 +433,13 @@ class PeriodEventsView(tk.Frame):
             if event.get("event_id") == self.selected_event_id:
                 return event
 
+        selection = self.listbox.curselection()
+
+        if selection and selection[0] < len(self.events):
+            selected_event = self.events[selection[0]]
+            self.selected_event_id = selected_event.get("event_id", "")
+            return selected_event
+
         return None
 
     def update_editor(self):
@@ -423,6 +455,15 @@ class PeriodEventsView(tk.Frame):
                 "Select an event to view it, or click Add event."
             )
             self.hide_event_editor()
+            return
+
+        if event.get("_draft_event"):
+            self.show_event_editor()
+
+            if not self.event_editor.is_new_event():
+                self.event_editor.start_new(context="period")
+
+            self.event_editor.ensure_new_event_editable()
             return
 
         self.show_event_editor()
@@ -485,19 +526,36 @@ class PeriodEventsView(tk.Frame):
             self.status_command("Select a period first.")
             return
 
-        self.selected_event_id = ""
-        self.listbox.selection_clear(0, "end")
+        self.draft_event = {
+            "event_id": NEW_EVENT_DRAFT_ID,
+            "event_type": "other",
+            "title": "New event",
+            "date": "",
+            "description": "",
+            "event_kind": "global",
+            "_draft_event": True,
+        }
+        self.selected_event_id = NEW_EVENT_DRAFT_ID
         self.reset_remove_confirmation()
-        self.event_editor.start_new(context="period")
-        self.show_event_editor()
+        self.refresh()
         self.event_editor.ensure_new_event_editable()
-        self.update_button_state()
 
     def edit_event(self, event=None):
-        if self.selected_event() is None:
+        selected = self.selected_event()
+
+        if selected is None:
+            return
+
+        if selected.get("_draft_event"):
+            self.show_event_editor()
+            self.event_editor.ensure_new_event_editable()
+            return
+
+        if selected.get("event_kind") != "global":
             return
 
         self.update_editor()
+        self.event_editor.begin_edit()
         self.event_editor.canvas.yview_moveto(0)
 
     def save_event_editor(self, values, storage_kind, original_event):
@@ -518,15 +576,30 @@ class PeriodEventsView(tk.Frame):
         else:
             saved = self.event_controller.create_event(values)
 
+        self.draft_event = None
         self.selected_event_id = saved["record_id"]
         self.changed_command(saved)
         return saved
 
     def cancel_event_editor(self):
+        if (
+            self.draft_event is not None
+            or self.event_editor.is_new_event()
+        ):
+            self.draft_event = None
+            self.selected_event_id = ""
+            self.listbox.selection_clear(0, "end")
+            self.refresh()
+            return
+
         self.update_editor()
 
     def remove_event(self):
         selected = self.selected_event()
+
+        if selected and selected.get("_draft_event"):
+            self.cancel_event_editor()
+            return
 
         if selected is None or selected.get("event_kind") != "global":
             self.event_editor.show_error(
@@ -558,10 +631,18 @@ class PeriodEventsView(tk.Frame):
     def update_button_state(self):
         selected = self.selected_event()
         self.edit_button.set_enabled(
-            bool(selected and selected.get("event_kind") == "global")
+            bool(
+                selected
+                and selected.get("event_kind") == "global"
+                and not selected.get("_draft_event")
+            )
         )
         self.remove_button.set_enabled(
-            bool(selected and selected.get("event_kind") == "global")
+            bool(
+                selected
+                and selected.get("event_kind") == "global"
+                and not selected.get("_draft_event")
+            )
         )
 
     def reset_remove_confirmation(self):

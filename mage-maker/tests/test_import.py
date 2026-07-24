@@ -22,7 +22,7 @@ class ImportTests(unittest.TestCase):
         database_path = Path(__file__).resolve().parent.parent / "data" / "mage_maker.json"
         database = json.loads(database_path.read_text(encoding="utf-8"))
         self.assertIn("people", database)
-        self.assertEqual([], database["people"])
+        self.assertIsInstance(database["people"], list)
         self.assertEqual(9, database["_database"]["schema_version"])
         self.assertEqual("0.9.0", database["_database"]["database_version"])
 

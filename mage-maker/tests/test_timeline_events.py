@@ -40,7 +40,7 @@ class TimelineEventTests(unittest.TestCase):
 
     def test_common_event_summaries_include_the_detail(self):
         self.assertEqual(
-            "Started at Hogwarts school!",
+            "Started at Hogwarts school",
             timeline_event_summary(
                 {"event_type": "started_school", "detail": "Hogwarts"}
             ),
@@ -52,7 +52,7 @@ class TimelineEventTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            "Had a child!",
+            "Had a child",
             timeline_event_summary(
                 {"event_type": "had_child", "detail": "Horace"}
             ),
@@ -78,7 +78,7 @@ class TimelineEventTests(unittest.TestCase):
                 }
             )
 
-    def test_lifecycle_events_always_occupy_the_first_two_lines(self):
+    def test_lifecycle_events_always_occupy_the_first_three_lines(self):
         events = ensure_life_start_events(
             {
                 "birth_year": 1980,
@@ -94,11 +94,15 @@ class TimelineEventTests(unittest.TestCase):
             starting_location="London",
         )
         self.assertEqual(
-            ["starting_location", "born", "started_school"],
+            ["starting_location", "born", "birth_name", "started_school"],
             [event["event_type"] for event in events],
         )
         self.assertEqual("Starting location: London", timeline_event_summary(events[0]))
         self.assertEqual("Born", timeline_event_summary(events[1]))
+        self.assertEqual(
+            "Birth name: Unnamed magician",
+            timeline_event_summary(events[2]),
+        )
 
 
 if __name__ == "__main__":

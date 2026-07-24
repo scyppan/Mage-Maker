@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import messagebox
 
-from mage_maker.sections.events.editor import EventEditor
+from mage_maker.sections.events.editor import (
+    NEW_EVENT_DRAFT_ID,
+    EventEditor,
+)
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
@@ -23,6 +26,7 @@ from mage_maker.ui.theme import (
     PRIMARY,
     PRIMARY_DARK,
     PRIMARY_HOVER,
+    PRIMARY_SOFT,
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
@@ -86,6 +90,7 @@ class LocationPage(tk.Frame):
         self.events_changed_command = events_changed_command
         self.locations = []
         self.visible_events = []
+        self.draft_event = None
         self.selected_timeline_event_id = ""
         self.event_editor_visible = False
         self.remove_armed_event_id = ""
@@ -551,8 +556,8 @@ class LocationPage(tk.Frame):
             text="Edit",
             command=self.edit_event,
             background=SURFACE_MUTED,
-            fill=BUTTON_SOFT,
-            hover_fill=BUTTON_SOFT_HOVER,
+            fill=PRIMARY_SOFT,
+            hover_fill=PRIMARY_HOVER,
             foreground=TEXT_DARK,
             width=82,
             height=32,
@@ -825,6 +830,10 @@ class LocationPage(tk.Frame):
         if location is None:
             return
 
+        if record_id != self.current_location_id:
+            self.draft_event = None
+            self.selected_timeline_event_id = ""
+
         self.current_location_id = record_id
         self.creating_location = False
         self.editor_heading_value.set("Location details")
@@ -949,6 +958,14 @@ class LocationPage(tk.Frame):
             return
 
         self.visible_events = self.controller.timeline_for(self.current_location_id)
+
+        if (
+            self.draft_event is not None
+            and self.draft_event.get("_location_id")
+            == self.current_location_id
+        ):
+            self.visible_events.append(self.draft_event)
+
         visible_event_ids = {
             str(event.get("event_id", "") or "")
             for event in self.visible_events
@@ -958,6 +975,22 @@ class LocationPage(tk.Frame):
             self.selected_timeline_event_id = ""
 
         for index, event in enumerate(self.visible_events):
+            if event.get("_draft_event"):
+                self.timeline_list.insert("end", "New event (unsaved)")
+                self.timeline_list.itemconfigure(
+                    index,
+                    background=PRIMARY_SOFT,
+                )
+
+                if (
+                    str(event.get("event_id", "") or "")
+                    == self.selected_timeline_event_id
+                ):
+                    self.timeline_list.selection_set(index)
+                    self.timeline_list.see(index)
+
+                continue
+
             date_text = str(event.get("date", "") or "nd.")
             source_text = ""
 
@@ -1025,13 +1058,26 @@ class LocationPage(tk.Frame):
             self.timeline_remove_button.set_enabled(False)
             return
 
+        if event.get("_draft_event"):
+            self.show_event_editor()
+
+            if not self.event_editor.is_new_event():
+                self.event_editor.start_new(
+                    context="location",
+                    default_location_ids=(self.current_location_id,),
+                    locked_location_ids=(self.current_location_id,),
+                    hide_locations=True,
+                )
+
+            self.event_editor.ensure_new_event_editable()
+            self.timeline_edit_button.set_enabled(False)
+            self.timeline_remove_button.set_enabled(False)
+            return
+
         self.show_event_editor()
         can_edit = bool(
-            event.get("event_kind") == "global"
-            or (
-                event.get("event_kind") == "location"
-                and not event.get("propagation_distance", 0)
-            )
+            event.get("event_kind") in ("global", "location")
+            and not event.get("propagation_distance", 0)
         )
         self.timeline_edit_button.set_enabled(can_edit)
         self.timeline_remove_button.set_enabled(can_edit)
@@ -1181,6 +1227,7 @@ class LocationPage(tk.Frame):
 
     def clear_form(self, parent_location_id="", creating=False):
         self.current_location_id = None
+        self.draft_event = None
         self.creating_location = bool(creating)
         self.loaded_parent_location_id = ""
         self.editor_heading_value.set(
@@ -1314,21 +1361,24 @@ class LocationPage(tk.Frame):
             self.status_command("The event collection is unavailable.")
             return
 
-        self.selected_timeline_event_id = ""
-        self.timeline_list.selection_clear(0, "end")
+        self.draft_event = {
+            "event_id": NEW_EVENT_DRAFT_ID,
+            "event_type": "other",
+            "title": "New event",
+            "date": "",
+            "note": "",
+            "event_kind": "global",
+            "origin_location_id": self.current_location_id,
+            "_location_id": self.current_location_id,
+            "_draft_event": True,
+        }
+        self.selected_timeline_event_id = NEW_EVENT_DRAFT_ID
         self.reset_event_remove_confirmation()
-        self.event_editor.start_new(
-            context="location",
-            default_location_ids=(self.current_location_id,),
-            locked_location_ids=(self.current_location_id,),
-            hide_locations=True,
-        )
-        self.show_event_editor()
+        self.refresh_timeline()
         self.event_editor.ensure_new_event_editable()
-        self.timeline_edit_button.set_enabled(False)
-        self.timeline_remove_button.set_enabled(False)
 
     def shared_event_saved(self, event):
+        self.draft_event = None
         self.selected_timeline_event_id = str(
             event.get("record_id", "") or ""
         )
@@ -1352,11 +1402,6 @@ class LocationPage(tk.Frame):
         return True
 
     def selected_timeline_event(self):
-        selected = self.timeline_list.curselection()
-
-        if selected:
-            return self.visible_events[selected[0]]
-
         for event in self.visible_events:
             if (
                 str(event.get("event_id", "") or "")
@@ -1364,15 +1409,38 @@ class LocationPage(tk.Frame):
             ):
                 return event
 
+        selected = self.timeline_list.curselection()
+
+        if selected and selected[0] < len(self.visible_events):
+            selected_event = self.visible_events[selected[0]]
+            self.selected_timeline_event_id = str(
+                selected_event.get("event_id", "") or ""
+            )
+            return selected_event
+
         return None
 
-    def edit_event(self):
+    def edit_event(self, event=None):
         event = self.selected_timeline_event()
 
         if event is None:
             return
 
+        if event.get("_draft_event"):
+            self.show_event_editor()
+            self.event_editor.ensure_new_event_editable()
+            return
+
+        can_edit = bool(
+            event.get("event_kind") in ("global", "location")
+            and not event.get("propagation_distance", 0)
+        )
+
+        if not can_edit:
+            return
+
         self.update_timeline_details()
+        self.event_editor.begin_edit()
         self.event_editor.canvas.yview_moveto(0)
 
     def save_event_editor(self, values, storage_kind, original_event):
@@ -1448,6 +1516,16 @@ class LocationPage(tk.Frame):
         return saved_event
 
     def cancel_event_editor(self):
+        if (
+            self.draft_event is not None
+            or self.event_editor.is_new_event()
+        ):
+            self.draft_event = None
+            self.selected_timeline_event_id = ""
+            self.timeline_list.selection_clear(0, "end")
+            self.refresh_timeline()
+            return
+
         self.update_timeline_details()
 
     def save_edited_event(self, values):
@@ -1470,6 +1548,10 @@ class LocationPage(tk.Frame):
 
     def remove_event(self):
         event = self.selected_timeline_event()
+
+        if event and event.get("_draft_event"):
+            self.cancel_event_editor()
+            return
 
         if event is None:
             return

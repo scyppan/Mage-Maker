@@ -29,6 +29,9 @@ from mage_maker.ui.widgets import (
 )
 
 
+NEW_EVENT_DRAFT_ID = "__new-event-draft__"
+
+
 def split_editor_date(value):
     date_text = str(value or "").strip()
 
@@ -758,7 +761,6 @@ class EventEditor(tk.Frame):
         self.clear_feedback()
         self.update_period_display()
         self.canvas.yview_moveto(0)
-        self.after_idle(self.ensure_new_event_editable)
 
     def is_new_event(self):
         return self.editor_mode == "new" and not self.read_only
@@ -770,6 +772,30 @@ class EventEditor(tk.Frame):
         self.set_controls_enabled(True)
         self.title_field.control.focus_set()
         return True
+
+    def begin_edit(self):
+        if (
+            not self.event
+            or self.read_only
+            or self.editor_mode not in ("view", "edit")
+        ):
+            return False
+
+        self.editor_mode = "edit"
+        self.heading_value.set("Edit event")
+        self.explanation_value.set(
+            "Changes saved here update this event everywhere it appears."
+        )
+        self.set_controls_enabled(True)
+        self.type_picker.set_enabled(not self.lock_type)
+        self.title_field.control.focus_set()
+        return True
+
+    def ensure_loaded_event_editable(self):
+        if not self.event or self.read_only:
+            return False
+
+        return self.begin_edit()
 
     def load_event(
         self,
@@ -787,25 +813,17 @@ class EventEditor(tk.Frame):
         self.storage_kind = str(storage_kind or "shared")
         self.context = str(context or self.context or "period")
         self.read_only = bool(read_only)
-        self.editor_mode = (
-            "view"
-            if self.read_only
-            else "edit"
-        )
+        self.editor_mode = "view"
         self.lock_type = bool(
             self.event.get("automatic_source")
         )
-        self.heading_value.set(
-            "Event details"
-            if self.read_only
-            else "Edit event"
-        )
+        self.heading_value.set("Event details")
         self.explanation_value.set(
             explanation
             or (
                 "This event is generated from its source record."
                 if self.read_only
-                else "Changes saved here update this event everywhere it appears."
+                else "Click Edit to change this event."
             )
         )
         self.title_value.set(self.loaded_title())
@@ -842,10 +860,7 @@ class EventEditor(tk.Frame):
             or locked_location_ids,
         )
         self.show_locations(not hide_locations)
-        self.set_controls_enabled(not self.read_only)
-        self.type_picker.set_enabled(
-            not self.read_only and not self.lock_type
-        )
+        self.set_controls_enabled(False)
         self.clear_feedback()
         self.update_period_display()
         self.canvas.yview_moveto(0)
