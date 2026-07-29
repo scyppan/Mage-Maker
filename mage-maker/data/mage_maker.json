@@ -2,7 +2,7 @@
   "_database": {
     "schema_version": 9,
     "database_version": "0.9.0",
-    "last_saved": "2026-07-24T06:26:38.969345+00:00"
+    "last_saved": "2026-07-25T03:53:57.480193+00:00"
   },
   "people": [
     {
@@ -980,9 +980,9 @@
     }
   ],
   "_recent_people": [
-    "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
     "6cea2c79-66b4-4018-88f1-6238ad15ebd7",
     "6882e7fb-529a-4b3e-8929-a795b91b816d",
+    "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
     "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
   ],
   "_recent_locations": [
