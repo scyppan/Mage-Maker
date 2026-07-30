@@ -3,6 +3,12 @@ from copy import deepcopy
 from functools import partial
 from tkinter import messagebox
 
+from mage_maker.sections.development.initial_values import (
+    PARENT_MAGIC_STATE_NON_MAGICAL,
+    allowed_parent_magic_states,
+    parent_candidate_explanation,
+    person_magic_state,
+)
 from mage_maker.sections.family_tree.child_dialog import AddChildDialog
 from mage_maker.sections.family_tree.relationships import (
     FamilyRelationshipMap,
@@ -963,7 +969,12 @@ class FamilyTreeView(tk.Frame):
             heading=f"Select {role_label}",
             explanation=(
                 f"Choose an existing {role_label}, or use Enter new for a "
-                "name-only character entry."
+                "name-only character entry.\n"
+                + parent_candidate_explanation(
+                    self.current_person,
+                    self.people,
+                    parent_role,
+                )
             ),
             primary_people=primary_candidates,
             alternate_people=alternate_candidates,
@@ -980,6 +991,23 @@ class FamilyTreeView(tk.Frame):
         )
 
     def set_parent(self, parent_role, record_id, change_birth_assignment=False):
+        selected_parent = self.relationship_map.person(record_id)
+
+        if selected_parent is None:
+            raise ValueError("The selected parent no longer exists.")
+
+        allowed_magic_states = allowed_parent_magic_states(
+            self.current_person,
+            self.people,
+            parent_role,
+        )
+
+        if person_magic_state(selected_parent) not in allowed_magic_states:
+            raise ValueError(
+                "The selected parent's magical status is incompatible "
+                "with this individual's blood status."
+            )
+
         if change_birth_assignment:
             self.update_person_command(
                 record_id,
@@ -997,10 +1025,18 @@ class FamilyTreeView(tk.Frame):
         self.change_command()
 
     def create_parent(self, parent_role, displayed_name):
+        allowed_magic_states = allowed_parent_magic_states(
+            self.current_person,
+            self.people,
+            parent_role,
+        )
         created_person = self.create_person_command(
             {
                 "displayed_name": displayed_name,
                 "can_give_birth": parent_role == "mother",
+                "non_magical": allowed_magic_states == (
+                    PARENT_MAGIC_STATE_NON_MAGICAL,
+                ),
             }
         )
         self.set_parent(parent_role, created_person["record_id"])

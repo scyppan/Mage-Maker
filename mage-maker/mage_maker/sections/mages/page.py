@@ -450,6 +450,10 @@ class MagesPage(tk.Frame):
             return
 
         self.form_dirty = True
+        self.people_list.set_initial_values_status(
+            self.current_record_id,
+            self.person_form.development.initial_values_complete(),
+        )
         self.update_editor_identity_from_form()
         self.save_button.set_enabled(True)
         self.revert_button.set_enabled(True)

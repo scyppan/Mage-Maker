@@ -229,7 +229,6 @@ class PersonForm(tk.Frame):
             sticky="ew",
             pady=(0, 10),
         )
-        school_summary.grid_columnconfigure(1, weight=1)
         school_label = tk.Label(
             school_summary,
             text="School",
@@ -244,43 +243,140 @@ class PersonForm(tk.Frame):
             sticky="w",
             padx=(0, 9),
         )
+        school_value_controls = tk.Frame(
+            school_summary,
+            bg=SURFACE_MUTED,
+        )
+        school_value_controls.grid(
+            row=0,
+            column=1,
+            sticky="w",
+        )
         self.school_summary_value = tk.StringVar(
-            value="None selected"
+            value="none"
         )
         school_value = tk.Label(
-            school_summary,
+            school_value_controls,
             textvariable=self.school_summary_value,
-            bg=FIELD_BACKGROUND,
+            bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(10),
             anchor="w",
-            padx=10,
-            highlightbackground=BORDER,
-            highlightthickness=1,
         )
-        school_value.grid(
-            row=0,
-            column=1,
-            sticky="ew",
-            ipady=8,
-            padx=(0, 8),
-        )
+        school_value.pack(side="left")
         change_school_button = SoftButton(
-            school_summary,
+            school_value_controls,
             text="Change school",
             command=self.open_school_editor,
             background=SURFACE_MUTED,
             width=116,
             height=36,
         )
-        change_school_button.grid(
+        change_school_button.pack(
+            side="left",
+            padx=(8, 0),
+        )
+
+        development_summary = tk.Frame(
+            identity_panel.content,
+            bg=SURFACE_MUTED,
+        )
+        development_summary.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(0, 10),
+        )
+        development_summary.grid_columnconfigure(
+            (0, 1),
+            weight=1,
+            uniform="development_summary",
+        )
+        school_year_block = tk.Frame(
+            development_summary,
+            bg=SURFACE_MUTED,
+        )
+        school_year_block.grid(
             row=0,
-            column=2,
-            sticky="e",
+            column=0,
+            sticky="ew",
+            padx=(0, 8),
+        )
+        school_year_label = tk.Label(
+            school_year_block,
+            text="School year",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        school_year_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        self.school_year_summary_value = tk.StringVar(
+            value="Not yet started school"
+        )
+        school_year_value = tk.Label(
+            school_year_block,
+            textvariable=self.school_year_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10),
+            anchor="w",
+        )
+        school_year_value.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(4, 0),
+        )
+        allowance_block = tk.Frame(
+            development_summary,
+            bg=SURFACE_MUTED,
+        )
+        allowance_block.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(8, 0),
+        )
+        allowance_label = tk.Label(
+            allowance_block,
+            text="Monthly allowance",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        allowance_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        self.allowance_summary_value = tk.StringVar(
+            value="Not assigned"
+        )
+        allowance_value = tk.Label(
+            allowance_block,
+            textvariable=self.allowance_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10),
+            anchor="w",
+            justify="left",
+            wraplength=300,
+        )
+        allowance_value.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(4, 0),
         )
 
         birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        birth_frame.grid(row=2, column=0, sticky="ew", pady=(0, 9))
+        birth_frame.grid(row=3, column=0, sticky="ew", pady=(0, 9))
         birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
         birth_heading = tk.Label(
             birth_frame,
@@ -341,14 +437,14 @@ class PersonForm(tk.Frame):
             borderwidth=0,
             highlightthickness=0,
         )
-        deceased_check.grid(row=3, column=0, sticky="w", pady=(0, 7))
+        deceased_check.grid(row=4, column=0, sticky="w", pady=(0, 7))
         self.boolean_widgets["deceased"] = deceased_check
 
         self.death_date_frame = tk.Frame(
             identity_panel.content,
             bg=SURFACE_MUTED,
         )
-        self.death_date_frame.grid(row=4, column=0, sticky="ew", pady=(0, 9))
+        self.death_date_frame.grid(row=5, column=0, sticky="ew", pady=(0, 9))
         self.death_date_frame.grid_columnconfigure((0, 1, 2), weight=1)
         death_heading = tk.Label(
             self.death_date_frame,
@@ -415,23 +511,17 @@ class PersonForm(tk.Frame):
             padx=(0, 7),
         )
         classifications_panel.content.grid_columnconfigure((0, 1), weight=1)
-        self.add_boolean_fields(
-            classifications_panel.content,
-            self.status_fields,
-            2,
-            SURFACE_MUTED,
-        )
 
         group_block = tk.Frame(
             classifications_panel.content,
             bg=SURFACE_MUTED,
         )
         group_block.grid(
-            row=2,
-            column=1,
+            row=0,
+            column=0,
+            columnspan=2,
             sticky="ew",
-            padx=(0, 12),
-            pady=2,
+            pady=(0, 8),
         )
         group_block.grid_columnconfigure(1, weight=1)
         group_label = tk.Label(
@@ -463,6 +553,14 @@ class PersonForm(tk.Frame):
             sticky="ew",
         )
 
+        self.add_boolean_fields(
+            classifications_panel.content,
+            self.status_fields,
+            2,
+            SURFACE_MUTED,
+            start_row=1,
+        )
+
         self.imported_count_value = tk.StringVar(value="")
         imported_label = tk.Label(
             classifications_panel.content,
@@ -475,7 +573,7 @@ class PersonForm(tk.Frame):
             wraplength=500,
         )
         imported_label.grid(
-            row=3,
+            row=4,
             column=0,
             columnspan=2,
             sticky="ew",
@@ -562,6 +660,7 @@ class PersonForm(tk.Frame):
             self.content,
             self.game_database,
             self.development_changed,
+            self.people_provider,
         )
         page.grid(row=0, column=0, sticky="nsew")
         self.development = page
@@ -671,6 +770,15 @@ class PersonForm(tk.Frame):
                 self.variables["birth_month"].get(),
                 self.variables["birth_day"].get(),
             )
+            parental_values_initialized = (
+                self.development.activate()
+            )
+
+            if parental_values_initialized:
+                self.development_changed()
+
+                if self.loading:
+                    self.after_idle(self.change_command)
 
         self.pages[page_name].tkraise()
 
@@ -681,12 +789,17 @@ class PersonForm(tk.Frame):
                 button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
 
     def open_school_editor(self):
-        self.show_page("development")
-        self.after_idle(self.development.focus_school)
+        self.development.focus_school()
 
     def update_school_summary(self):
         self.school_summary_value.set(
             self.development.school_display_text()
+        )
+        self.school_year_summary_value.set(
+            self.development.school_progress_display_text()
+        )
+        self.allowance_summary_value.set(
+            self.development.monthly_allowance_text()
         )
 
     def open_name_details(self):
@@ -1038,10 +1151,24 @@ class PersonForm(tk.Frame):
             "death_year": self.variables["death_year"].get(),
             "death_month": self.variables["death_month"].get(),
             "death_day": self.variables["death_day"].get(),
+            "non_magical": self.variables["non_magical"].get(),
             "can_give_birth": self.variables["can_give_birth"].get(),
             "famous_person": self.variables["famous_person"].get(),
             "mage_group_id": self.selected_mage_group_id(),
             "school": development_values["school"],
+            "blood_status": development_values["blood_status"],
+            "developmental_environment": development_values[
+                "developmental_environment"
+            ],
+            "parental_values": deepcopy(
+                development_values["parental_values"]
+            ),
+            "initial_bonuses": deepcopy(
+                development_values["initial_bonuses"]
+            ),
+            "characteristics": deepcopy(
+                development_values["characteristics"]
+            ),
             "development_plan": development_values[
                 "development_plan"
             ],
@@ -1067,6 +1194,9 @@ class PersonForm(tk.Frame):
         return values
 
     def family_tree_changed(self):
+        self.development.set_parentage(
+            self.family_tree.get_relationship_values()
+        )
         self.update_can_give_birth_control()
         self.update_famous_connections()
 
@@ -1079,6 +1209,11 @@ class PersonForm(tk.Frame):
 
     def development_changed(self):
         self.update_school_summary()
+
+        if self.current_record_id:
+            self.family_tree.update_current_person(
+                self.current_profile_values()
+            )
 
         if not self.loading:
             self.change_command()

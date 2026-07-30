@@ -12,6 +12,21 @@ from mage_maker.sections.development.models import (
     normalize_development_assignment_policy,
     normalize_development_plan,
 )
+from mage_maker.sections.development.initial_bonuses import (
+    normalize_initial_bonuses,
+)
+from mage_maker.sections.development.characteristics import (
+    normalize_characteristics,
+)
+from mage_maker.sections.development.initial_values import (
+    legacy_developmental_environment,
+    normalize_blood_status,
+    normalize_developmental_environment,
+    normalize_parental_values,
+    require_blood_status_compatible,
+    resolved_blood_status,
+    resolved_developmental_environment,
+)
 from mage_maker.sections.names.history import migrate_legacy_name_details
 from mage_maker.sections.family_tree.spouse_relationships import (
     merge_mate_ids,
@@ -70,7 +85,7 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version >= 12:
+        if not isinstance(schema_version, int) or schema_version >= 16:
             return False
 
         migrated = False
@@ -448,8 +463,103 @@ class JsonDatabase:
             schema_version = 12
             migrated = True
 
-        metadata["schema_version"] = 12
-        metadata["database_version"] = "0.12.0"
+        if schema_version < 13:
+            people = [
+                person
+                for person in database_data.get("people", [])
+                if isinstance(person, dict)
+            ]
+
+            for person in people:
+                legacy_blood_status = person.get("blood_status")
+                person["developmental_environment"] = (
+                    person.get("developmental_environment")
+                    or legacy_developmental_environment(
+                        legacy_blood_status
+                    )
+                )
+                person["blood_status"] = resolved_blood_status(
+                    person,
+                    people,
+                )
+
+            schema_version = 13
+            migrated = True
+
+        if schema_version < 14:
+            people = [
+                person
+                for person in database_data.get("people", [])
+                if isinstance(person, dict)
+            ]
+
+            for person in people:
+                legacy_blood_status = person.get("blood_status")
+                person["blood_status"] = resolved_blood_status(
+                    person,
+                    people,
+                )
+                person["developmental_environment"] = (
+                    normalize_developmental_environment(
+                        (
+                            person.get("developmental_environment")
+                            or legacy_developmental_environment(
+                                legacy_blood_status
+                            )
+                        ),
+                        person["blood_status"],
+                    )
+                )
+                person["parental_values"] = normalize_parental_values(
+                    person.get("parental_values")
+                )
+
+            schema_version = 14
+            migrated = True
+
+        if schema_version < 15:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["initial_bonuses"] = normalize_initial_bonuses(
+                    person.get("initial_bonuses")
+                )
+
+            schema_version = 15
+            migrated = True
+
+        if schema_version < 16:
+            settings = database_data.get(
+                "_application_settings",
+                {},
+            )
+            assignment_policy = normalize_development_assignment_policy(
+                settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+                if isinstance(settings, dict)
+                else None
+            )
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = migrated_development_plan(
+                    person.get("development_plan"),
+                    assignment_policy,
+                    person.get("record_id"),
+                )
+                person["characteristics"] = (
+                    normalize_characteristics(
+                        person.get("characteristics")
+                    )
+                )
+
+            schema_version = 16
+            migrated = True
+
+        metadata["schema_version"] = 16
+        metadata["database_version"] = "0.16.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -521,6 +631,74 @@ class JsonDatabase:
             require_mage_group_id(
                 person.get("mage_group_id"),
                 mage_groups,
+            )
+            normalized_blood_status = normalize_blood_status(
+                person.get("blood_status")
+            )
+
+            if person.get("blood_status") != normalized_blood_status:
+                raise ValueError(
+                    "Blood status must use its canonical stored value."
+                )
+
+            normalized_environment = (
+                normalize_developmental_environment(
+                    person.get("developmental_environment"),
+                    normalized_blood_status,
+                )
+            )
+
+            if (
+                person.get("developmental_environment", "")
+                != normalized_environment
+            ):
+                raise ValueError(
+                    "Developmental environment must use its canonical "
+                    "stored value."
+                )
+
+            normalized_parental_values = normalize_parental_values(
+                person.get("parental_values")
+            )
+
+            if (
+                person.get("parental_values")
+                != normalized_parental_values
+            ):
+                raise ValueError(
+                    "Parental values must use their canonical stored "
+                    "structure."
+                )
+
+            normalized_initial_bonuses = normalize_initial_bonuses(
+                person.get("initial_bonuses")
+            )
+
+            if (
+                person.get("initial_bonuses")
+                != normalized_initial_bonuses
+            ):
+                raise ValueError(
+                    "Initial bonuses must use their canonical stored "
+                    "structure."
+                )
+
+            normalized_characteristics = normalize_characteristics(
+                person.get("characteristics")
+            )
+
+            if (
+                person.get("characteristics")
+                != normalized_characteristics
+            ):
+                raise ValueError(
+                    "Characteristics must use their canonical stored "
+                    "structure."
+                )
+
+            require_blood_status_compatible(
+                person,
+                database_data["people"],
             )
 
             for field_name in ("biological_mother_id", "biological_father_id"):
@@ -622,6 +800,39 @@ class JsonDatabase:
             person.get("mage_group_id"),
             mage_groups,
         )
+        requested_blood_status = person.get("blood_status")
+        person["blood_status"] = (
+            normalize_blood_status(person["blood_status"])
+            if person.get("blood_status")
+            else resolved_blood_status(
+                person,
+                self.data["people"],
+            )
+        )
+        person["developmental_environment"] = (
+            normalize_developmental_environment(
+                (
+                    person.get("developmental_environment")
+                    or legacy_developmental_environment(
+                        requested_blood_status
+                    )
+                ),
+                person["blood_status"],
+            )
+        )
+        person["parental_values"] = normalize_parental_values(
+            person.get("parental_values")
+        )
+        person["initial_bonuses"] = normalize_initial_bonuses(
+            person.get("initial_bonuses")
+        )
+        person["characteristics"] = normalize_characteristics(
+            person.get("characteristics")
+        )
+        require_blood_status_compatible(
+            person,
+            self.data["people"],
+        )
 
         if self.read_person(person["record_id"]) is not None:
             raise ValueError(f"Duplicate person record_id: {person['record_id']}")
@@ -666,6 +877,38 @@ class JsonDatabase:
                     mage_groups,
                 )
             )
+            prospective_person["blood_status"] = (
+                normalize_blood_status(
+                    prospective_person.get("blood_status")
+                )
+            )
+            prospective_person["developmental_environment"] = (
+                normalize_developmental_environment(
+                    prospective_person.get(
+                        "developmental_environment"
+                    ),
+                    prospective_person["blood_status"],
+                )
+            )
+            prospective_person["parental_values"] = (
+                normalize_parental_values(
+                    prospective_person.get("parental_values")
+                )
+            )
+            prospective_person["initial_bonuses"] = (
+                normalize_initial_bonuses(
+                    prospective_person.get("initial_bonuses")
+                )
+            )
+            prospective_person["characteristics"] = (
+                normalize_characteristics(
+                    prospective_person.get("characteristics")
+                )
+            )
+            require_blood_status_compatible(
+                prospective_person,
+                self.data["people"],
+            )
             self.ensure_unique_displayed_name(
                 prospective_person.get("displayed_name"),
                 excluded_record_id=record_id,
@@ -677,6 +920,21 @@ class JsonDatabase:
             person["mage_group_id"] = prospective_person[
                 "mage_group_id"
             ]
+            person["blood_status"] = prospective_person[
+                "blood_status"
+            ]
+            person["developmental_environment"] = (
+                prospective_person["developmental_environment"]
+            )
+            person["parental_values"] = deepcopy(
+                prospective_person["parental_values"]
+            )
+            person["initial_bonuses"] = deepcopy(
+                prospective_person["initial_bonuses"]
+            )
+            person["characteristics"] = deepcopy(
+                prospective_person["characteristics"]
+            )
             person["last_updated"] = datetime.now(timezone.utc).isoformat()
             self.dirty = True
 
@@ -711,9 +969,15 @@ class JsonDatabase:
             for related_person in self.data["people"]:
                 if related_person.get("biological_mother_id") == record_id:
                     related_person["biological_mother_id"] = ""
+                    related_person[
+                        "biological_mother_status"
+                    ] = "unknown"
 
                 if related_person.get("biological_father_id") == record_id:
                     related_person["biological_father_id"] = ""
+                    related_person[
+                        "biological_father_status"
+                    ] = "unknown"
 
                 related_person["mate_ids"] = [
                     mate_id

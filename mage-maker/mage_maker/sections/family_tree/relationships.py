@@ -1,6 +1,11 @@
 from copy import deepcopy
 
 from mage_maker.core.dates import is_at_least_age
+from mage_maker.sections.development.initial_values import (
+    allowed_parent_magic_states,
+    blood_status_is_compatible,
+    person_magic_state,
+)
 
 
 class FamilyRelationshipMap:
@@ -166,6 +171,11 @@ class FamilyRelationshipMap:
             required_birth_capability = not required_birth_capability
             excluded_ids.update(self.assigned_parent_ids(other_parent_role))
 
+        allowed_magic_states = allowed_parent_magic_states(
+            focus,
+            self.people_by_id.values(),
+            parent_role,
+        )
         candidates = []
 
         for person in self.people_by_id.values():
@@ -175,6 +185,9 @@ class FamilyRelationshipMap:
                 continue
 
             if bool(person.get("can_give_birth")) != required_birth_capability:
+                continue
+
+            if person_magic_state(person) not in allowed_magic_states:
                 continue
 
             if alternate_role and self.mates_of(record_id):
@@ -252,7 +265,13 @@ class FamilyRelationshipMap:
         children.sort(key=person_name_sort_key)
         return children
 
-    def child_candidates(self, focus_id, other_parent_id="", minimum_age_gap=18):
+    def child_candidates(
+        self,
+        focus_id,
+        other_parent_id="",
+        minimum_age_gap=18,
+        other_parent_status="unknown",
+    ):
         focus_id = str(focus_id or "")
         other_parent_id = str(other_parent_id or "")
         parent_ids = self.unique_ids((focus_id, other_parent_id))
@@ -270,6 +289,23 @@ class FamilyRelationshipMap:
         if minimum_child_birth_year is None:
             return []
 
+        focus = self.person(focus_id)
+
+        if focus is None:
+            return []
+
+        focus_is_birthing_parent = bool(
+            focus.get("can_give_birth")
+        )
+        current_parent_role = (
+            "mother" if focus_is_birthing_parent else "father"
+        )
+        other_parent_role = (
+            "father" if focus_is_birthing_parent else "mother"
+        )
+        normalized_other_status = str(
+            other_parent_status or "unknown"
+        ).strip().casefold()
         candidates = []
 
         for person in self.people_by_id.values():
@@ -281,6 +317,34 @@ class FamilyRelationshipMap:
             birth_year = self.integer_year(person.get("birth_year"))
 
             if birth_year is None or birth_year < minimum_child_birth_year:
+                continue
+
+            prospective_child = deepcopy(person)
+            prospective_child[
+                f"biological_{current_parent_role}_id"
+            ] = focus_id
+            prospective_child[
+                f"biological_{current_parent_role}_status"
+            ] = "person"
+            prospective_child[
+                f"biological_{other_parent_role}_id"
+            ] = other_parent_id
+            prospective_child[
+                f"biological_{other_parent_role}_status"
+            ] = (
+                "person"
+                if other_parent_id
+                else (
+                    "muggle"
+                    if normalized_other_status == "muggle"
+                    else "unknown"
+                )
+            )
+
+            if not blood_status_is_compatible(
+                prospective_child,
+                self.people_by_id.values(),
+            ):
                 continue
 
             candidates.append(person)

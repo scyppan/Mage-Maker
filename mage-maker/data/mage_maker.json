@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 11,
-    "database_version": "0.11.0",
-    "last_saved": "2026-07-29T13:46:04.938806+00:00"
+    "schema_version": 16,
+    "database_version": "0.16.0",
+    "last_saved": "2026-07-30T13:13:56.145647+00:00"
   },
   "people": [
     {
@@ -80,20 +80,45 @@
       "imported_fields": {},
       "record_id": "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
       "created_at": "2026-07-22T13:11:28.910114+00:00",
-      "last_updated": "2026-07-23T00:46:29.828669+00:00",
+      "last_updated": "2026-07-30T11:14:01.623856+00:00",
       "death_year": null,
       "death_month": null,
       "death_day": null,
       "famous_person": true,
       "development_plan": {
-        "schema": "Three skills",
+        "schema": "Ability-focus",
         "academic_years_advanced": 0,
-        "focused_skills": [
-          "Social skills",
-          "Transfiguration",
-          "Alchemy"
-        ]
-      }
+        "focused_ability": "Power",
+        "school_started": false
+      },
+      "mage_group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 4,
+          "permissiveness": 4,
+          "wealth": 3
+        },
+        "generosity": 4,
+        "permissiveness": 4,
+        "wealth": 3
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "manual",
+        "trait_selection_mode": "automatic",
+        "skill_bonuses": [
+          "Charms",
+          "Defense",
+          "Defense"
+        ],
+        "traits": []
+      },
+      "characteristics": null
     },
     {
       "displayed_name": "Maeve",
@@ -203,17 +228,60 @@
       "imported_fields": {},
       "record_id": "6cea2c79-66b4-4018-88f1-6238ad15ebd7",
       "created_at": "2026-07-22T13:12:34.505848+00:00",
-      "last_updated": "2026-07-24T05:19:54.378105+00:00",
+      "last_updated": "2026-07-30T12:43:55.450949+00:00",
       "death_year": 998,
       "death_month": null,
       "death_day": null,
       "famous_person": true,
       "development_plan": {
-        "schema": "One skill",
-        "academic_years_advanced": 0,
+        "schema": "Three skills",
+        "academic_years_advanced": 7,
         "focused_skills": [
-          "Artificing"
+          "Herbology",
+          "Charms",
+          "Potions"
+        ],
+        "school_started": true
+      },
+      "mage_group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
+      "blood_status": "Halfblood",
+      "developmental_environment": "Magical",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 1,
+          "permissiveness": 7,
+          "wealth": 9
+        },
+        "generosity": 1,
+        "permissiveness": 7,
+        "wealth": 9
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "automatic",
+        "trait_selection_mode": "manual",
+        "skill_bonuses": [
+          "Charms",
+          "Potions"
+        ],
+        "traits": [
+          "Green thumb",
+          "Supportive"
         ]
+      },
+      "characteristics": {
+        "creativity": 2,
+        "equanimity": 2,
+        "charisma": 2,
+        "attractiveness": 2,
+        "strength": 2,
+        "agility": 1,
+        "intellect": 3,
+        "willpower": 2,
+        "fortitude": 1
       }
     },
     {
@@ -273,15 +341,22 @@
       "imported_fields": {},
       "record_id": "6882e7fb-529a-4b3e-8929-a795b91b816d",
       "created_at": "2026-07-22T23:31:51.093967+00:00",
-      "last_updated": "2026-07-23T00:46:32.692703+00:00",
+      "last_updated": "2026-07-30T00:22:33.455548+00:00",
       "death_year": null,
       "death_month": null,
       "death_day": null,
       "famous_person": true,
       "development_plan": {
-        "schema": "Crafting",
-        "academic_years_advanced": 0
-      }
+        "schema": "Material Crafting",
+        "academic_years_advanced": 0,
+        "school_started": false
+      },
+      "mage_group_id": "8be79aba-4950-4a79-b057-e2305718050a",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": null,
+      "initial_bonuses": null,
+      "characteristics": null
     },
     {
       "displayed_name": "Cyneburga Gryffindor",
@@ -340,7 +415,7 @@
       "imported_fields": {},
       "record_id": "ccde7cef-2aff-4be4-974f-c72ffe652c71",
       "created_at": "2026-07-22T23:53:53.103383+00:00",
-      "last_updated": "2026-07-23T03:34:42.046432+00:00",
+      "last_updated": "2026-07-30T00:23:45.658669+00:00",
       "death_year": null,
       "death_month": null,
       "death_day": null,
@@ -350,8 +425,15 @@
         "academic_years_advanced": 0,
         "focused_skills": [
           "Muggles"
-        ]
-      }
+        ],
+        "school_started": false
+      },
+      "mage_group_id": "e2c6cfba-f7b5-4136-aea7-08a21cc44983",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": null,
+      "initial_bonuses": null,
+      "characteristics": null
     },
     {
       "displayed_name": "Fingal the Fearless",
@@ -432,11 +514,33 @@
       "imported_fields": {},
       "record_id": "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
       "created_at": "2026-07-24T05:59:46.265573+00:00",
-      "last_updated": "2026-07-24T06:21:33.660595+00:00",
+      "last_updated": "2026-07-30T03:58:40.650936+00:00",
       "development_plan": {
-        "schema": "Scattershot",
-        "academic_years_advanced": 0
-      }
+        "schema": "One skill",
+        "academic_years_advanced": 0,
+        "focused_skills": [
+          "Flying"
+        ],
+        "school_started": false
+      },
+      "mage_group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 8,
+          "permissiveness": 1,
+          "wealth": 1
+        },
+        "generosity": 8,
+        "permissiveness": 1,
+        "wealth": 1
+      },
+      "initial_bonuses": null,
+      "characteristics": null
     }
   ],
   "locations": [
@@ -1013,8 +1117,9 @@
   "_recent_people": [
     "6cea2c79-66b4-4018-88f1-6238ad15ebd7",
     "6882e7fb-529a-4b3e-8929-a795b91b816d",
+    "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
     "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
-    "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+    "ccde7cef-2aff-4be4-974f-c72ffe652c71"
   ],
   "_recent_locations": [
     "0300c4fa-288e-4ceb-80b4-b92228694602",
@@ -1037,6 +1142,48 @@
     ]
   },
   "_application_settings": {
-    "development_strategy_assignment": "random"
+    "development_strategy_assignment": "random",
+    "mage_groups": [
+      {
+        "group_id": "unassigned",
+        "name": "Unassigned",
+        "color": "#6A586D"
+      },
+      {
+        "group_id": "e755e865-3a86-4e4d-9158-0a8560c5abaa",
+        "name": "Non-Canonical Historical Figures",
+        "color": "#2F6F8F"
+      },
+      {
+        "group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
+        "name": "Canonical Historical Figures",
+        "color": "#3F7D58"
+      },
+      {
+        "group_id": "8be79aba-4950-4a79-b057-e2305718050a",
+        "name": "Inferred from Canon",
+        "color": "#A05A2C"
+      },
+      {
+        "group_id": "e2c6cfba-f7b5-4136-aea7-08a21cc44983",
+        "name": "Geneological",
+        "color": "#C0C0C0"
+      },
+      {
+        "group_id": "81fe64f2-61e0-4258-8267-ec5837189b5d",
+        "name": "Core",
+        "color": "#FF0202"
+      },
+      {
+        "group_id": "db7f65f9-f59a-4d78-9c9c-66f24466a824",
+        "name": "Charms Check NPC",
+        "color": "#C6C471"
+      },
+      {
+        "group_id": "11be47fc-d743-4c5c-92ff-db5e0c6e0cbb",
+        "name": "Charms Check Player Character",
+        "color": "#FBFEC0"
+      }
+    ]
   }
 }

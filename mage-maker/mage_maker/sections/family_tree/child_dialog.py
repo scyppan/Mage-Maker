@@ -725,6 +725,7 @@ class AddChildDialog(tk.Toplevel):
             current_id,
             other_parent_id,
             minimum_age_gap=18,
+            other_parent_status=self.other_parent_kind,
         )
         minimum_child_year = relationship_map.minimum_child_birth_year(
             current_id,

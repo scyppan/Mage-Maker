@@ -7,6 +7,21 @@ from mage_maker.sections.development.models import (
     normalize_development_assignment_policy,
     normalize_development_plan,
 )
+from mage_maker.sections.development.characteristics import (
+    normalize_characteristics,
+)
+from mage_maker.sections.development.initial_bonuses import (
+    normalize_initial_bonuses,
+)
+from mage_maker.sections.development.initial_values import (
+    normalize_blood_status,
+    normalize_developmental_environment,
+    normalize_parental_values,
+    require_blood_status_compatible,
+    resolved_blood_status,
+    resolved_developmental_environment,
+    synchronized_family_parental_values,
+)
 from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap
 from mage_maker.sections.family_tree.spouse_relationships import (
     empty_spouse_relationship,
@@ -52,6 +67,8 @@ class PeopleController:
         "biological_father_id",
         "biological_mother_status",
         "biological_father_status",
+        "blood_status",
+        "developmental_environment",
         "school",
         "mage_group_id",
         "notes",
@@ -239,6 +256,11 @@ class PeopleController:
             "biological_father_id": "",
             "biological_mother_status": "unknown",
             "biological_father_status": "unknown",
+            "blood_status": "",
+            "developmental_environment": "",
+            "parental_values": None,
+            "initial_bonuses": None,
+            "characteristics": None,
             "mate_ids": [],
             "spouse_relationships": [],
             "timeline_events": [],
@@ -258,6 +280,29 @@ class PeopleController:
         normalized = self.normalize_values(defaults)
         normalized = self.reconcile_spouse_fields(normalized)
         normalized = self.canonicalize_parent_states(normalized)
+        normalized["blood_status"] = (
+            normalize_blood_status(normalized["blood_status"])
+            if normalized.get("blood_status")
+            else resolved_blood_status(
+                normalized,
+                self.database.list_people(),
+            )
+        )
+        normalized["developmental_environment"] = (
+            normalize_developmental_environment(
+                normalized.get("developmental_environment"),
+                normalized["blood_status"],
+            )
+        )
+        normalized["parental_values"] = normalize_parental_values(
+            normalized.get("parental_values")
+        )
+        normalized["initial_bonuses"] = normalize_initial_bonuses(
+            normalized.get("initial_bonuses")
+        )
+        normalized["characteristics"] = normalize_characteristics(
+            normalized.get("characteristics")
+        )
         normalize_date_parts(
             normalized.get("birth_year"),
             normalized.get("birth_month"),
@@ -282,6 +327,10 @@ class PeopleController:
             created_person.get("spouse_relationships", []),
         )
         self.synchronize_coparents(created_person)
+        self.synchronize_family_parental_values(
+            created_person,
+            prefer_anchor=True,
+        )
         self.reconcile_child_parent_timelines(created_person, [])
         self.reconcile_child_timeline_events_for_parent(
             created_person["record_id"]
@@ -310,6 +359,25 @@ class PeopleController:
         prospective_person = deepcopy(current_person)
         prospective_person.update(normalized)
         prospective_person = self.canonicalize_parent_states(prospective_person)
+        prospective_person["blood_status"] = normalize_blood_status(
+            prospective_person.get("blood_status")
+        )
+        prospective_person["developmental_environment"] = (
+            normalize_developmental_environment(
+                prospective_person.get("developmental_environment"),
+                prospective_person["blood_status"],
+            )
+        )
+        prospective_person["parental_values"] = (
+            normalize_parental_values(
+                prospective_person.get("parental_values")
+            )
+        )
+        prospective_person["initial_bonuses"] = (
+            normalize_initial_bonuses(
+                prospective_person.get("initial_bonuses")
+            )
+        )
         normalize_date_parts(
             prospective_person.get("birth_year"),
             prospective_person.get("birth_month"),
@@ -332,19 +400,40 @@ class PeopleController:
         normalized["biological_father_status"] = prospective_person[
             "biological_father_status"
         ]
+        normalized["developmental_environment"] = prospective_person[
+            "developmental_environment"
+        ]
+        normalized["parental_values"] = deepcopy(
+            prospective_person["parental_values"]
+        )
+        normalized["initial_bonuses"] = deepcopy(
+            prospective_person["initial_bonuses"]
+        )
         normalized["timeline_events"] = prospective_person["timeline_events"]
         self.validate_values(prospective_person)
         old_spouse_relationships = normalize_spouse_relationships(
             current_person.get("spouse_relationships", [])
         )
         old_parent_ids = self.parent_ids_from_person(current_person)
+        non_magical_changed = bool(
+            current_person.get("non_magical")
+        ) != bool(prospective_person.get("non_magical"))
         updated_person = self.database.update_person(record_id, normalized)
+        if non_magical_changed:
+            self.reconcile_child_blood_statuses(record_id)
         self.synchronize_spouses(
             record_id,
             old_spouse_relationships,
             updated_person.get("spouse_relationships", []),
         )
         self.synchronize_coparents(updated_person)
+        self.synchronize_family_parental_values(
+            updated_person,
+            prefer_anchor=(
+                old_parent_ids
+                != self.parent_ids_from_person(updated_person)
+            ),
+        )
         self.reconcile_child_parent_timelines(updated_person, old_parent_ids)
         self.reconcile_child_timeline_events_for_parent(record_id)
         self.database.save()
@@ -405,6 +494,35 @@ class PeopleController:
         if "development_plan" in normalized:
             normalized["development_plan"] = normalize_development_plan(
                 normalized["development_plan"]
+            )
+
+        if (
+            "blood_status" in normalized
+            and normalized["blood_status"]
+        ):
+            normalized["blood_status"] = normalize_blood_status(
+                normalized["blood_status"]
+            )
+
+        if "parental_values" in normalized:
+            normalized["parental_values"] = (
+                normalize_parental_values(
+                    normalized["parental_values"]
+                )
+            )
+
+        if "initial_bonuses" in normalized:
+            normalized["initial_bonuses"] = (
+                normalize_initial_bonuses(
+                    normalized["initial_bonuses"]
+                )
+            )
+
+        if "characteristics" in normalized:
+            normalized["characteristics"] = (
+                normalize_characteristics(
+                    normalized["characteristics"]
+                )
             )
 
         if "mage_group_id" in normalized:
@@ -523,12 +641,87 @@ class PeopleController:
             "Death",
         )
         normalize_development_plan(values.get("development_plan"))
+        normalize_parental_values(values.get("parental_values"))
+        normalize_initial_bonuses(values.get("initial_bonuses"))
+        normalize_characteristics(values.get("characteristics"))
         require_mage_group_id(
             values.get("mage_group_id"),
             self.list_mage_groups(),
         )
+        require_blood_status_compatible(
+            values,
+            self.database.list_people(),
+        )
 
         self.validate_relationships(values)
+
+    def reconcile_child_blood_statuses(self, parent_id):
+        normalized_parent_id = str(parent_id or "").strip()
+
+        if not normalized_parent_id:
+            return
+
+        people = self.database.list_people()
+
+        for child in people:
+            if normalized_parent_id not in (
+                str(child.get("biological_mother_id", "") or ""),
+                str(child.get("biological_father_id", "") or ""),
+            ):
+                continue
+
+            resolved_status = resolved_blood_status(child, people)
+            resolved_environment = resolved_developmental_environment(
+                {
+                    **child,
+                    "blood_status": resolved_status,
+                },
+                people,
+            )
+
+            if (
+                child.get("blood_status") == resolved_status
+                and child.get("developmental_environment", "")
+                == resolved_environment
+            ):
+                continue
+
+            self.database.update_person(
+                child["record_id"],
+                {
+                    "blood_status": resolved_status,
+                    "developmental_environment": (
+                        resolved_environment
+                    ),
+                },
+            )
+
+    def synchronize_family_parental_values(
+        self,
+        anchor_person,
+        prefer_anchor=False,
+    ):
+        people = self.database.list_people()
+        synchronized_values = synchronized_family_parental_values(
+            anchor_person,
+            people,
+            prefer_anchor=prefer_anchor,
+        )
+
+        for record_id, parental_values in synchronized_values.items():
+            existing_person = self.database.read_person(record_id)
+
+            if (
+                existing_person is None
+                or existing_person.get("parental_values")
+                == parental_values
+            ):
+                continue
+
+            self.database.update_person(
+                record_id,
+                {"parental_values": parental_values},
+            )
 
     def synchronize_life_start_timeline(
         self,

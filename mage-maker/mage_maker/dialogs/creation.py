@@ -209,14 +209,14 @@ class CreationWizardDialog(tk.Toplevel):
             self.event_controller is not None
         )
 
-        school_names = (
-            self.game_database.school_names()
+        school_records = (
+            self.game_database.schools()
             if self.game_database is not None and self.game_database.loaded
             else []
         )
         self.school_field = SchoolField(
             card,
-            school_names,
+            school_records,
             background=SURFACE,
         )
         self.school_field.grid(

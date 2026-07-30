@@ -1,6 +1,9 @@
 import tkinter as tk
 from functools import partial
 
+from mage_maker.sections.development.characteristics import (
+    initial_values_are_complete,
+)
 from mage_maker.sections.settings.mage_groups import (
     mage_group_definition,
     normalize_mage_groups,
@@ -11,6 +14,7 @@ from mage_maker.ui.theme import (
     LIST_ALTERNATE,
     LIST_HOVER,
     LIST_SELECTED,
+    LOCKED_BORDER,
     PRIMARY,
     PRIMARY_HOVER,
     SURFACE,
@@ -34,6 +38,7 @@ class PeopleList(tk.Frame):
         self.rows_by_id = {}
         self.row_labels_by_id = {}
         self.group_colors_by_id = {}
+        self.initial_values_complete_by_id = {}
         self.selected_record_id = None
         self.hovered_record_id = None
 
@@ -140,6 +145,7 @@ class PeopleList(tk.Frame):
         self.labels_by_id = {}
         self.search_text_by_id = {}
         self.group_colors_by_id = {}
+        self.initial_values_complete_by_id = {}
         groups = normalize_mage_groups(mage_groups)
 
         for person in people:
@@ -152,6 +158,9 @@ class PeopleList(tk.Frame):
                 groups,
             )
             self.group_colors_by_id[record_id] = group["color"]
+            self.initial_values_complete_by_id[record_id] = (
+                initial_values_are_complete(person)
+            )
             name_details = person.get("name_details", {})
             name_entries = (
                 name_details.get("entries", [])
@@ -229,6 +238,36 @@ class PeopleList(tk.Frame):
         self.refresh_row_colors()
         self.scroll_selected_into_view()
 
+    def set_initial_values_status(self, record_id, complete):
+        normalized_record_id = str(record_id or "").strip()
+
+        if normalized_record_id not in self.labels_by_id:
+            return
+
+        self.initial_values_complete_by_id[
+            normalized_record_id
+        ] = bool(complete)
+        label = self.row_labels_by_id.get(
+            normalized_record_id
+        )
+
+        if label is None:
+            return
+
+        label.configure(
+            highlightbackground=(
+                FIELD_BACKGROUND
+                if complete
+                else LOCKED_BORDER
+            ),
+            highlightcolor=(
+                FIELD_BACKGROUND
+                if complete
+                else LOCKED_BORDER
+            ),
+            highlightthickness=0 if complete else 2,
+        )
+
     def filter_people(self, *arguments):
         self.rebuild_rows()
 
@@ -275,6 +314,30 @@ class PeopleList(tk.Frame):
                 padx=10,
                 pady=8,
                 cursor="hand2",
+                highlightbackground=(
+                    FIELD_BACKGROUND
+                    if self.initial_values_complete_by_id.get(
+                        record_id,
+                        False,
+                    )
+                    else LOCKED_BORDER
+                ),
+                highlightcolor=(
+                    FIELD_BACKGROUND
+                    if self.initial_values_complete_by_id.get(
+                        record_id,
+                        False,
+                    )
+                    else LOCKED_BORDER
+                ),
+                highlightthickness=(
+                    0
+                    if self.initial_values_complete_by_id.get(
+                        record_id,
+                        False,
+                    )
+                    else 2
+                ),
             )
             label.grid(row=0, column=1, sticky="ew")
 

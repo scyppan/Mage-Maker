@@ -8,7 +8,9 @@ DEVELOPMENT_SCHEMA_OPTIONS = (
     "Two skill",
     "Three skills",
     "Ability-focus",
-    "Crafting",
+    "Material Crafting",
+    "Ingredient Crafting",
+    "Spell-crafting",
     "Social",
     "Scattershot",
 )
@@ -41,6 +43,41 @@ DEVELOPMENT_ABILITY_OPTIONS = (
     "Naturalism",
 )
 
+DEVELOPMENT_SKILLS_BY_ABILITY = {
+    "Power": (
+        "Charms",
+        "Transfiguration",
+        "Defense",
+        "Dark Arts",
+    ),
+    "Erudition": (
+        "Arithmancy",
+        "Ancient Runes",
+        "History",
+        "Muggles",
+    ),
+    "Panache": (
+        "Potions",
+        "Alchemy",
+        "Artificing",
+        "Flying",
+        "Herbology",
+    ),
+    "Naturalism": (
+        "Magical Creatures",
+        "Astronomy",
+        "Divination",
+        "Perception",
+        "Social skills",
+    ),
+}
+
+DEVELOPMENT_ABILITY_BY_SKILL = {
+    skill: ability
+    for ability, skills in DEVELOPMENT_SKILLS_BY_ABILITY.items()
+    for skill in skills
+}
+
 DEVELOPMENT_ASSIGNMENT_RANDOM = "random"
 DEVELOPMENT_ASSIGNMENT_PROMPT = "prompt"
 DEVELOPMENT_ASSIGNMENT_SCATTERSHOT = "scattershot"
@@ -60,6 +97,7 @@ DEVELOPMENT_ASSIGNMENT_OPTIONS = (
         "Always pick Scattershot",
     ),
 )
+ACADEMIC_YEARS_TO_ADULTHOOD = 7
 
 
 def normalize_development_schema(value):
@@ -78,7 +116,13 @@ def normalize_development_schema(value):
         "ability focus": "Ability-focus",
         "ability-focus": "Ability-focus",
         "ability focused": "Ability-focus",
-        "crafting": "Crafting",
+        "crafting": "Material Crafting",
+        "material crafting": "Material Crafting",
+        "material-crafting": "Material Crafting",
+        "ingredient crafting": "Ingredient Crafting",
+        "ingredient-crafting": "Ingredient Crafting",
+        "spell crafting": "Spell-crafting",
+        "spell-crafting": "Spell-crafting",
         "social": "Social",
         "scattershot": "Scattershot",
     }
@@ -203,7 +247,73 @@ def normalize_academic_years_advanced(value):
             "Academic years advanced cannot be negative."
         )
 
-    return years_advanced
+    return min(years_advanced, ACADEMIC_YEARS_TO_ADULTHOOD)
+
+
+def normalize_school_started(value, years_advanced=0):
+    normalized_years = normalize_academic_years_advanced(
+        years_advanced
+    )
+
+    if normalized_years > 0:
+        return True
+
+    if value in (None, ""):
+        return False
+
+    if isinstance(value, bool):
+        return value
+
+    normalized_value = str(value).strip().casefold()
+
+    if normalized_value in ("yes", "true", "1", "started"):
+        return True
+
+    if normalized_value in (
+        "no",
+        "false",
+        "0",
+        "not started",
+    ):
+        return False
+
+    raise ValueError("School started must be Yes or No.")
+
+
+def school_progress_text(school_started, years_advanced):
+    normalized_years = normalize_academic_years_advanced(
+        years_advanced
+    )
+    normalized_started = normalize_school_started(
+        school_started,
+        normalized_years,
+    )
+
+    if not normalized_started:
+        return "Not yet started school"
+
+    if normalized_years >= ACADEMIC_YEARS_TO_ADULTHOOD:
+        return "Graduated"
+
+    return f"Year {normalized_years + 1}"
+
+
+def visible_school_year_count(school_started, years_advanced):
+    normalized_years = normalize_academic_years_advanced(
+        years_advanced
+    )
+    normalized_started = normalize_school_started(
+        school_started,
+        normalized_years,
+    )
+
+    if not normalized_started:
+        return 0
+
+    if normalized_years >= ACADEMIC_YEARS_TO_ADULTHOOD:
+        return ACADEMIC_YEARS_TO_ADULTHOOD
+
+    return normalized_years + 1
 
 
 def normalize_development_plan(value, default_schema=None):
@@ -227,6 +337,10 @@ def normalize_development_plan(value, default_schema=None):
     plan["schema"] = schema
     plan["academic_years_advanced"] = normalize_academic_years_advanced(
         plan.get("academic_years_advanced", 0)
+    )
+    plan["school_started"] = normalize_school_started(
+        plan.get("school_started"),
+        plan["academic_years_advanced"],
     )
     plan.pop("age", None)
 
@@ -326,12 +440,25 @@ def random_development_schema(current_schema=None):
     return random.choice(choices)
 
 
-def randomized_development_plan(current_schema=None, years_advanced=0):
-    schema = random_development_schema(current_schema)
+def randomized_development_plan(
+    current_schema=None,
+    years_advanced=0,
+    selected_schema=None,
+    school_started=None,
+):
+    schema = (
+        normalize_development_schema(selected_schema)
+        if selected_schema not in (None, "")
+        else random_development_schema(current_schema)
+    )
     plan = {
         "schema": schema,
         "academic_years_advanced": normalize_academic_years_advanced(
             years_advanced
+        ),
+        "school_started": normalize_school_started(
+            school_started,
+            years_advanced,
         ),
     }
     required_skill_count = development_skill_count(schema)
@@ -351,11 +478,9 @@ def randomized_development_plan(current_schema=None, years_advanced=0):
 
 def new_development_plan(assignment_policy, selected_schema=None):
     if selected_schema not in (None, ""):
-        return normalize_development_plan(
-            {
-                "schema": selected_schema,
-                "academic_years_advanced": 0,
-            }
+        return randomized_development_plan(
+            years_advanced=0,
+            selected_schema=selected_schema,
         )
 
     policy = normalize_development_assignment_policy(
@@ -375,6 +500,7 @@ def new_development_plan(assignment_policy, selected_schema=None):
         {
             "schema": schema,
             "academic_years_advanced": 0,
+            "school_started": False,
         }
     )
 
@@ -429,6 +555,7 @@ def migrated_development_plan(value, assignment_policy, record_id):
             {
                 "schema": schema,
                 "academic_years_advanced": 0,
+                "school_started": False,
             }
         )
 
