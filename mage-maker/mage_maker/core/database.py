@@ -6,6 +6,12 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from mage_maker.sections.development.models import (
+    DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
+    migrated_development_plan,
+    normalize_development_assignment_policy,
+    normalize_development_plan,
+)
 from mage_maker.sections.names.history import migrate_legacy_name_details
 from mage_maker.sections.family_tree.spouse_relationships import (
     merge_mate_ids,
@@ -18,6 +24,12 @@ from mage_maker.sections.timeline.events import (
 )
 from mage_maker.sections.timeline.locations import ensure_life_start_events
 from mage_maker.sections.events.models import normalize_world_events
+from mage_maker.sections.settings.mage_groups import (
+    MAGE_GROUPS_SETTING_KEY,
+    normalize_mage_group_id,
+    normalize_mage_groups,
+    require_mage_group_id,
+)
 
 
 class JsonDatabase:
@@ -58,7 +70,7 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version >= 9:
+        if not isinstance(schema_version, int) or schema_version >= 12:
             return False
 
         migrated = False
@@ -353,8 +365,91 @@ class JsonDatabase:
             schema_version = 9
             migrated = True
 
-        metadata["schema_version"] = 9
-        metadata["database_version"] = "0.9.0"
+        if schema_version < 10:
+            existing_settings = database_data.get(
+                "_application_settings",
+                {},
+            )
+            settings = (
+                dict(existing_settings)
+                if isinstance(existing_settings, dict)
+                else {}
+            )
+            assignment_policy = normalize_development_assignment_policy(
+                settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+            )
+            settings[DEVELOPMENT_ASSIGNMENT_SETTING_KEY] = (
+                assignment_policy
+            )
+            database_data["_application_settings"] = settings
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = migrated_development_plan(
+                    person.get("development_plan"),
+                    assignment_policy,
+                    person.get("record_id"),
+                )
+
+            schema_version = 10
+            migrated = True
+
+        if schema_version < 11:
+            settings = database_data.get(
+                "_application_settings",
+                {},
+            )
+            assignment_policy = normalize_development_assignment_policy(
+                settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+                if isinstance(settings, dict)
+                else None
+            )
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = migrated_development_plan(
+                    person.get("development_plan"),
+                    assignment_policy,
+                    person.get("record_id"),
+                )
+
+            schema_version = 11
+            migrated = True
+
+        if schema_version < 12:
+            existing_settings = database_data.get(
+                "_application_settings",
+                {},
+            )
+            settings = (
+                dict(existing_settings)
+                if isinstance(existing_settings, dict)
+                else {}
+            )
+            mage_groups = normalize_mage_groups(
+                settings.get(MAGE_GROUPS_SETTING_KEY)
+            )
+            settings[MAGE_GROUPS_SETTING_KEY] = mage_groups
+            database_data["_application_settings"] = settings
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["mage_group_id"] = normalize_mage_group_id(
+                    person.get("mage_group_id"),
+                    mage_groups,
+                )
+
+            schema_version = 12
+            migrated = True
+
+        metadata["schema_version"] = 12
+        metadata["database_version"] = "0.12.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -380,6 +475,21 @@ class JsonDatabase:
         if not isinstance(metadata.get("schema_version"), int):
             raise TypeError("The database schema version must be a number.")
 
+        settings = database_data.get("_application_settings")
+
+        if not isinstance(settings, dict):
+            raise TypeError(
+                "The database must contain application settings."
+            )
+
+        if MAGE_GROUPS_SETTING_KEY not in settings:
+            raise ValueError(
+                "The application settings must contain mage groups."
+            )
+
+        mage_groups = normalize_mage_groups(
+            settings[MAGE_GROUPS_SETTING_KEY]
+        )
         seen_ids = set()
         seen_displayed_names = set()
 
@@ -408,6 +518,10 @@ class JsonDatabase:
                 raise ValueError(f"Duplicate displayed name: {displayed_name}")
 
             seen_displayed_names.add(normalized_name)
+            require_mage_group_id(
+                person.get("mage_group_id"),
+                mage_groups,
+            )
 
             for field_name in ("biological_mother_id", "biological_father_id"):
                 parent_id = person.get(field_name, "")
@@ -444,6 +558,7 @@ class JsonDatabase:
                     "mate_ids must match the spouse relationship identifiers."
                 )
 
+            normalize_development_plan(person.get("development_plan"))
             normalize_timeline_events(person.get("timeline_events", []))
 
         for collection_name in ("locations", "organizations", "events"):
@@ -487,6 +602,26 @@ class JsonDatabase:
 
         person = deepcopy(values)
         person.setdefault("record_id", str(uuid.uuid4()))
+        settings = self.data.get("_application_settings", {})
+        assignment_policy = (
+            settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+            if isinstance(settings, dict)
+            else None
+        )
+        person["development_plan"] = migrated_development_plan(
+            person.get("development_plan"),
+            assignment_policy,
+            person["record_id"],
+        )
+        mage_groups = normalize_mage_groups(
+            settings.get(MAGE_GROUPS_SETTING_KEY)
+            if isinstance(settings, dict)
+            else None
+        )
+        person["mage_group_id"] = normalize_mage_group_id(
+            person.get("mage_group_id"),
+            mage_groups,
+        )
 
         if self.read_person(person["record_id"]) is not None:
             raise ValueError(f"Duplicate person record_id: {person['record_id']}")
@@ -514,11 +649,34 @@ class JsonDatabase:
 
             prospective_person = deepcopy(person)
             prospective_person.update(deepcopy(values))
+            prospective_person["development_plan"] = (
+                normalize_development_plan(
+                    prospective_person.get("development_plan")
+                )
+            )
+            settings = self.data.get("_application_settings", {})
+            mage_groups = normalize_mage_groups(
+                settings.get(MAGE_GROUPS_SETTING_KEY)
+                if isinstance(settings, dict)
+                else None
+            )
+            prospective_person["mage_group_id"] = (
+                require_mage_group_id(
+                    prospective_person.get("mage_group_id"),
+                    mage_groups,
+                )
+            )
             self.ensure_unique_displayed_name(
                 prospective_person.get("displayed_name"),
                 excluded_record_id=record_id,
             )
             person.update(deepcopy(values))
+            person["development_plan"] = deepcopy(
+                prospective_person["development_plan"]
+            )
+            person["mage_group_id"] = prospective_person[
+                "mage_group_id"
+            ]
             person["last_updated"] = datetime.now(timezone.utc).isoformat()
             self.dirty = True
 

@@ -1,7 +1,15 @@
 import tkinter as tk
+from copy import deepcopy
 from tkinter import messagebox
 
 from mage_maker.dialogs.creation import CreationWizardDialog
+from mage_maker.sections.development.models import (
+    DEVELOPMENT_ASSIGNMENT_PROMPT,
+    new_development_plan,
+)
+from mage_maker.sections.development.strategy_dialog import (
+    DevelopmentStrategyDialog,
+)
 from mage_maker.sections.profile.page import PersonForm
 from mage_maker.sections.timeline.locations import ParentLocationConflict
 from mage_maker.shell.person_list import PeopleList
@@ -105,6 +113,7 @@ class MagesPage(tk.Frame):
             self.event_controller,
             self.records_changed_command,
             self.navigate_event_command,
+            mage_group_provider=self.controller.list_mage_groups,
         )
         self.person_form.grid(
             row=1,
@@ -120,17 +129,31 @@ class MagesPage(tk.Frame):
         toolbar = tk.Frame(parent, bg=PRIMARY_DARK, height=64)
         toolbar.grid(row=0, column=0, sticky="ew")
         toolbar.grid_propagate(False)
-        toolbar.grid_columnconfigure(0, weight=1)
+        toolbar.grid_columnconfigure(1, weight=1)
+        self.editor_group_bar = tk.Frame(
+            toolbar,
+            bg=PRIMARY,
+            width=10,
+        )
+        self.editor_group_bar.grid(
+            row=0,
+            column=0,
+            sticky="ns",
+        )
+        self.editor_group_bar.grid_propagate(False)
+        self.editor_title_value = tk.StringVar(
+            value="Magician Profile"
+        )
         label = tk.Label(
             toolbar,
-            text="Magician Profile",
+            textvariable=self.editor_title_value,
             bg=PRIMARY_DARK,
             fg=TEXT_LIGHT,
             font=app_font(16, "bold"),
             anchor="w",
-            padx=20,
+            padx=16,
         )
-        label.grid(row=0, column=0, sticky="nsew")
+        label.grid(row=0, column=1, sticky="nsew")
         self.new_button = SoftButton(
             toolbar,
             text="New",
@@ -142,7 +165,7 @@ class MagesPage(tk.Frame):
             width=82,
             height=38,
         )
-        self.new_button.grid(row=0, column=1, padx=4, pady=13)
+        self.new_button.grid(row=0, column=2, padx=4, pady=13)
         self.delete_button = SoftButton(
             toolbar,
             text="Delete",
@@ -154,7 +177,7 @@ class MagesPage(tk.Frame):
             width=88,
             height=38,
         )
-        self.delete_button.grid(row=0, column=2, padx=4, pady=13)
+        self.delete_button.grid(row=0, column=3, padx=4, pady=13)
         self.revert_button = SoftButton(
             toolbar,
             text="Revert",
@@ -166,7 +189,7 @@ class MagesPage(tk.Frame):
             width=88,
             height=38,
         )
-        self.revert_button.grid(row=0, column=3, padx=4, pady=13)
+        self.revert_button.grid(row=0, column=4, padx=4, pady=13)
         self.save_button = SoftButton(
             toolbar,
             text="Save",
@@ -178,12 +201,16 @@ class MagesPage(tk.Frame):
             width=92,
             height=38,
         )
-        self.save_button.grid(row=0, column=4, padx=(4, 16), pady=13)
+        self.save_button.grid(row=0, column=5, padx=(4, 16), pady=13)
         self.set_editor_state(False)
 
     def refresh_people(self, selected_record_id=None):
         self.people = self.controller.list_people()
-        self.people_list.set_people(self.people, selected_record_id)
+        self.people_list.set_people(
+            self.people,
+            selected_record_id,
+            self.controller.list_mage_groups(),
+        )
 
     def load_person(self, record_id):
         person = self.controller.get_person(record_id)
@@ -194,6 +221,7 @@ class MagesPage(tk.Frame):
         self.current_record_id = record_id
         self.controller.remember_person_interaction(record_id)
         self.person_form.set_person(person)
+        self.update_editor_identity(person)
         self.people_list.set_selected_record(record_id)
         self.form_dirty = False
         self.set_editor_state(True)
@@ -222,7 +250,8 @@ class MagesPage(tk.Frame):
         )
 
     def create_person(self, values):
-        created_person = self.controller.create_person(values)
+        creation_values = self.prepare_creation_values(values)
+        created_person = self.controller.create_person(creation_values)
         self.refresh_people(created_person["record_id"])
         self.load_person(created_person["record_id"])
         self.records_changed_command()
@@ -230,13 +259,76 @@ class MagesPage(tk.Frame):
         return created_person
 
     def create_related_person(self, values):
-        created_person = self.controller.create_person(values)
+        creation_values = self.prepare_creation_values(values)
+        created_person = self.controller.create_person(creation_values)
         self.refresh_people(self.current_record_id)
         self.records_changed_command()
         self.status_command(
             f"Created {created_person['displayed_name']} as a relative"
         )
         return created_person
+
+    def prepare_creation_values(self, values):
+        creation_values = deepcopy(values)
+
+        if creation_values.get("development_plan") not in (None, ""):
+            return creation_values
+
+        if (
+            self.controller.development_assignment_policy()
+            != DEVELOPMENT_ASSIGNMENT_PROMPT
+        ):
+            return creation_values
+
+        previous_grab = self.current_grab_widget()
+        prompt_parent = (
+            previous_grab
+            if previous_grab is not None
+            else self.development_prompt_parent()
+        )
+        dialog = DevelopmentStrategyDialog(
+            prompt_parent,
+            creation_values.get("displayed_name", ""),
+        )
+        self.wait_window(dialog)
+
+        if previous_grab is not None:
+            self.restore_prompt_parent_grab(previous_grab)
+
+        if dialog.result is None:
+            raise ValueError(
+                "Choose a development strategy before creating this magician."
+            )
+
+        creation_values["development_plan"] = new_development_plan(
+            DEVELOPMENT_ASSIGNMENT_PROMPT,
+            dialog.result,
+        )
+        return creation_values
+
+    def current_grab_widget(self):
+        try:
+            return self.grab_current()
+        except tk.TclError:
+            return None
+
+    def development_prompt_parent(self):
+        focused_widget = self.focus_get()
+
+        if focused_widget is None:
+            return self
+
+        try:
+            return focused_widget.winfo_toplevel()
+        except (AttributeError, tk.TclError):
+            return self
+
+    def restore_prompt_parent_grab(self, prompt_parent):
+        try:
+            if prompt_parent.winfo_exists():
+                prompt_parent.grab_set()
+        except (AttributeError, tk.TclError):
+            return
 
     def update_related_person(self, record_id, values):
         updated_person = self.controller.update_person(record_id, values)
@@ -358,6 +450,7 @@ class MagesPage(tk.Frame):
             return
 
         self.form_dirty = True
+        self.update_editor_identity_from_form()
         self.save_button.set_enabled(True)
         self.revert_button.set_enabled(True)
         self.status_command("Unsaved changes")
@@ -366,6 +459,52 @@ class MagesPage(tk.Frame):
         self.delete_button.set_enabled(has_person)
         self.save_button.set_enabled(False)
         self.revert_button.set_enabled(False)
+
+        if not has_person:
+            self.editor_title_value.set("Magician Profile")
+            self.editor_group_bar.configure(bg=PRIMARY)
+
+    def update_editor_identity(self, person):
+        person_values = person if isinstance(person, dict) else {}
+        displayed_name = str(
+            person_values.get("displayed_name", "") or ""
+        ).strip()
+        group = self.controller.mage_group(
+            person_values.get("mage_group_id")
+        )
+        self.editor_title_value.set(
+            displayed_name or "Unnamed magician"
+        )
+        self.editor_group_bar.configure(bg=group["color"])
+
+    def update_editor_identity_from_form(self):
+        displayed_name = self.person_form.variables[
+            "displayed_name"
+        ].get().strip()
+        group = self.controller.mage_group(
+            self.person_form.selected_mage_group_id()
+        )
+        self.editor_title_value.set(
+            displayed_name or "Unnamed magician"
+        )
+        self.editor_group_bar.configure(bg=group["color"])
+
+    def refresh_group_data(self):
+        selected_record_id = self.current_record_id
+        self.refresh_people(selected_record_id)
+
+        if selected_record_id is None:
+            return
+
+        person = self.controller.get_person(selected_record_id)
+
+        if person is None:
+            return
+
+        self.person_form.refresh_mage_groups(
+            person.get("mage_group_id")
+        )
+        self.update_editor_identity(person)
 
     def confirm_unsaved_changes(self):
         if not self.form_dirty:

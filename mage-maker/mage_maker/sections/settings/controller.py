@@ -1,0 +1,171 @@
+import uuid
+from copy import deepcopy
+
+from mage_maker.sections.development.models import (
+    DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
+    normalize_development_assignment_policy,
+)
+from mage_maker.sections.settings.mage_groups import (
+    DEFAULT_MAGE_GROUP_ID,
+    MAGE_GROUPS_SETTING_KEY,
+    default_mage_group_id,
+    next_mage_group_color,
+    normalize_mage_group_color,
+    normalize_mage_group_name,
+    normalize_mage_groups,
+)
+
+
+class ApplicationSettingsController:
+    def __init__(self, database):
+        self.database = database
+
+    def application_settings(self):
+        existing_settings = self.database.data.get(
+            "_application_settings",
+            {},
+        )
+        return (
+            dict(existing_settings)
+            if isinstance(existing_settings, dict)
+            else {}
+        )
+
+    def development_assignment_policy(self):
+        settings = self.application_settings()
+        return normalize_development_assignment_policy(
+            settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+        )
+
+    def set_development_assignment_policy(self, policy):
+        normalized_policy = normalize_development_assignment_policy(
+            policy
+        )
+        settings = self.application_settings()
+
+        if (
+            settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+            == normalized_policy
+        ):
+            return False
+
+        settings[DEVELOPMENT_ASSIGNMENT_SETTING_KEY] = normalized_policy
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True
+
+    def mage_groups(self):
+        settings = self.application_settings()
+        return normalize_mage_groups(
+            settings.get(MAGE_GROUPS_SETTING_KEY)
+        )
+
+    def default_mage_group_id(self):
+        return default_mage_group_id(self.mage_groups())
+
+    def next_mage_group_color(self):
+        return next_mage_group_color(self.mage_groups())
+
+    def mage_group_usage_counts(self):
+        counts = {
+            group["group_id"]: 0
+            for group in self.mage_groups()
+        }
+
+        for person in self.database.list_people():
+            group_id = str(
+                person.get("mage_group_id", "") or ""
+            ).strip()
+
+            if group_id in counts:
+                counts[group_id] += 1
+
+        return counts
+
+    def create_mage_group(self, name, color):
+        groups = self.mage_groups()
+        groups.append(
+            {
+                "group_id": str(uuid.uuid4()),
+                "name": normalize_mage_group_name(name),
+                "color": normalize_mage_group_color(color),
+            }
+        )
+        normalized_groups = normalize_mage_groups(groups)
+        created_group = deepcopy(normalized_groups[-1])
+        self.store_mage_groups(normalized_groups)
+        return created_group
+
+    def update_mage_group(self, group_id, name, color):
+        normalized_group_id = str(group_id or "").strip()
+        groups = self.mage_groups()
+        updated_group = None
+
+        for group in groups:
+            if group["group_id"] != normalized_group_id:
+                continue
+
+            group["name"] = normalize_mage_group_name(name)
+            group["color"] = normalize_mage_group_color(color)
+            updated_group = deepcopy(group)
+            break
+
+        if updated_group is None:
+            raise KeyError("The selected mage group no longer exists.")
+
+        normalized_groups = normalize_mage_groups(groups)
+        self.store_mage_groups(normalized_groups)
+
+        for group in normalized_groups:
+            if group["group_id"] == normalized_group_id:
+                return deepcopy(group)
+
+        raise KeyError("The selected mage group no longer exists.")
+
+    def delete_mage_group(self, group_id):
+        normalized_group_id = str(group_id or "").strip()
+
+        if normalized_group_id == DEFAULT_MAGE_GROUP_ID:
+            raise ValueError(
+                "The default mage group cannot be removed. "
+                "You can rename it or change its color."
+            )
+
+        groups = self.mage_groups()
+        retained_groups = [
+            group
+            for group in groups
+            if group["group_id"] != normalized_group_id
+        ]
+
+        if len(retained_groups) == len(groups):
+            raise KeyError("The selected mage group no longer exists.")
+
+        normalized_groups = normalize_mage_groups(retained_groups)
+        fallback_group_id = default_mage_group_id(normalized_groups)
+        self.store_mage_groups(normalized_groups)
+        reassigned_count = 0
+
+        for person in self.database.list_people():
+            if person.get("mage_group_id") != normalized_group_id:
+                continue
+
+            self.database.update_person(
+                person["record_id"],
+                {"mage_group_id": fallback_group_id},
+            )
+            reassigned_count += 1
+
+        return reassigned_count
+
+    def store_mage_groups(self, groups):
+        normalized_groups = normalize_mage_groups(groups)
+        settings = self.application_settings()
+
+        if settings.get(MAGE_GROUPS_SETTING_KEY) == normalized_groups:
+            return False
+
+        settings[MAGE_GROUPS_SETTING_KEY] = normalized_groups
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True

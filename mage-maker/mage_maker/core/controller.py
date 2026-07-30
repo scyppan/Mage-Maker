@@ -1,6 +1,12 @@
 from copy import deepcopy
 
 from mage_maker.core.dates import is_at_least_age, normalize_date_parts
+from mage_maker.sections.development.models import (
+    DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
+    new_development_plan,
+    normalize_development_assignment_policy,
+    normalize_development_plan,
+)
 from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap
 from mage_maker.sections.family_tree.spouse_relationships import (
     empty_spouse_relationship,
@@ -11,6 +17,13 @@ from mage_maker.sections.family_tree.spouse_relationships import (
 )
 from mage_maker.sections.names.history import empty_name_details, normalize_name_details
 from mage_maker.sections.names.timeline import synchronize_name_change_events
+from mage_maker.sections.settings.mage_groups import (
+    MAGE_GROUPS_SETTING_KEY,
+    default_mage_group_id,
+    mage_group_definition,
+    normalize_mage_groups,
+    require_mage_group_id,
+)
 from mage_maker.sections.timeline.events import (
     automatic_child_timeline_event,
     normalize_timeline_events,
@@ -40,6 +53,7 @@ class PeopleController:
         "biological_mother_status",
         "biological_father_status",
         "school",
+        "mage_group_id",
         "notes",
     )
     boolean_fields = (
@@ -85,6 +99,39 @@ class PeopleController:
 
     def get_person(self, record_id):
         return self.database.read_person(record_id)
+
+    def development_assignment_policy(self):
+        settings = self.database.data.get(
+            "_application_settings",
+            {},
+        )
+        stored_policy = (
+            settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
+            if isinstance(settings, dict)
+            else None
+        )
+        return normalize_development_assignment_policy(stored_policy)
+
+    def list_mage_groups(self):
+        settings = self.database.data.get(
+            "_application_settings",
+            {},
+        )
+        stored_groups = (
+            settings.get(MAGE_GROUPS_SETTING_KEY)
+            if isinstance(settings, dict)
+            else None
+        )
+        return normalize_mage_groups(stored_groups)
+
+    def default_mage_group_id(self):
+        return default_mage_group_id(self.list_mage_groups())
+
+    def mage_group(self, group_id):
+        return mage_group_definition(
+            group_id,
+            self.list_mage_groups(),
+        )
 
     def remember_person_interaction(self, record_id):
         normalized_record_id = str(record_id or "").strip()
@@ -196,10 +243,18 @@ class PeopleController:
             "spouse_relationships": [],
             "timeline_events": [],
             "school": "",
+            "mage_group_id": self.default_mage_group_id(),
+            "development_plan": None,
             "notes": "",
             "imported_fields": {},
         }
         defaults.update(creation_values)
+
+        if defaults.get("development_plan") in (None, ""):
+            defaults["development_plan"] = new_development_plan(
+                self.development_assignment_policy()
+            )
+
         normalized = self.normalize_values(defaults)
         normalized = self.reconcile_spouse_fields(normalized)
         normalized = self.canonicalize_parent_states(normalized)
@@ -347,6 +402,17 @@ class PeopleController:
                 normalized["timeline_events"]
             )
 
+        if "development_plan" in normalized:
+            normalized["development_plan"] = normalize_development_plan(
+                normalized["development_plan"]
+            )
+
+        if "mage_group_id" in normalized:
+            normalized["mage_group_id"] = require_mage_group_id(
+                normalized["mage_group_id"],
+                self.list_mage_groups(),
+            )
+
         return normalized
 
     def reconcile_spouse_fields(self, values, current_person=None):
@@ -455,6 +521,11 @@ class PeopleController:
             values.get("death_month"),
             values.get("death_day"),
             "Death",
+        )
+        normalize_development_plan(values.get("development_plan"))
+        require_mage_group_id(
+            values.get("mage_group_id"),
+            self.list_mage_groups(),
         )
 
         self.validate_relationships(values)

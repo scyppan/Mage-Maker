@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 9,
-    "database_version": "0.9.0",
-    "last_saved": "2026-07-25T03:53:57.480193+00:00"
+    "schema_version": 11,
+    "database_version": "0.11.0",
+    "last_saved": "2026-07-29T13:46:04.938806+00:00"
   },
   "people": [
     {
@@ -84,7 +84,16 @@
       "death_year": null,
       "death_month": null,
       "death_day": null,
-      "famous_person": true
+      "famous_person": true,
+      "development_plan": {
+        "schema": "Three skills",
+        "academic_years_advanced": 0,
+        "focused_skills": [
+          "Social skills",
+          "Transfiguration",
+          "Alchemy"
+        ]
+      }
     },
     {
       "displayed_name": "Maeve",
@@ -198,7 +207,14 @@
       "death_year": 998,
       "death_month": null,
       "death_day": null,
-      "famous_person": true
+      "famous_person": true,
+      "development_plan": {
+        "schema": "One skill",
+        "academic_years_advanced": 0,
+        "focused_skills": [
+          "Artificing"
+        ]
+      }
     },
     {
       "displayed_name": "Alvand of London",
@@ -261,7 +277,11 @@
       "death_year": null,
       "death_month": null,
       "death_day": null,
-      "famous_person": true
+      "famous_person": true,
+      "development_plan": {
+        "schema": "Crafting",
+        "academic_years_advanced": 0
+      }
     },
     {
       "displayed_name": "Cyneburga Gryffindor",
@@ -324,7 +344,14 @@
       "death_year": null,
       "death_month": null,
       "death_day": null,
-      "famous_person": false
+      "famous_person": false,
+      "development_plan": {
+        "schema": "One skill",
+        "academic_years_advanced": 0,
+        "focused_skills": [
+          "Muggles"
+        ]
+      }
     },
     {
       "displayed_name": "Fingal the Fearless",
@@ -405,7 +432,11 @@
       "imported_fields": {},
       "record_id": "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
       "created_at": "2026-07-24T05:59:46.265573+00:00",
-      "last_updated": "2026-07-24T06:21:33.660595+00:00"
+      "last_updated": "2026-07-24T06:21:33.660595+00:00",
+      "development_plan": {
+        "schema": "Scattershot",
+        "academic_years_advanced": 0
+      }
     }
   ],
   "locations": [
@@ -1004,5 +1035,8 @@
       "9ea34a81-6c79-4524-90fc-7c61c4b7d2a3",
       "6d806b4b-6308-428f-a332-7581faed8cfc"
     ]
+  },
+  "_application_settings": {
+    "development_strategy_assignment": "random"
   }
 }

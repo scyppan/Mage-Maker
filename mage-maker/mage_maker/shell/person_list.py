@@ -1,6 +1,10 @@
 import tkinter as tk
 from functools import partial
 
+from mage_maker.sections.settings.mage_groups import (
+    mage_group_definition,
+    normalize_mage_groups,
+)
 from mage_maker.ui.theme import (
     BORDER_SOFT,
     FIELD_BACKGROUND,
@@ -28,6 +32,8 @@ class PeopleList(tk.Frame):
         self.labels_by_id = {}
         self.search_text_by_id = {}
         self.rows_by_id = {}
+        self.row_labels_by_id = {}
+        self.group_colors_by_id = {}
         self.selected_record_id = None
         self.hovered_record_id = None
 
@@ -124,16 +130,28 @@ class PeopleList(tk.Frame):
         )
         self.create_button.grid(row=0, column=1, sticky="e")
 
-    def set_people(self, people, selected_record_id=None):
+    def set_people(
+        self,
+        people,
+        selected_record_id=None,
+        mage_groups=None,
+    ):
         self.people = people
         self.labels_by_id = {}
         self.search_text_by_id = {}
+        self.group_colors_by_id = {}
+        groups = normalize_mage_groups(mage_groups)
 
         for person in people:
             record_id = person["record_id"]
             name = str(person.get("displayed_name", "")).strip() or "Unnamed magician"
             birth_text = self.format_birth_date(person)
             self.labels_by_id[record_id] = f"{name}\n{birth_text}"
+            group = mage_group_definition(
+                person.get("mage_group_id"),
+                groups,
+            )
+            self.group_colors_by_id[record_id] = group["color"]
             name_details = person.get("name_details", {})
             name_entries = (
                 name_details.get("entries", [])
@@ -155,6 +173,7 @@ class PeopleList(tk.Frame):
                     person.get("displayed_name"),
                     name_detail_text,
                     person.get("school"),
+                    group["name"],
                     person.get("birth_year"),
                     person.get("death_year"),
                 )
@@ -225,11 +244,27 @@ class PeopleList(tk.Frame):
             row.destroy()
 
         self.rows_by_id = {}
-        wrap_length = max(140, self.canvas.winfo_width() - 24)
+        self.row_labels_by_id = {}
+        wrap_length = max(140, self.canvas.winfo_width() - 31)
 
         for row_index, record_id in enumerate(self.visible_record_ids):
-            row = tk.Label(
+            row = tk.Frame(
                 self.row_container,
+                bg=FIELD_BACKGROUND,
+                cursor="hand2",
+            )
+            row.grid(row=row_index, column=0, sticky="ew")
+            row.grid_columnconfigure(1, weight=1)
+            group_bar = tk.Frame(
+                row,
+                bg=self.group_colors_by_id[record_id],
+                width=5,
+                cursor="hand2",
+            )
+            group_bar.grid(row=0, column=0, sticky="ns")
+            group_bar.grid_propagate(False)
+            label = tk.Label(
+                row,
                 text=self.labels_by_id[record_id],
                 bg=FIELD_BACKGROUND,
                 fg=TEXT_DARK,
@@ -241,12 +276,25 @@ class PeopleList(tk.Frame):
                 pady=8,
                 cursor="hand2",
             )
-            row.grid(row=row_index, column=0, sticky="ew")
-            row.bind("<Button-1>", partial(self.select_row, record_id))
-            row.bind("<Enter>", partial(self.enter_row, record_id))
-            row.bind("<Leave>", partial(self.leave_row, record_id))
-            row.bind("<MouseWheel>", self.scroll_people)
+            label.grid(row=0, column=1, sticky="ew")
+
+            for widget in (row, group_bar, label):
+                widget.bind(
+                    "<Button-1>",
+                    partial(self.select_row, record_id),
+                )
+                widget.bind(
+                    "<Enter>",
+                    partial(self.enter_row, record_id),
+                )
+                widget.bind(
+                    "<Leave>",
+                    partial(self.leave_row, record_id),
+                )
+                widget.bind("<MouseWheel>", self.scroll_people)
+
             self.rows_by_id[record_id] = row
+            self.row_labels_by_id[record_id] = label
 
         visible_count = len(self.visible_record_ids)
         total_count = len(self.people)
@@ -292,12 +340,17 @@ class PeopleList(tk.Frame):
             if row is not None:
                 row.configure(bg=background)
 
+            label = self.row_labels_by_id.get(record_id)
+
+            if label is not None:
+                label.configure(bg=background)
+
     def resize_rows(self, event):
         self.canvas.itemconfigure(self.row_window, width=max(1, event.width - 2))
-        wrap_length = max(140, event.width - 24)
+        wrap_length = max(140, event.width - 31)
 
-        for row in self.rows_by_id.values():
-            row.configure(wraplength=wrap_length)
+        for label in self.row_labels_by_id.values():
+            label.configure(wraplength=wrap_length)
 
         self.update_scroll_region()
 

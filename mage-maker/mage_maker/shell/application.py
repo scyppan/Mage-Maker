@@ -18,6 +18,10 @@ from mage_maker.sections.locations.periods_page import PeriodsPage
 from mage_maker.sections.mages.page import MagesPage
 from mage_maker.sections.organizations.controller import OrganizationController
 from mage_maker.sections.organizations.page import OrganizationPage
+from mage_maker.sections.settings.controller import (
+    ApplicationSettingsController,
+)
+from mage_maker.sections.settings.page import SettingsPage
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BUTTON_SOFT,
@@ -93,6 +97,9 @@ class MageMakerApp(tk.Tk):
         except GameDatabaseError as error:
             self.game_database.mark_unavailable(error)
 
+        self.settings_controller = ApplicationSettingsController(
+            self.database
+        )
         self.people_controller = PeopleController(self.database)
         self.location_controller = LocationController(
             self.database,
@@ -194,6 +201,7 @@ class MageMakerApp(tk.Tk):
             ("locations", "Locations", 116),
             ("periods", "Periods", 104),
             ("organizations", "Organizations", 144),
+            ("settings", "Settings", 104),
         ):
             button = SoftButton(
                 navigation,
@@ -273,6 +281,13 @@ class MageMakerApp(tk.Tk):
                     self.organization_controller,
                     self.set_status,
                 )
+            elif page_name == "settings":
+                page = SettingsPage(
+                    self.content,
+                    self.settings_controller,
+                    self.set_status,
+                    self.refresh_mage_group_data,
+                )
             else:
                 return False
         except Exception as error:
@@ -331,6 +346,7 @@ class MageMakerApp(tk.Tk):
             "locations",
             "periods",
             "organizations",
+            "settings",
         ):
             return False
 
@@ -355,6 +371,7 @@ class MageMakerApp(tk.Tk):
                 "locations",
                 "periods",
                 "organizations",
+                "settings",
             )
         ):
             if (
@@ -373,6 +390,8 @@ class MageMakerApp(tk.Tk):
             self.pages["periods"].refresh()
         elif page_name == "organizations":
             self.pages["organizations"].refresh()
+        elif page_name == "settings":
+            self.pages["settings"].refresh()
 
         self.pages[page_name].tkraise()
 
@@ -531,6 +550,12 @@ class MageMakerApp(tk.Tk):
 
         if periods_page is not None:
             periods_page.refresh()
+
+    def refresh_mage_group_data(self):
+        mages_page = self.pages.get("mages")
+
+        if mages_page is not None:
+            mages_page.refresh_group_data()
 
     def set_status(self, message):
         self.status_value.set(str(message or "Ready"))

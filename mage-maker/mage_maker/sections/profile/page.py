@@ -19,14 +19,19 @@ from mage_maker.sections.profile.famous_connections import (
     FamousConnectionMap,
     FamousConnectionsView,
 )
-from mage_maker.sections.profile.school_field import SchoolField
 from mage_maker.sections.relationships.page import RelationshipsView
+from mage_maker.sections.settings.mage_groups import (
+    default_mage_groups,
+    normalize_mage_group_id,
+    normalize_mage_groups,
+)
 from mage_maker.sections.timeline.page import TimelineView
 from mage_maker.sections.timeline.locations import (
     born_long_distance_parent_ids,
     ensure_life_start_events,
 )
 from mage_maker.ui.theme import (
+    BORDER,
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
     FIELD_BACKGROUND,
@@ -42,6 +47,7 @@ from mage_maker.ui.widgets import (
     HoverTooltip,
     LabeledEntry,
     MultilineField,
+    RoundedSelect,
     SectionPanel,
     SoftButton,
 )
@@ -69,6 +75,7 @@ class PersonForm(tk.Frame):
         event_controller=None,
         events_changed_command=None,
         navigate_event_command=None,
+        mage_group_provider=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
@@ -77,6 +84,7 @@ class PersonForm(tk.Frame):
         self.event_controller = event_controller
         self.events_changed_command = events_changed_command
         self.navigate_event_command = navigate_event_command
+        self.mage_group_provider = mage_group_provider
         self.loading = False
         self.variables = {}
         self.boolean_widgets = {}
@@ -87,6 +95,14 @@ class PersonForm(tk.Frame):
         self.navigation_buttons = {}
         self.active_page_name = "profile"
         self.current_record_id = None
+        self.mage_groups = default_mage_groups()
+        self.mage_group_value = tk.StringVar(
+            value=self.mage_groups[0]["name"]
+        )
+        self.mage_group_value.trace_add(
+            "write",
+            self.mage_group_changed,
+        )
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -168,16 +184,15 @@ class PersonForm(tk.Frame):
         )
         identity_panel.content.grid_columnconfigure(0, weight=1)
 
-        name_school_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        name_school_row.grid(row=0, column=0, sticky="ew", pady=(0, 11))
-        name_school_row.grid_columnconfigure(0, weight=5)
-        name_school_row.grid_columnconfigure(2, weight=4)
+        name_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
+        name_row.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        name_row.grid_columnconfigure(0, weight=1)
 
         displayed_name_value = tk.StringVar()
         displayed_name_value.trace_add("write", self.variable_changed)
         self.variables["displayed_name"] = displayed_name_value
         displayed_name_field = LabeledEntry(
-            name_school_row,
+            name_row,
             "Displayed name",
             displayed_name_value,
             background=SURFACE_MUTED,
@@ -186,7 +201,7 @@ class PersonForm(tk.Frame):
         displayed_name_field.grid(row=0, column=0, sticky="new")
 
         self.name_details_button = SoftButton(
-            name_school_row,
+            name_row,
             text="Name Details",
             command=self.open_name_details,
             background=SURFACE_MUTED,
@@ -200,24 +215,72 @@ class PersonForm(tk.Frame):
             row=0,
             column=1,
             sticky="n",
-            padx=7,
+            padx=(7, 0),
             pady=(22, 0),
         )
-        school_names = (
-            self.game_database.school_names()
-            if self.game_database is not None and self.game_database.loaded
-            else []
+
+        school_summary = tk.Frame(
+            identity_panel.content,
+            bg=SURFACE_MUTED,
         )
-        self.school_field = SchoolField(
-            name_school_row,
-            school_names,
-            self.variable_changed,
-            SURFACE_MUTED,
+        school_summary.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(0, 10),
         )
-        self.school_field.grid(row=0, column=2, sticky="new")
+        school_summary.grid_columnconfigure(1, weight=1)
+        school_label = tk.Label(
+            school_summary,
+            text="School",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        school_label.grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 9),
+        )
+        self.school_summary_value = tk.StringVar(
+            value="None selected"
+        )
+        school_value = tk.Label(
+            school_summary,
+            textvariable=self.school_summary_value,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            font=app_font(10),
+            anchor="w",
+            padx=10,
+            highlightbackground=BORDER,
+            highlightthickness=1,
+        )
+        school_value.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            ipady=8,
+            padx=(0, 8),
+        )
+        change_school_button = SoftButton(
+            school_summary,
+            text="Change school",
+            command=self.open_school_editor,
+            background=SURFACE_MUTED,
+            width=116,
+            height=36,
+        )
+        change_school_button.grid(
+            row=0,
+            column=2,
+            sticky="e",
+        )
 
         birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        birth_frame.grid(row=1, column=0, sticky="ew", pady=(0, 9))
+        birth_frame.grid(row=2, column=0, sticky="ew", pady=(0, 9))
         birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
         birth_heading = tk.Label(
             birth_frame,
@@ -278,14 +341,14 @@ class PersonForm(tk.Frame):
             borderwidth=0,
             highlightthickness=0,
         )
-        deceased_check.grid(row=2, column=0, sticky="w", pady=(0, 7))
+        deceased_check.grid(row=3, column=0, sticky="w", pady=(0, 7))
         self.boolean_widgets["deceased"] = deceased_check
 
         self.death_date_frame = tk.Frame(
             identity_panel.content,
             bg=SURFACE_MUTED,
         )
-        self.death_date_frame.grid(row=3, column=0, sticky="ew", pady=(0, 9))
+        self.death_date_frame.grid(row=4, column=0, sticky="ew", pady=(0, 9))
         self.death_date_frame.grid_columnconfigure((0, 1, 2), weight=1)
         death_heading = tk.Label(
             self.death_date_frame,
@@ -357,6 +420,47 @@ class PersonForm(tk.Frame):
             self.status_fields,
             2,
             SURFACE_MUTED,
+        )
+
+        group_block = tk.Frame(
+            classifications_panel.content,
+            bg=SURFACE_MUTED,
+        )
+        group_block.grid(
+            row=2,
+            column=1,
+            sticky="ew",
+            padx=(0, 12),
+            pady=2,
+        )
+        group_block.grid_columnconfigure(1, weight=1)
+        group_label = tk.Label(
+            group_block,
+            text="Group",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        group_label.grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 7),
+        )
+        self.mage_group_select = RoundedSelect(
+            group_block,
+            self.mage_group_value,
+            [group["name"] for group in self.mage_groups],
+            background=SURFACE_MUTED,
+            width=150,
+            height=32,
+            font=app_font(10),
+        )
+        self.mage_group_select.grid(
+            row=0,
+            column=1,
+            sticky="ew",
         )
 
         self.imported_count_value = tk.StringVar(value="")
@@ -454,8 +558,14 @@ class PersonForm(tk.Frame):
         self.family_tree.grid(row=0, column=0, sticky="nsew")
 
     def build_development_page(self):
-        page = DevelopmentView(self.content, self.game_database)
+        page = DevelopmentView(
+            self.content,
+            self.game_database,
+            self.development_changed,
+        )
         page.grid(row=0, column=0, sticky="nsew")
+        self.development = page
+        self.school_field = page.school_field
         self.pages["development"] = page
 
     def build_relationships_page(self):
@@ -555,6 +665,13 @@ class PersonForm(tk.Frame):
         if page_name == "profile":
             self.update_famous_connections()
 
+        if page_name == "development":
+            self.development.set_birth_date(
+                self.variables["birth_year"].get(),
+                self.variables["birth_month"].get(),
+                self.variables["birth_day"].get(),
+            )
+
         self.pages[page_name].tkraise()
 
         for name, button in self.navigation_buttons.items():
@@ -562,6 +679,15 @@ class PersonForm(tk.Frame):
                 button.set_colors(PRIMARY, PRIMARY_HOVER, TEXT_DARK)
             else:
                 button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
+
+    def open_school_editor(self):
+        self.show_page("development")
+        self.after_idle(self.development.focus_school)
+
+    def update_school_summary(self):
+        self.school_summary_value.set(
+            self.development.school_display_text()
+        )
 
     def open_name_details(self):
         NameDetailsDialog(
@@ -858,7 +984,9 @@ class PersonForm(tk.Frame):
             else:
                 variable.set("" if value is None else str(value))
 
-        self.school_field.set_value(person.get("school", ""))
+        self.development.set_person(person)
+        self.refresh_mage_groups(person.get("mage_group_id"))
+        self.update_school_summary()
         self.update_death_date_visibility()
 
         for field_name, text_widget in self.text_widgets.items():
@@ -899,6 +1027,7 @@ class PersonForm(tk.Frame):
         self.loading = False
 
     def current_profile_values(self):
+        development_values = self.development.get_values()
         return {
             "record_id": self.current_record_id,
             "displayed_name": self.variables["displayed_name"].get(),
@@ -911,7 +1040,11 @@ class PersonForm(tk.Frame):
             "death_day": self.variables["death_day"].get(),
             "can_give_birth": self.variables["can_give_birth"].get(),
             "famous_person": self.variables["famous_person"].get(),
-            "school": self.school_field.get_value(),
+            "mage_group_id": self.selected_mage_group_id(),
+            "school": development_values["school"],
+            "development_plan": development_values[
+                "development_plan"
+            ],
             "timeline_events": self.timeline.get_events(),
             "name_details": deepcopy(self.name_details),
         }
@@ -925,7 +1058,8 @@ class PersonForm(tk.Frame):
         for field_name, text_widget in self.text_widgets.items():
             values[field_name] = text_widget.get("1.0", "end-1c")
 
-        values["school"] = self.school_field.get_value()
+        values.update(self.development.get_values())
+        values["mage_group_id"] = self.selected_mage_group_id()
         values["name_details"] = deepcopy(self.name_details)
         values["timeline_events"] = self.timeline.get_events()
         values.update(self.family_tree.get_relationship_values())
@@ -940,6 +1074,54 @@ class PersonForm(tk.Frame):
             self.change_command()
 
     def timeline_changed(self):
+        if not self.loading:
+            self.change_command()
+
+    def development_changed(self):
+        self.update_school_summary()
+
+        if not self.loading:
+            self.change_command()
+
+    def available_mage_groups(self):
+        if self.mage_group_provider is None:
+            return default_mage_groups()
+
+        return normalize_mage_groups(self.mage_group_provider())
+
+    def refresh_mage_groups(self, selected_group_id=None):
+        previous_loading = self.loading
+        self.loading = True
+        groups = self.available_mage_groups()
+        normalized_group_id = normalize_mage_group_id(
+            selected_group_id,
+            groups,
+        )
+        selected_group = next(
+            (
+                group
+                for group in groups
+                if group["group_id"] == normalized_group_id
+            ),
+            groups[0],
+        )
+        self.mage_groups = groups
+        self.mage_group_select.set_values(
+            [group["name"] for group in groups]
+        )
+        self.mage_group_value.set(selected_group["name"])
+        self.loading = previous_loading
+
+    def selected_mage_group_id(self):
+        selected_name = self.mage_group_value.get()
+
+        for group in self.mage_groups:
+            if group["name"] == selected_name:
+                return group["group_id"]
+
+        return self.mage_groups[0]["group_id"]
+
+    def mage_group_changed(self, *arguments):
         if not self.loading:
             self.change_command()
 
@@ -1089,6 +1271,28 @@ class PersonForm(tk.Frame):
         )
 
     def variable_changed(self, *arguments):
+        if hasattr(self, "development"):
+            birth_year_variable = self.variables.get("birth_year")
+            birth_month_variable = self.variables.get("birth_month")
+            birth_day_variable = self.variables.get("birth_day")
+            self.development.set_birth_date(
+                (
+                    birth_year_variable.get()
+                    if birth_year_variable is not None
+                    else ""
+                ),
+                (
+                    birth_month_variable.get()
+                    if birth_month_variable is not None
+                    else ""
+                ),
+                (
+                    birth_day_variable.get()
+                    if birth_day_variable is not None
+                    else ""
+                ),
+            )
+
         if not self.loading:
             self.change_command()
 
