@@ -56,6 +56,176 @@ def randomized_characteristics():
     )
 
 
+def normalize_characteristic_name(value, allow_blank=False):
+    normalized_value = str(value or "").strip().casefold()
+    names_by_key = {
+        field_name.casefold(): field_name
+        for field_name in CHARACTERISTIC_NAMES
+    }
+    characteristic = names_by_key.get(normalized_value)
+
+    if characteristic is not None:
+        return characteristic
+
+    if allow_blank and not normalized_value:
+        return ""
+
+    valid_values = ", ".join(
+        field_name.title()
+        for field_name in CHARACTERISTIC_NAMES
+    )
+    raise ValueError(
+        f"Characteristic buy must be one of: {valid_values}."
+    )
+
+
+def characteristic_school_year_sort_key(record):
+    try:
+        return int(record.get("year", 0) or 0)
+    except (AttributeError, TypeError, ValueError):
+        return 0
+
+
+def characteristic_values_through_school_year(
+    initial_characteristics,
+    school_year_records,
+    through_year=None,
+):
+    values = normalize_characteristics(
+        initial_characteristics,
+        allow_uninitialized=False,
+    )
+    maximum_year = (
+        int(through_year)
+        if through_year not in (None, "")
+        else None
+    )
+    ordered_records = sorted(
+        (
+            record
+            for record in school_year_records or []
+            if isinstance(record, dict)
+        ),
+        key=characteristic_school_year_sort_key,
+    )
+
+    for record in ordered_records:
+        try:
+            year_number = int(record.get("year", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+
+        if maximum_year is not None and year_number > maximum_year:
+            continue
+
+        characteristic = normalize_characteristic_name(
+            record.get("characteristic"),
+            allow_blank=True,
+        )
+
+        if not characteristic:
+            continue
+
+        if values[characteristic] >= CHARACTERISTIC_MAXIMUM_VALUE:
+            raise ValueError(
+                f"{characteristic.title()} cannot exceed "
+                f"{CHARACTERISTIC_MAXIMUM_VALUE}."
+            )
+
+        values[characteristic] += 1
+
+    return values
+
+
+def available_characteristic_buys(
+    initial_characteristics,
+    school_year_records,
+    before_year,
+):
+    values = characteristic_values_through_school_year(
+        initial_characteristics,
+        school_year_records,
+        int(before_year) - 1,
+    )
+    return tuple(
+        field_name
+        for field_name in CHARACTERISTIC_NAMES
+        if values[field_name] < CHARACTERISTIC_MAXIMUM_VALUE
+    )
+
+
+def editable_characteristic_buys(
+    initial_characteristics,
+    school_year_records,
+    year_number,
+):
+    values = normalize_characteristics(
+        initial_characteristics,
+        allow_uninitialized=False,
+    )
+
+    for record in school_year_records or []:
+        if not isinstance(record, dict):
+            continue
+
+        try:
+            record_year = int(record.get("year", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+
+        if record_year == int(year_number):
+            continue
+
+        characteristic = normalize_characteristic_name(
+            record.get("characteristic"),
+            allow_blank=True,
+        )
+
+        if characteristic:
+            values[characteristic] += 1
+
+    return tuple(
+        field_name
+        for field_name in CHARACTERISTIC_NAMES
+        if values[field_name] < CHARACTERISTIC_MAXIMUM_VALUE
+    )
+
+
+def characteristic_value_after_buy(
+    initial_characteristics,
+    school_year_records,
+    year_number,
+):
+    record = next(
+        (
+            stored_record
+            for stored_record in school_year_records or []
+            if isinstance(stored_record, dict)
+            and int(stored_record.get("year", 0) or 0)
+            == int(year_number)
+        ),
+        None,
+    )
+
+    if record is None:
+        return None
+
+    characteristic = normalize_characteristic_name(
+        record.get("characteristic"),
+        allow_blank=True,
+    )
+
+    if not characteristic:
+        return None
+
+    values = characteristic_values_through_school_year(
+        initial_characteristics,
+        school_year_records,
+        int(year_number),
+    )
+    return values[characteristic]
+
+
 def normalize_characteristics(value, allow_uninitialized=True):
     if value in (None, "", {}):
         if allow_uninitialized:

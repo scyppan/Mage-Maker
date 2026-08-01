@@ -14,6 +14,12 @@ EVENT_TYPE_DEFINITIONS = (
     ("name_change", "Name change", ("person",), False),
     ("custom", "Custom event", ("person",), False),
     ("founding", "Founding", ("location",), False),
+    (
+        "wizarding_community_established",
+        "Wizarding community established",
+        ("location",),
+        False,
+    ),
     ("political", "Political", ("location",), False),
     ("conflict", "Conflict", ("location",), False),
     ("discovery", "Discovery", ("location",), False),
@@ -35,6 +41,9 @@ LEGACY_EVENT_TYPE_ALIASES = {
     "death": "died",
     "marriage": "got_married",
     "relocation": "relocated",
+    "wizarding community established": (
+        "wizarding_community_established"
+    ),
 }
 HIDDEN_OUTSIDE_PERSON_EVENT_TYPES = {
     "starting_location",

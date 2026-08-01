@@ -38,7 +38,12 @@ from mage_maker.ui.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.ui.widgets import LabeledEntry, MultilineField, SoftButton
+from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
+    LabeledEntry,
+    MultilineField,
+    SoftButton,
+)
 
 
 class NameDetailsDialog(tk.Toplevel):
@@ -655,6 +660,18 @@ class NameEntryDialog(tk.Toplevel):
             column=2,
             sticky="ew",
             padx=(5, 0),
+        )
+        calendar_notice = CalendarAdoptionNotice(
+            date_frame,
+            background=SURFACE,
+            wraplength=520,
+        )
+        calendar_notice.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
         )
 
         note_field = MultilineField(

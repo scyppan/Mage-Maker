@@ -1,6 +1,9 @@
 from copy import deepcopy
 
-from mage_maker.core.dates import format_date_parts
+from mage_maker.core.dates import (
+    format_date_parts,
+    person_death_age_text,
+)
 from mage_maker.sections.locations.models import descendant_ids, locations_by_id
 from mage_maker.sections.locations.period_definitions import (
     EARLIEST_CALCULATION_YEAR,
@@ -334,7 +337,13 @@ def lifespan_text(person):
     )
 
     if death_date:
-        return f"{birth_date} to {death_date}"
+        death_age_text = person_death_age_text(person)
+        age_suffix = (
+            f" ({death_age_text})"
+            if death_age_text
+            else ""
+        )
+        return f"{birth_date} to {death_date}{age_suffix}"
 
     return f"born {birth_date}"
 

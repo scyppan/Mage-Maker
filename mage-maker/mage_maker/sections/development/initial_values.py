@@ -260,6 +260,12 @@ def resolved_blood_status(person, people):
     return available_options[0]
 
 
+def randomized_blood_status(person, people):
+    return random.choice(
+        blood_status_options(person, people)
+    )
+
+
 def resolved_developmental_environment(person, people):
     person_values = person if isinstance(person, dict) else {}
     blood_status = resolved_blood_status(person_values, people)

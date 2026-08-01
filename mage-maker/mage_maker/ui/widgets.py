@@ -1,6 +1,8 @@
 import tkinter as tk
 from functools import partial
+from tkinter import messagebox
 
+from mage_maker.core.dates import CALENDAR_ADOPTION_NOTE
 from mage_maker.ui.theme import (
     BORDER,
     BORDER_SOFT,
@@ -101,6 +103,55 @@ class HoverTooltip:
         if self.window is not None:
             self.window.destroy()
             self.window = None
+
+
+class CalendarAdoptionNotice(tk.Label):
+    def __init__(
+        self,
+        parent,
+        background=SURFACE,
+        foreground=TEXT_MUTED,
+        wraplength=520,
+    ):
+        super().__init__(
+            parent,
+            text="ⓘ Historical calendar note",
+            bg=background,
+            fg=foreground,
+            font=app_font(8, "bold"),
+            anchor="w",
+            cursor="question_arrow",
+            takefocus=1,
+        )
+        self.calendar_tooltip = HoverTooltip(
+            self,
+            CALENDAR_ADOPTION_NOTE,
+            delay=180,
+            wraplength=wraplength,
+        )
+        self.bind(
+            "<Button-1>",
+            self.show_calendar_note,
+            add="+",
+        )
+        self.bind(
+            "<Return>",
+            self.show_calendar_note,
+            add="+",
+        )
+        self.bind(
+            "<space>",
+            self.show_calendar_note,
+            add="+",
+        )
+
+    def show_calendar_note(self, event=None):
+        messagebox.showinfo(
+            "Historical calendar note",
+            CALENDAR_ADOPTION_NOTE,
+            parent=self.winfo_toplevel(),
+        )
+        return "break"
 
 
 class RoundedEntry(tk.Frame):

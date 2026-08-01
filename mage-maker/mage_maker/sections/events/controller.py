@@ -1,5 +1,9 @@
 from copy import deepcopy
 
+from mage_maker.sections.development.event_eminence import (
+    apply_event_eminence_updates,
+    prepare_event_eminence_updates,
+)
 from mage_maker.sections.events.models import (
     normalize_world_event,
     normalize_world_events,
@@ -14,6 +18,17 @@ from mage_maker.sections.locations.models import (
     ancestor_locations,
     founding_event_title,
     recent_location_label,
+)
+from mage_maker.sections.organizations.controller import (
+    ORGANIZATION_EVENT_FOUNDING,
+    normalize_organization_events,
+    organization_event_as_world_event,
+    organization_event_from_world_event,
+    organization_events_as_world_events,
+)
+from mage_maker.sections.settings.mage_groups import (
+    mage_group_definition,
+    normalize_mage_groups,
 )
 
 
@@ -32,26 +47,47 @@ class EventController:
         location_provider,
         period_provider,
         location_creator=None,
+        people_creator=None,
+        mage_groups_provider=None,
     ):
         self.database = database
         self.people_provider = people_provider
         self.location_provider = location_provider
         self.period_provider = period_provider
         self.location_creator = location_creator
+        self.people_creator = people_creator
+        self.mage_groups_provider = mage_groups_provider
 
     def list_events(self):
         titled_events = [
             self.apply_title_rules(event)
             for event in self.database.list_records("events")
         ]
-        return normalize_world_events(titled_events)
+        organization_events = organization_events_as_world_events(
+            self.database.list_records("organizations")
+        )
+        return normalize_world_events(
+            [*titled_events, *organization_events]
+        )
 
     def get_event(self, record_id):
         event = self.database.read_record("events", record_id)
-        return (
-            normalize_world_event(self.apply_title_rules(event))
-            if event is not None
-            else None
+
+        if event is not None:
+            return normalize_world_event(
+                self.apply_title_rules(event)
+            )
+
+        selected_id = str(record_id or "").strip()
+        return next(
+            (
+                event
+                for event in organization_events_as_world_events(
+                    self.database.list_records("organizations")
+                )
+                if event["record_id"] == selected_id
+            ),
+            None,
         )
 
     def create_event(self, values):
@@ -59,7 +95,16 @@ class EventController:
             self.apply_title_rules(values)
         )
         self.validate_associations(normalized)
+        eminence_updates = prepare_event_eminence_updates(
+            self.database,
+            (),
+            (normalized,),
+        )
         created = self.database.create_record("events", normalized)
+        apply_event_eminence_updates(
+            self.database,
+            eminence_updates,
+        )
         self.remember_associations(created)
         self.database.save()
         return normalize_world_event(created)
@@ -77,19 +122,191 @@ class EventController:
             self.apply_title_rules(prospective)
         )
         self.validate_associations(normalized)
+
+        if current.get("organization_event"):
+            return self.update_organization_event(
+                current,
+                normalized,
+            )
+
+        eminence_updates = prepare_event_eminence_updates(
+            self.database,
+            (current,),
+            (normalized,),
+        )
         updated = self.database.update_record(
             "events",
             record_id,
             normalized,
+        )
+        apply_event_eminence_updates(
+            self.database,
+            eminence_updates,
         )
         self.remember_associations(updated)
         self.database.save()
         return normalize_world_event(updated)
 
     def delete_event(self, record_id):
+        current = self.get_event(record_id)
+
+        if current is None:
+            raise KeyError(f"Unknown event record_id: {record_id}")
+
+        if current.get("organization_event"):
+            return self.delete_organization_event(current)
+
+        eminence_updates = prepare_event_eminence_updates(
+            self.database,
+            (current,),
+            (),
+        )
         deleted = self.database.delete_record("events", record_id)
+        apply_event_eminence_updates(
+            self.database,
+            eminence_updates,
+        )
         self.database.save()
         return normalize_world_event(deleted)
+
+    def update_organization_event(self, current, values):
+        organization_id = str(
+            current.get("organization_id", "") or ""
+        ).strip()
+        organization_event_id = str(
+            current.get("organization_event_id", "") or ""
+        ).strip()
+        organization = self.database.read_record(
+            "organizations",
+            organization_id,
+        )
+
+        if organization is None:
+            raise KeyError(
+                f"Unknown organization record_id: {organization_id}"
+            )
+
+        events = normalize_organization_events(
+            organization.get("events", [])
+        )
+        existing_event = next(
+            (
+                event
+                for event in events
+                if event["record_id"] == organization_event_id
+            ),
+            None,
+        )
+
+        if existing_event is None:
+            raise KeyError(
+                "The organization event no longer exists."
+            )
+
+        updated_event = organization_event_from_world_event(
+            values,
+            existing_event,
+        )
+        updated_world_event = organization_event_as_world_event(
+            organization,
+            updated_event,
+        )
+        eminence_updates = prepare_event_eminence_updates(
+            self.database,
+            (current,),
+            (updated_world_event,),
+        )
+        organization["events"] = normalize_organization_events(
+            [
+                (
+                    updated_event
+                    if event["record_id"] == organization_event_id
+                    else event
+                )
+                for event in events
+            ]
+        )
+        updated_organization = self.database.update_record(
+            "organizations",
+            organization_id,
+            organization,
+        )
+        apply_event_eminence_updates(
+            self.database,
+            eminence_updates,
+        )
+        self.remember_associations(values)
+        self.database.save()
+        return organization_event_as_world_event(
+            updated_organization,
+            updated_event,
+        )
+
+    def delete_organization_event(self, current):
+        organization_id = str(
+            current.get("organization_id", "") or ""
+        ).strip()
+        organization_event_id = str(
+            current.get("organization_event_id", "") or ""
+        ).strip()
+        organization = self.database.read_record(
+            "organizations",
+            organization_id,
+        )
+
+        if organization is None:
+            raise KeyError(
+                f"Unknown organization record_id: {organization_id}"
+            )
+
+        events = normalize_organization_events(
+            organization.get("events", [])
+        )
+        selected_event = next(
+            (
+                event
+                for event in events
+                if event["record_id"] == organization_event_id
+            ),
+            None,
+        )
+
+        if selected_event is None:
+            raise KeyError(
+                "The organization event no longer exists."
+            )
+
+        if (
+            selected_event["event_type"]
+            == ORGANIZATION_EVENT_FOUNDING
+        ):
+            raise ValueError(
+                "An organization's founding event cannot be deleted."
+            )
+
+        eminence_updates = prepare_event_eminence_updates(
+            self.database,
+            (current,),
+            (),
+        )
+        organization["events"] = normalize_organization_events(
+            [
+                event
+                for event in events
+                if event["record_id"] != organization_event_id
+            ]
+        )
+        self.database.update_record(
+            "organizations",
+            organization_id,
+            organization,
+        )
+        apply_event_eminence_updates(
+            self.database,
+            eminence_updates,
+        )
+        self.database.save()
+        return normalize_world_event(current)
 
     def apply_title_rules(self, event):
         titled_event = deepcopy(event) if isinstance(event, dict) else {}
@@ -198,18 +415,47 @@ class EventController:
         ]
 
     def people_options(self):
+        groups = self.mage_groups()
         options = [
             {
                 "value": str(person.get("record_id", "") or ""),
                 "label": str(
                     person.get("displayed_name", "") or "Unnamed magician"
                 ).strip(),
+                "person": deepcopy(person),
+                "group_name": mage_group_definition(
+                    person.get("mage_group_id"),
+                    groups,
+                )["name"],
             }
             for person in self.people_provider()
             if str(person.get("record_id", "") or "").strip()
         ]
         options.sort(key=self.association_option_sort_key)
         return options
+
+    def mage_groups(self):
+        if self.mage_groups_provider is not None:
+            return normalize_mage_groups(
+                self.mage_groups_provider()
+            )
+
+        settings = self.database.data.get(
+            "_application_settings",
+            {},
+        )
+        stored_groups = (
+            settings.get("mage_groups")
+            if isinstance(settings, dict)
+            else None
+        )
+        return normalize_mage_groups(stored_groups)
+
+    def create_event_person(self, values):
+        if self.people_creator is None:
+            raise ValueError("The people collection is unavailable.")
+
+        return deepcopy(self.people_creator(values))
 
     def location_options(self):
         locations = self.location_provider()

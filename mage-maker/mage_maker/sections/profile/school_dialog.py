@@ -107,6 +107,32 @@ def school_detail_values(school):
     }
 
 
+def school_curriculum_text(curriculum):
+    if not curriculum:
+        return "No curriculum information is available."
+
+    lines = []
+
+    for curriculum_year in curriculum:
+        lines.extend(
+            (
+                f"Year {curriculum_year['year']}",
+                f"Core courses: {curriculum_year['core']}",
+                (
+                    "Elective courses: "
+                    f"{curriculum_year['electives']}"
+                ),
+                (
+                    "Elective course limit: "
+                    f"{curriculum_year['elective_limit']}"
+                ),
+                "",
+            )
+        )
+
+    return "\n".join(lines).rstrip()
+
+
 class ScrollableSchoolOverview(tk.Frame):
     def __init__(self, parent, textvariable):
         super().__init__(parent, bg=SURFACE_MUTED)
@@ -649,84 +675,29 @@ class SchoolSelectionDialog(tk.Toplevel):
         )
         curriculum_frame.grid_rowconfigure(0, weight=1)
         curriculum_frame.grid_columnconfigure(0, weight=1)
-        school_tree_style = ttk.Style(self)
-        school_tree_style.configure(
-            "School.Treeview",
-            background=FIELD_BACKGROUND,
-            fieldbackground=FIELD_BACKGROUND,
-            foreground=TEXT_DARK,
-            rowheight=36,
-            font=app_font(9),
-            borderwidth=0,
-        )
-        school_tree_style.configure(
-            "School.Treeview.Heading",
-            background=SURFACE_RAISED,
-            foreground=TEXT_DARK,
-            font=app_font(9, "bold"),
-            relief="flat",
-        )
-        school_tree_style.map(
-            "School.Treeview",
-            background=[("selected", LIST_SELECTED)],
-            foreground=[("selected", TEXT_DARK)],
-        )
-        self.curriculum_tree = ttk.Treeview(
+        self.curriculum_text = tk.Text(
             curriculum_frame,
-            columns=(
-                "year",
-                "core",
-                "electives",
-                "limit",
-            ),
-            show="headings",
-            style="School.Treeview",
-            selectmode="browse",
+            wrap="word",
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            font=app_font(10),
+            padx=14,
+            pady=12,
+            spacing1=2,
+            spacing3=5,
+            cursor="arrow",
         )
-        self.curriculum_tree.heading("year", text="Year")
-        self.curriculum_tree.heading(
-            "core",
-            text="Core courses",
-        )
-        self.curriculum_tree.heading(
-            "electives",
-            text="Elective courses",
-        )
-        self.curriculum_tree.heading(
-            "limit",
-            text="Electives",
-        )
-        self.curriculum_tree.column(
+        self.curriculum_text.tag_configure(
             "year",
-            width=54,
-            minwidth=48,
-            stretch=False,
-            anchor="center",
+            font=app_font(11, "bold"),
+            foreground=TEXT_DARK,
+            spacing1=8,
+            spacing3=3,
         )
-        self.curriculum_tree.column(
-            "core",
-            width=260,
-            minwidth=160,
-            stretch=True,
-        )
-        self.curriculum_tree.column(
-            "electives",
-            width=260,
-            minwidth=160,
-            stretch=True,
-        )
-        self.curriculum_tree.column(
-            "limit",
-            width=74,
-            minwidth=68,
-            stretch=False,
-            anchor="center",
-        )
-        self.curriculum_tree.tag_configure(
-            "alternate",
-            background=LIST_ALTERNATE,
-        )
-        self.curriculum_tree.grid(
+        self.curriculum_text.grid(
             row=0,
             column=0,
             sticky="nsew",
@@ -734,26 +705,16 @@ class SchoolSelectionDialog(tk.Toplevel):
         curriculum_vertical_scrollbar = ttk.Scrollbar(
             curriculum_frame,
             orient="vertical",
-            command=self.curriculum_tree.yview,
+            command=self.curriculum_text.yview,
         )
         curriculum_vertical_scrollbar.grid(
             row=0,
             column=1,
             sticky="ns",
         )
-        curriculum_horizontal_scrollbar = ttk.Scrollbar(
-            curriculum_frame,
-            orient="horizontal",
-            command=self.curriculum_tree.xview,
-        )
-        curriculum_horizontal_scrollbar.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-        )
-        self.curriculum_tree.configure(
+        self.curriculum_text.configure(
             yscrollcommand=curriculum_vertical_scrollbar.set,
-            xscrollcommand=curriculum_horizontal_scrollbar.set,
+            state="disabled",
         )
         self.show_overview_tab()
 
@@ -883,8 +844,8 @@ class SchoolSelectionDialog(tk.Toplevel):
         self.render_school_details()
 
     def render_school_details(self):
-        for item_id in self.curriculum_tree.get_children():
-            self.curriculum_tree.delete(item_id)
+        self.curriculum_text.configure(state="normal")
+        self.curriculum_text.delete("1.0", "end")
 
         detail_values = school_detail_values(
             self.selected_school
@@ -898,6 +859,11 @@ class SchoolSelectionDialog(tk.Toplevel):
             self.detail_overview_value.set(
                 "Change the search or choose no school."
             )
+            self.curriculum_text.insert(
+                "end",
+                "No curriculum information is available.",
+            )
+            self.curriculum_text.configure(state="disabled")
 
             if hasattr(self, "detail_overview"):
                 self.detail_overview.show_top()
@@ -923,17 +889,41 @@ class SchoolSelectionDialog(tk.Toplevel):
         for index, curriculum_year in enumerate(
             detail_values["curriculum"]
         ):
-            self.curriculum_tree.insert(
-                "",
+            if index:
+                self.curriculum_text.insert("end", "\n\n")
+
+            self.curriculum_text.insert(
                 "end",
-                values=(
-                    curriculum_year["year"],
-                    curriculum_year["core"],
-                    curriculum_year["electives"],
-                    curriculum_year["elective_limit"],
-                ),
-                tags=("alternate",) if index % 2 else (),
+                f"Year {curriculum_year['year']}\n",
+                "year",
             )
+            self.curriculum_text.insert(
+                "end",
+                f"Core courses: {curriculum_year['core']}\n",
+            )
+            self.curriculum_text.insert(
+                "end",
+                (
+                    "Elective courses: "
+                    f"{curriculum_year['electives']}\n"
+                ),
+            )
+            self.curriculum_text.insert(
+                "end",
+                (
+                    "Elective course limit: "
+                    f"{curriculum_year['elective_limit']}"
+                ),
+            )
+
+        if not detail_values["curriculum"]:
+            self.curriculum_text.insert(
+                "end",
+                school_curriculum_text([]),
+            )
+
+        self.curriculum_text.configure(state="disabled")
+        self.curriculum_text.see("1.0")
 
         self.choose_button.set_enabled(True)
 

@@ -101,7 +101,7 @@ class JsonDatabaseTests(unittest.TestCase):
                 for entry in person["name_details"]["entries"]
             ],
         )
-        self.assertEqual(9, old_database.data["_database"]["schema_version"])
+        self.assertEqual(29, old_database.data["_database"]["schema_version"])
         self.assertNotIn("sex", person)
         self.assertEqual([], person["spouse_relationships"])
         self.assertNotIn("image_url", person)
@@ -178,7 +178,7 @@ class JsonDatabaseTests(unittest.TestCase):
         self.assertTrue(mother["can_give_birth"])
         self.assertEqual("mother", child["biological_mother_id"])
         self.assertTrue(child["non_magical"])
-        self.assertNotIn("blood_status", child)
+        self.assertEqual("Pureblood", child["blood_status"])
         self.assertNotIn("muggle", child)
         self.assertNotIn("squib", child)
 
@@ -259,8 +259,8 @@ class JsonDatabaseTests(unittest.TestCase):
         old_database = JsonDatabase(old_database_path)
         old_database.load()
         person = old_database.read_person("legacy-person")
-        self.assertEqual(9, old_database.data["_database"]["schema_version"])
-        self.assertEqual("0.9.0", old_database.data["_database"]["database_version"])
+        self.assertEqual(29, old_database.data["_database"]["schema_version"])
+        self.assertEqual("0.29.0", old_database.data["_database"]["database_version"])
         self.assertNotIn("sex", person)
         self.assertTrue(person["can_give_birth"])
 

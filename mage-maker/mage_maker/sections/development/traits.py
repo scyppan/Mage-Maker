@@ -25,7 +25,7 @@ TRAIT_DEFINITIONS = (
     {
         "name": "Animal lover",
         "type": "Skill",
-        "skill_bonus": "Magical Creatures",
+        "skill_bonus": "Creatures",
         "subtype_bonus": "",
         "amount": 1,
         "ancillary_effect": "",
@@ -35,7 +35,7 @@ TRAIT_DEFINITIONS = (
     {
         "name": "People person",
         "type": "Skill",
-        "skill_bonus": "Social Skills",
+        "skill_bonus": "Social",
         "subtype_bonus": "",
         "amount": 1,
         "ancillary_effect": "",
@@ -119,7 +119,7 @@ TRAIT_DEFINITIONS = (
     {
         "name": "Runologist",
         "type": "Skill",
-        "skill_bonus": "Ancient Runes",
+        "skill_bonus": "Runes",
         "subtype_bonus": "",
         "amount": 2,
         "ancillary_effect": "",

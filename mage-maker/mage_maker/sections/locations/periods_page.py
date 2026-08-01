@@ -46,6 +46,7 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
     LabeledEntry,
     RoundedEntry,
     RoundedText,
@@ -286,6 +287,18 @@ class PeriodsPage(tk.Frame):
         end_field.control.bind_input(
             "<Return>",
             self.period_details_submitted,
+        )
+        calendar_notice = CalendarAdoptionNotice(
+            years_panel,
+            background=SURFACE,
+            wraplength=640,
+        )
+        calendar_notice.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(5, 0),
         )
         description_panel = tk.Frame(page, bg=SURFACE)
         description_panel.grid(row=2, column=0, sticky="nsew", pady=(16, 0))

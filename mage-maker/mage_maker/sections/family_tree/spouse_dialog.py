@@ -26,7 +26,12 @@ from mage_maker.ui.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.ui.widgets import LabeledEntry, RoundedEntry, SoftButton
+from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
+    LabeledEntry,
+    RoundedEntry,
+    SoftButton,
+)
 
 
 class SpousePickerDialog(tk.Toplevel):
@@ -287,6 +292,17 @@ class SpousePickerDialog(tk.Toplevel):
         divorced_check.grid(row=3, column=0, sticky="w")
         divorce_date = self.build_date_row(panel, "Divorce date", "divorce")
         divorce_date.grid(row=4, column=0, sticky="ew", pady=(5, 0))
+        calendar_notice = CalendarAdoptionNotice(
+            panel,
+            background=SURFACE_MUTED,
+            wraplength=500,
+        )
+        calendar_notice.grid(
+            row=5,
+            column=0,
+            sticky="w",
+            pady=(6, 0),
+        )
 
     def build_date_row(self, parent, label_text, prefix):
         frame = tk.Frame(parent, bg=SURFACE_MUTED)
@@ -594,6 +610,18 @@ class NewSpousePersonDialog(tk.Toplevel):
             background=SURFACE,
         )
         day_field.grid(row=0, column=2, sticky="ew", padx=(5, 0))
+        calendar_notice = CalendarAdoptionNotice(
+            birth_frame,
+            background=SURFACE,
+            wraplength=480,
+        )
+        calendar_notice.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
+        )
 
         deceased_check = tk.Checkbutton(
             card,

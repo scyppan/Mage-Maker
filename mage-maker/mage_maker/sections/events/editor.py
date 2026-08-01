@@ -11,6 +11,9 @@ from mage_maker.sections.events.dialog import (
     EventLocationPickerDialog,
     EventPersonPickerDialog,
 )
+from mage_maker.sections.events.eminence_picker import (
+    EventEminencePicker,
+)
 from mage_maker.ui.theme import (
     BORDER_SOFT,
     FIELD_BACKGROUND,
@@ -25,6 +28,7 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
     LabeledEntry,
     RoundedSelect,
     RoundedText,
@@ -391,6 +395,16 @@ class EventAssociationPicker(tk.Frame):
                 recent_options,
                 selected_id,
                 self.selector_chosen,
+                create_person_command=getattr(
+                    self.controller,
+                    "create_event_person",
+                    None,
+                ),
+                mage_groups=(
+                    self.controller.mage_groups()
+                    if hasattr(self.controller, "mage_groups")
+                    else []
+                ),
             )
         else:
             EventLocationPickerDialog(
@@ -508,6 +522,13 @@ class EventEditor(tk.Frame):
         self.grid_columnconfigure(0, weight=1)
         self.scrollbar_visible = True
         self.build_scrollable_form()
+
+        if self.context == "location":
+            self.people_picker.listbox.configure(height=3)
+            self.locations_picker.listbox.configure(height=3)
+            self.scrollbar.grid_remove()
+            self.scrollbar_visible = False
+
         self.event_type_value.trace_add(
             "write",
             self.event_type_changed,
@@ -549,8 +570,23 @@ class EventEditor(tk.Frame):
         self.build_form()
 
     def build_form(self):
+        form_columnspan = 2 if self.compact_no_scroll else 1
+
+        if self.compact_no_scroll:
+            self.form.grid_columnconfigure(
+                (0, 1),
+                weight=1,
+                uniform="location_event_compact",
+            )
+
         header = tk.Frame(self.form, bg=self.background)
-        header.grid(row=0, column=0, sticky="ew", pady=(0, 2))
+        header.grid(
+            row=0,
+            column=0,
+            columnspan=form_columnspan,
+            sticky="ew",
+            pady=(0, 2),
+        )
         header.grid_columnconfigure(1, weight=1)
         heading = tk.Label(
             header,
@@ -573,7 +609,12 @@ class EventEditor(tk.Frame):
         )
         explanation.grid(row=0, column=1, sticky="ew")
         main_fields = tk.Frame(self.form, bg=self.background)
-        main_fields.grid(row=1, column=0, sticky="ew")
+        main_fields.grid(
+            row=1,
+            column=0,
+            columnspan=form_columnspan,
+            sticky="ew",
+        )
         main_fields.grid_columnconfigure(0, weight=2)
         main_fields.grid_columnconfigure(1, weight=3)
         type_panel = tk.Frame(main_fields, bg=self.background)
@@ -611,7 +652,13 @@ class EventEditor(tk.Frame):
             padx=(5, 0),
         )
         date_panel = tk.Frame(self.form, bg=self.background)
-        date_panel.grid(row=2, column=0, sticky="ew", pady=(2, 0))
+        date_panel.grid(
+            row=2,
+            column=0,
+            columnspan=form_columnspan,
+            sticky="ew",
+            pady=(2, 0),
+        )
         date_panel.grid_columnconfigure((0, 1, 2), weight=1)
         self.year_field = LabeledEntry(
             date_panel,
@@ -641,6 +688,18 @@ class EventEditor(tk.Frame):
             control_height=28,
         )
         self.day_field.grid(row=0, column=2, sticky="ew", padx=(4, 0))
+        calendar_notice = CalendarAdoptionNotice(
+            date_panel,
+            background=self.background,
+            wraplength=560,
+        )
+        calendar_notice.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(3, 0),
+        )
         description_heading = tk.Frame(
             self.form,
             bg=self.background,
@@ -648,6 +707,7 @@ class EventEditor(tk.Frame):
         description_heading.grid(
             row=3,
             column=0,
+            columnspan=form_columnspan,
             sticky="ew",
             pady=(2, 1),
         )
@@ -677,17 +737,30 @@ class EventEditor(tk.Frame):
             minimum_height=38,
             font=app_font(9),
         )
-        self.description_control.grid(row=4, column=0, sticky="ew")
+        self.description_control.grid(
+            row=4,
+            column=0,
+            sticky="nsew" if self.compact_no_scroll else "ew",
+            padx=(0, 4) if self.compact_no_scroll else 0,
+        )
         self.association_panel = tk.Frame(
             self.form,
             bg=self.background,
         )
-        self.association_panel.grid(
-            row=5,
-            column=0,
-            sticky="ew",
-            pady=(2, 0),
-        )
+        if self.compact_no_scroll:
+            self.association_panel.grid(
+                row=4,
+                column=1,
+                sticky="nsew",
+                padx=(4, 0),
+            )
+        else:
+            self.association_panel.grid(
+                row=5,
+                column=0,
+                sticky="ew",
+                pady=(2, 0),
+            )
         self.association_panel.grid_columnconfigure(
             (0, 1),
             weight=1,
@@ -705,6 +778,9 @@ class EventEditor(tk.Frame):
             sticky="ew",
             padx=(0, 4),
         )
+        self.people_picker.change_command = (
+            self.people_selection_changed
+        )
         self.locations_picker = EventAssociationPicker(
             self.association_panel,
             self.controller,
@@ -720,8 +796,26 @@ class EventEditor(tk.Frame):
             sticky="ew",
             padx=(4, 0),
         )
+        self.eminence_picker = EventEminencePicker(
+            self.form,
+            self.controller,
+            self.background,
+        )
+        self.eminence_picker.grid(
+            row=6,
+            column=0,
+            columnspan=form_columnspan,
+            sticky="ew",
+            pady=(3, 0),
+        )
         footer = tk.Frame(self.form, bg=self.background)
-        footer.grid(row=6, column=0, sticky="ew", pady=(2, 0))
+        footer.grid(
+            row=7,
+            column=0,
+            columnspan=form_columnspan,
+            sticky="ew",
+            pady=(2, 0),
+        )
         footer.grid_columnconfigure(0, weight=1)
         feedback = tk.Label(
             footer,
@@ -832,6 +926,10 @@ class EventEditor(tk.Frame):
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
         self.people_picker.set_values(())
+
+        if hasattr(self, "eminence_picker"):
+            self.eminence_picker.set_values((), ())
+
         self.locations_picker.set_values(())
         self.show_locations(True)
         self.set_controls_enabled(False)
@@ -880,6 +978,11 @@ class EventEditor(tk.Frame):
             default_person_ids,
             locked_person_ids,
         )
+        if hasattr(self, "eminence_picker"):
+            self.eminence_picker.set_values(
+                self.people_picker.get_values(),
+                (),
+            )
         self.locations_picker.set_values(
             default_location_ids,
             locked_location_ids,
@@ -1005,6 +1108,11 @@ class EventEditor(tk.Frame):
             list(stored_person_ids or ()) + list(person_ids or ()),
             locked_person_ids,
         )
+        if hasattr(self, "eminence_picker"):
+            self.eminence_picker.set_values(
+                self.people_picker.get_values(),
+                self.event.get("eminence_person_ids", []),
+            )
         self.locations_picker.set_values(
             list(stored_location_ids or ()) + list(location_ids or ()),
             list(stored_locked_location_ids or ())
@@ -1126,9 +1234,20 @@ class EventEditor(tk.Frame):
         self.people_picker.set_enabled(
             editable and not self.lock_people
         )
+        if hasattr(self, "eminence_picker"):
+            self.eminence_picker.set_enabled(editable)
+
         self.locations_picker.set_enabled(editable)
         self.save_button.set_enabled(editable)
         self.cancel_button.set_enabled(True)
+
+    def people_selection_changed(self):
+        if hasattr(self, "eminence_picker"):
+            self.eminence_picker.update_people(
+                self.people_picker.get_values()
+            )
+
+        self.form.after_idle(self.form_resized)
 
     def location_selection_changed(self):
         if (
@@ -1341,6 +1460,11 @@ class EventEditor(tk.Frame):
                 "end-1c",
             ),
             "person_ids": self.people_picker.get_values(),
+            "eminence_person_ids": (
+                self.eminence_picker.get_values()
+                if hasattr(self, "eminence_picker")
+                else self.event.get("eminence_person_ids", [])
+            ),
             "period_names": [],
             "location_ids": list(
                 dict.fromkeys(selected_locations + locked_locations)

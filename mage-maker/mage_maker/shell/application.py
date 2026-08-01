@@ -44,6 +44,7 @@ WINDOWS_APPLICATION_ID = "CharmsCheck.MageMaker"
 PRIMARY_ICON_FILENAME = "crooked-purple-wand.ico"
 APPLICATION_SETTINGS_KEY = "_application_settings"
 REGION_LOCK_SETTING_KEY = "region_lock_id"
+ORGANIZATION_LOCK_SETTING_KEY = "organization_lock_id"
 
 
 def configure_windows_application_identity():
@@ -111,10 +112,13 @@ class MageMakerApp(tk.Tk):
             self.location_controller.list_locations,
             load_period_definitions,
             self.location_controller.create_location,
+            self.people_controller.create_person,
+            self.people_controller.list_mage_groups,
         )
         self.organization_controller = OrganizationController(
             self.database,
             self.location_controller.list_locations,
+            self.game_database.schools,
         )
         self.status_value = tk.StringVar(value="Ready")
         self.pages = {}
@@ -123,6 +127,7 @@ class MageMakerApp(tk.Tk):
         self.navigation_history = []
         self.forward_navigation_history = []
         self.region_lock_id = self.saved_region_lock_id()
+        self.organization_lock_id = self.saved_organization_lock_id()
         self.content = None
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -245,6 +250,14 @@ class MageMakerApp(tk.Tk):
             self.refresh_cross_page_data,
             self.event_controller,
             self.open_period_event,
+            self.organization_controller.list_organizations,
+            self.settings_controller,
+            organization_create_command=(
+                self.organization_controller.create_organization
+            ),
+            organization_location_provider=(
+                self.organization_controller.location_records
+            ),
         )
         self.pages["mages"].grid(row=0, column=0, sticky="nsew")
 
@@ -263,6 +276,7 @@ class MageMakerApp(tk.Tk):
                     self.event_controller,
                     self.open_period_event,
                     self.refresh_cross_page_data,
+                    self.open_organization,
                 )
             elif page_name == "periods":
                 page = PeriodsPage(
@@ -280,6 +294,9 @@ class MageMakerApp(tk.Tk):
                     self.content,
                     self.organization_controller,
                     self.set_status,
+                    self.event_controller,
+                    self.refresh_cross_page_data,
+                    self.organization_lock_changed,
                 )
             elif page_name == "settings":
                 page = SettingsPage(
@@ -299,6 +316,11 @@ class MageMakerApp(tk.Tk):
 
         if page_name in ("locations", "periods"):
             page.set_region_lock(self.region_lock_id)
+        elif page_name == "organizations":
+            page.set_organization_lock(
+                self.organization_lock_id,
+                notify=False,
+            )
 
         return True
 
@@ -358,6 +380,16 @@ class MageMakerApp(tk.Tk):
         ):
             return False
 
+        if (
+            confirm_change
+            and self.active_page_name == "organizations"
+            and page_name != "organizations"
+            and not self.pages[
+                "organizations"
+            ].confirm_unsaved_organization_changes()
+        ):
+            return False
+
         if not self.ensure_page(page_name):
             return False
 
@@ -384,7 +416,12 @@ class MageMakerApp(tk.Tk):
 
         self.active_page_name = page_name
 
-        if page_name == "locations":
+        if page_name == "mages":
+            mages_page = self.pages["mages"]
+            mages_page.refresh_people(
+                mages_page.current_record_id
+            )
+        elif page_name == "locations":
             self.pages["locations"].refresh()
         elif page_name == "periods":
             self.pages["periods"].refresh()
@@ -479,6 +516,27 @@ class MageMakerApp(tk.Tk):
 
         return self.pages["locations"].open_location(record_id)
 
+    def open_organization(self, record_id):
+        if not self.show_page("organizations"):
+            return False
+
+        organization_page = self.pages["organizations"]
+
+        if (
+            str(record_id or "").strip()
+            != str(
+                organization_page.current_organization_id or ""
+            ).strip()
+            and not organization_page.confirm_unsaved_organization_changes()
+        ):
+            return False
+
+        organization_page.refresh(record_id, force_load=True)
+        return (
+            organization_page.current_organization_id
+            == str(record_id or "").strip()
+        )
+
     def open_period_event(self, record_id):
         if not self.show_page("periods"):
             return False
@@ -525,6 +583,62 @@ class MageMakerApp(tk.Tk):
         self.database.dirty = True
         return True
 
+    def saved_organization_lock_id(self):
+        settings = self.database.data.get(APPLICATION_SETTINGS_KEY, {})
+        stored_organization_id = (
+            str(
+                settings.get(ORGANIZATION_LOCK_SETTING_KEY, "") or ""
+            ).strip()
+            if isinstance(settings, dict)
+            else ""
+        )
+
+        if (
+            stored_organization_id
+            and self.organization_controller.get_organization(
+                stored_organization_id
+            )
+            is None
+        ):
+            return ""
+
+        return stored_organization_id
+
+    def remember_organization_lock(self, organization_id):
+        normalized_organization_id = str(
+            organization_id or ""
+        ).strip()
+        current_settings = self.database.data.get(
+            APPLICATION_SETTINGS_KEY,
+            {},
+        )
+        settings = (
+            dict(current_settings)
+            if isinstance(current_settings, dict)
+            else {}
+        )
+
+        if (
+            str(
+                settings.get(ORGANIZATION_LOCK_SETTING_KEY, "") or ""
+            ).strip()
+            == normalized_organization_id
+        ):
+            return False
+
+        settings[ORGANIZATION_LOCK_SETTING_KEY] = (
+            normalized_organization_id
+        )
+        self.database.data[APPLICATION_SETTINGS_KEY] = settings
+        self.database.dirty = True
+        return True
+
+    def organization_lock_changed(self, organization_id):
+        self.organization_lock_id = str(
+            organization_id or ""
+        ).strip()
+        self.remember_organization_lock(self.organization_lock_id)
+
     def region_lock_changed(self, location_id):
         self.region_lock_id = str(location_id or "").strip()
         self.remember_region_lock(self.region_lock_id)
@@ -539,6 +653,9 @@ class MageMakerApp(tk.Tk):
         mages_page = self.pages.get("mages")
 
         if mages_page is not None:
+            mages_page.refresh_people(
+                mages_page.current_record_id
+            )
             mages_page.refresh_linked_events()
 
         location_page = self.pages.get("locations")
@@ -551,6 +668,13 @@ class MageMakerApp(tk.Tk):
         if periods_page is not None:
             periods_page.refresh()
 
+        organization_page = self.pages.get("organizations")
+
+        if organization_page is not None:
+            organization_page.refresh(
+                organization_page.current_organization_id
+            )
+
     def refresh_mage_group_data(self):
         mages_page = self.pages.get("mages")
 
@@ -562,6 +686,14 @@ class MageMakerApp(tk.Tk):
 
     def close_application(self):
         if not self.pages["mages"].confirm_unsaved_changes():
+            return
+
+        if (
+            "organizations" in self.pages
+            and not self.pages[
+                "organizations"
+            ].confirm_unsaved_organization_changes()
+        ):
             return
 
         if self.database.dirty:
@@ -624,10 +756,20 @@ class MageMakerApp(tk.Tk):
         if self.active_page_name == "mages":
             self.pages["mages"].search_shortcut()
         elif (
+            self.active_page_name == "locations"
+            and "locations" in self.pages
+        ):
+            self.pages["locations"].location_tree.search_control.focus_set()
+        elif (
             self.active_page_name == "periods"
             and "periods" in self.pages
         ):
             self.pages["periods"].search_shortcut()
+        elif (
+            self.active_page_name == "organizations"
+            and "organizations" in self.pages
+        ):
+            self.pages["organizations"].search_shortcut()
 
         return "break"
 

@@ -80,6 +80,7 @@ class PeopleController:
         "non_magical",
         "can_give_birth",
         "famous_person",
+        "unfinished",
     )
     number_fields = (
         "birth_year",
@@ -252,6 +253,7 @@ class PeopleController:
             "non_magical": False,
             "can_give_birth": False,
             "famous_person": False,
+            "unfinished": False,
             "biological_mother_id": "",
             "biological_father_id": "",
             "biological_mother_status": "unknown",

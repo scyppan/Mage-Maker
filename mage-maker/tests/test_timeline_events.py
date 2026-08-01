@@ -1,6 +1,7 @@
 import unittest
 
 from mage_maker.sections.timeline.events import (
+    EVENT_TYPES,
     normalize_timeline_event,
     normalize_timeline_events,
     timeline_event_summary,
@@ -55,6 +56,21 @@ class TimelineEventTests(unittest.TestCase):
             "Had a child",
             timeline_event_summary(
                 {"event_type": "had_child", "detail": "Horace"}
+            ),
+        )
+
+    def test_change_in_work_is_available_and_summarized(self):
+        self.assertIn(
+            ("work_change", "Change in work"),
+            EVENT_TYPES,
+        )
+        self.assertEqual(
+            "Change in work: Became a wandmaker",
+            timeline_event_summary(
+                {
+                    "event_type": "work_change",
+                    "detail": "Became a wandmaker",
+                }
             ),
         )
 

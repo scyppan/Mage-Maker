@@ -196,7 +196,7 @@ class FamilyTreeView(tk.Frame):
         )
         self.add_child_button.grid(row=0, column=5, padx=(6, 0), pady=5)
 
-    def set_person(self, person):
+    def set_person(self, person, redraw=True):
         previous_record_id = str(
             self.current_person.get("record_id", "") or ""
         )
@@ -242,7 +242,7 @@ class FamilyTreeView(tk.Frame):
             self.active_mate_id = None
             self.active_spouse_owner_id = None
 
-        self.reload_people()
+        self.reload_people(redraw=redraw)
 
     def update_current_person(self, values):
         if not isinstance(values, dict):
@@ -269,7 +269,7 @@ class FamilyTreeView(tk.Frame):
             "spouse_relationships": deepcopy(self.spouse_relationships),
         }
 
-    def reload_people(self):
+    def reload_people(self, redraw=True):
         self.people = self.people_provider()
         self.current_person["biological_mother_id"] = self.mother_id
         self.current_person["biological_father_id"] = self.father_id
@@ -283,7 +283,9 @@ class FamilyTreeView(tk.Frame):
             self.people,
             self.current_person,
         )
-        self.redraw_graph()
+
+        if redraw:
+            self.redraw_graph()
 
     def resize_graph(self, event=None):
         self.redraw_graph()

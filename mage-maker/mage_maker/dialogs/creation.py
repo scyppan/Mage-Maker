@@ -18,7 +18,11 @@ from mage_maker.ui.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.ui.widgets import LabeledEntry, SoftButton
+from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
+    LabeledEntry,
+    SoftButton,
+)
 
 
 class CreationWizardDialog(tk.Toplevel):
@@ -139,9 +143,22 @@ class CreationWizardDialog(tk.Toplevel):
         )
         birth_day_field.grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
+        calendar_notice = CalendarAdoptionNotice(
+            card,
+            background=SURFACE,
+            wraplength=520,
+        )
+        calendar_notice.grid(
+            row=3,
+            column=0,
+            sticky="w",
+            padx=16,
+            pady=(6, 0),
+        )
+
         starting_location_panel = tk.Frame(card, bg=SURFACE)
         starting_location_panel.grid(
-            row=3,
+            row=4,
             column=0,
             sticky="ew",
             padx=16,
@@ -220,7 +237,7 @@ class CreationWizardDialog(tk.Toplevel):
             background=SURFACE,
         )
         self.school_field.grid(
-            row=4,
+            row=5,
             column=0,
             sticky="ew",
             padx=16,
@@ -242,7 +259,7 @@ class CreationWizardDialog(tk.Toplevel):
             highlightthickness=0,
         )
         can_give_birth_check.grid(
-            row=5,
+            row=6,
             column=0,
             sticky="w",
             padx=16,

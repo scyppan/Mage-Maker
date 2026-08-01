@@ -45,6 +45,14 @@ def normalize_world_event(event):
     normalized["person_ids"] = normalize_association_values(
         normalized.get("person_ids")
     )
+    requested_eminence_person_ids = normalize_association_values(
+        normalized.get("eminence_person_ids")
+    )
+    normalized["eminence_person_ids"] = [
+        person_id
+        for person_id in requested_eminence_person_ids
+        if person_id in normalized["person_ids"]
+    ]
     normalized["period_names"] = normalize_association_values(
         normalized.get("period_names")
     )

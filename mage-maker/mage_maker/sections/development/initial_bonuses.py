@@ -42,15 +42,15 @@ SCHEMA_SKILLS = {
     ),
     "Ingredient Crafting": (
         "Herbology",
-        "Magical Creatures",
+        "Creatures",
         "Potions",
     ),
     "Spell-crafting": (
-        "Ancient Runes",
+        "Runes",
     ),
 }
 SOCIAL_SKILLS = (
-    "Social skills",
+    "Social",
     "Perception",
     "Muggles",
 )
@@ -548,6 +548,21 @@ def allowance_sickles(parental_values, traits=None):
         allowance += FRUGAL_ALLOWANCE_BONUS
 
     return allowance
+
+
+def starting_allowance_sickles(parental_values):
+    normalized_parental_values = normalize_parental_values(
+        parental_values
+    )
+
+    if normalized_parental_values is None:
+        return None
+
+    return (
+        normalized_parental_values["generosity"]
+        * normalized_parental_values["wealth"]
+        * SICKLES_PER_GALLEON
+    )
 
 
 def format_wizard_currency(sickles):

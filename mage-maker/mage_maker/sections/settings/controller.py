@@ -14,6 +14,13 @@ from mage_maker.sections.settings.mage_groups import (
     normalize_mage_group_name,
     normalize_mage_groups,
 )
+from mage_maker.sections.settings.simulation import (
+    DATABASE_DATE_SETTING_KEY,
+    MORTALITY_TABLE_SETTING_KEY,
+    normalize_database_date,
+    normalize_mortality_probability,
+    normalize_mortality_table,
+)
 
 
 class ApplicationSettingsController:
@@ -50,6 +57,57 @@ class ApplicationSettingsController:
             return False
 
         settings[DEVELOPMENT_ASSIGNMENT_SETTING_KEY] = normalized_policy
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True
+
+    def database_date(self):
+        settings = self.application_settings()
+        return normalize_database_date(
+            settings.get(DATABASE_DATE_SETTING_KEY)
+        )
+
+    def set_database_date(self, year, month, day):
+        normalized_date = normalize_database_date(
+            {
+                "year": year,
+                "month": month,
+                "day": day,
+            }
+        )
+        settings = self.application_settings()
+
+        if settings.get(DATABASE_DATE_SETTING_KEY) == normalized_date:
+            return False
+
+        settings[DATABASE_DATE_SETTING_KEY] = normalized_date
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True
+
+    def mortality_table(self):
+        settings = self.application_settings()
+        return normalize_mortality_table(
+            settings.get(MORTALITY_TABLE_SETTING_KEY)
+        )
+
+    def set_mortality_probability(self, age_label, probability):
+        normalized_label = str(age_label or "").strip()
+        table = self.mortality_table()
+
+        if normalized_label not in table:
+            raise ValueError("Choose a valid mortality-table age.")
+
+        normalized_probability = normalize_mortality_probability(
+            probability
+        )
+
+        if table[normalized_label] == normalized_probability:
+            return False
+
+        table[normalized_label] = normalized_probability
+        settings = self.application_settings()
+        settings[MORTALITY_TABLE_SETTING_KEY] = table
         self.database.data["_application_settings"] = settings
         self.database.dirty = True
         return True

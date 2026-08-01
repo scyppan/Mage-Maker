@@ -1,10 +1,25 @@
 import tkinter as tk
 from copy import deepcopy
 from functools import partial
+from tkinter import messagebox
 
+from mage_maker.core.dates import (
+    historical_year_distance,
+    historical_year_shift,
+)
 from mage_maker.sections.development.bonus_dialogs import (
     InitialSkillBonusDialog,
     TraitSelectionDialog,
+)
+from mage_maker.sections.development.book_dialog import (
+    BookSelectionDialog,
+)
+from mage_maker.sections.development.event_eminence import (
+    reconcile_person_event_eminence,
+)
+from mage_maker.sections.development.advancement_dialogs import (
+    EminenceManagerDialog,
+    JobDialog,
 )
 from mage_maker.sections.development.characteristics import (
     CHARACTERISTIC_BASE_VALUE,
@@ -12,8 +27,12 @@ from mage_maker.sections.development.characteristics import (
     CHARACTERISTIC_NAMES,
     CHARACTERISTIC_POINTS_TO_SPEND,
     CHARACTERISTIC_REQUIRED_TOTAL,
+    available_characteristic_buys,
+    characteristic_value_after_buy,
     characteristic_points_remaining,
+    editable_characteristic_buys,
     initial_values_are_complete,
+    normalize_characteristic_name,
     normalize_characteristics,
     randomized_characteristics,
 )
@@ -23,8 +42,10 @@ from mage_maker.sections.development.initial_bonuses import (
     format_wizard_currency,
     initial_bonus_requirements,
     normalize_initial_bonuses,
+    preferred_development_skills,
     reconcile_initial_bonuses,
     summarize_initial_skill_bonuses,
+    starting_allowance_sickles,
 )
 from mage_maker.sections.development.initial_values import (
     BLOOD_STATUS_HALFBLOOD,
@@ -43,6 +64,7 @@ from mage_maker.sections.development.initial_values import (
     normalize_parental_values,
     parental_sibling_reference,
     parental_values_for_mode,
+    randomized_blood_status,
     rebase_parental_values,
     resolved_blood_status,
     resolved_developmental_environment,
@@ -52,22 +74,63 @@ from mage_maker.sections.development.models import (
     DEVELOPMENT_ABILITY_OPTIONS,
     DEVELOPMENT_SCHEMA_OPTIONS,
     DEVELOPMENT_SKILL_OPTIONS,
+    SCHOOL_YEAR_BOOK_COUNT,
+    adult_year_calendar_year,
+    adult_year_calendar_year_range,
+    calculate_development_start_year,
     calculate_school_start_year,
+    development_year_page_title,
+    ensure_adult_year_records,
     development_skill_count,
+    eminence_skill_counts,
     normalize_academic_years_advanced,
+    normalize_adult_year_records,
     normalize_development_plan,
+    normalize_eminence_records,
+    normalize_job_records,
+    job_assignment_overlaps_year_range,
     normalize_school_started,
+    normalize_school_year_books,
+    normalize_school_year_records,
     randomized_development_plan,
+    school_year_calendar_year,
     school_progress_text,
+    school_year_book_identity,
+    suggested_job_start_date,
+    total_eminence_points,
     visible_school_year_count,
+)
+from mage_maker.sections.development.mortality import (
+    simulate_mortality_to_database_date,
+)
+from mage_maker.sections.development.school_years import (
+    assigned_school_books_by_year,
+    ensure_adult_year_records_with_improvements,
+    ensure_school_year_records,
+    random_school_year_skill,
+)
+from mage_maker.sections.ledger.models import (
+    normalize_ledger_entries,
+    reconcile_development_ledger_entries,
 )
 from mage_maker.sections.development.traits import trait_effect_text
 from mage_maker.sections.profile.school_field import SchoolField
+from mage_maker.sections.settings.simulation import (
+    DEFAULT_DATABASE_DATE,
+    DEFAULT_MORTALITY_TABLE,
+    development_cycle_year,
+    normalize_database_date,
+)
 from mage_maker.ui.theme import (
+    ADD_GREEN,
+    ADD_GREEN_HOVER,
     BORDER_SOFT,
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
+    DELETE_HOVER,
+    DELETE_SOFT,
     FIELD_BACKGROUND,
+    FAMILY_GREEN_DARK,
     LIST_HOVER,
     LOCKED_BORDER,
     PRIMARY,
@@ -93,11 +156,27 @@ class DevelopmentView(tk.Frame):
         game_database=None,
         change_command=None,
         people_provider=None,
+        organization_provider=None,
+        settings_provider=None,
+        mortality_command=None,
+        organization_create_command=None,
+        organization_location_provider=None,
+        event_provider=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.game_database = game_database
         self.change_command = change_command
         self.people_provider = people_provider
+        self.organization_provider = organization_provider
+        self.settings_provider = settings_provider
+        self.mortality_command = mortality_command
+        self.organization_create_command = (
+            organization_create_command
+        )
+        self.organization_location_provider = (
+            organization_location_provider
+        )
+        self.event_provider = event_provider
         self.loading = False
         self.birth_year = None
         self.birth_month = None
@@ -110,6 +189,11 @@ class DevelopmentView(tk.Frame):
         }
         self.academic_years_advanced = 0
         self.school_started = False
+        self.school_year_records = []
+        self.adult_year_records = []
+        self.ledger_entries = []
+        self.initial_eminence_records = []
+        self.mortality_checked_through_age = None
         self.start_year_value = tk.StringVar(value="Unknown")
         self.strategy_value = tk.StringVar(value="Scattershot")
         self.blood_status_value = tk.StringVar(
@@ -128,6 +212,7 @@ class DevelopmentView(tk.Frame):
         self.parental_values = None
         self.initial_bonuses = None
         self.characteristics = None
+        self.pending_automatic_changes = False
         self.characteristics_editing = False
         self.skill_bonus_summary_value = tk.StringVar(
             value="Initial skill bonuses have not been assigned"
@@ -152,8 +237,47 @@ class DevelopmentView(tk.Frame):
         self.characteristic_decrease_buttons = {}
         self.characteristic_increase_buttons = {}
         self.active_year_tab = 0
-        self.year_tab_buttons = {}
+        self.active_adult_year = 0
+        self.active_development_page_index = 0
         self.year_placeholder_value = tk.StringVar()
+        self.year_detail_heading_value = tk.StringVar()
+        self.development_page_heading_value = tk.StringVar(
+            value="Initial Values"
+        )
+        self.eminence_summary_value = tk.StringVar(
+            value="No eminence earned"
+        )
+        self.initial_eminence_summary_value = tk.StringVar(
+            value="No initial eminence"
+        )
+        self.adult_eminence_summary_value = tk.StringVar(
+            value="No eminence earned"
+        )
+        self.adult_reading_summary_value = tk.StringVar(
+            value="Book limit: 0"
+        )
+        self.adult_book_summary_value = tk.StringVar(
+            value="No books read"
+        )
+        self.job_summary_value = tk.StringVar(
+            value="No jobs recorded"
+        )
+        self.year_ability_value = tk.StringVar(
+            value=DEVELOPMENT_ABILITY_OPTIONS[0]
+        )
+        self.year_skipped_value = tk.BooleanVar(value=False)
+        self.school_skip_note_value = tk.StringVar()
+        self.year_characteristic_value = tk.StringVar(
+            value=CHARACTERISTIC_NAMES[0].title()
+        )
+        self.year_characteristic_summary_value = tk.StringVar()
+        self.year_skill_values = [
+            tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
+            tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
+        ]
+        self.year_book_summary_value = tk.StringVar(
+            value="No books selected"
+        )
         self.skill_values = [
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[index])
             for index in range(3)
@@ -188,6 +312,24 @@ class DevelopmentView(tk.Frame):
             "write",
             self.focus_selection_changed,
         )
+        self.year_ability_value.trace_add(
+            "write",
+            self.school_year_selection_changed,
+        )
+        self.year_skipped_value.trace_add(
+            "write",
+            self.year_skip_changed,
+        )
+        self.year_characteristic_value.trace_add(
+            "write",
+            self.school_year_selection_changed,
+        )
+
+        for year_skill_value in self.year_skill_values:
+            year_skill_value.trace_add(
+                "write",
+                self.school_year_selection_changed,
+            )
 
         for parental_value in self.parental_value_variables.values():
             parental_value.trace_add(
@@ -219,56 +361,20 @@ class DevelopmentView(tk.Frame):
         )
         heading.grid(row=0, column=0, sticky="ew")
 
-        self.random_strategy_button = SoftButton(
-            header,
-            text="Random strategy",
-            command=self.randomly_select_strategy,
-            background=SURFACE,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_DARK,
-            width=148,
-            height=38,
-        )
-        self.random_strategy_button.grid(
-            row=0,
-            column=1,
-            sticky="e",
-            padx=(6, 0),
-        )
-
-        self.advance_year_button = SoftButton(
-            header,
-            text="Start school",
-            command=self.advance_one_year,
-            background=SURFACE,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_DARK,
-            width=148,
-            height=38,
-        )
-        self.advance_year_button.grid(
-            row=0,
-            column=2,
-            sticky="e",
-            padx=(6, 0),
-        )
-
         self.advance_adulthood_button = SoftButton(
             header,
-            text="Advance to adulthood",
-            command=self.advance_to_adulthood,
+            text="Advance to modern day",
+            command=self.advance_to_modern_day,
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
             foreground=TEXT_DARK,
-            width=178,
+            width=190,
             height=38,
         )
         self.advance_adulthood_button.grid(
             row=0,
-            column=3,
+            column=1,
             sticky="e",
             padx=(6, 0),
         )
@@ -281,32 +387,29 @@ class DevelopmentView(tk.Frame):
             sticky="nsew",
         )
         panels.grid_rowconfigure(0, weight=1)
-        panels.grid_columnconfigure(0, weight=3)
-        panels.grid_columnconfigure(1, weight=2)
-
-        left_panels = tk.Frame(
-            panels,
-            bg=SURFACE,
+        panels.grid_columnconfigure(
+            0,
+            weight=2,
+            uniform="development_panels",
+            minsize=330,
         )
-        left_panels.grid(
-            row=0,
-            column=0,
-            sticky="nsew",
-            padx=(0, 7),
+        panels.grid_columnconfigure(
+            1,
+            weight=3,
+            uniform="development_panels",
+            minsize=500,
         )
-        left_panels.grid_columnconfigure(0, weight=1)
-        left_panels.grid_rowconfigure(1, weight=1)
 
         plan_panel = SectionPanel(
-            left_panels,
+            panels,
             "Development overview",
             "Academic placement and developmental direction.",
         )
         plan_panel.grid(
             row=0,
             column=0,
-            sticky="ew",
-            pady=(0, 7),
+            sticky="nsew",
+            padx=(0, 7),
         )
         plan_panel.content.grid_columnconfigure(0, weight=1)
 
@@ -319,7 +422,7 @@ class DevelopmentView(tk.Frame):
             column=0,
             sticky="ew",
         )
-        academic_row.grid_columnconfigure(2, weight=1)
+        academic_row.grid_columnconfigure(0, weight=1)
 
         school_records = (
             self.game_database.schools()
@@ -336,20 +439,32 @@ class DevelopmentView(tk.Frame):
         self.school_field.grid(
             row=0,
             column=0,
-            sticky="nw",
+            sticky="ew",
         )
 
-        start_year_block = tk.Frame(
+        overview_details = tk.Frame(
             academic_row,
+            bg=SURFACE_MUTED,
+        )
+        overview_details.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(16, 0),
+        )
+        overview_details.grid_columnconfigure((0, 1), weight=1)
+
+        start_year_block = tk.Frame(
+            overview_details,
             bg=SURFACE_MUTED,
         )
         start_year_block.grid(
             row=0,
-            column=1,
+            column=0,
             sticky="nw",
-            padx=(28, 0),
+            padx=(0, 8),
         )
-        start_year_label = tk.Label(
+        self.start_year_label = tk.Label(
             start_year_block,
             text="Academic start year",
             bg=SURFACE_MUTED,
@@ -357,11 +472,7 @@ class DevelopmentView(tk.Frame):
             font=app_font(9, "bold"),
             anchor="w",
         )
-        start_year_label.grid(
-            row=0,
-            column=0,
-            sticky="w",
-        )
+        self.start_year_label.grid(row=0, column=0, sticky="w")
         start_year_value_label = tk.Label(
             start_year_block,
             textvariable=self.start_year_value,
@@ -378,16 +489,15 @@ class DevelopmentView(tk.Frame):
         )
 
         strategy_block = tk.Frame(
-            academic_row,
+            overview_details,
             bg=SURFACE_MUTED,
         )
         strategy_block.grid(
             row=0,
-            column=2,
-            sticky="nw",
-            padx=(28, 0),
+            column=1,
+            sticky="ne",
+            padx=(8, 0),
         )
-        strategy_block.grid_columnconfigure(0, weight=1)
         strategy_label = tk.Label(
             strategy_block,
             text="Developmental strategy",
@@ -399,6 +509,7 @@ class DevelopmentView(tk.Frame):
         strategy_label.grid(
             row=0,
             column=0,
+            columnspan=2,
             sticky="ew",
             pady=(0, 5),
         )
@@ -407,14 +518,32 @@ class DevelopmentView(tk.Frame):
             self.strategy_value,
             DEVELOPMENT_SCHEMA_OPTIONS,
             background=SURFACE_MUTED,
-            width=190,
-            height=42,
-            font=app_font(11),
+            width=184,
+            height=40,
+            font=app_font(10),
         )
         self.strategy_select.grid(
             row=1,
             column=0,
             sticky="w",
+        )
+        self.random_strategy_button = SoftButton(
+            strategy_block,
+            text="Random strategy",
+            command=self.randomly_select_strategy,
+            background=SURFACE_MUTED,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=116,
+            height=40,
+            font=app_font(9, "bold"),
+        )
+        self.random_strategy_button.grid(
+            row=1,
+            column=1,
+            sticky="w",
+            padx=(7, 0),
         )
 
         self.focus_frame = tk.Frame(
@@ -425,12 +554,12 @@ class DevelopmentView(tk.Frame):
             row=1,
             column=0,
             sticky="ew",
-            pady=(18, 0),
+            pady=(20, 0),
         )
         self.focus_frame.grid_columnconfigure(
             (0, 1, 2),
             weight=1,
-            uniform="development_focus",
+            uniform="development_focus_skills",
         )
         self.skill_blocks = []
         self.skill_labels = []
@@ -446,11 +575,11 @@ class DevelopmentView(tk.Frame):
                 column=index,
                 sticky="ew",
                 padx=(
-                    (0, 6)
+                    (0, 4)
                     if index == 0
-                    else (6, 6)
+                    else (4, 4)
                     if index == 1
-                    else (6, 0)
+                    else (4, 0)
                 ),
             )
             skill_block.grid_columnconfigure(0, weight=1)
@@ -466,21 +595,21 @@ class DevelopmentView(tk.Frame):
                 row=0,
                 column=0,
                 sticky="ew",
-                pady=(0, 5),
+                pady=(0, 4),
             )
             skill_select = RoundedSelect(
                 skill_block,
                 self.skill_values[index],
                 DEVELOPMENT_SKILL_OPTIONS,
                 background=SURFACE_MUTED,
-                width=190,
-                height=40,
-                font=app_font(10),
+                width=100,
+                height=38,
+                font=app_font(9),
             )
             skill_select.grid(
                 row=1,
                 column=0,
-                sticky="w",
+                sticky="ew",
             )
             self.skill_blocks.append(skill_block)
             self.skill_labels.append(skill_label)
@@ -493,9 +622,9 @@ class DevelopmentView(tk.Frame):
         self.ability_block.grid(
             row=0,
             column=0,
+            columnspan=3,
             sticky="ew",
         )
-        self.ability_block.grid_columnconfigure(0, weight=1)
         ability_label = tk.Label(
             self.ability_block,
             text="Ability",
@@ -503,188 +632,220 @@ class DevelopmentView(tk.Frame):
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
             anchor="w",
+            width=9,
         )
         ability_label.grid(
             row=0,
             column=0,
-            sticky="ew",
-            pady=(0, 5),
+            sticky="w",
+            padx=(0, 8),
         )
         self.ability_select = RoundedSelect(
             self.ability_block,
             self.ability_value,
             DEVELOPMENT_ABILITY_OPTIONS,
             background=SURFACE_MUTED,
-            width=140,
-            height=40,
+            width=180,
+            height=38,
             font=app_font(10),
         )
         self.ability_select.grid(
-            row=1,
-            column=0,
+            row=0,
+            column=1,
             sticky="w",
         )
 
-        years_panel = SectionPanel(
+        page_panel = SectionPanel(
             panels,
-            "School years",
-            "Academic development by school year.",
+            "Development years",
+            "Initial values, school advancement, and adult development.",
         )
-        self.school_years_panel = years_panel
-        years_panel.grid(
+        self.school_years_panel = page_panel
+        page_panel.grid(
             row=0,
             column=1,
             sticky="nsew",
             padx=(7, 0),
         )
-        years_panel.grid_rowconfigure(2, weight=1)
-        years_panel.content.grid_rowconfigure(0, weight=1)
+        page_panel.content.grid_columnconfigure(0, weight=1)
+        page_panel.content.grid_rowconfigure(1, weight=1)
 
-        self.year_tabs_container = tk.Frame(
-            years_panel.content,
+        page_navigation = tk.Frame(
+            page_panel.content,
             bg=SURFACE_MUTED,
         )
-        self.year_tabs_container.grid(
-            row=0,
-            column=0,
-            sticky="nsew",
-        )
-        self.year_tabs_container.grid_columnconfigure(0, weight=1)
-        self.year_tabs_container.grid_rowconfigure(2, weight=1)
-        available_years_heading = tk.Label(
-            self.year_tabs_container,
-            text="Available years",
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-        )
-        available_years_heading.grid(
+        page_navigation.grid(
             row=0,
             column=0,
             sticky="ew",
-            pady=(0, 8),
+            pady=(0, 10),
         )
-        self.remove_year_button = SoftButton(
-            self.year_tabs_container,
-            text="Remove latest year",
-            command=self.remove_latest_school_year,
+        page_navigation.grid_columnconfigure(
+            (0, 2),
+            weight=1,
+            uniform="development_navigation_sides",
+        )
+        self.initial_development_page_button = SoftButton(
+            page_navigation,
+            text="Initial",
+            command=self.show_initial_development_page,
             background=SURFACE_MUTED,
             fill=BUTTON_SOFT,
             hover_fill=BUTTON_SOFT_HOVER,
             foreground=TEXT_DARK,
-            width=126,
+            width=70,
             height=32,
-            font=app_font(9, "bold"),
+            font=app_font(8, "bold"),
+            padx=6,
         )
-        self.remove_year_button.grid(
+        self.initial_development_page_button.grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
+        page_navigation_controls = tk.Frame(
+            page_navigation,
+            bg=SURFACE_MUTED,
+            width=390,
+            height=32,
+        )
+        page_navigation_controls.grid(
+            row=0,
+            column=1,
+        )
+        page_navigation_controls.grid_propagate(False)
+        page_navigation_controls.grid_columnconfigure(
+            1,
+            weight=1,
+        )
+        self.previous_development_page_button = SoftButton(
+            page_navigation_controls,
+            text="<",
+            command=self.show_previous_development_page,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=36,
+            height=32,
+            font=app_font(11, "bold"),
+            padx=2,
+        )
+        self.previous_development_page_button.grid(
+            row=0,
+            column=0,
+        )
+        development_page_heading = tk.Label(
+            page_navigation_controls,
+            textvariable=self.development_page_heading_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="center",
+        )
+        development_page_heading.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=8,
+        )
+        self.next_development_page_button = SoftButton(
+            page_navigation_controls,
+            text=">",
+            command=self.show_next_development_page,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=36,
+            height=32,
+            font=app_font(11, "bold"),
+            padx=2,
+        )
+        self.next_development_page_button.grid(
+            row=0,
+            column=2,
+        )
+        page_navigation_right = tk.Frame(
+            page_navigation,
+            bg=SURFACE_MUTED,
+        )
+        page_navigation_right.grid(
+            row=0,
+            column=2,
+            sticky="e",
+        )
+        self.latest_development_page_button = SoftButton(
+            page_navigation_right,
+            text="Latest",
+            command=self.show_latest_development_page,
+            background=SURFACE_MUTED,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=70,
+            height=32,
+            font=app_font(8, "bold"),
+            padx=6,
+        )
+        self.latest_development_page_button.grid(
+            row=0,
+            column=0,
+            sticky="e",
+        )
+        self.remove_latest_year_button = SoftButton(
+            page_navigation_right,
+            text="Remove year",
+            command=self.remove_latest_school_year,
+            background=SURFACE_MUTED,
+            fill=DELETE_SOFT,
+            hover_fill=DELETE_HOVER,
+            foreground=TEXT_DARK,
+            width=106,
+            height=32,
+            font=app_font(8, "bold"),
+            padx=6,
+        )
+        self.remove_latest_year_button.grid(
             row=0,
             column=1,
             sticky="e",
-            padx=(8, 0),
-            pady=(0, 8),
+            padx=(6, 0),
         )
-        year_button_row = tk.Frame(
-            self.year_tabs_container,
+        self.remove_latest_year_button.grid_remove()
+        self.year_tabs_container = tk.Frame(
+            page_panel.content,
             bg=SURFACE_MUTED,
         )
-        year_button_row.grid(
-            row=1,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-        )
-        year_button_row.grid_columnconfigure(
-            tuple(range(ACADEMIC_YEARS_TO_ADULTHOOD)),
-            weight=1,
-            uniform="school_year_tabs",
-        )
-
-        for year_number in range(
-            1,
-            ACADEMIC_YEARS_TO_ADULTHOOD + 1,
-        ):
-            year_button = SoftButton(
-                year_button_row,
-                text=f"Year {year_number}",
-                command=partial(
-                    self.select_year_tab,
-                    year_number,
-                ),
-                background=SURFACE_MUTED,
-                fill=BUTTON_SOFT,
-                hover_fill=BUTTON_SOFT_HOVER,
-                foreground=TEXT_DARK,
-                width=60,
-                height=32,
-                font=app_font(9, "bold"),
-                padx=6,
-            )
-            year_button.grid(
-                row=0,
-                column=year_number - 1,
-                sticky="ew",
-                padx=(
-                    (0, 2)
-                    if year_number == 1
-                    else (2, 0)
-                    if year_number
-                    == ACADEMIC_YEARS_TO_ADULTHOOD
-                    else (2, 2)
-                ),
-                pady=(0, 6),
-            )
-            year_button.grid_remove()
-            self.year_tab_buttons[year_number] = year_button
-
-        year_placeholder = tk.Label(
-            self.year_tabs_container,
-            textvariable=self.year_placeholder_value,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_MUTED,
-            font=app_font(10),
-            anchor="nw",
-            justify="left",
-            highlightbackground=BORDER_SOFT,
-            highlightthickness=1,
-            padx=14,
-            pady=14,
-        )
-        year_placeholder.grid(
-            row=2,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-            pady=(8, 0),
-        )
-        self.year_tabs_container.grid_remove()
-
-        initial_values_panel = SectionPanel(
-            left_panels,
-            "Initial values",
-            "Values established before academic advancement begins.",
-        )
-        self.initial_values_panel = initial_values_panel
-        initial_values_panel.configure(
-            padx=14,
-            pady=10,
-        )
-        initial_values_panel.description_label.grid_configure(
-            pady=(2, 8),
-        )
-        initial_values_panel.grid(
+        self.year_tabs_container.grid(
             row=1,
             column=0,
             sticky="nsew",
-            pady=(7, 0),
         )
-        initial_values_panel.content.grid_columnconfigure(
+        self.year_tabs_container.grid_rowconfigure(0, weight=1)
+        self.year_tabs_container.grid_columnconfigure(0, weight=1)
+
+        self.initial_values_panel = tk.Frame(
+            self.year_tabs_container,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=2,
+            padx=12,
+            pady=8,
+        )
+        self.initial_values_panel.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.initial_values_panel.grid_columnconfigure(
             (0, 2),
             weight=1,
             uniform="initial_value_status",
         )
+
         blood_status_block = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=SURFACE_MUTED,
         )
         blood_status_block.grid(
@@ -693,7 +854,6 @@ class DevelopmentView(tk.Frame):
             sticky="ew",
             padx=(0, 6),
         )
-        blood_status_block.grid_columnconfigure(0, weight=1)
         blood_status_label = tk.Label(
             blood_status_block,
             text="Blood status",
@@ -739,7 +899,7 @@ class DevelopmentView(tk.Frame):
         )
 
         self.environment_block = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=SURFACE_MUTED,
         )
         self.environment_block.grid(
@@ -748,7 +908,6 @@ class DevelopmentView(tk.Frame):
             sticky="ew",
             padx=(6, 0),
         )
-        self.environment_block.grid_columnconfigure(0, weight=1)
         environment_label = tk.Label(
             self.environment_block,
             text="Developmental environment",
@@ -768,7 +927,7 @@ class DevelopmentView(tk.Frame):
             self.developmental_environment_value,
             DEVELOPMENTAL_ENVIRONMENT_OPTIONS,
             background=SURFACE_MUTED,
-            width=120,
+            width=160,
             height=36,
             font=app_font(10),
         )
@@ -779,7 +938,7 @@ class DevelopmentView(tk.Frame):
         )
 
         parental_header = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=SURFACE_MUTED,
         )
         parental_header.grid(
@@ -787,7 +946,7 @@ class DevelopmentView(tk.Frame):
             column=0,
             columnspan=3,
             sticky="ew",
-            pady=(12, 5),
+            pady=(8, 4),
         )
         parental_header.grid_columnconfigure(0, weight=1)
         parental_heading = tk.Label(
@@ -798,12 +957,7 @@ class DevelopmentView(tk.Frame):
             font=app_font(11, "bold"),
             anchor="w",
         )
-        parental_heading.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-
+        parental_heading.grid(row=0, column=0, sticky="ew")
         self.parental_handling_button = SoftButton(
             parental_header,
             text="Handling ▾",
@@ -820,7 +974,6 @@ class DevelopmentView(tk.Frame):
             column=1,
             sticky="e",
         )
-
         self.parental_handling_menu = tk.Menu(
             self,
             tearoff=False,
@@ -833,10 +986,8 @@ class DevelopmentView(tk.Frame):
             font=app_font(10),
         )
 
-        self.update_parental_handling_menu()
-
         parental_values_row = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=SURFACE_MUTED,
         )
         parental_values_row.grid(
@@ -844,7 +995,6 @@ class DevelopmentView(tk.Frame):
             column=0,
             columnspan=3,
             sticky="ew",
-            pady=(2, 0),
         )
         parental_values_row.grid_columnconfigure(
             (0, 1, 2),
@@ -870,7 +1020,6 @@ class DevelopmentView(tk.Frame):
                     else (5, 0)
                 ),
             )
-            value_block.grid_columnconfigure(0, weight=1)
             value_label = tk.Label(
                 value_block,
                 text=field_name.title(),
@@ -891,7 +1040,7 @@ class DevelopmentView(tk.Frame):
                     field_name
                 ],
                 background=SURFACE_MUTED,
-                width=110,
+                width=104,
                 height=34,
                 font=app_font(10),
                 justify="center",
@@ -904,15 +1053,15 @@ class DevelopmentView(tk.Frame):
             self.parental_value_entries[field_name] = value_entry
 
         initial_assignments = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=SURFACE_MUTED,
         )
         initial_assignments.grid(
             row=3,
             column=0,
+            columnspan=3,
             sticky="new",
-            padx=(0, 14),
-            pady=(12, 0),
+            pady=(8, 0),
         )
         initial_assignments.grid_columnconfigure(0, weight=1)
         initial_assignments_heading = tk.Label(
@@ -928,7 +1077,7 @@ class DevelopmentView(tk.Frame):
             column=0,
             columnspan=2,
             sticky="ew",
-            pady=(0, 8),
+            pady=(0, 4),
         )
         self.skill_bonus_summary = tk.Label(
             initial_assignments,
@@ -938,21 +1087,21 @@ class DevelopmentView(tk.Frame):
             font=app_font(10),
             anchor="w",
             justify="left",
-            wraplength=430,
+            wraplength=480,
         )
         self.skill_bonus_summary.grid(
             row=1,
             column=0,
             sticky="ew",
-            pady=3,
+            pady=1,
         )
         self.skill_bonus_button = SoftButton(
             initial_assignments,
             text="Select",
             command=self.open_initial_skill_bonus_dialog,
             background=SURFACE_MUTED,
-            width=76,
-            height=32,
+            width=72,
+            height=30,
             font=app_font(9, "bold"),
         )
         self.skill_bonus_button.grid(
@@ -969,21 +1118,21 @@ class DevelopmentView(tk.Frame):
             font=app_font(10),
             anchor="w",
             justify="left",
-            wraplength=430,
+            wraplength=480,
         )
         self.trait_summary.grid(
             row=2,
             column=0,
             sticky="ew",
-            pady=3,
+            pady=1,
         )
         self.trait_button = SoftButton(
             initial_assignments,
             text="Select",
             command=self.open_trait_dialog,
             background=SURFACE_MUTED,
-            width=76,
-            height=32,
+            width=72,
+            height=30,
             font=app_font(9, "bold"),
         )
         self.trait_button.grid(
@@ -1005,31 +1154,32 @@ class DevelopmentView(tk.Frame):
             column=0,
             columnspan=2,
             sticky="ew",
-            pady=3,
+            pady=1,
         )
 
         initial_characteristics_divider = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=BORDER_SOFT,
-            width=1,
+            height=1,
         )
         initial_characteristics_divider.grid(
-            row=3,
-            column=1,
-            sticky="ns",
-            pady=(12, 0),
+            row=4,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(8, 0),
         )
 
         characteristics_section = tk.Frame(
-            initial_values_panel.content,
+            self.initial_values_panel,
             bg=SURFACE_MUTED,
         )
         characteristics_section.grid(
-            row=3,
-            column=2,
+            row=5,
+            column=0,
+            columnspan=3,
             sticky="new",
-            padx=(14, 0),
-            pady=(12, 0),
+            pady=(6, 0),
         )
         characteristics_section.grid_columnconfigure(
             (0, 1, 2),
@@ -1064,9 +1214,7 @@ class DevelopmentView(tk.Frame):
             sticky="e",
         )
 
-        for index, field_name in enumerate(
-            CHARACTERISTIC_NAMES
-        ):
+        for index, field_name in enumerate(CHARACTERISTIC_NAMES):
             characteristic_block = tk.Frame(
                 characteristics_section,
                 bg=SURFACE_MUTED,
@@ -1076,18 +1224,15 @@ class DevelopmentView(tk.Frame):
                 column=index % 3,
                 sticky="ew",
                 padx=(
-                    (0, 6)
+                    (0, 5)
                     if index % 3 == 0
-                    else (6, 6)
+                    else (5, 5)
                     if index % 3 == 1
-                    else (6, 0)
+                    else (5, 0)
                 ),
-                pady=(3, 0),
+                pady=(2, 0),
             )
-            characteristic_block.grid_columnconfigure(
-                0,
-                weight=1,
-            )
+            characteristic_block.grid_columnconfigure(0, weight=1)
             characteristic_label = tk.Label(
                 characteristic_block,
                 text=field_name.title(),
@@ -1102,7 +1247,6 @@ class DevelopmentView(tk.Frame):
                 sticky="ew",
                 padx=(0, 4),
             )
-
             characteristic_stepper = tk.Frame(
                 characteristic_block,
                 bg=SURFACE_MUTED,
@@ -1112,7 +1256,6 @@ class DevelopmentView(tk.Frame):
                 column=1,
                 sticky="e",
             )
-
             decrease_button = SoftButton(
                 characteristic_stepper,
                 text="−",
@@ -1134,10 +1277,8 @@ class DevelopmentView(tk.Frame):
             decrease_button.grid(
                 row=0,
                 column=0,
-                sticky="w",
                 padx=(0, 2),
             )
-
             characteristic_value = tk.Label(
                 characteristic_stepper,
                 textvariable=self.characteristic_variables[
@@ -1153,11 +1294,7 @@ class DevelopmentView(tk.Frame):
                 padx=3,
                 pady=2,
             )
-            characteristic_value.grid(
-                row=0,
-                column=1,
-            )
-
+            characteristic_value.grid(row=0, column=1)
             increase_button = SoftButton(
                 characteristic_stepper,
                 text="+",
@@ -1179,10 +1316,8 @@ class DevelopmentView(tk.Frame):
             increase_button.grid(
                 row=0,
                 column=2,
-                sticky="e",
                 padx=(2, 0),
             )
-
             self.characteristic_value_labels[field_name] = (
                 characteristic_value
             )
@@ -1201,8 +1336,8 @@ class DevelopmentView(tk.Frame):
             row=4,
             column=0,
             columnspan=3,
-            sticky="w",
-            pady=(5, 0),
+            sticky="ew",
+            pady=(4, 0),
         )
         self.characteristic_submit_button = SoftButton(
             characteristic_buttons,
@@ -1212,19 +1347,17 @@ class DevelopmentView(tk.Frame):
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
             foreground=TEXT_DARK,
-            width=82,
+            width=78,
             height=28,
             font=app_font(9, "bold"),
         )
-        self.characteristic_submit_button.pack(
-            side="left",
-        )
+        self.characteristic_submit_button.pack(side="left")
         self.characteristic_reset_button = SoftButton(
             characteristic_buttons,
             text="Start Over",
             command=self.reset_characteristics,
             background=SURFACE_MUTED,
-            width=96,
+            width=92,
             height=28,
             font=app_font(9, "bold"),
         )
@@ -1232,7 +1365,683 @@ class DevelopmentView(tk.Frame):
             side="left",
             padx=(6, 0),
         )
+        initial_eminence_divider = tk.Frame(
+            self.initial_values_panel,
+            bg=BORDER_SOFT,
+            height=1,
+        )
+        initial_eminence_divider.grid(
+            row=6,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(6, 0),
+        )
+        initial_eminence_frame = tk.Frame(
+            self.initial_values_panel,
+            bg=SURFACE_MUTED,
+        )
+        initial_eminence_frame.grid(
+            row=7,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(5, 0),
+        )
+        initial_eminence_frame.grid_columnconfigure(0, weight=1)
+        initial_eminence_label = tk.Label(
+            initial_eminence_frame,
+            textvariable=self.initial_eminence_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+            justify="left",
+            wraplength=350,
+        )
+        initial_eminence_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        self.initial_eminence_button = SoftButton(
+            initial_eminence_frame,
+            text="Manage eminence",
+            command=self.open_eminence_dialog,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=118,
+            height=28,
+            font=app_font(8, "bold"),
+        )
+        self.initial_eminence_button.grid(
+            row=0,
+            column=1,
+            padx=(8, 0),
+        )
 
+        self.year_detail_panel = tk.Frame(
+            self.year_tabs_container,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            padx=14,
+            pady=14,
+        )
+        self.year_detail_panel.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.year_detail_panel.grid_columnconfigure(1, weight=1)
+        self.year_detail_panel.grid_rowconfigure(6, weight=1)
+        year_detail_heading = tk.Label(
+            self.year_detail_panel,
+            textvariable=self.year_detail_heading_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(12, "bold"),
+            anchor="w",
+        )
+        year_detail_heading.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 10),
+        )
+        improvement_header = tk.Frame(
+            self.year_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        improvement_header.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        improvement_header.grid_columnconfigure(0, weight=1)
+        improvement_heading = tk.Label(
+            improvement_header,
+            text="Annual improvements",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        improvement_heading.grid(row=0, column=0, sticky="ew")
+        self.school_skip_year_checkbutton = tk.Checkbutton(
+            improvement_header,
+            text="Skip this year",
+            variable=self.year_skipped_value,
+            bg=SURFACE_MUTED,
+            activebackground=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            borderwidth=0,
+            highlightthickness=0,
+            padx=0,
+            pady=0,
+        )
+        self.school_skip_year_checkbutton.grid(
+            row=0,
+            column=1,
+            sticky="e",
+        )
+        self.school_skip_note = tk.Label(
+            improvement_header,
+            textvariable=self.school_skip_note_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+        )
+        self.school_skip_note.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(5, 0),
+        )
+        self.school_skip_note.grid_remove()
+        year_improvements = tk.Frame(
+            self.year_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        year_improvements.grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+        )
+        year_improvements.grid_columnconfigure(
+            (0, 1),
+            weight=1,
+            uniform="school_year_improvements",
+        )
+        year_ability_block = tk.Frame(
+            year_improvements,
+            bg=SURFACE_MUTED,
+        )
+        year_ability_block.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=(0, 4),
+        )
+        year_ability_label = tk.Label(
+            year_ability_block,
+            text="Ability",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        year_ability_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 3),
+        )
+        self.year_ability_select = RoundedSelect(
+            year_ability_block,
+            self.year_ability_value,
+            DEVELOPMENT_ABILITY_OPTIONS,
+            background=SURFACE_MUTED,
+            width=154,
+            height=32,
+            font=app_font(9),
+        )
+        self.year_ability_select.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+        )
+        year_characteristic_block = tk.Frame(
+            year_improvements,
+            bg=SURFACE_MUTED,
+        )
+        year_characteristic_block.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=4,
+        )
+        year_characteristic_label = tk.Label(
+            year_characteristic_block,
+            text="Characteristic buy",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        year_characteristic_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 3),
+        )
+        self.year_characteristic_select = RoundedSelect(
+            year_characteristic_block,
+            self.year_characteristic_value,
+            [
+                field_name.title()
+                for field_name in CHARACTERISTIC_NAMES
+            ],
+            background=SURFACE_MUTED,
+            width=154,
+            height=32,
+            font=app_font(9),
+        )
+        self.year_characteristic_select.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+        )
+        year_characteristic_summary = tk.Label(
+            year_characteristic_block,
+            textvariable=self.year_characteristic_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(8),
+            anchor="w",
+        )
+        year_characteristic_summary.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(2, 0),
+        )
+        self.year_skill_selects = []
+
+        for skill_index, year_skill_value in enumerate(
+            self.year_skill_values
+        ):
+            skill_block = tk.Frame(
+                year_improvements,
+                bg=SURFACE_MUTED,
+            )
+            skill_block.grid(
+                row=1,
+                column=skill_index,
+                sticky="ew",
+                padx=(
+                    (0, 4)
+                    if skill_index == 0
+                    else (4, 0)
+                ),
+                pady=(5, 0),
+            )
+            skill_label = tk.Label(
+                skill_block,
+                text=f"Skill {skill_index + 1}",
+                bg=SURFACE_MUTED,
+                fg=TEXT_MUTED,
+                font=app_font(9, "bold"),
+                anchor="w",
+            )
+            skill_label.grid(
+                row=0,
+                column=0,
+                sticky="ew",
+                pady=(0, 3),
+            )
+            skill_select = RoundedSelect(
+                skill_block,
+                year_skill_value,
+                DEVELOPMENT_SKILL_OPTIONS,
+                background=SURFACE_MUTED,
+                width=154,
+                height=32,
+                font=app_font(9),
+            )
+            skill_select.grid(
+                row=1,
+                column=0,
+                sticky="ew",
+            )
+            self.year_skill_selects.append(skill_select)
+
+        year_detail_divider = tk.Frame(
+            self.year_detail_panel,
+            bg=BORDER_SOFT,
+            height=1,
+        )
+        year_detail_divider.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(8, 7),
+        )
+        books_heading = tk.Label(
+            self.year_detail_panel,
+            text="Intentional study books",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        books_heading.grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+        )
+        books_summary = tk.Label(
+            self.year_detail_panel,
+            textvariable=self.year_book_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10),
+            anchor="nw",
+            justify="left",
+            wraplength=520,
+        )
+        books_summary.grid(
+            row=5,
+            column=0,
+            sticky="ew",
+            pady=(5, 8),
+        )
+        self.select_books_button = SoftButton(
+            self.year_detail_panel,
+            text="Select books",
+            command=self.open_school_year_books,
+            background=SURFACE_MUTED,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=108,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.select_books_button.grid(
+            row=5,
+            column=1,
+            sticky="ne",
+            padx=(10, 0),
+        )
+        eminence_frame = tk.Frame(
+            self.year_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        eminence_frame.grid(
+            row=6,
+            column=0,
+            columnspan=2,
+            sticky="new",
+            pady=(8, 0),
+        )
+        eminence_frame.grid_columnconfigure(0, weight=1)
+        eminence_heading = tk.Label(
+            eminence_frame,
+            textvariable=self.eminence_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+            justify="left",
+            wraplength=390,
+        )
+        eminence_heading.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        self.school_eminence_button = SoftButton(
+            eminence_frame,
+            text="Manage eminence",
+            command=self.open_eminence_dialog,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=124,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.school_eminence_button.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            padx=(8, 0),
+        )
+
+        self.adult_detail_panel = tk.Frame(
+            self.year_tabs_container,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            padx=14,
+            pady=14,
+        )
+        self.adult_detail_panel.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.adult_detail_panel.grid_columnconfigure(0, weight=1)
+        self.adult_detail_panel.grid_rowconfigure(4, weight=1)
+        adult_reading_frame = tk.Frame(
+            self.adult_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        adult_reading_frame.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        adult_reading_frame.grid_columnconfigure(0, weight=1)
+        adult_reading_heading = tk.Label(
+            adult_reading_frame,
+            text="Reading",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(11, "bold"),
+            anchor="w",
+        )
+        adult_reading_heading.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        adult_reading_summary = tk.Label(
+            adult_reading_frame,
+            textvariable=self.adult_reading_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+        )
+        adult_reading_summary.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(4, 0),
+        )
+        adult_book_summary = tk.Label(
+            adult_reading_frame,
+            textvariable=self.adult_book_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10),
+            anchor="nw",
+            justify="left",
+            wraplength=430,
+        )
+        adult_book_summary.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(5, 0),
+        )
+        self.adult_books_button = SoftButton(
+            adult_reading_frame,
+            text="Select books",
+            command=self.open_adult_year_books,
+            background=SURFACE_MUTED,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=108,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.adult_books_button.grid(
+            row=0,
+            column=1,
+            sticky="ne",
+            padx=(10, 0),
+        )
+        adult_reading_divider = tk.Frame(
+            self.adult_detail_panel,
+            bg=BORDER_SOFT,
+            height=1,
+        )
+        adult_reading_divider.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(10, 9),
+        )
+        adult_eminence_frame = tk.Frame(
+            self.adult_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        adult_eminence_frame.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+        )
+        adult_eminence_frame.grid_columnconfigure(0, weight=1)
+        adult_eminence_heading = tk.Label(
+            adult_eminence_frame,
+            textvariable=self.adult_eminence_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+            justify="left",
+            wraplength=430,
+        )
+        adult_eminence_heading.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        self.adult_eminence_button = SoftButton(
+            adult_eminence_frame,
+            text="Manage eminence",
+            command=self.open_eminence_dialog,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=116,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.adult_eminence_button.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            padx=(8, 0),
+        )
+
+        adult_jobs_divider = tk.Frame(
+            self.adult_detail_panel,
+            bg=BORDER_SOFT,
+            height=1,
+        )
+        adult_jobs_divider.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            pady=(10, 9),
+        )
+        jobs_frame = tk.Frame(
+            self.adult_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        jobs_frame.grid(
+            row=4,
+            column=0,
+            sticky="nsew",
+        )
+        jobs_frame.grid_rowconfigure(1, weight=1)
+        jobs_frame.grid_columnconfigure(0, weight=1)
+        jobs_heading = tk.Label(
+            jobs_frame,
+            textvariable=self.job_summary_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        jobs_heading.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 7),
+        )
+        self.job_list = tk.Listbox(
+            jobs_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=PRIMARY,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            borderwidth=0,
+            font=app_font(9),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.job_list.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="nsew",
+        )
+        add_job_button = SoftButton(
+            jobs_frame,
+            text="Add job",
+            command=self.open_job_dialog,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=82,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        add_job_button.grid(
+            row=2,
+            column=0,
+            sticky="w",
+            pady=(7, 0),
+        )
+        edit_job_button = SoftButton(
+            jobs_frame,
+            text="Edit selected",
+            command=self.edit_selected_job,
+            background=SURFACE_MUTED,
+            width=102,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        edit_job_button.grid(
+            row=2,
+            column=1,
+            sticky="w",
+            padx=(7, 0),
+            pady=(7, 0),
+        )
+        remove_job_button = SoftButton(
+            jobs_frame,
+            text="Remove selected",
+            command=self.remove_selected_job,
+            background=SURFACE_MUTED,
+            width=112,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        remove_job_button.grid(
+            row=2,
+            column=2,
+            sticky="e",
+            pady=(7, 0),
+        )
+
+        self.school_year_empty_label = tk.Label(
+            self.year_tabs_container,
+            textvariable=self.year_placeholder_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            anchor="nw",
+            justify="left",
+            wraplength=540,
+            padx=14,
+            pady=14,
+        )
+        self.school_year_empty_label.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.year_detail_panel.grid_remove()
+        self.adult_detail_panel.grid_remove()
+        self.school_year_empty_label.grid_remove()
         self.update_focus_controls()
         self.update_blood_status_control()
         self.update_parental_controls()
@@ -1243,18 +2052,55 @@ class DevelopmentView(tk.Frame):
 
     def set_person(self, person):
         person_values = person if isinstance(person, dict) else {}
+        loaded_development_values = {
+            "school": person_values.get("school", ""),
+            "blood_status": person_values.get("blood_status"),
+            "developmental_environment": person_values.get(
+                "developmental_environment"
+            ),
+            "parental_values": deepcopy(
+                person_values.get("parental_values")
+            ),
+            "initial_bonuses": deepcopy(
+                person_values.get("initial_bonuses")
+            ),
+            "characteristics": deepcopy(
+                person_values.get("characteristics")
+            ),
+            "development_plan": deepcopy(
+                person_values.get("development_plan")
+            ),
+        }
         plan = normalize_development_plan(
             person_values.get("development_plan"),
             default_schema="Scattershot",
         )
         self.loading = True
+        self.pending_automatic_changes = False
         self.current_person = deepcopy(person_values)
         self.development_plan = deepcopy(plan)
         self.academic_years_advanced = plan[
             "academic_years_advanced"
         ]
         self.school_started = plan["school_started"]
+        self.school_year_records = deepcopy(
+            plan.get("school_years", [])
+        )
+        self.adult_year_records = deepcopy(
+            plan.get("adult_years", [])
+        )
+        self.ledger_entries = deepcopy(
+            plan.get("ledger_entries", [])
+        )
+        self.initial_eminence_records = deepcopy(
+            plan.get("initial_eminence", [])
+        )
+        self.mortality_checked_through_age = plan.get(
+            "mortality_checked_through_age"
+        )
         self.active_year_tab = 0
+        self.active_adult_year = 0
+        self.active_development_page_index = 0
         self.strategy_value.set(plan["schema"])
         self.blood_status_value.set(
             resolved_blood_status(
@@ -1316,8 +2162,23 @@ class DevelopmentView(tk.Frame):
         self.update_parental_controls()
         self.update_initial_bonus_controls()
         self.set_characteristic_controls()
+        self.refresh_initial_eminence()
         self.update_school_progress_controls()
         self.update_initial_values_completion()
+        current_development_values = {
+            "school": self.school_field.get_value(),
+            "blood_status": self.current_person.get("blood_status"),
+            "developmental_environment": self.current_person.get(
+                "developmental_environment"
+            ),
+            "parental_values": deepcopy(self.parental_values),
+            "initial_bonuses": deepcopy(self.initial_bonuses),
+            "characteristics": deepcopy(self.characteristics),
+            "development_plan": deepcopy(plan),
+        }
+        self.pending_automatic_changes = (
+            loaded_development_values != current_development_values
+        )
         self.loading = False
 
     def activate(self):
@@ -1326,7 +2187,49 @@ class DevelopmentView(tk.Frame):
 
         previous_loading = self.loading
         self.loading = True
-        changed = False
+        changed = bool(
+            getattr(self, "pending_automatic_changes", False)
+        )
+        self.pending_automatic_changes = False
+
+        development_plan = getattr(
+            self,
+            "development_plan",
+            None,
+        )
+        can_initialize_blood_status = (
+            isinstance(development_plan, dict)
+            and hasattr(self, "blood_status_value")
+            and hasattr(self, "available_people")
+            and hasattr(self, "update_blood_status_control")
+        )
+
+        if can_initialize_blood_status and not bool(
+            development_plan.get(
+                "blood_status_initialized",
+                False,
+            )
+        ):
+            selected_status = randomized_blood_status(
+                self.current_person,
+                self.available_people(),
+            )
+            self.blood_status_value.set(selected_status)
+            self.current_person["blood_status"] = selected_status
+            self.current_person["developmental_environment"] = (
+                normalize_developmental_environment(
+                    self.current_person.get(
+                        "developmental_environment",
+                        "",
+                    ),
+                    selected_status,
+                )
+            )
+            self.development_plan[
+                "blood_status_initialized"
+            ] = True
+            self.update_blood_status_control()
+            changed = True
 
         if self.parental_values is None:
             self.parental_values = initialize_parental_values(
@@ -1365,11 +2268,129 @@ class DevelopmentView(tk.Frame):
 
             changed = True
 
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
+        )
+        changed = (
+            self.ensure_school_year_record_count(visible_years)
+            or changed
+        )
+        previous_adult_year_records = deepcopy(
+            getattr(self, "adult_year_records", [])
+        )
+        available_books = (
+            self.game_database_collection("books")
+            if hasattr(self, "game_database_collection")
+            else []
+        )
+        available_spells = (
+            self.game_database_collection("spells")
+            if hasattr(self, "game_database_collection")
+            else []
+        )
+        available_proficiencies = (
+            self.game_database_collection("proficiencies")
+            if hasattr(self, "game_database_collection")
+            else []
+        )
+        self.adult_year_records = (
+            ensure_adult_year_records_with_improvements(
+                previous_adult_year_records,
+                len(previous_adult_year_records),
+                self.school_year_generation_plan(),
+                initial_characteristics=getattr(
+                    self,
+                    "characteristics",
+                    None,
+                ),
+                school_year_records=getattr(
+                    self,
+                    "school_year_records",
+                    [],
+                ),
+                books=available_books,
+                spells=available_spells,
+                proficiencies=available_proficiencies,
+            )
+        )
+        if not isinstance(
+            getattr(self, "development_plan", None),
+            dict,
+        ):
+            self.development_plan = {}
+
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        changed = (
+            changed
+            or previous_adult_year_records
+            != self.adult_year_records
+        )
+
+        event_provider = getattr(self, "event_provider", None)
+
+        if event_provider is not None:
+            linked_events = event_provider(
+                self.current_person.get("record_id")
+            )
+            changed = (
+                self.reconcile_linked_event_eminence(
+                    linked_events,
+                    refresh_controls=False,
+                )
+                or changed
+            )
+
         self.update_parental_controls()
         self.update_initial_bonus_controls()
         self.update_initial_values_completion()
+        if (
+            hasattr(self, "school_started")
+            and hasattr(self, "academic_years_advanced")
+        ):
+            self.update_school_progress_controls()
         self.loading = previous_loading
         return changed
+
+    def reconcile_linked_event_eminence(
+        self,
+        events,
+        refresh_controls=True,
+    ):
+        if not self.current_person.get("record_id"):
+            return False
+
+        person_values = deepcopy(self.current_person)
+        current_plan = self.current_development_plan()
+        person_values["development_plan"] = current_plan
+        reconciled_plan = reconcile_person_event_eminence(
+            person_values,
+            events,
+        )
+
+        if reconciled_plan == current_plan:
+            return False
+
+        self.development_plan = deepcopy(reconciled_plan)
+        self.school_year_records = deepcopy(
+            reconciled_plan.get("school_years", [])
+        )
+        self.adult_year_records = deepcopy(
+            reconciled_plan.get("adult_years", [])
+        )
+        self.initial_eminence_records = deepcopy(
+            reconciled_plan.get("initial_eminence", [])
+        )
+        self.current_person["development_plan"] = deepcopy(
+            reconciled_plan
+        )
+
+        if refresh_controls:
+            self.refresh_initial_eminence()
+            self.update_school_progress_controls()
+
+        return True
 
     def set_birth_date(self, birth_year, birth_month, birth_day):
         self.birth_year = birth_year
@@ -1382,6 +2403,12 @@ class DevelopmentView(tk.Frame):
 
         if self.parental_values is not None:
             previous_loading = self.loading
+            previous_parental_values = deepcopy(
+                self.parental_values
+            )
+            previous_initial_bonuses = deepcopy(
+                self.initial_bonuses
+            )
             self.loading = True
             self.parental_values = rebase_parental_values(
                 self.current_person,
@@ -1394,9 +2421,28 @@ class DevelopmentView(tk.Frame):
             self.apply_parental_values_to_controls()
             self.update_parental_controls()
             self.reconcile_initial_bonus_assignments()
+            if (
+                previous_parental_values != self.parental_values
+                or previous_initial_bonuses != self.initial_bonuses
+            ):
+                self.pending_automatic_changes = True
             self.loading = previous_loading
         else:
             self.update_parental_handling_menu()
+
+        if hasattr(self, "school_year_records"):
+            visible_years = DevelopmentView.visible_development_school_years(
+                self
+            )
+            ledger_changed = self.ensure_school_year_record_count(
+                visible_years
+            )
+            self.pending_automatic_changes = (
+                self.pending_automatic_changes or ledger_changed
+            )
+
+        if hasattr(self, "year_tabs_container"):
+            self.update_school_progress_controls()
 
     def set_parentage(self, relationship_values):
         if not isinstance(relationship_values, dict):
@@ -1488,6 +2534,26 @@ class DevelopmentView(tk.Frame):
         plan["school_started"] = bool(
             getattr(self, "school_started", False)
         )
+        plan["calendar_year_progression"] = (
+            DevelopmentView.uses_calendar_year_progression(self)
+        )
+        plan["school_years"] = deepcopy(
+            getattr(self, "school_year_records", [])
+        )
+        plan["adult_years"] = deepcopy(
+            getattr(self, "adult_year_records", [])
+        )
+        plan["ledger_entries"] = deepcopy(
+            getattr(self, "ledger_entries", [])
+        )
+        plan["initial_eminence"] = deepcopy(
+            getattr(self, "initial_eminence_records", [])
+        )
+        plan["mortality_checked_through_age"] = getattr(
+            self,
+            "mortality_checked_through_age",
+            None,
+        )
         required_skill_count = development_skill_count(schema)
 
         if required_skill_count:
@@ -1529,33 +2595,78 @@ class DevelopmentView(tk.Frame):
         )
 
     def school_changed(self):
+        if hasattr(self, "start_year_value"):
+            self.update_start_year()
+        self.update_school_progress_controls()
         self.notify_change()
+
+    def school_is_selected(self):
+        school_field = getattr(self, "school_field", None)
+
+        if school_field is None:
+            return False
+
+        return bool(
+            str(school_field.get_value() or "").strip()
+        )
+
+    def uses_calendar_year_progression(self):
+        school_field = getattr(self, "school_field", None)
+
+        if school_field is None:
+            development_plan = getattr(
+                self,
+                "development_plan",
+                {},
+            )
+            return bool(
+                development_plan.get("calendar_year_progression", False)
+                if isinstance(development_plan, dict)
+                else False
+            )
+
+        return not bool(
+            str(school_field.get_value() or "").strip()
+        )
+
+    def development_start_year(self):
+        return calculate_development_start_year(
+            getattr(self, "birth_year", None),
+            getattr(self, "birth_month", None),
+            getattr(self, "birth_day", None),
+            school_attended=(
+                not DevelopmentView.uses_calendar_year_progression(self)
+            ),
+        )
+
+    def visible_development_school_years(self):
+        if DevelopmentView.uses_calendar_year_progression(self):
+            return 0
+
+        return visible_school_year_count(
+            getattr(self, "school_started", False),
+            getattr(self, "academic_years_advanced", 0),
+        )
 
     def strategy_changed(self, *arguments):
         if self.loading:
             return
 
-        randomized_plan = randomized_development_plan(
-            years_advanced=self.academic_years_advanced,
-            selected_schema=self.strategy_value.get(),
-            school_started=self.school_started,
+        updated_plan = self.current_development_plan()
+        required_skill_count = development_skill_count(
+            updated_plan["schema"]
         )
         self.loading = True
-        self.development_plan = deepcopy(randomized_plan)
-        focused_skills = randomized_plan.get("focused_skills", [])
+        self.development_plan = deepcopy(updated_plan)
+        focused_skills = updated_plan.get("focused_skills", [])
 
-        for index, skill_value in enumerate(self.skill_values):
-            selected_skill = (
-                focused_skills[index]
-                if index < len(focused_skills)
-                else DEVELOPMENT_SKILL_OPTIONS[index]
-            )
-            skill_value.set(selected_skill)
+        for index in range(required_skill_count):
+            self.skill_values[index].set(focused_skills[index])
 
         self.ability_value.set(
-            randomized_plan.get(
+            updated_plan.get(
                 "focused_ability",
-                DEVELOPMENT_ABILITY_OPTIONS[0],
+                self.ability_value.get(),
             )
         )
         self.update_focus_controls()
@@ -1631,13 +2742,28 @@ class DevelopmentView(tk.Frame):
         self.notify_change()
 
     def update_start_year(self):
-        start_year = calculate_school_start_year(
-            self.birth_year,
-            self.birth_month,
-            self.birth_day,
+        school_attended = self.school_is_selected()
+        start_year = (
+            calculate_school_start_year(
+                getattr(self, "birth_year", None),
+                getattr(self, "birth_month", None),
+                getattr(self, "birth_day", None),
+            )
+            if school_attended
+            else getattr(self, "birth_year", None)
         )
+
+        if hasattr(self, "start_year_label"):
+            self.start_year_label.configure(
+                text=(
+                    "Academic start year"
+                    if school_attended
+                    else "Development start year"
+                )
+            )
+
         self.start_year_value.set(
-            "Unknown" if start_year is None else str(start_year)
+            "Unknown" if start_year in (None, "") else str(start_year)
         )
 
     def set_characteristic_controls(self):
@@ -1895,95 +3021,1741 @@ class DevelopmentView(tk.Frame):
             self.school_started,
             self.academic_years_advanced,
         )
-        visible_years = visible_school_year_count(
-            self.school_started,
-            self.academic_years_advanced,
+        school_selected = self.school_is_selected()
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
         )
-        graduated = (
-            self.academic_years_advanced
-            >= ACADEMIC_YEARS_TO_ADULTHOOD
-        )
-
-        if hasattr(self, "advance_year_button"):
-            self.advance_year_button.set_text(
-                "Start school"
-                if not self.school_started
-                else "Advance one year"
-                if not graduated
-                else "Graduated"
-            )
-            self.advance_year_button.set_enabled(not graduated)
 
         if hasattr(self, "advance_adulthood_button"):
             self.advance_adulthood_button.set_enabled(
-                not graduated
-            )
-
-        if hasattr(self, "remove_year_button"):
-            self.remove_year_button.set_text(
-                f"Remove Year {visible_years}"
-                if visible_years
-                else "Remove latest year"
-            )
-            self.remove_year_button.set_enabled(
-                visible_years > 0
+                (
+                    school_selected
+                    and calculate_school_start_year(
+                        getattr(self, "birth_year", None),
+                        getattr(self, "birth_month", None),
+                        getattr(self, "birth_day", None),
+                    )
+                    is not None
+                )
             )
 
         if not hasattr(self, "year_tabs_container"):
             return
 
-        for year_number, year_button in (
-            self.year_tab_buttons.items()
-        ):
-            if year_number <= visible_years:
-                year_button.grid()
+        page_count = (
+            1
+            + visible_years
+            + len(
+                normalize_adult_year_records(
+                    getattr(self, "adult_year_records", [])
+                )
+            )
+        )
+
+        if select_latest:
+            self.active_development_page_index = page_count - 1
+        else:
+            self.active_development_page_index = max(
+                0,
+                min(
+                    getattr(
+                        self,
+                        "active_development_page_index",
+                        0,
+                    ),
+                    page_count - 1,
+                ),
+            )
+
+        self.render_active_development_page()
+
+        if hasattr(self, "previous_development_page_button"):
+            self.previous_development_page_button.set_enabled(
+                self.active_development_page_index > 0
+            )
+
+        if hasattr(self, "initial_development_page_button"):
+            self.initial_development_page_button.set_enabled(
+                self.active_development_page_index > 0
+            )
+
+        if hasattr(self, "latest_development_page_button"):
+            self.latest_development_page_button.set_enabled(
+                self.active_development_page_index < page_count - 1
+            )
+
+        if hasattr(self, "next_development_page_button"):
+            has_existing_next_page = (
+                getattr(
+                    self,
+                    "active_development_page_index",
+                    0,
+                )
+                < page_count - 1
+            )
+            self.next_development_page_button.set_text(
+                ">" if has_existing_next_page else "+"
+            )
+            self.next_development_page_button.set_colors(
+                PRIMARY if has_existing_next_page else ADD_GREEN,
+                (
+                    PRIMARY_HOVER
+                    if has_existing_next_page
+                    else ADD_GREEN_HOVER
+                ),
+                (
+                    TEXT_DARK
+                    if has_existing_next_page
+                    else FAMILY_GREEN_DARK
+                ),
+            )
+            self.next_development_page_button.set_enabled(
+                has_existing_next_page
+                or self.can_add_next_development_page()
+            )
+
+        if hasattr(self, "remove_latest_year_button"):
+            is_latest_year_page = (
+                self.active_development_page_index > 0
+                and self.active_development_page_index
+                == page_count - 1
+            )
+
+            if is_latest_year_page:
+                if (
+                    self.active_development_page_index
+                    <= visible_years
+                ):
+                    remove_text = (
+                        f"Remove Year "
+                        f"{self.active_development_page_index}"
+                    )
+                else:
+                    adult_year = (
+                        self.active_development_page_index
+                        - visible_years
+                    )
+                    calendar_range = adult_year_calendar_year_range(
+                        DevelopmentView.development_start_year(self),
+                        adult_year,
+                    )
+                    calendar_year = (
+                        calendar_range[0]
+                        if calendar_range is not None
+                        else None
+                    )
+                    calendar_end_year = (
+                        calendar_range[1]
+                        if calendar_range is not None
+                        else None
+                    )
+                    page_title = development_year_page_title(
+                        {
+                            "page_type": "adult",
+                            "adult_year": adult_year,
+                            "calendar_year": calendar_year,
+                            "calendar_end_year": calendar_end_year,
+                            "school_attended": school_selected,
+                        }
+                    )
+                    remove_text = (
+                        f"Remove {page_title}"
+                        if calendar_year is not None
+                        else "Remove year"
+                    )
+
+                self.remove_latest_year_button.set_text(
+                    remove_text
+                )
+                self.remove_latest_year_button.grid()
             else:
-                year_button.grid_remove()
-
-        if visible_years == 0:
-            self.active_year_tab = 0
-            self.year_tabs_container.grid_remove()
-            return
-
-        self.year_tabs_container.grid()
-
-        if (
-            select_latest
-            or self.active_year_tab < 1
-            or self.active_year_tab > visible_years
-        ):
-            self.active_year_tab = visible_years
-
-        self.select_year_tab(self.active_year_tab)
+                self.remove_latest_year_button.grid_remove()
 
     def select_year_tab(self, year_number):
-        visible_years = visible_school_year_count(
-            self.school_started,
-            self.academic_years_advanced,
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
         )
 
         if not 1 <= int(year_number) <= visible_years:
             return
 
         self.active_year_tab = int(year_number)
-        self.year_placeholder_value.set(
-            f"Year {self.active_year_tab} development details "
-            "will be added here."
+        self.active_adult_year = 0
+        self.active_development_page_index = int(year_number)
+        self.render_active_development_page()
+
+    def show_development_record(self, page_type, year_number):
+        try:
+            normalized_year = int(year_number)
+        except (TypeError, ValueError):
+            return False
+
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
         )
 
-        for tab_year, year_button in self.year_tab_buttons.items():
-            if tab_year == self.active_year_tab:
-                year_button.set_colors(
-                    PRIMARY,
-                    PRIMARY_HOVER,
-                    TEXT_DARK,
+        if page_type == "school":
+            if not 1 <= normalized_year <= visible_years:
+                return False
+
+            target_index = normalized_year
+        elif page_type == "adult":
+            adult_year_count = len(
+                normalize_adult_year_records(
+                    getattr(self, "adult_year_records", [])
                 )
+            )
+
+            if not 1 <= normalized_year <= adult_year_count:
+                return False
+
+            target_index = visible_years + normalized_year
+        else:
+            return False
+
+        self.active_development_page_index = target_index
+        self.update_school_progress_controls()
+        return True
+
+    def development_page_count(self):
+        return (
+            1
+            + DevelopmentView.visible_development_school_years(self)
+            + len(
+                normalize_adult_year_records(
+                    getattr(self, "adult_year_records", [])
+                )
+            )
+        )
+
+    def recorded_death_date(self):
+        person = getattr(self, "current_person", {})
+
+        if not bool(person.get("deceased")):
+            return None
+
+        try:
+            death_year = int(person.get("death_year"))
+        except (TypeError, ValueError):
+            return None
+
+        death_month_value = person.get("death_month")
+
+        try:
+            death_month = int(death_month_value)
+        except (TypeError, ValueError):
+            death_month = 12
+
+        try:
+            death_day = int(person.get("death_day"))
+        except (TypeError, ValueError):
+            death_day = (
+                31
+                if death_month_value in (None, "")
+                else 1
+            )
+
+        try:
+            return normalize_database_date(
+                {
+                    "year": death_year,
+                    "month": death_month,
+                    "day": death_day,
+                }
+            )
+        except ValueError:
+            try:
+                return normalize_database_date(
+                    {
+                        "year": death_year,
+                        "month": death_month,
+                        "day": 1,
+                    }
+                )
+            except ValueError:
+                return None
+
+    def development_targets_at_death(self):
+        death_date = self.recorded_death_date()
+
+        if death_date is None:
+            return None
+
+        return self.modern_day_progress_targets(death_date)
+
+    def can_add_next_development_page(self):
+        page_count = self.development_page_count()
+        active_page_index = getattr(
+            self,
+            "active_development_page_index",
+            0,
+        )
+
+        if active_page_index < page_count - 1:
+            return True
+
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
+        )
+        death_targets = self.development_targets_at_death()
+
+        if DevelopmentView.uses_calendar_year_progression(self):
+            target_calendar_year = (
+                len(
+                    normalize_adult_year_records(
+                        getattr(self, "adult_year_records", [])
+                    )
+                )
+                + 1
+            )
+            return (
+                death_targets is None
+                or target_calendar_year <= death_targets[1]
+            )
+
+        if visible_years < ACADEMIC_YEARS_TO_ADULTHOOD:
+            target_school_year = visible_years + 1
+            return (
+                death_targets is None
+                or target_school_year <= death_targets[0]
+            )
+
+        target_adult_year = (
+            len(
+                normalize_adult_year_records(
+                    getattr(self, "adult_year_records", [])
+                )
+            )
+            + 1
+        )
+        return (
+            death_targets is None
+            or target_adult_year <= death_targets[1]
+        )
+
+    def render_active_development_page(self):
+        if not hasattr(self, "initial_values_panel"):
+            return
+
+        self.initial_values_panel.grid_remove()
+        self.year_detail_panel.grid_remove()
+        self.adult_detail_panel.grid_remove()
+        self.school_year_empty_label.grid_remove()
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
+        )
+        page_index = max(
+            0,
+            min(
+                self.active_development_page_index,
+                self.development_page_count() - 1,
+            ),
+        )
+        self.active_development_page_index = page_index
+
+        if page_index == 0:
+            self.active_year_tab = 0
+            self.active_adult_year = 0
+            self.development_page_heading_value.set("Initial Values")
+            self.initial_values_panel.grid()
+            return
+
+        if page_index <= visible_years:
+            self.active_year_tab = page_index
+            self.active_adult_year = 0
+            calendar_year = school_year_calendar_year(
+                calculate_school_start_year(
+                    self.birth_year,
+                    self.birth_month,
+                    self.birth_day,
+                ),
+                page_index,
+            )
+            self.development_page_heading_value.set(
+                development_year_page_title(
+                    {
+                        "page_type": "school",
+                        "school_year": page_index,
+                        "calendar_year": calendar_year,
+                        "calendar_end_year": (
+                            historical_year_shift(calendar_year, 1)
+                            if calendar_year is not None
+                            else None
+                        ),
+                    }
+                )
+            )
+            self.render_school_year_record()
+            return
+
+        adult_year = page_index - visible_years
+        self.active_year_tab = 0
+        self.active_adult_year = adult_year
+        calendar_range = adult_year_calendar_year_range(
+            DevelopmentView.development_start_year(self),
+            adult_year,
+        )
+        calendar_year = (
+            calendar_range[0]
+            if calendar_range is not None
+            else None
+        )
+        calendar_end_year = (
+            calendar_range[1]
+            if calendar_range is not None
+            else None
+        )
+        self.development_page_heading_value.set(
+            development_year_page_title(
+                {
+                    "page_type": "adult",
+                    "adult_year": adult_year,
+                    "calendar_year": calendar_year,
+                    "calendar_end_year": calendar_end_year,
+                    "school_attended": self.school_is_selected(),
+                }
+            )
+        )
+        self.render_adult_year_record()
+
+    def show_previous_development_page(self):
+        if self.active_development_page_index <= 0:
+            return
+
+        self.active_development_page_index -= 1
+        self.update_school_progress_controls()
+
+    def show_initial_development_page(self):
+        self.active_development_page_index = 0
+        self.update_school_progress_controls()
+
+    def show_latest_development_page(self):
+        self.active_development_page_index = max(
+            0,
+            self.development_page_count() - 1,
+        )
+        self.update_school_progress_controls()
+
+    def show_next_development_page(self):
+        page_count = self.development_page_count()
+
+        if self.active_development_page_index < page_count - 1:
+            self.active_development_page_index += 1
+            self.update_school_progress_controls()
+            return
+
+        if not self.can_add_next_development_page():
+            return
+
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
+        )
+
+        if self.active_development_page_index == 0:
+            self.advance_one_year()
+            return
+
+        if self.active_development_page_index <= visible_years:
+            if visible_years < ACADEMIC_YEARS_TO_ADULTHOOD:
+                self.advance_one_year()
+                return
+
+            if (
+                self.academic_years_advanced
+                < ACADEMIC_YEARS_TO_ADULTHOOD
+            ):
+                self.academic_years_advanced = (
+                    ACADEMIC_YEARS_TO_ADULTHOOD
+                )
+
+            self.add_next_adult_year()
+            return
+
+        self.add_next_adult_year()
+
+    def add_next_adult_year(self):
+        if (
+            not DevelopmentView.uses_calendar_year_progression(self)
+            and normalize_academic_years_advanced(
+                self.academic_years_advanced
+            )
+            < ACADEMIC_YEARS_TO_ADULTHOOD
+        ):
+            return
+
+        previous_records = normalize_adult_year_records(
+            getattr(self, "adult_year_records", [])
+        )
+        target_year_count = len(previous_records) + 1
+        death_targets = self.development_targets_at_death()
+
+        if (
+            death_targets is not None
+            and target_year_count > death_targets[1]
+        ):
+            return
+
+        self.adult_year_records = (
+            ensure_adult_year_records_with_improvements(
+                previous_records,
+                target_year_count,
+                self.school_year_generation_plan(),
+                initial_characteristics=getattr(
+                    self,
+                    "characteristics",
+                    None,
+                ),
+                school_year_records=getattr(
+                    self,
+                    "school_year_records",
+                    [],
+                ),
+                books=self.game_database_collection("books"),
+                spells=self.game_database_collection("spells"),
+                proficiencies=self.game_database_collection(
+                    "proficiencies"
+                ),
+            )
+        )
+        if not isinstance(
+            getattr(self, "development_plan", None),
+            dict,
+        ):
+            self.development_plan = {"schema": "Scattershot"}
+
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        self.development_plan["calendar_year_progression"] = (
+            DevelopmentView.uses_calendar_year_progression(self)
+        )
+
+        self.ensure_school_year_record_count(
+            0
+            if DevelopmentView.uses_calendar_year_progression(self)
+            else ACADEMIC_YEARS_TO_ADULTHOOD
+        )
+
+        self.update_school_progress_controls(select_latest=True)
+        self.notify_change()
+
+    def school_year_record(self, year_number=None):
+        selected_year = (
+            self.active_year_tab
+            if year_number is None
+            else int(year_number)
+        )
+
+        for record in getattr(
+            self,
+            "school_year_records",
+            [],
+        ):
+            if record.get("year") == selected_year:
+                return record
+
+        return None
+
+    def school_year_book_summary_text(self, books):
+        normalized_books = normalize_school_year_books(books)
+
+        if not normalized_books:
+            return "No books selected"
+
+        return "\n".join(
+            (
+                f"{index}. {book['name']}"
+                + (
+                    f" — {book['author']}"
+                    if book["author"]
+                    else ""
+                )
+            )
+            for index, book in enumerate(
+                normalized_books,
+                start=1,
+            )
+        )
+
+    def render_school_year_record(self):
+        record = self.school_year_record()
+
+        if record is None:
+            if hasattr(self, "year_placeholder_value"):
+                self.year_placeholder_value.set(
+                    f"Year {self.active_year_tab} development details "
+                    "will be added here."
+                )
+
+            if hasattr(self, "year_detail_panel"):
+                self.year_detail_panel.grid_remove()
+
+            if hasattr(self, "school_year_empty_label"):
+                self.school_year_empty_label.grid()
+
+            return
+
+        previous_loading = self.loading
+        self.loading = True
+        skipped = bool(record.get("skipped", False))
+        book_summary = self.school_year_book_summary_text(
+            record.get("books", [])
+        )
+
+        if skipped:
+            book_summary = f"Intentional study:\n{book_summary}"
+
+        if hasattr(self, "year_detail_heading_value"):
+            self.year_detail_heading_value.set(
+                f"Year {record['year']}"
+            )
+
+        if hasattr(self, "year_ability_value"):
+            self.year_ability_value.set(record["ability"])
+
+        if hasattr(self, "year_skipped_value"):
+            self.year_skipped_value.set(skipped)
+
+        if hasattr(self, "school_skip_note"):
+            person_name = str(
+                self.current_person.get(
+                    "displayed_name",
+                    "This person",
+                )
+                or "This person"
+            ).strip()
+            self.school_skip_note_value.set(
+                f"{person_name} skipped attending school this year."
+            )
+
+            if skipped:
+                self.school_skip_note.grid()
             else:
-                year_button.set_colors(
-                    BUTTON_SOFT,
-                    BUTTON_SOFT_HOVER,
-                    TEXT_DARK,
+                self.school_skip_note.grid_remove()
+
+        initial_characteristics = getattr(
+            self,
+            "characteristics",
+            None,
+        )
+        characteristic_options = (
+            editable_characteristic_buys(
+                initial_characteristics,
+                self.school_year_records,
+                record["year"],
+            )
+            if initial_characteristics is not None
+            else CHARACTERISTIC_NAMES
+        )
+        characteristic = normalize_characteristic_name(
+            record.get("characteristic"),
+            allow_blank=True,
+        )
+
+        if not characteristic and characteristic_options:
+            characteristic = characteristic_options[0]
+
+        if hasattr(self, "year_characteristic_select"):
+            self.year_characteristic_select.set_values(
+                [
+                    field_name.title()
+                    for field_name in characteristic_options
+                ]
+            )
+
+        if hasattr(self, "year_characteristic_value"):
+            self.year_characteristic_value.set(
+                characteristic.title()
+            )
+
+        characteristic_after_buy = (
+            characteristic_value_after_buy(
+                initial_characteristics,
+                self.school_year_records,
+                record["year"],
+            )
+            if initial_characteristics is not None
+            else None
+        )
+        self.year_characteristic_summary_value.set(
+            (
+                f"Becomes {characteristic_after_buy} of 5"
+                if characteristic_after_buy is not None
+                else "Choose one"
+            )
+        )
+
+        if hasattr(self, "year_skill_values"):
+            for index, skill_value in enumerate(
+                self.year_skill_values
+            ):
+                skill_value.set(record["skills"][index])
+
+        if hasattr(self, "year_book_summary_value"):
+            self.year_book_summary_value.set(book_summary)
+
+        if hasattr(self, "select_books_button"):
+            self.select_books_button.set_text(
+                "Change books"
+                if len(record.get("books", []))
+                == SCHOOL_YEAR_BOOK_COUNT
+                else "Select books"
+            )
+
+        self.refresh_eminence_lists(
+            record.get("eminence", [])
+        )
+
+        if hasattr(self, "year_placeholder_value"):
+            self.year_placeholder_value.set(
+                f"Ability: {record['ability']}\n"
+                f"Skills: {record['skills'][0]}, "
+                f"{record['skills'][1]}\n"
+                f"Books:\n{book_summary}"
+            )
+
+        if hasattr(self, "year_detail_panel"):
+            self.year_detail_panel.grid()
+
+        if hasattr(self, "school_year_empty_label"):
+            self.school_year_empty_label.grid_remove()
+
+        self.set_annual_improvement_controls_enabled(
+            True
+        )
+        self.loading = previous_loading
+
+    def adult_year_record(self, adult_year=None):
+        selected_year = (
+            self.active_adult_year
+            if adult_year is None
+            else int(adult_year)
+        )
+
+        for record in getattr(
+            self,
+            "adult_year_records",
+            [],
+        ):
+            if record.get("adult_year") == selected_year:
+                return record
+
+        return None
+
+    def render_adult_year_record(self):
+        record = self.adult_year_record()
+
+        if record is None:
+            self.year_placeholder_value.set(
+                "Adult development details will be added here."
+            )
+            self.school_year_empty_label.grid()
+            return
+
+        previous_loading = self.loading
+        self.loading = True
+        book_limit = int(record.get("book_limit", 0) or 0)
+        self.adult_reading_summary_value.set(
+            f"Book limit: {book_limit}"
+        )
+        self.adult_book_summary_value.set(
+            self.school_year_book_summary_text(
+                record.get("books", [])
+            )
+            if book_limit
+            else "No books read"
+        )
+        self.adult_books_button.set_text(
+            "Change books"
+            if (
+                book_limit
+                and len(record.get("books", [])) == book_limit
+            )
+            else "Select books"
+        )
+        self.adult_books_button.set_enabled(book_limit > 0)
+        self.refresh_eminence_lists(
+            record.get("eminence", [])
+        )
+        jobs = self.active_job_assignments_for_adult_year(
+            record["adult_year"]
+        )
+        self.visible_job_assignments = jobs
+        self.job_list.delete(0, "end")
+
+        for job in jobs:
+            start_date = str(job["start_year"])
+
+            if job["start_month"] is not None:
+                start_date += f"-{job['start_month']:02d}"
+
+            if job["start_day"] is not None:
+                start_date += f"-{job['start_day']:02d}"
+
+            end_date = "ongoing"
+
+            if job["end_year"] is not None:
+                end_date = str(job["end_year"])
+
+                if job["end_month"] is not None:
+                    end_date += f"-{job['end_month']:02d}"
+
+                if job["end_day"] is not None:
+                    end_date += f"-{job['end_day']:02d}"
+
+            self.job_list.insert(
+                "end",
+                (
+                    f"{job['organization_name']} — {job['title']} · "
+                    f"{start_date} to {end_date}"
+                ),
+            )
+
+        job_count = len(jobs)
+        self.job_summary_value.set(
+            f"Jobs · {job_count}"
+            if job_count != 1
+            else "Jobs · 1"
+        )
+        self.adult_detail_panel.grid()
+        self.loading = previous_loading
+
+    def active_job_assignments_for_adult_year(self, adult_year):
+        calendar_range = adult_year_calendar_year_range(
+            DevelopmentView.development_start_year(self),
+            adult_year,
+        )
+
+        if calendar_range is None:
+            record = self.adult_year_record(adult_year)
+            return normalize_job_records(
+                (record or {}).get("jobs", [])
+            )
+
+        jobs_by_id = {}
+
+        for adult_record in getattr(
+            self,
+            "adult_year_records",
+            [],
+        ):
+            for job in normalize_job_records(
+                adult_record.get("jobs", [])
+            ):
+                if job_assignment_overlaps_year_range(
+                    job,
+                    calendar_range[0],
+                    calendar_range[1],
+                ):
+                    jobs_by_id[job["record_id"]] = job
+
+        return sorted(
+            jobs_by_id.values(),
+            key=lambda job: (
+                job["start_year"],
+                job["start_month"] or 1,
+                job["start_day"] or 1,
+                job["organization_name"].casefold(),
+                job["title"].casefold(),
+            ),
+        )
+
+    def refresh_eminence_lists(self, records):
+        normalized_records = normalize_eminence_records(records)
+        point_count = len(normalized_records)
+        summary_text = (
+            f"Eminence: {point_count}"
+        )
+
+        if normalized_records:
+            skill_summary = ", ".join(
+                f"{skill} ({count})"
+                for skill, count in eminence_skill_counts(
+                    normalized_records
+                ).items()
+            )
+            summary_text += f"\n{skill_summary}"
+
+        if self.active_year_tab:
+            self.eminence_summary_value.set(summary_text)
+        else:
+            self.adult_eminence_summary_value.set(summary_text)
+
+    def refresh_initial_eminence(self):
+        normalized_records = normalize_eminence_records(
+            getattr(self, "initial_eminence_records", [])
+        )
+        self.initial_eminence_records = normalized_records
+        point_count = len(normalized_records)
+        summary_text = f"Eminence: {point_count}"
+
+        if normalized_records:
+            skill_summary = ", ".join(
+                f"{skill} ({count})"
+                for skill, count in eminence_skill_counts(
+                    normalized_records
+                ).items()
+            )
+            summary_text += f"\n{skill_summary}"
+
+        self.initial_eminence_summary_value.set(
+            summary_text
+        )
+
+        if hasattr(self, "initial_eminence_button"):
+            self.initial_eminence_button.set_text("Manage eminence")
+
+    def open_eminence_dialog(self):
+        EminenceManagerDialog(
+            self,
+            self.eminence_records_for_active_page(),
+            self.eminence_default_skill(),
+            self.save_eminence_records,
+        )
+
+    def eminence_records_for_active_page(self):
+        if not self.active_year_tab and not self.active_adult_year:
+            return normalize_eminence_records(
+                self.initial_eminence_records
+            )
+
+        if self.active_year_tab:
+            record = self.school_year_record()
+        else:
+            record = self.adult_year_record()
+
+        if record is None:
+            return []
+
+        return normalize_eminence_records(
+            record.get("eminence", [])
+        )
+
+    def eminence_default_skill(self):
+        plan = self.current_development_plan()
+        preferred_skills = preferred_development_skills(plan)
+
+        if preferred_skills:
+            return preferred_skills[0]
+
+        record = (
+            self.school_year_record()
+            if self.active_year_tab
+            else self.adult_year_record()
+            if self.active_adult_year
+            else None
+        )
+
+        if record is not None and record.get("skills"):
+            return record["skills"][0]
+
+        return random_school_year_skill(plan)
+
+    def save_eminence_records(self, eminence_records):
+        normalized_records = normalize_eminence_records(
+            eminence_records
+        )
+
+        if not self.active_year_tab and not self.active_adult_year:
+            self.initial_eminence_records = normalized_records
+            self.development_plan["initial_eminence"] = deepcopy(
+                normalized_records
+            )
+            self.refresh_initial_eminence()
+            self.notify_change()
+            return
+
+        if self.active_year_tab:
+            record = self.school_year_record()
+
+            if record is None:
+                return
+
+            record["eminence"] = normalized_records
+            self.school_year_records = normalize_school_year_records(
+                self.school_year_records
+            )
+            self.development_plan["school_years"] = deepcopy(
+                self.school_year_records
+            )
+            self.render_school_year_record()
+            self.notify_change()
+            return
+
+        record = self.adult_year_record()
+
+        if record is None:
+            return
+
+        record["eminence"] = normalized_records
+        self.adult_year_records = normalize_adult_year_records(
+            self.adult_year_records
+        )
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        self.render_adult_year_record()
+        self.notify_change()
+
+    def save_eminence_record(self, eminence_record):
+        self.save_eminence_records(
+            [
+                *self.eminence_records_for_active_page(),
+                eminence_record,
+            ]
+        )
+
+    def remove_initial_eminence(self):
+        if not getattr(self, "initial_eminence_records", []):
+            return
+
+        self.initial_eminence_records = []
+        self.development_plan["initial_eminence"] = []
+        self.refresh_initial_eminence()
+        self.notify_change()
+
+    def available_organizations(self):
+        if self.organization_provider is None:
+            return []
+
+        organizations = self.organization_provider()
+        return (
+            list(organizations)
+            if organizations is not None
+            else []
+        )
+
+    def open_job_dialog(self):
+        if not self.active_adult_year:
+            return
+
+        calendar_year_range = adult_year_calendar_year_range(
+            DevelopmentView.development_start_year(self),
+            self.active_adult_year,
+        )
+        calendar_year = (
+            calendar_year_range[0]
+            if calendar_year_range is not None
+            else None
+        )
+        current_assignments = []
+
+        for adult_year_record in getattr(
+            self,
+            "adult_year_records",
+            [],
+        ):
+            current_assignments.extend(
+                normalize_job_records(
+                    adult_year_record.get("jobs", [])
                 )
+            )
+
+        suggested_start_date = suggested_job_start_date(
+            current_assignments,
+            calendar_year,
+            (
+                calendar_year_range[1]
+                if calendar_year_range is not None
+                else calendar_year
+            ),
+        )
+        JobDialog(
+            self,
+            self.available_organizations(),
+            (
+                suggested_start_date[0]
+                if suggested_start_date is not None
+                else calendar_year
+            ),
+            self.save_job_record,
+            self.organization_create_command,
+            self.organization_location_provider,
+            self.all_job_assignments(),
+            default_start_month=(
+                suggested_start_date[1]
+                if suggested_start_date is not None
+                else None
+            ),
+            default_start_day=(
+                suggested_start_date[2]
+                if suggested_start_date is not None
+                else None
+            ),
+        )
+
+    def save_job_record(self, job_record):
+        record = self.adult_year_record()
+
+        if record is None:
+            return
+
+        normalized_job_record = normalize_job_records(
+            [job_record]
+        )[0]
+        job_found = False
+
+        for adult_record in self.adult_year_records:
+            updated_jobs = []
+
+            for existing_job in normalize_job_records(
+                adult_record.get("jobs", [])
+            ):
+                if (
+                    existing_job["record_id"]
+                    == normalized_job_record["record_id"]
+                ):
+                    updated_jobs.append(normalized_job_record)
+                    job_found = True
+                else:
+                    updated_jobs.append(existing_job)
+
+            adult_record["jobs"] = normalize_job_records(updated_jobs)
+
+        if not job_found:
+            record["jobs"] = normalize_job_records(
+                [
+                    *record.get("jobs", []),
+                    normalized_job_record,
+                ]
+            )
+        self.adult_year_records = normalize_adult_year_records(
+            self.adult_year_records
+        )
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        self.render_adult_year_record()
+        self.notify_change()
+
+    def edit_selected_job(self):
+        selected = self.job_list.curselection()
+
+        if not selected:
+            return
+
+        jobs = normalize_job_records(
+            getattr(self, "visible_job_assignments", [])
+        )
+        selected_index = int(selected[0])
+
+        if not 0 <= selected_index < len(jobs):
+            return
+
+        JobDialog(
+            self,
+            self.available_organizations(),
+            jobs[selected_index]["start_year"],
+            self.save_job_record,
+            self.organization_create_command,
+            self.organization_location_provider,
+            self.all_job_assignments(),
+            jobs[selected_index],
+        )
+
+    def all_job_assignments(self):
+        assignments = []
+        current_person_id = str(
+            self.current_person.get("record_id", "") or ""
+        )
+        people = (
+            self.people_provider()
+            if self.people_provider is not None
+            else []
+        )
+
+        for person in people or []:
+            if not isinstance(person, dict):
+                continue
+
+            if str(person.get("record_id", "") or "") == (
+                current_person_id
+            ):
+                continue
+
+            development_plan = person.get(
+                "development_plan",
+                {},
+            )
+
+            if not isinstance(development_plan, dict):
+                continue
+
+            for adult_year_record in development_plan.get(
+                "adult_years",
+                [],
+            ):
+                if not isinstance(adult_year_record, dict):
+                    continue
+
+                assignments.extend(
+                    normalize_job_records(
+                        adult_year_record.get("jobs", [])
+                    )
+                )
+
+        for adult_year_record in getattr(
+            self,
+            "adult_year_records",
+            [],
+        ):
+            assignments.extend(
+                normalize_job_records(
+                    adult_year_record.get("jobs", [])
+                )
+            )
+
+        return normalize_job_records(assignments)
+
+    def remove_selected_job(self):
+        selected = self.job_list.curselection()
+
+        if not selected:
+            return
+
+        selected_index = int(selected[0])
+        visible_jobs = normalize_job_records(
+            getattr(self, "visible_job_assignments", [])
+        )
+
+        if not 0 <= selected_index < len(visible_jobs):
+            return
+
+        selected_job_id = visible_jobs[selected_index]["record_id"]
+
+        for adult_record in self.adult_year_records:
+            adult_record["jobs"] = [
+                job
+                for job in normalize_job_records(
+                    adult_record.get("jobs", [])
+                )
+                if job["record_id"] != selected_job_id
+            ]
+        self.adult_year_records = normalize_adult_year_records(
+            self.adult_year_records
+        )
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        self.render_adult_year_record()
+        self.notify_change()
+
+    def set_annual_improvement_controls_enabled(self, enabled):
+        if hasattr(self, "year_ability_select"):
+            self.year_ability_select.set_enabled(enabled)
+
+        for skill_select in getattr(
+            self,
+            "year_skill_selects",
+            [],
+        ):
+            skill_select.set_enabled(enabled)
+
+        if hasattr(self, "year_characteristic_select"):
+            self.year_characteristic_select.set_enabled(True)
+
+        if (
+            hasattr(self, "select_books_button")
+            and getattr(self, "active_year_tab", 0)
+        ):
+            self.select_books_button.set_enabled(True)
+
+    def year_skip_changed(self, *arguments):
+        if self.loading:
+            return
+
+        record = self.school_year_record()
+
+        if record is None:
+            return
+
+        skip_requested = bool(self.year_skipped_value.get())
+
+        if skip_requested and not bool(record.get("skipped", False)):
+            person_name = str(
+                self.current_person.get(
+                    "displayed_name",
+                    "This person",
+                )
+                or "This person"
+            ).strip()
+            confirmed = messagebox.askyesno(
+                "Skip school this year?",
+                (
+                    f"{person_name} will skip attending school this "
+                    "year. Their assigned school books will not be "
+                    "purchased or read.\n\n"
+                    "They can still choose ability, skill, and "
+                    "characteristic development, read intentional-study "
+                    "books, and earn eminence.\n\n"
+                    "Confirm this school year should be skipped."
+                ),
+                parent=self,
+            )
+
+            if not confirmed:
+                self.loading = True
+                self.year_skipped_value.set(False)
+                self.loading = False
+                return
+
+        self.school_year_selection_changed()
+
+    def school_year_selection_changed(self, *arguments):
+        if self.loading:
+            return
+
+        if getattr(self, "active_adult_year", 0):
+            return
+
+        record = self.school_year_record()
+
+        if record is None:
+            return
+
+        skipped = (
+            self.year_skipped_value.get()
+            if hasattr(self, "year_skipped_value")
+            else bool(record.get("skipped", False))
+        )
+        updated_record = normalize_school_year_records(
+            [
+                {
+                    "year": record["year"],
+                    "school": record.get("school", ""),
+                    "skipped": skipped,
+                    "ability": self.year_ability_value.get(),
+                    "skills": [
+                        skill_value.get()
+                        for skill_value in self.year_skill_values
+                    ],
+                    "characteristic": (
+                        self.year_characteristic_value.get()
+                        if hasattr(
+                            self,
+                            "year_characteristic_value",
+                        )
+                        else record.get("characteristic", "")
+                    ),
+                    "assigned_books": record.get(
+                        "assigned_books",
+                        [],
+                    )
+                    if not skipped
+                    else [],
+                    "books": (
+                        record.get("books", [])
+                    ),
+                    "eminence": record.get("eminence", []),
+                }
+            ]
+        )[0]
+        self.school_year_records = [
+            (
+                updated_record
+                if stored_record["year"] == updated_record["year"]
+                else stored_record
+            )
+            for stored_record in self.school_year_records
+        ]
+        self.development_plan["school_years"] = deepcopy(
+            self.school_year_records
+        )
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
+        )
+        self.ensure_school_year_record_count(visible_years)
+        self.render_school_year_record()
+        self.notify_change()
+
+    def open_school_year_books(self):
+        record = self.school_year_record()
+
+        if record is None:
+            return
+
+        books = self.game_database_collection("books")
+
+        if len(books) < SCHOOL_YEAR_BOOK_COUNT:
+            messagebox.showinfo(
+                "Books unavailable",
+                "The game database does not contain two books to select.",
+                parent=self,
+            )
+            return
+
+        BookSelectionDialog(
+            self,
+            books,
+            record.get("books", []),
+            self.save_school_year_books,
+            excluded_book_identities=(
+                self.unavailable_intentional_book_identities(
+                    record["year"]
+                )
+            ),
+        )
+
+    def save_school_year_books(self, books):
+        excluded_identities = (
+            self.unavailable_intentional_book_identities(
+                self.active_year_tab
+            )
+        )
+        normalized_books = [
+            book
+            for book in normalize_school_year_books(books)
+            if school_year_book_identity(book)
+            not in excluded_identities
+        ]
+
+        if len(normalized_books) != SCHOOL_YEAR_BOOK_COUNT:
+            return
+
+        record = self.school_year_record()
+
+        if record is None:
+            return
+
+        record["books"] = normalized_books
+        self.school_year_records = normalize_school_year_records(
+            self.school_year_records
+        )
+        self.development_plan["school_years"] = deepcopy(
+            self.school_year_records
+        )
+        self.render_school_year_record()
+        self.notify_change()
+
+    def open_adult_year_books(self):
+        record = self.adult_year_record()
+
+        if record is None:
+            return
+
+        book_limit = int(record.get("book_limit", 0) or 0)
+
+        if book_limit <= 0:
+            return
+
+        excluded_identities = self.unavailable_adult_book_identities(
+            record["adult_year"]
+        )
+        available_books = [
+            book
+            for book in self.game_database_collection("books")
+            if school_year_book_identity(book)
+            not in excluded_identities
+        ]
+
+        if len(available_books) < book_limit:
+            messagebox.showinfo(
+                "Books unavailable",
+                (
+                    "The game database does not contain enough unread "
+                    "books for this year's reading result."
+                ),
+                parent=self,
+            )
+            return
+
+        BookSelectionDialog(
+            self,
+            self.game_database_collection("books"),
+            record.get("books", []),
+            self.save_adult_year_books,
+            excluded_book_identities=excluded_identities,
+            required_book_count=book_limit,
+            heading_text="Books read during this adult year",
+            explanation_text=(
+                f"Book limit for this year: {book_limit}. "
+                "Search by title, author, category, spell, or "
+                "proficiency. Books already read are excluded."
+            ),
+        )
+
+    def save_adult_year_books(self, books):
+        record = self.adult_year_record()
+
+        if record is None:
+            return
+
+        book_limit = int(record.get("book_limit", 0) or 0)
+        excluded_identities = self.unavailable_adult_book_identities(
+            record["adult_year"]
+        )
+        normalized_books = [
+            book
+            for book in normalize_school_year_books(
+                books,
+                book_limit,
+            )
+            if school_year_book_identity(book)
+            not in excluded_identities
+        ]
+
+        if len(normalized_books) != book_limit:
+            return
+
+        record["books"] = normalized_books
+        self.adult_year_records = normalize_adult_year_records(
+            self.adult_year_records
+        )
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        self.render_adult_year_record()
+        self.notify_change()
+
+    def unavailable_adult_book_identities(self, adult_year):
+        identities = set()
+
+        for school_record in getattr(
+            self,
+            "school_year_records",
+            [],
+        ):
+            for field_name in ("assigned_books", "books"):
+                identities.update(
+                    school_year_book_identity(book)
+                    for book in school_record.get(
+                        field_name,
+                        [],
+                    )
+                )
+
+        for adult_record in getattr(
+            self,
+            "adult_year_records",
+            [],
+        ):
+            if int(adult_record.get("adult_year", 0) or 0) == int(
+                adult_year
+            ):
+                continue
+
+            identities.update(
+                school_year_book_identity(book)
+                for book in adult_record.get("books", [])
+            )
+
+        return identities
+
+    def unavailable_intentional_book_identities(
+        self,
+        year_number,
+    ):
+        identities = set()
+        assigned_by_year = self.assigned_books_for_selected_school()
+
+        for assigned_year, assigned_books in assigned_by_year.items():
+            if int(assigned_year) > int(year_number):
+                continue
+
+            identities.update(
+                school_year_book_identity(book)
+                for book in assigned_books
+            )
+
+        for record in getattr(
+            self,
+            "school_year_records",
+            [],
+        ):
+            record_year = int(record.get("year", 0) or 0)
+
+            if record_year <= int(year_number):
+                for book in record.get("assigned_books", []) or []:
+                    identities.add(
+                        school_year_book_identity(book)
+                    )
+
+            if record_year == int(year_number):
+                continue
+
+            for book in record.get("books", []) or []:
+                identities.add(school_year_book_identity(book))
+
+        return identities
+
+    def assigned_books_for_selected_school(self):
+        school_field = getattr(self, "school_field", None)
+        school_name = (
+            school_field.get_value()
+            if school_field is not None
+            else str(
+                getattr(self, "current_person", {}).get(
+                    "school",
+                    "",
+                )
+                or ""
+            ).strip()
+        )
+        return assigned_school_books_by_year(
+            school_name,
+            self.game_database_collection("schools"),
+            self.game_database_collection("books"),
+        )
+
+    def game_database_collection(self, collection_name):
+        game_database = getattr(self, "game_database", None)
+
+        if (
+            game_database is None
+            or not getattr(game_database, "loaded", False)
+        ):
+            return []
+
+        return game_database.collection(collection_name)
+
+    def school_year_generation_plan(self):
+        plan = deepcopy(
+            getattr(
+                self,
+                "development_plan",
+                {"schema": "Scattershot"},
+            )
+        )
+        plan["academic_years_advanced"] = getattr(
+            self,
+            "academic_years_advanced",
+            0,
+        )
+        plan["school_started"] = bool(
+            getattr(self, "school_started", False)
+        )
+        plan["school_years"] = deepcopy(
+            getattr(self, "school_year_records", [])
+        )
+        plan["adult_years"] = deepcopy(
+            getattr(self, "adult_year_records", [])
+        )
+        plan["initial_eminence"] = deepcopy(
+            getattr(self, "initial_eminence_records", [])
+        )
+        plan["mortality_checked_through_age"] = getattr(
+            self,
+            "mortality_checked_through_age",
+            None,
+        )
+
+        if hasattr(self, "strategy_value"):
+            plan["schema"] = self.strategy_value.get()
+
+        plan.setdefault("schema", "Scattershot")
+
+        required_skill_count = development_skill_count(
+            plan.get("schema", "Scattershot")
+        )
+
+        if required_skill_count and hasattr(self, "skill_values"):
+            plan["focused_skills"] = [
+                skill_value.get()
+                for skill_value in self.skill_values[
+                    :required_skill_count
+                ]
+            ]
+        elif (
+            plan.get("schema") == "Ability-focus"
+            and hasattr(self, "ability_value")
+        ):
+            plan["focused_ability"] = self.ability_value.get()
+
+        return normalize_development_plan(plan)
+
+    def ensure_school_year_record_count(self, target_year_count):
+        previous_records = normalize_school_year_records(
+            getattr(self, "school_year_records", [])
+        )
+        previous_ledger_entries = normalize_ledger_entries(
+            getattr(self, "ledger_entries", [])
+        )
+        school_field = getattr(self, "school_field", None)
+        school_name = (
+            school_field.get_value()
+            if school_field is not None
+            else str(
+                getattr(self, "current_person", {}).get(
+                    "school",
+                    "",
+                )
+                or ""
+            ).strip()
+        )
+        generated_records = ensure_school_year_records(
+            previous_records,
+            target_year_count,
+            self.school_year_generation_plan(),
+            self.game_database_collection("books"),
+            self.game_database_collection("spells"),
+            self.game_database_collection("proficiencies"),
+            school_name=school_name,
+            assigned_books_by_year=(
+                self.assigned_books_for_selected_school()
+            ),
+            initial_characteristics=getattr(
+                self,
+                "characteristics",
+                None,
+            ),
+        )
+        self.school_year_records = generated_records
+        initial_bonuses = getattr(
+            self,
+            "initial_bonuses",
+            None,
+        )
+        selected_traits = (
+            list(initial_bonuses["traits"])
+            if initial_bonuses is not None
+            else []
+        )
+        monthly_allowance = allowance_sickles(
+            getattr(self, "parental_values", None),
+            selected_traits,
+        )
+        starting_allowance = starting_allowance_sickles(
+            getattr(self, "parental_values", None)
+        )
+        academic_start_year = DevelopmentView.development_start_year(self)
+        self.ledger_entries = reconcile_development_ledger_entries(
+            previous_ledger_entries,
+            generated_records,
+            getattr(self, "adult_year_records", []),
+            monthly_allowance,
+            starting_allowance,
+            academic_start_year,
+        )
+        changed = (
+            previous_records != generated_records
+            or previous_ledger_entries != self.ledger_entries
+        )
+
+        if hasattr(self, "development_plan"):
+            self.development_plan["school_years"] = deepcopy(
+                generated_records
+            )
+            self.development_plan["ledger_entries"] = deepcopy(
+                self.ledger_entries
+            )
+
+        return changed
+
+    def set_ledger_entries(self, entries):
+        normalized_entries = normalize_ledger_entries(entries)
+
+        if normalized_entries == getattr(
+            self,
+            "ledger_entries",
+            [],
+        ):
+            return
+
+        self.ledger_entries = normalized_entries
+        self.development_plan["ledger_entries"] = deepcopy(
+            normalized_entries
+        )
+        self.notify_change()
 
     def monthly_allowance_text(self):
         selected_traits = (
@@ -2002,6 +4774,16 @@ class DevelopmentView(tk.Frame):
             else ""
         )
         return f"{allowance_text}{frugal_text}"
+
+    def total_eminence_text(self):
+        point_count = total_eminence_points(
+            self.current_development_plan()
+        )
+        return (
+            "1 point"
+            if point_count == 1
+            else f"{point_count} points"
+        )
 
     def initial_values_complete(self):
         person_values = self.initial_bonus_person_values()
@@ -2035,6 +4817,16 @@ class DevelopmentView(tk.Frame):
             self.strategy_value.get(),
             self.academic_years_advanced,
             school_started=self.school_started,
+            school_years=self.school_year_records,
+            adult_years=self.adult_year_records,
+            ledger_entries=self.ledger_entries,
+            initial_eminence=self.initial_eminence_records,
+            mortality_checked_through_age=(
+                self.mortality_checked_through_age
+            ),
+            calendar_year_progression=(
+                DevelopmentView.uses_calendar_year_progression(self)
+            ),
         )
         self.loading = True
         self.development_plan = deepcopy(randomized_plan)
@@ -2063,23 +4855,285 @@ class DevelopmentView(tk.Frame):
         self.notify_change()
 
     def advance_one_year(self):
+        if DevelopmentView.uses_calendar_year_progression(self):
+            self.add_next_adult_year()
+            return
+
+        if (
+            normalize_academic_years_advanced(
+                self.academic_years_advanced
+            )
+            >= ACADEMIC_YEARS_TO_ADULTHOOD
+        ):
+            self.add_next_adult_year()
+            return
+
         completed_years = normalize_academic_years_advanced(
             self.academic_years_advanced
         )
+        current_visible_years = (
+            DevelopmentView.visible_development_school_years(self)
+        )
+        target_visible_years = current_visible_years + 1
+        death_targets = self.development_targets_at_death()
+
+        if (
+            death_targets is not None
+            and target_visible_years > death_targets[0]
+        ):
+            return
 
         if not bool(getattr(self, "school_started", False)):
             self.school_started = True
         elif completed_years < ACADEMIC_YEARS_TO_ADULTHOOD:
             self.academic_years_advanced = completed_years + 1
 
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
+        )
+        self.ensure_school_year_record_count(visible_years)
         self.update_school_progress_controls(
             select_latest=True
         )
         self.notify_change()
 
+    def configured_database_date(self):
+        provider = getattr(self, "settings_provider", None)
+
+        if (
+            provider is not None
+            and hasattr(provider, "database_date")
+        ):
+            return provider.database_date()
+
+        return deepcopy(DEFAULT_DATABASE_DATE)
+
+    def configured_mortality_table(self):
+        provider = getattr(self, "settings_provider", None)
+
+        if (
+            provider is not None
+            and hasattr(provider, "mortality_table")
+        ):
+            return provider.mortality_table()
+
+        return deepcopy(DEFAULT_MORTALITY_TABLE)
+
+    def mortality_simulation_person(self):
+        person = deepcopy(getattr(self, "current_person", {}))
+        person["birth_year"] = getattr(self, "birth_year", None)
+        person["birth_month"] = getattr(self, "birth_month", None)
+        person["birth_day"] = getattr(self, "birth_day", None)
+        return person
+
+    def death_limited_database_date(self, database_date):
+        death_date = self.recorded_death_date()
+
+        if death_date is None:
+            return database_date
+        database_tuple = (
+            database_date["year"],
+            database_date["month"],
+            database_date["day"],
+        )
+        death_tuple = (
+            death_date["year"],
+            death_date["month"],
+            death_date["day"],
+        )
+        return death_date if death_tuple < database_tuple else database_date
+
+    def simulate_mortality(self, database_date):
+        result = simulate_mortality_to_database_date(
+            self.mortality_simulation_person(),
+            getattr(
+                self,
+                "mortality_checked_through_age",
+                None,
+            ),
+            self.configured_mortality_table(),
+            database_date,
+        )
+        self.mortality_checked_through_age = result[
+            "checked_through_age"
+        ]
+        if hasattr(self, "development_plan"):
+            self.development_plan[
+                "mortality_checked_through_age"
+            ] = self.mortality_checked_through_age
+
+        if not result["died"]:
+            return result
+
+        death_month = getattr(self, "birth_month", None)
+        death_day = getattr(self, "birth_day", None)
+        mortality_values = {
+            "deceased": True,
+            "death_year": result["death_year"],
+            "death_month": death_month or "",
+            "death_day": (
+                death_day
+                if death_month not in (None, "")
+                else ""
+            ),
+        }
+        self.current_person.update(mortality_values)
+
+        if self.mortality_command is not None:
+            self.mortality_command(deepcopy(mortality_values))
+
+        return result
+
+    def modern_day_progress_targets(self, database_date):
+        academic_start_year = DevelopmentView.development_start_year(self)
+
+        if academic_start_year is None:
+            return 0, 0
+
+        target_cycle_year = development_cycle_year(database_date)
+
+        if target_cycle_year < academic_start_year:
+            return 0, 0
+
+        try:
+            elapsed_development_years = historical_year_distance(
+                academic_start_year,
+                target_cycle_year,
+            )
+            graduation_year = historical_year_shift(
+                academic_start_year,
+                ACADEMIC_YEARS_TO_ADULTHOOD,
+            )
+        except ValueError:
+            return 0, 0
+
+        if DevelopmentView.uses_calendar_year_progression(self):
+            if target_cycle_year < graduation_year:
+                return 0, 0
+
+            return (
+                0,
+                max(
+                    1,
+                    historical_year_distance(
+                        graduation_year,
+                        target_cycle_year,
+                    ),
+                ),
+            )
+
+        school_year_count = min(
+            ACADEMIC_YEARS_TO_ADULTHOOD,
+            elapsed_development_years + 1,
+        )
+        adult_year_count = 0
+
+        if target_cycle_year >= graduation_year:
+            adult_year_count = max(
+                1,
+                historical_year_distance(
+                    graduation_year,
+                    target_cycle_year,
+                ),
+            )
+
+        return school_year_count, adult_year_count
+
+    def advance_to_modern_day(self):
+        database_date = self.configured_database_date()
+        self.simulate_mortality(database_date)
+        target_date = self.death_limited_database_date(database_date)
+        target_school_years, target_adult_years = (
+            self.modern_day_progress_targets(target_date)
+        )
+        existing_school_years = (
+            DevelopmentView.visible_development_school_years(self)
+        )
+        school_year_count = max(
+            existing_school_years,
+            target_school_years,
+        )
+        adult_year_count = max(
+            len(
+                normalize_adult_year_records(
+                    getattr(self, "adult_year_records", [])
+                )
+            ),
+            target_adult_years,
+        )
+
+        if school_year_count and self.school_is_selected():
+            self.school_started = True
+            self.academic_years_advanced = (
+                ACADEMIC_YEARS_TO_ADULTHOOD
+                if adult_year_count
+                else school_year_count - 1
+            )
+
+        self.ensure_school_year_record_count(school_year_count)
+        available_books = (
+            self.game_database_collection("books")
+            if hasattr(self, "game_database_collection")
+            else []
+        )
+        available_spells = (
+            self.game_database_collection("spells")
+            if hasattr(self, "game_database_collection")
+            else []
+        )
+        available_proficiencies = (
+            self.game_database_collection("proficiencies")
+            if hasattr(self, "game_database_collection")
+            else []
+        )
+        self.adult_year_records = (
+            ensure_adult_year_records_with_improvements(
+                getattr(self, "adult_year_records", []),
+                adult_year_count,
+                self.school_year_generation_plan(),
+                initial_characteristics=getattr(
+                    self,
+                    "characteristics",
+                    None,
+                ),
+                school_year_records=getattr(
+                    self,
+                    "school_year_records",
+                    [],
+                ),
+                books=available_books,
+                spells=available_spells,
+                proficiencies=available_proficiencies,
+            )
+        )
+        self.development_plan["adult_years"] = deepcopy(
+            self.adult_year_records
+        )
+        self.development_plan["calendar_year_progression"] = (
+            DevelopmentView.uses_calendar_year_progression(self)
+        )
+        self.ensure_school_year_record_count(school_year_count)
+        self.update_school_progress_controls(select_latest=True)
+        self.notify_change()
+
     def advance_to_adulthood(self):
+        if not self.school_is_selected():
+            return
+
+        death_targets = self.development_targets_at_death()
+
+        if (
+            death_targets is not None
+            and death_targets[0]
+            < ACADEMIC_YEARS_TO_ADULTHOOD
+        ):
+            return
+
         self.school_started = True
         self.academic_years_advanced = (
+            ACADEMIC_YEARS_TO_ADULTHOOD
+        )
+        self.ensure_school_year_record_count(
             ACADEMIC_YEARS_TO_ADULTHOOD
         )
         self.update_school_progress_controls(
@@ -2088,9 +5142,44 @@ class DevelopmentView(tk.Frame):
         self.notify_change()
 
     def remove_latest_school_year(self):
-        visible_years = visible_school_year_count(
-            self.school_started,
-            self.academic_years_advanced,
+        page_count = self.development_page_count()
+        active_page_index = getattr(
+            self,
+            "active_development_page_index",
+            page_count - 1,
+        )
+
+        if (
+            active_page_index <= 0
+            or active_page_index != page_count - 1
+        ):
+            return
+
+        adult_year_records = normalize_adult_year_records(
+            getattr(self, "adult_year_records", [])
+        )
+
+        if adult_year_records:
+            self.adult_year_records = ensure_adult_year_records(
+                adult_year_records,
+                len(adult_year_records) - 1,
+            )
+            self.development_plan["adult_years"] = deepcopy(
+                self.adult_year_records
+            )
+            self.ensure_school_year_record_count(
+                0
+                if DevelopmentView.uses_calendar_year_progression(self)
+                else ACADEMIC_YEARS_TO_ADULTHOOD
+            )
+            self.update_school_progress_controls(
+                select_latest=True
+            )
+            self.notify_change()
+            return
+
+        visible_years = DevelopmentView.visible_development_school_years(
+            self
         )
 
         if visible_years == 0:
@@ -2104,6 +5193,22 @@ class DevelopmentView(tk.Frame):
         else:
             self.school_started = True
             self.academic_years_advanced = remaining_years - 1
+
+        self.school_year_records = [
+            record
+            for record in getattr(
+                self,
+                "school_year_records",
+                [],
+            )
+            if record.get("year", 0) <= remaining_years
+        ]
+        self.ensure_school_year_record_count(remaining_years)
+
+        if hasattr(self, "development_plan"):
+            self.development_plan["school_years"] = deepcopy(
+                self.school_year_records
+            )
 
         self.update_school_progress_controls(
             select_latest=True
@@ -2132,15 +5237,25 @@ class DevelopmentView(tk.Frame):
         if required_skill_count:
             self.focus_frame.grid()
             self.ability_block.grid_remove()
-            self.skill_labels[0].configure(
-                text=(
-                    "Skill"
-                    if required_skill_count == 1
-                    else "Skill 1"
-                )
-            )
 
             for index, skill_block in enumerate(self.skill_blocks):
+                self.focus_frame.grid_columnconfigure(
+                    index,
+                    weight=(
+                        1
+                        if index < required_skill_count
+                        else 0
+                    ),
+                    uniform="development_focus_skills",
+                )
+                self.skill_labels[index].configure(
+                    text=(
+                        "Skill"
+                        if required_skill_count == 1
+                        else f"Skill {index + 1}"
+                    )
+                )
+
                 if index < required_skill_count:
                     skill_block.grid()
                 else:

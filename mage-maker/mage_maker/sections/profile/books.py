@@ -1,0 +1,379 @@
+import tkinter as tk
+from copy import deepcopy
+from tkinter import ttk
+
+from mage_maker.sections.development.models import (
+    adult_year_calendar_year_range,
+    development_year_page_title,
+    normalize_adult_year_records,
+    normalize_school_year_records,
+)
+from mage_maker.ui.theme import (
+    BORDER_SOFT,
+    FIELD_BACKGROUND,
+    LIST_ALTERNATE,
+    LIST_SELECTED,
+    SURFACE,
+    SURFACE_MUTED,
+    TEXT_DARK,
+    TEXT_MUTED,
+    app_font,
+)
+from mage_maker.ui.widgets import SectionPanel
+
+
+def school_year_reading_entries(school_year_records):
+    entries = []
+
+    for record in normalize_school_year_records(
+        school_year_records
+    ):
+        year_number = record["year"]
+
+        for book in record.get("assigned_books", []):
+            entries.append(
+                {
+                    "year": year_number,
+                    "name": book["name"],
+                    "author": book["author"],
+                    "source": f"Assigned in Year {year_number}",
+                    "source_kind": "assigned",
+                    "page_type": "school",
+                    "page_number": year_number,
+                }
+            )
+
+        for book in record.get("books", []):
+            entries.append(
+                {
+                    "year": year_number,
+                    "name": book["name"],
+                    "author": book["author"],
+                    "source": (
+                        f"Intentional study in Year {year_number}"
+                    ),
+                    "source_kind": "intentional",
+                    "page_type": "school",
+                    "page_number": year_number,
+                }
+            )
+
+    return entries
+
+
+def adult_year_reading_entries(
+    adult_year_records,
+    academic_start_year=None,
+    school_attended=True,
+):
+    entries = []
+
+    for record in normalize_adult_year_records(
+        adult_year_records
+    ):
+        adult_year = record["adult_year"]
+        calendar_range = adult_year_calendar_year_range(
+            academic_start_year,
+            adult_year,
+        )
+        calendar_year = (
+            calendar_range[0]
+            if calendar_range is not None
+            else None
+        )
+        calendar_end_year = (
+            calendar_range[1]
+            if calendar_range is not None
+            else None
+        )
+        source_year = (
+            development_year_page_title(
+                {
+                    "page_type": "adult",
+                    "adult_year": adult_year,
+                    "calendar_year": calendar_year,
+                    "calendar_end_year": calendar_end_year,
+                    "school_attended": bool(school_attended),
+                }
+            )
+            if calendar_year is not None
+            else f"Adult Year {adult_year}"
+        )
+
+        for book in record.get("books", []):
+            entries.append(
+                {
+                    "year": calendar_year,
+                    "name": book["name"],
+                    "author": book["author"],
+                    "source": (
+                        f"Intentional study in {source_year}"
+                    ),
+                    "source_kind": "intentional",
+                    "page_type": "adult",
+                    "page_number": adult_year,
+                }
+            )
+
+    return entries
+
+
+class BooksView(tk.Frame):
+    def __init__(self, parent, development_navigation_command=None):
+        super().__init__(parent, bg=SURFACE)
+        self.development_navigation_command = (
+            development_navigation_command
+        )
+        self.entries = []
+        self.count_value = tk.StringVar(value="0 books")
+        self.empty_value = tk.StringVar(
+            value="School-year reading will appear after school starts."
+        )
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_header()
+        self.build_list()
+        self.refresh_entries()
+
+    def build_header(self):
+        header = tk.Frame(self, bg=SURFACE)
+        header.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 14),
+        )
+        header.grid_columnconfigure(0, weight=1)
+        heading = tk.Label(
+            header,
+            text="Books",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(16, "bold"),
+            anchor="w",
+        )
+        heading.grid(row=0, column=0, sticky="ew")
+        count_label = tk.Label(
+            header,
+            textvariable=self.count_value,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="e",
+        )
+        count_label.grid(row=0, column=1, sticky="e")
+
+    def build_list(self):
+        panel = SectionPanel(
+            self,
+            "Reading history",
+            (
+                "This list is read-only. Curriculum assignments and "
+                "intentional study choices are managed in Development."
+            ),
+        )
+        panel.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+        )
+        panel.content.grid_rowconfigure(0, weight=1)
+        panel.content.grid_columnconfigure(0, weight=1)
+        style = ttk.Style(self)
+        style.configure(
+            "Books.Treeview",
+            background=FIELD_BACKGROUND,
+            fieldbackground=FIELD_BACKGROUND,
+            foreground=TEXT_DARK,
+            rowheight=32,
+            borderwidth=0,
+            font=app_font(10),
+        )
+        style.configure(
+            "Books.Treeview.Heading",
+            background=SURFACE_MUTED,
+            foreground=TEXT_DARK,
+            relief="flat",
+            font=app_font(10, "bold"),
+        )
+        style.map(
+            "Books.Treeview",
+            background=[("selected", LIST_SELECTED)],
+            foreground=[("selected", TEXT_DARK)],
+        )
+        list_frame = tk.Frame(
+            panel.content,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.table = ttk.Treeview(
+            list_frame,
+            columns=("book", "author", "source"),
+            show="headings",
+            selectmode="browse",
+            style="Books.Treeview",
+        )
+        self.table.heading("book", text="Book")
+        self.table.heading("author", text="Author")
+        self.table.heading("source", text="Source")
+        self.table.column(
+            "book",
+            width=390,
+            minwidth=220,
+            stretch=True,
+            anchor="w",
+        )
+        self.table.column(
+            "author",
+            width=230,
+            minwidth=140,
+            stretch=True,
+            anchor="w",
+        )
+        self.table.column(
+            "source",
+            width=230,
+            minwidth=190,
+            stretch=False,
+            anchor="w",
+        )
+        self.table.tag_configure(
+            "alternate",
+            background=LIST_ALTERNATE,
+        )
+        self.table.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        scrollbar = ttk.Scrollbar(
+            list_frame,
+            orient="vertical",
+            command=self.table.yview,
+        )
+        scrollbar.grid(
+            row=0,
+            column=1,
+            sticky="ns",
+        )
+        self.table.configure(yscrollcommand=scrollbar.set)
+        self.table.bind(
+            "<ButtonRelease-1>",
+            self.open_intentional_study_entry,
+        )
+        self.table.bind(
+            "<Return>",
+            self.open_intentional_study_entry,
+        )
+        self.empty_label = tk.Label(
+            panel.content,
+            textvariable=self.empty_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            anchor="nw",
+            justify="left",
+            padx=14,
+            pady=14,
+        )
+        self.empty_label.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+
+    def set_school_year_records(self, school_year_records):
+        self.set_development_records(
+            school_year_records,
+            [],
+            None,
+        )
+
+    def set_development_records(
+        self,
+        school_year_records,
+        adult_year_records,
+        academic_start_year,
+        school_attended=True,
+    ):
+        self.entries = [
+            *school_year_reading_entries(
+                deepcopy(school_year_records)
+            ),
+            *adult_year_reading_entries(
+                deepcopy(adult_year_records),
+                academic_start_year,
+                school_attended=school_attended,
+            ),
+        ]
+        self.refresh_entries()
+
+    def refresh_entries(self):
+        for item_id in self.table.get_children():
+            self.table.delete(item_id)
+
+        entry_count = len(self.entries)
+        self.count_value.set(
+            f"{entry_count} book"
+            if entry_count == 1
+            else f"{entry_count} books"
+        )
+
+        if not self.entries:
+            self.table.grid_remove()
+            self.empty_label.grid()
+            return
+
+        self.empty_label.grid_remove()
+        self.table.grid()
+
+        for index, entry in enumerate(self.entries):
+            self.table.insert(
+                "",
+                "end",
+                iid=f"reading-{index}",
+                values=(
+                    entry["name"],
+                    entry["author"] or "Unknown",
+                    entry["source"],
+                ),
+                tags=("alternate",) if index % 2 else (),
+            )
+
+    def open_intentional_study_entry(self, event=None):
+        item_id = ""
+
+        if event is not None and hasattr(event, "y"):
+            item_id = self.table.identify_row(event.y)
+
+        if not item_id:
+            selected_items = self.table.selection()
+            item_id = selected_items[0] if selected_items else ""
+
+        if not str(item_id).startswith("reading-"):
+            return
+
+        try:
+            entry_index = int(str(item_id).split("-", 1)[1])
+            entry = self.entries[entry_index]
+        except (IndexError, TypeError, ValueError):
+            return
+
+        if (
+            entry.get("source_kind") != "intentional"
+            or self.development_navigation_command is None
+        ):
+            return
+
+        self.development_navigation_command(
+            entry["page_type"],
+            entry["page_number"],
+        )

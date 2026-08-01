@@ -23,8 +23,8 @@ class ImportTests(unittest.TestCase):
         database = json.loads(database_path.read_text(encoding="utf-8"))
         self.assertIn("people", database)
         self.assertIsInstance(database["people"], list)
-        self.assertEqual(9, database["_database"]["schema_version"])
-        self.assertEqual("0.9.0", database["_database"]["database_version"])
+        self.assertEqual(28, database["_database"]["schema_version"])
+        self.assertEqual("0.28.0", database["_database"]["database_version"])
 
 
 if __name__ == "__main__":

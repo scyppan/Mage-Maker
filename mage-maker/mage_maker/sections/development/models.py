@@ -1,6 +1,24 @@
 import hashlib
 import random
+import uuid
 from copy import deepcopy
+
+from mage_maker.core.dates import (
+    historical_date_boundary,
+    historical_year_after,
+    historical_year_distance,
+    historical_year_shift,
+    next_historical_date,
+    normalize_historical_date_parts,
+)
+from mage_maker.core.wizarding_currency import (
+    monthly_salary_identity,
+    normalize_monthly_salary,
+)
+from mage_maker.sections.development.mortality import (
+    normalize_mortality_checked_through_age,
+)
+from mage_maker.sections.ledger.models import normalize_ledger_entries
 
 
 DEVELOPMENT_SCHEMA_OPTIONS = (
@@ -17,7 +35,7 @@ DEVELOPMENT_SCHEMA_OPTIONS = (
 
 DEVELOPMENT_SKILL_OPTIONS = (
     "Alchemy",
-    "Ancient Runes",
+    "Runes",
     "Arithmancy",
     "Artificing",
     "Astronomy",
@@ -28,13 +46,42 @@ DEVELOPMENT_SKILL_OPTIONS = (
     "Flying",
     "Herbology",
     "History",
-    "Magical Creatures",
+    "Creatures",
     "Muggles",
     "Perception",
     "Potions",
-    "Social skills",
+    "Social",
     "Transfiguration",
 )
+DEVELOPMENT_CHARACTERISTIC_OPTIONS = (
+    "creativity",
+    "equanimity",
+    "charisma",
+    "attractiveness",
+    "strength",
+    "agility",
+    "intellect",
+    "willpower",
+    "fortitude",
+)
+
+
+def normalize_characteristic_name(value, allow_blank=False):
+    normalized_value = str(value or "").strip().casefold()
+
+    if normalized_value in DEVELOPMENT_CHARACTERISTIC_OPTIONS:
+        return normalized_value
+
+    if allow_blank and not normalized_value:
+        return ""
+
+    valid_values = ", ".join(
+        field_name.title()
+        for field_name in DEVELOPMENT_CHARACTERISTIC_OPTIONS
+    )
+    raise ValueError(
+        f"Characteristic buy must be one of: {valid_values}."
+    )
 
 DEVELOPMENT_ABILITY_OPTIONS = (
     "Power",
@@ -52,7 +99,7 @@ DEVELOPMENT_SKILLS_BY_ABILITY = {
     ),
     "Erudition": (
         "Arithmancy",
-        "Ancient Runes",
+        "Runes",
         "History",
         "Muggles",
     ),
@@ -64,11 +111,11 @@ DEVELOPMENT_SKILLS_BY_ABILITY = {
         "Herbology",
     ),
     "Naturalism": (
-        "Magical Creatures",
+        "Creatures",
         "Astronomy",
         "Divination",
         "Perception",
-        "Social skills",
+        "Social",
     ),
 }
 
@@ -98,6 +145,10 @@ DEVELOPMENT_ASSIGNMENT_OPTIONS = (
     ),
 )
 ACADEMIC_YEARS_TO_ADULTHOOD = 7
+SCHOOL_YEAR_SKILL_IMPROVEMENT_COUNT = 2
+SCHOOL_YEAR_BOOK_COUNT = 2
+ADULT_YEAR_MAX_BOOK_COUNT = 3
+EMINENCE_DEFAULT_TITLE = "Eminence earned"
 
 
 def normalize_development_schema(value):
@@ -157,15 +208,17 @@ def normalize_development_skill(value):
     }
     aliases.update(
         {
-            "care of magical creatures": "Magical Creatures",
-            "creatures": "Magical Creatures",
+            "care of magical creatures": "Creatures",
+            "magical creatures": "Creatures",
+            "creatures": "Creatures",
             "darkarts": "Dark Arts",
             "history of magic": "History",
             "muggle studies": "Muggles",
-            "runes": "Ancient Runes",
-            "social": "Social skills",
-            "social skill": "Social skills",
-            "social skills": "Social skills",
+            "ancient runes": "Runes",
+            "runes": "Runes",
+            "social": "Social",
+            "social skill": "Social",
+            "social skills": "Social",
         }
     )
     skill = aliases.get(normalized_value)
@@ -280,6 +333,774 @@ def normalize_school_started(value, years_advanced=0):
     raise ValueError("School started must be Yes or No.")
 
 
+def normalize_school_year_book(value):
+    if isinstance(value, str):
+        book = {
+            "record_id": "",
+            "name": value,
+            "author": "",
+        }
+    elif isinstance(value, dict):
+        book = {
+            "record_id": str(
+                value.get("record_id", "") or ""
+            ).strip(),
+            "name": str(value.get("name", "") or "").strip(),
+            "author": str(
+                value.get("author", "") or ""
+            ).strip(),
+        }
+    else:
+        raise TypeError("A school-year book must be a book reference.")
+
+    if not book["record_id"] and not book["name"]:
+        raise ValueError("A school-year book must have a name or record ID.")
+
+    return book
+
+
+def school_year_book_identity(value):
+    book = normalize_school_year_book(value)
+
+    if book["record_id"]:
+        return f"id:{book['record_id']}"
+
+    return (
+        f"name:{book['name'].casefold()}"
+        f"|author:{book['author'].casefold()}"
+    )
+
+
+def normalize_school_year_books(
+    value,
+    maximum_count=SCHOOL_YEAR_BOOK_COUNT,
+):
+    if value in (None, ""):
+        candidate_books = []
+    elif isinstance(value, (list, tuple)):
+        candidate_books = list(value)
+    else:
+        raise TypeError("School-year books must be a list.")
+
+    normalized_books = []
+    seen_identities = set()
+
+    for candidate_book in candidate_books:
+        normalized_book = normalize_school_year_book(candidate_book)
+        identity = school_year_book_identity(normalized_book)
+
+        if identity in seen_identities:
+            continue
+
+        normalized_books.append(normalized_book)
+        seen_identities.add(identity)
+
+        if len(normalized_books) >= int(maximum_count):
+            break
+
+    return normalized_books
+
+
+def normalize_assigned_school_year_books(value):
+    if value in (None, ""):
+        candidate_books = []
+    elif isinstance(value, (list, tuple)):
+        candidate_books = list(value)
+    else:
+        raise TypeError("Assigned school-year books must be a list.")
+
+    normalized_books = []
+    seen_identities = set()
+
+    for candidate_book in candidate_books:
+        normalized_book = normalize_school_year_book(candidate_book)
+        identity = school_year_book_identity(normalized_book)
+
+        if identity in seen_identities:
+            continue
+
+        normalized_books.append(normalized_book)
+        seen_identities.add(identity)
+
+    return normalized_books
+
+
+def normalize_eminence_record(value):
+    if not isinstance(value, dict):
+        raise TypeError("An eminence record must be an object.")
+
+    title = str(
+        value.get("title", EMINENCE_DEFAULT_TITLE)
+        or EMINENCE_DEFAULT_TITLE
+    ).strip()
+    description = str(
+        value.get("description", "") or ""
+    ).strip()
+    skill = normalize_development_skill(value.get("skill"))
+    record_id = str(
+        value.get("record_id", "") or ""
+    ).strip()
+
+    if not record_id:
+        identity_text = "|".join(
+            (
+                title.casefold(),
+                description.casefold(),
+                skill.casefold(),
+            )
+        )
+        record_id = "eminence-" + hashlib.sha256(
+            identity_text.encode("utf-8")
+        ).hexdigest()[:20]
+
+    return {
+        "record_id": record_id,
+        "title": title,
+        "description": description,
+        "skill": skill,
+        "points": 1,
+    }
+
+
+def normalize_eminence_records(value):
+    if value in (None, ""):
+        candidate_records = []
+    elif isinstance(value, (list, tuple)):
+        candidate_records = list(value)
+    else:
+        raise TypeError("Eminence records must be a list.")
+
+    return [
+        normalize_eminence_record(candidate_record)
+        for candidate_record in candidate_records
+    ]
+
+
+def new_eminence_record(
+    title,
+    description,
+    skill,
+):
+    return normalize_eminence_record(
+        {
+            "record_id": str(uuid.uuid4()),
+            "title": title,
+            "description": description,
+            "skill": skill,
+        }
+    )
+
+
+def eminence_skill_counts(value):
+    counts = {}
+
+    for record in normalize_eminence_records(value):
+        skill = record["skill"]
+        counts[skill] = counts.get(skill, 0) + 1
+
+    return counts
+
+
+def total_eminence_points(development_plan):
+    plan = normalize_development_plan(
+        development_plan,
+        default_schema="Scattershot",
+    )
+    return (
+        len(plan.get("initial_eminence", []))
+        + sum(
+            len(record.get("eminence", []))
+            for record in plan.get("school_years", [])
+        )
+        + sum(
+            len(record.get("eminence", []))
+            for record in plan.get("adult_years", [])
+        )
+    )
+
+
+def normalize_job_date(value, prefix, required):
+    if not isinstance(value, dict):
+        raise TypeError("A job record must be an object.")
+
+    normalized_prefix = str(prefix or "").strip().casefold()
+
+    if normalized_prefix not in ("start", "end"):
+        raise ValueError("A job date prefix must be start or end.")
+
+    year, month, day = normalize_historical_date_parts(
+        value.get(f"{normalized_prefix}_year"),
+        value.get(f"{normalized_prefix}_month"),
+        value.get(f"{normalized_prefix}_day"),
+        f"A job {normalized_prefix}",
+        required_year=required,
+    )
+
+    return {
+        f"{normalized_prefix}_year": year,
+        f"{normalized_prefix}_month": month,
+        f"{normalized_prefix}_day": day,
+    }
+
+
+def job_date_tuple(year, month=None, day=None, end_boundary=False):
+    if year in (None, ""):
+        return None
+
+    return historical_date_boundary(
+        year,
+        month,
+        day,
+        end_boundary=end_boundary,
+    )
+
+
+def suggested_job_start_date(
+    assignments,
+    page_start_year,
+    page_end_year=None,
+):
+    if page_start_year in (None, ""):
+        return None
+
+    normalized_page_start_year = int(page_start_year)
+    normalized_page_end_year = int(
+        normalized_page_start_year
+        if page_end_year in (None, "")
+        else page_end_year
+    )
+    latest_end_date = None
+
+    for assignment in normalize_job_records(assignments or []):
+        end_year = assignment["end_year"]
+
+        if (
+            end_year is None
+            or end_year < normalized_page_start_year
+            or end_year > normalized_page_end_year
+        ):
+            continue
+
+        end_date = job_date_tuple(
+            end_year,
+            assignment["end_month"],
+            assignment["end_day"],
+            end_boundary=True,
+        )
+
+        if latest_end_date is None or end_date > latest_end_date:
+            latest_end_date = end_date
+
+    if latest_end_date is None:
+        return None
+
+    return next_historical_date(*latest_end_date)
+
+
+def job_assignment_overlaps_year_range(
+    value,
+    start_year,
+    end_year=None,
+):
+    job = normalize_job_record(value)
+    normalized_start_year = int(start_year)
+    normalized_end_year = int(
+        normalized_start_year if end_year is None else end_year
+    )
+    page_start = (normalized_start_year, 1, 1)
+    page_end = (normalized_end_year, 12, 31)
+    job_start = job_date_tuple(
+        job["start_year"],
+        job["start_month"],
+        job["start_day"],
+    )
+    job_end = job_date_tuple(
+        job["end_year"],
+        job["end_month"],
+        job["end_day"],
+        end_boundary=True,
+    )
+    return (
+        job_start <= page_end
+        and (job_end is None or job_end >= page_start)
+    )
+
+
+def normalize_job_record(value):
+    if not isinstance(value, dict):
+        raise TypeError("A job record must be an object.")
+
+    organization_id = str(
+        value.get("organization_id", "") or ""
+    ).strip()
+    organization_name = str(
+        value.get("organization_name", "") or ""
+    ).strip()
+    organization_job_id = str(
+        value.get("organization_job_id", "") or ""
+    ).strip()
+    title = str(value.get("title", "") or "").strip()
+    salary = normalize_monthly_salary(value.get("salary"))
+
+    if not organization_id and not organization_name:
+        raise ValueError("A job must have an organization.")
+
+    if not title:
+        raise ValueError("A job must have a title.")
+
+    start_date = normalize_job_date(value, "start", True)
+    end_date = normalize_job_date(value, "end", False)
+    start_boundary = job_date_tuple(
+        start_date["start_year"],
+        start_date["start_month"],
+        start_date["start_day"],
+    )
+    end_boundary = job_date_tuple(
+        end_date["end_year"],
+        end_date["end_month"],
+        end_date["end_day"],
+        end_boundary=True,
+    )
+
+    if (
+        end_boundary is not None
+        and end_boundary < start_boundary
+    ):
+        raise ValueError(
+            "A job end date cannot be before its start date."
+        )
+
+    record_id = str(
+        value.get("record_id", "") or ""
+    ).strip()
+
+    if not record_id:
+        identity_text = "|".join(
+            (
+                organization_id.casefold(),
+                organization_name.casefold(),
+                organization_job_id.casefold(),
+                title.casefold(),
+                str(monthly_salary_identity(salary)),
+                str(start_date["start_year"]),
+                str(start_date["start_month"] or ""),
+                str(start_date["start_day"] or ""),
+                str(end_date["end_year"] or ""),
+                str(end_date["end_month"] or ""),
+                str(end_date["end_day"] or ""),
+            )
+        )
+        record_id = "job-" + hashlib.sha256(
+            identity_text.encode("utf-8")
+        ).hexdigest()[:20]
+
+    return {
+        "record_id": record_id,
+        "organization_id": organization_id,
+        "organization_name": organization_name,
+        "organization_job_id": organization_job_id,
+        "title": title,
+        "salary": salary,
+        **start_date,
+        **end_date,
+    }
+
+
+def normalize_job_records(value):
+    if value in (None, ""):
+        candidate_records = []
+    elif isinstance(value, (list, tuple)):
+        candidate_records = list(value)
+    else:
+        raise TypeError("Job records must be a list.")
+
+    return [
+        normalize_job_record(candidate_record)
+        for candidate_record in candidate_records
+    ]
+
+
+def new_job_record(
+    organization_id,
+    organization_name,
+    title,
+    salary,
+    start_year,
+    start_month=None,
+    start_day=None,
+    end_year=None,
+    end_month=None,
+    end_day=None,
+    organization_job_id="",
+):
+    return normalize_job_record(
+        {
+            "record_id": str(uuid.uuid4()),
+            "organization_id": organization_id,
+            "organization_name": organization_name,
+            "organization_job_id": organization_job_id,
+            "title": title,
+            "salary": salary,
+            "start_year": start_year,
+            "start_month": start_month,
+            "start_day": start_day,
+            "end_year": end_year,
+            "end_month": end_month,
+            "end_day": end_day,
+        }
+    )
+
+
+def job_assignment_active_on(
+    value,
+    year,
+    month=1,
+    day=1,
+):
+    assignment = normalize_job_record(value)
+    selected_date = job_date_tuple(year, month, day)
+    start_date = job_date_tuple(
+        assignment["start_year"],
+        assignment["start_month"],
+        assignment["start_day"],
+    )
+    end_date = job_date_tuple(
+        assignment["end_year"],
+        assignment["end_month"],
+        assignment["end_day"],
+        end_boundary=True,
+    )
+    return (
+        start_date <= selected_date
+        and (
+            end_date is None
+            or selected_date <= end_date
+        )
+    )
+
+
+def job_assignments_overlap(first_value, second_value):
+    first = normalize_job_record(first_value)
+    second = normalize_job_record(second_value)
+    first_start = job_date_tuple(
+        first["start_year"],
+        first["start_month"],
+        first["start_day"],
+    )
+    first_end = job_date_tuple(
+        first["end_year"],
+        first["end_month"],
+        first["end_day"],
+        end_boundary=True,
+    )
+    second_start = job_date_tuple(
+        second["start_year"],
+        second["start_month"],
+        second["start_day"],
+    )
+    second_end = job_date_tuple(
+        second["end_year"],
+        second["end_month"],
+        second["end_day"],
+        end_boundary=True,
+    )
+    return (
+        (second_end is None or first_start <= second_end)
+        and (first_end is None or second_start <= first_end)
+    )
+
+
+def require_job_position_available(
+    organization_job,
+    assignment,
+    existing_assignments,
+    ignored_assignment_id="",
+):
+    if not isinstance(organization_job, dict):
+        raise TypeError("An organization job must be an object.")
+
+    normalized_assignment = normalize_job_record(assignment)
+    position_id = str(
+        organization_job.get("record_id", "") or ""
+    ).strip()
+    opened_year_value = organization_job.get("opened_year")
+
+    if not position_id:
+        raise ValueError("Choose an organization job.")
+
+    try:
+        opened_year = int(opened_year_value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "The selected organization job has no valid opening year."
+        ) from error
+
+    if (
+        normalized_assignment["organization_job_id"]
+        != position_id
+    ):
+        raise ValueError(
+            "The assignment does not match the selected organization job."
+        )
+
+    if normalized_assignment["start_year"] < opened_year:
+        raise ValueError(
+            f"This position does not open until {opened_year}."
+        )
+
+    ignored_id = str(ignored_assignment_id or "").strip()
+
+    for existing_assignment in normalize_job_records(
+        existing_assignments
+    ):
+        if (
+            existing_assignment["organization_job_id"]
+            != position_id
+            or existing_assignment["record_id"] == ignored_id
+        ):
+            continue
+
+        if job_assignments_overlap(
+            normalized_assignment,
+            existing_assignment,
+        ):
+            raise ValueError(
+                "This position is not open during the selected dates."
+            )
+
+    return normalized_assignment
+
+
+def normalize_adult_year_record(value):
+    if not isinstance(value, dict):
+        raise TypeError("An adult-year record must be an object.")
+
+    adult_year_value = value.get(
+        "adult_year",
+        value.get("year"),
+    )
+
+    if isinstance(adult_year_value, bool):
+        raise ValueError("An adult-year number must be a whole number.")
+
+    try:
+        adult_year = int(adult_year_value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "An adult-year number must be a whole number."
+        ) from error
+
+    if adult_year < 1:
+        raise ValueError("An adult-year number must be at least one.")
+
+    reading_characteristic = normalize_characteristic_name(
+        value.get("reading_characteristic"),
+        allow_blank=True,
+    )
+
+    if reading_characteristic not in (
+        "",
+        "intellect",
+        "willpower",
+    ):
+        raise ValueError(
+            "Adult reading must use Intellect or Willpower."
+        )
+
+    roll_values = value.get("reading_rolls", [])
+
+    if roll_values in (None, ""):
+        roll_values = []
+    elif not isinstance(roll_values, (list, tuple)):
+        raise TypeError("Adult reading rolls must be a list.")
+
+    reading_rolls = []
+
+    for roll_value in roll_values:
+        if isinstance(roll_value, bool):
+            raise ValueError(
+                "Every adult reading die must be a whole number."
+            )
+
+        try:
+            roll = int(roll_value)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                "Every adult reading die must be a whole number."
+            ) from error
+
+        if not 1 <= roll <= 10:
+            raise ValueError(
+                "Every adult reading die must be between 1 and 10."
+            )
+
+        reading_rolls.append(roll)
+
+    if reading_rolls and not reading_characteristic:
+        raise ValueError(
+            "Adult reading rolls require Intellect or Willpower."
+        )
+
+    reading_total = sum(reading_rolls)
+    book_limit = min(
+        ADULT_YEAR_MAX_BOOK_COUNT,
+        max(0, reading_total - 20),
+    )
+    books = normalize_school_year_books(
+        value.get("books", []),
+        ADULT_YEAR_MAX_BOOK_COUNT,
+    )[:book_limit]
+
+    return {
+        "adult_year": adult_year,
+        "reading_characteristic": reading_characteristic,
+        "reading_rolls": reading_rolls,
+        "reading_total": reading_total,
+        "book_limit": book_limit,
+        "books": books,
+        "eminence": normalize_eminence_records(
+            value.get("eminence", [])
+        ),
+        "jobs": normalize_job_records(value.get("jobs", [])),
+    }
+
+
+def normalize_adult_year_records(value):
+    if value in (None, ""):
+        candidate_records = []
+    elif isinstance(value, (list, tuple)):
+        candidate_records = list(value)
+    else:
+        raise TypeError("Adult years must be a list.")
+
+    records_by_year = {}
+
+    for candidate_record in candidate_records:
+        normalized_record = normalize_adult_year_record(
+            candidate_record
+        )
+        records_by_year[normalized_record["adult_year"]] = (
+            normalized_record
+        )
+
+    return [
+        records_by_year[adult_year]
+        for adult_year in sorted(records_by_year)
+    ]
+
+
+def ensure_adult_year_records(records, target_year_count):
+    normalized_records = normalize_adult_year_records(records)
+    records_by_year = {
+        record["adult_year"]: record
+        for record in normalized_records
+        if record["adult_year"] <= int(target_year_count)
+    }
+
+    for adult_year in range(1, int(target_year_count) + 1):
+        records_by_year.setdefault(
+            adult_year,
+            {
+                "adult_year": adult_year,
+                "reading_characteristic": "",
+                "reading_rolls": [],
+                "books": [],
+                "eminence": [],
+                "jobs": [],
+            },
+        )
+
+    return [
+        records_by_year[adult_year]
+        for adult_year in sorted(records_by_year)
+    ]
+
+
+def normalize_school_year_record(value):
+    if not isinstance(value, dict):
+        raise TypeError("A school-year record must be an object.")
+
+    try:
+        year_number = int(value.get("year"))
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "A school-year record must have a whole-number year."
+        ) from error
+
+    if not 1 <= year_number <= ACADEMIC_YEARS_TO_ADULTHOOD:
+        raise ValueError(
+            "A school-year record must be between Year 1 and Year 7."
+        )
+
+    ability = normalize_development_ability(
+        value.get("ability")
+    )
+    skill_values = value.get("skills", [])
+
+    if isinstance(skill_values, str):
+        skill_values = [skill_values]
+
+    if not isinstance(skill_values, (list, tuple)):
+        raise TypeError(
+            "School-year skill improvements must be a list."
+        )
+
+    skills = [
+        normalize_development_skill(skill)
+        for skill in skill_values
+    ]
+
+    if len(skills) != SCHOOL_YEAR_SKILL_IMPROVEMENT_COUNT:
+        raise ValueError(
+            "Every school year must have exactly two skill improvements."
+        )
+
+    return {
+        "year": year_number,
+        "school": str(value.get("school", "") or "").strip(),
+        "skipped": bool(value.get("skipped", False)),
+        "ability": ability,
+        "skills": skills,
+        "characteristic": normalize_characteristic_name(
+            value.get("characteristic"),
+            allow_blank=True,
+        ),
+        "assigned_books": normalize_assigned_school_year_books(
+            value.get("assigned_books", [])
+        ),
+        "books": normalize_school_year_books(
+            value.get("books", [])
+        ),
+        "eminence": normalize_eminence_records(
+            value.get("eminence", [])
+        ),
+    }
+
+
+def normalize_school_year_records(value):
+    if value in (None, ""):
+        candidate_records = []
+    elif isinstance(value, (list, tuple)):
+        candidate_records = list(value)
+    else:
+        raise TypeError("School years must be a list.")
+
+    records_by_year = {}
+
+    for candidate_record in candidate_records:
+        normalized_record = normalize_school_year_record(
+            candidate_record
+        )
+        records_by_year[normalized_record["year"]] = (
+            normalized_record
+        )
+
+    return [
+        records_by_year[year_number]
+        for year_number in sorted(records_by_year)
+    ]
+
+
 def school_progress_text(school_started, years_advanced):
     normalized_years = normalize_academic_years_advanced(
         years_advanced
@@ -335,6 +1156,17 @@ def normalize_development_plan(value, default_schema=None):
 
     schema = normalize_development_schema(schema_value)
     plan["schema"] = schema
+    plan["blood_status_initialized"] = bool(
+        plan.get("blood_status_initialized", False)
+    )
+    calendar_year_progression = bool(
+        plan.get("calendar_year_progression", False)
+    )
+
+    if calendar_year_progression:
+        plan["calendar_year_progression"] = True
+    else:
+        plan.pop("calendar_year_progression", None)
     plan["academic_years_advanced"] = normalize_academic_years_advanced(
         plan.get("academic_years_advanced", 0)
     )
@@ -342,6 +1174,44 @@ def normalize_development_plan(value, default_schema=None):
         plan.get("school_started"),
         plan["academic_years_advanced"],
     )
+
+    if calendar_year_progression:
+        plan["academic_years_advanced"] = 0
+        plan["school_started"] = False
+
+    visible_years = visible_school_year_count(
+        plan["school_started"],
+        plan["academic_years_advanced"],
+    )
+    plan["school_years"] = [
+        school_year
+        for school_year in normalize_school_year_records(
+            plan.get("school_years", [])
+        )
+        if school_year["year"] <= visible_years
+    ]
+    plan["ledger_entries"] = normalize_ledger_entries(
+        plan.get("ledger_entries", [])
+    )
+    plan["initial_eminence"] = normalize_eminence_records(
+        plan.get("initial_eminence", [])
+    )
+    plan["mortality_checked_through_age"] = (
+        normalize_mortality_checked_through_age(
+            plan.get("mortality_checked_through_age")
+        )
+    )
+    plan["adult_years"] = normalize_adult_year_records(
+        plan.get("adult_years", [])
+    )
+
+    if (
+        plan["academic_years_advanced"]
+        < ACADEMIC_YEARS_TO_ADULTHOOD
+        and not calendar_year_progression
+    ):
+        plan["adult_years"] = []
+
     plan.pop("age", None)
 
     required_skill_count = development_skill_count(schema)
@@ -445,6 +1315,13 @@ def randomized_development_plan(
     years_advanced=0,
     selected_schema=None,
     school_started=None,
+    school_years=None,
+    ledger_entries=None,
+    adult_years=None,
+    initial_eminence=None,
+    mortality_checked_through_age=None,
+    blood_status_initialized=False,
+    calendar_year_progression=False,
 ):
     schema = (
         normalize_development_schema(selected_schema)
@@ -453,6 +1330,9 @@ def randomized_development_plan(
     )
     plan = {
         "schema": schema,
+        "blood_status_initialized": bool(
+            blood_status_initialized
+        ),
         "academic_years_advanced": normalize_academic_years_advanced(
             years_advanced
         ),
@@ -460,7 +1340,17 @@ def randomized_development_plan(
             school_started,
             years_advanced,
         ),
+        "school_years": deepcopy(school_years or []),
+        "ledger_entries": deepcopy(ledger_entries or []),
+        "adult_years": deepcopy(adult_years or []),
+        "initial_eminence": deepcopy(initial_eminence or []),
+        "mortality_checked_through_age": (
+            mortality_checked_through_age
+        ),
     }
+
+    if calendar_year_progression:
+        plan["calendar_year_progression"] = True
     required_skill_count = development_skill_count(schema)
 
     if required_skill_count:
@@ -622,4 +1512,277 @@ def calculate_school_start_year(birth_year, birth_month=None, birth_day=None):
             )
         )
     )
-    return normalized_year + (12 if after_cutoff else 11)
+    try:
+        return historical_year_shift(
+            normalized_year,
+            12 if after_cutoff else 11,
+        )
+    except ValueError:
+        return None
+
+
+def calculate_development_start_year(
+    birth_year,
+    birth_month=None,
+    birth_day=None,
+    school_attended=True,
+):
+    if school_attended:
+        return calculate_school_start_year(
+            birth_year,
+            birth_month,
+            birth_day,
+        )
+
+    if birth_year in (None, "") or isinstance(birth_year, bool):
+        return None
+
+    try:
+        return historical_year_shift(
+            int(birth_year),
+            -ACADEMIC_YEARS_TO_ADULTHOOD,
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+def school_year_calendar_year(academic_start_year, school_year):
+    if academic_start_year in (None, ""):
+        return None
+
+    try:
+        return historical_year_shift(
+            academic_start_year,
+            int(school_year) - 1,
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+def school_year_calendar_year_range(
+    academic_start_year,
+    school_year,
+):
+    start_year = school_year_calendar_year(
+        academic_start_year,
+        school_year,
+    )
+
+    if start_year is None:
+        return None
+
+    return start_year, historical_year_after(start_year)
+
+
+def adult_year_calendar_year(academic_start_year, adult_year):
+    if academic_start_year in (None, ""):
+        return None
+
+    try:
+        normalized_adult_year = int(adult_year)
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        graduation_year = historical_year_shift(
+            academic_start_year,
+            ACADEMIC_YEARS_TO_ADULTHOOD,
+        )
+    except (TypeError, ValueError):
+        return None
+
+    if normalized_adult_year == 1:
+        return graduation_year
+
+    try:
+        return historical_year_shift(
+            graduation_year,
+            normalized_adult_year,
+        )
+    except ValueError:
+        return None
+
+
+def adult_year_calendar_year_range(
+    academic_start_year,
+    adult_year,
+):
+    calendar_year = adult_year_calendar_year(
+        academic_start_year,
+        adult_year,
+    )
+
+    if calendar_year is None:
+        return None
+
+    try:
+        normalized_adult_year = int(adult_year)
+    except (TypeError, ValueError):
+        return None
+
+    if normalized_adult_year == 1:
+        return calendar_year, historical_year_after(calendar_year)
+
+    return calendar_year, calendar_year
+
+
+def calendar_year_age_range(
+    calendar_year,
+    birth_year,
+    birth_month=None,
+    birth_day=None,
+):
+    if calendar_year in (None, "") or birth_year in (None, ""):
+        return None
+
+    try:
+        ending_age = historical_year_distance(
+            birth_year,
+            calendar_year,
+        )
+    except (TypeError, ValueError):
+        return None
+
+    return ending_age - 1, ending_age
+
+
+def development_year_page_title(page):
+    if not isinstance(page, dict):
+        return "Development year"
+
+    page_type = str(page.get("page_type", "") or "")
+    calendar_year = page.get("calendar_year")
+    calendar_end_year = page.get(
+        "calendar_end_year",
+        calendar_year,
+    )
+
+    if page_type == "school":
+        school_year = page.get("school_year")
+
+        if calendar_year is None or calendar_end_year is None:
+            return f"Year {school_year}"
+
+        return (
+            f"Year {school_year} "
+            f"({calendar_year}-{calendar_end_year})"
+        )
+
+    if (
+        page_type == "adult"
+        and page.get("adult_year") == 1
+        and not bool(page.get("school_attended", True))
+    ):
+        if calendar_year is None or calendar_end_year is None:
+            return "First development year"
+
+        return f"{calendar_year}-{calendar_end_year}"
+
+    if page_type == "adult" and page.get("adult_year") == 1:
+        if calendar_year is None or calendar_end_year is None:
+            return "First year out of school"
+
+        return (
+            "First year out of school "
+            f"({calendar_year} - {calendar_end_year})"
+        )
+
+    if page_type == "adult":
+        return (
+            str(calendar_year)
+            if calendar_year is not None
+            else f"Adult Year {page.get('adult_year')}"
+        )
+
+    return "Development year"
+
+
+def development_year_pages(
+    development_plan,
+    academic_start_year=None,
+    birth_year=None,
+    birth_month=None,
+    birth_day=None,
+    school_attended=True,
+):
+    plan = normalize_development_plan(
+        development_plan,
+        default_schema="Scattershot",
+    )
+    pages = []
+
+    for school_year_record in plan.get("school_years", []):
+        school_year = school_year_record["year"]
+        calendar_year_range = school_year_calendar_year_range(
+            academic_start_year,
+            school_year,
+        )
+        calendar_year = (
+            calendar_year_range[0]
+            if calendar_year_range is not None
+            else None
+        )
+        calendar_end_year = (
+            calendar_year_range[1]
+            if calendar_year_range is not None
+            else None
+        )
+        page = {
+            "page_key": f"school:{school_year}",
+            "page_type": "school",
+            "school_year": school_year,
+            "adult_year": None,
+            "calendar_year": calendar_year,
+            "calendar_end_year": calendar_end_year,
+            "age_range": calendar_year_age_range(
+                calendar_year,
+                birth_year,
+                birth_month,
+                birth_day,
+            ),
+            "school_attended": bool(school_attended),
+        }
+        page["title"] = development_year_page_title(page)
+        pages.append(page)
+
+    for adult_year_record in plan.get("adult_years", []):
+        adult_year = adult_year_record["adult_year"]
+        calendar_year_range = adult_year_calendar_year_range(
+            academic_start_year,
+            adult_year,
+        )
+        calendar_year = (
+            calendar_year_range[0]
+            if calendar_year_range is not None
+            else None
+        )
+        calendar_end_year = (
+            calendar_year_range[1]
+            if calendar_year_range is not None
+            else None
+        )
+        page = {
+            "page_key": f"adult:{adult_year}",
+            "page_type": "adult",
+            "school_year": None,
+            "adult_year": adult_year,
+            "calendar_year": calendar_year,
+            "calendar_end_year": calendar_end_year,
+            "age_range": (
+                (0, 1)
+                if adult_year == 1
+                and not bool(school_attended)
+                and birth_year not in (None, "")
+                else calendar_year_age_range(
+                    calendar_year,
+                    birth_year,
+                    birth_month,
+                    birth_day,
+                )
+            ),
+            "school_attended": bool(school_attended),
+        }
+        page["title"] = development_year_page_title(page)
+        pages.append(page)
+
+    return pages

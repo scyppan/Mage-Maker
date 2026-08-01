@@ -1,6 +1,6 @@
 import tkinter as tk
 from functools import partial
-from tkinter import colorchooser, messagebox
+from tkinter import colorchooser, messagebox, ttk
 
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_OPTIONS,
@@ -9,6 +9,7 @@ from mage_maker.sections.settings.mage_groups import (
     DEFAULT_MAGE_GROUP_ID,
     contrasting_text_color,
 )
+from mage_maker.sections.settings.simulation import mortality_table_rows
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER_SOFT,
@@ -27,7 +28,9 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
     LabeledEntry,
+    RoundedEntry,
     SectionPanel,
     SoftButton,
 )
@@ -54,6 +57,14 @@ class SettingsPage(tk.Frame):
         )
         self.group_name_value = tk.StringVar()
         self.group_color_value = tk.StringVar()
+        self.database_year_value = tk.StringVar()
+        self.database_month_value = tk.StringVar()
+        self.database_day_value = tk.StringVar()
+        self.selected_mortality_age = None
+        self.mortality_age_value = tk.StringVar(
+            value="Select an age"
+        )
+        self.mortality_probability_value = tk.StringVar()
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         self.build_page()
@@ -102,27 +113,148 @@ class SettingsPage(tk.Frame):
         )
         settings_body.grid_rowconfigure(0, weight=1)
 
-        assignment_panel = SectionPanel(
-            settings_body,
-            "Assignment of development strategy",
-            (
-                "Choose how a development strategy is registered when a new "
-                "magician is created."
-            ),
-        )
-        assignment_panel.grid(
+        left_column = tk.Frame(settings_body, bg=SURFACE)
+        left_column.grid(
             row=0,
             column=0,
             sticky="nsew",
             padx=(0, 7),
         )
-        assignment_panel.content.grid_columnconfigure(0, weight=1)
+        left_column.grid_columnconfigure(0, weight=1)
+        left_column.grid_rowconfigure(1, weight=1)
+
+        simulation_panel = SectionPanel(
+            left_column,
+            "Simulation",
+            (
+                "The database date is the target used by Advance to modern "
+                "day."
+            ),
+        )
+        simulation_panel.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 7),
+        )
+        simulation_panel.content.grid_columnconfigure(0, weight=1)
+
+        database_date_heading = tk.Label(
+            simulation_panel.content,
+            text="Database date",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        database_date_heading.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 6),
+        )
+        date_row = tk.Frame(
+            simulation_panel.content,
+            bg=SURFACE_MUTED,
+        )
+        date_row.grid(row=1, column=0, sticky="ew")
+        date_row.grid_columnconfigure((0, 1, 2), weight=1)
+
+        for column_index, (
+            label_text,
+            variable,
+            width,
+        ) in enumerate(
+            (
+                ("Year", self.database_year_value, 92),
+                ("Month", self.database_month_value, 72),
+                ("Day", self.database_day_value, 72),
+            )
+        ):
+            field = LabeledEntry(
+                date_row,
+                label_text,
+                variable,
+                background=SURFACE_MUTED,
+                font_size=10,
+                control_height=34,
+            )
+            field.control.configure(width=width)
+            field.grid(
+                row=0,
+                column=column_index,
+                sticky="ew",
+                padx=(
+                    (0, 5)
+                    if column_index == 0
+                    else (5, 5)
+                    if column_index == 1
+                    else (5, 0)
+                ),
+            )
+
+        calendar_notice = CalendarAdoptionNotice(
+            date_row,
+            background=SURFACE_MUTED,
+            wraplength=620,
+        )
+        calendar_notice.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
+        )
+
+        save_date_button = SoftButton(
+            simulation_panel.content,
+            text="Save database date",
+            command=self.save_database_date,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=148,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        save_date_button.grid(
+            row=2,
+            column=0,
+            sticky="w",
+            pady=(8, 0),
+        )
+        simulation_divider = tk.Frame(
+            simulation_panel.content,
+            bg=BORDER_SOFT,
+            height=1,
+        )
+        simulation_divider.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            pady=(10, 8),
+        )
+        assignment_heading = tk.Label(
+            simulation_panel.content,
+            text="Assignment of development strategy",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        assignment_heading.grid(
+            row=4,
+            column=0,
+            sticky="ew",
+            pady=(0, 3),
+        )
 
         for row_index, (policy, label_text) in enumerate(
             DEVELOPMENT_ASSIGNMENT_OPTIONS
         ):
             option = tk.Radiobutton(
-                assignment_panel.content,
+                simulation_panel.content,
                 text=label_text,
                 value=policy,
                 variable=self.assignment_value,
@@ -138,14 +270,14 @@ class SettingsPage(tk.Frame):
                 highlightthickness=0,
             )
             option.grid(
-                row=row_index,
+                row=row_index + 5,
                 column=0,
                 sticky="ew",
-                pady=5,
+                pady=2,
             )
 
         note = tk.Label(
-            assignment_panel.content,
+            simulation_panel.content,
             text=(
                 "This setting applies to future assignments. A magician's "
                 "saved strategy can still be changed on their Development page."
@@ -158,11 +290,179 @@ class SettingsPage(tk.Frame):
             wraplength=440,
         )
         note.grid(
-            row=len(DEVELOPMENT_ASSIGNMENT_OPTIONS),
+            row=len(DEVELOPMENT_ASSIGNMENT_OPTIONS) + 5,
             column=0,
             sticky="ew",
-            pady=(12, 0),
+            pady=(6, 0),
         )
+
+        mortality_panel = SectionPanel(
+            left_column,
+            "Annual mortality",
+            (
+                "The probability is tested once at every attained age from "
+                "70 onward. 0.0040 is a 0.40% annual chance."
+            ),
+        )
+        mortality_panel.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            pady=(7, 0),
+        )
+        mortality_panel.content.grid_columnconfigure(0, weight=1)
+        mortality_panel.content.grid_rowconfigure(0, weight=1)
+        mortality_table_frame = tk.Frame(
+            mortality_panel.content,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        mortality_table_frame.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        mortality_table_frame.grid_columnconfigure(0, weight=1)
+        mortality_table_frame.grid_rowconfigure(0, weight=1)
+        style = ttk.Style(self)
+        style.configure(
+            "Mortality.Treeview",
+            background=FIELD_BACKGROUND,
+            fieldbackground=FIELD_BACKGROUND,
+            foreground=TEXT_DARK,
+            rowheight=25,
+            borderwidth=0,
+            font=app_font(9),
+        )
+        style.configure(
+            "Mortality.Treeview.Heading",
+            background=SURFACE_MUTED,
+            foreground=TEXT_DARK,
+            relief="flat",
+            font=app_font(9, "bold"),
+        )
+        style.map(
+            "Mortality.Treeview",
+            background=[("selected", LIST_SELECTED)],
+            foreground=[("selected", TEXT_DARK)],
+        )
+        self.mortality_table = ttk.Treeview(
+            mortality_table_frame,
+            columns=("age", "probability", "percent"),
+            show="headings",
+            selectmode="browse",
+            style="Mortality.Treeview",
+            height=8,
+        )
+        self.mortality_table.heading("age", text="Age")
+        self.mortality_table.heading(
+            "probability",
+            text="Probability",
+        )
+        self.mortality_table.heading("percent", text="Percent")
+        self.mortality_table.column(
+            "age",
+            width=64,
+            minwidth=56,
+            stretch=False,
+            anchor="center",
+        )
+        self.mortality_table.column(
+            "probability",
+            width=118,
+            minwidth=100,
+            stretch=True,
+            anchor="e",
+        )
+        self.mortality_table.column(
+            "percent",
+            width=92,
+            minwidth=78,
+            stretch=False,
+            anchor="e",
+        )
+        self.mortality_table.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.mortality_table.bind(
+            "<<TreeviewSelect>>",
+            self.select_mortality_age,
+        )
+        mortality_scrollbar = ttk.Scrollbar(
+            mortality_table_frame,
+            orient="vertical",
+            command=self.mortality_table.yview,
+        )
+        mortality_scrollbar.grid(
+            row=0,
+            column=1,
+            sticky="ns",
+        )
+        self.mortality_table.configure(
+            yscrollcommand=mortality_scrollbar.set
+        )
+        mortality_editor = tk.Frame(
+            mortality_panel.content,
+            bg=SURFACE_MUTED,
+        )
+        mortality_editor.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(8, 0),
+        )
+        mortality_editor.grid_columnconfigure(1, weight=1)
+        mortality_age_label = tk.Label(
+            mortality_editor,
+            textvariable=self.mortality_age_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+            width=10,
+        )
+        mortality_age_label.grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 8),
+        )
+        self.mortality_probability_entry = RoundedEntry(
+            mortality_editor,
+            textvariable=self.mortality_probability_value,
+            background=SURFACE_MUTED,
+            width=118,
+            height=32,
+            font=app_font(10),
+            justify="right",
+        )
+        self.mortality_probability_entry.grid(
+            row=0,
+            column=1,
+            sticky="w",
+        )
+        self.save_mortality_button = SoftButton(
+            mortality_editor,
+            text="Save probability",
+            command=self.save_mortality_probability,
+            background=SURFACE_MUTED,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=128,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        self.save_mortality_button.grid(
+            row=0,
+            column=2,
+            sticky="e",
+            padx=(8, 0),
+        )
+        self.save_mortality_button.set_enabled(False)
 
         groups_panel = SectionPanel(
             settings_body,
@@ -294,6 +594,45 @@ class SettingsPage(tk.Frame):
         self.assignment_value.set(
             self.controller.development_assignment_policy()
         )
+        database_date = self.controller.database_date()
+        self.database_year_value.set(str(database_date["year"]))
+        self.database_month_value.set(str(database_date["month"]))
+        self.database_day_value.set(str(database_date["day"]))
+        selected_age = self.selected_mortality_age
+
+        for item_id in self.mortality_table.get_children():
+            self.mortality_table.delete(item_id)
+
+        for row_index, (age_label, probability) in enumerate(
+            mortality_table_rows(self.controller.mortality_table())
+        ):
+            self.mortality_table.insert(
+                "",
+                "end",
+                iid=age_label,
+                values=(
+                    age_label,
+                    f"{probability:.4f}",
+                    f"{probability * 100:.2f}%",
+                ),
+                tags=("alternate",) if row_index % 2 else (),
+            )
+
+        self.mortality_table.tag_configure(
+            "alternate",
+            background=LIST_ALTERNATE,
+        )
+
+        if (
+            selected_age is not None
+            and self.mortality_table.exists(selected_age)
+        ):
+            self.mortality_table.selection_set(selected_age)
+            self.mortality_table.see(selected_age)
+        else:
+            self.selected_mortality_age = None
+
+        self.populate_mortality_editor()
         groups = self.controller.mage_groups()
         available_group_ids = {
             group["group_id"]
@@ -323,6 +662,94 @@ class SettingsPage(tk.Frame):
             self.status_command(
                 "Development strategy assignment setting updated"
             )
+
+    def save_database_date(self):
+        try:
+            changed = self.controller.set_database_date(
+                self.database_year_value.get(),
+                self.database_month_value.get(),
+                self.database_day_value.get(),
+            )
+        except (TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Cannot save database date",
+                str(error),
+                parent=self,
+            )
+            return False
+
+        database_date = self.controller.database_date()
+        self.database_year_value.set(str(database_date["year"]))
+        self.database_month_value.set(str(database_date["month"]))
+        self.database_day_value.set(str(database_date["day"]))
+        self.status_command(
+            (
+                "Database date updated"
+                if changed
+                else "Database date unchanged"
+            )
+        )
+        return True
+
+    def select_mortality_age(self, event=None):
+        selected = self.mortality_table.selection()
+        self.selected_mortality_age = (
+            str(selected[0])
+            if selected
+            else None
+        )
+        self.populate_mortality_editor()
+
+    def populate_mortality_editor(self):
+        age_label = self.selected_mortality_age
+        table = self.controller.mortality_table()
+
+        if age_label is None or age_label not in table:
+            self.mortality_age_value.set("Select an age")
+            self.mortality_probability_value.set("")
+            self.save_mortality_button.set_enabled(False)
+            return
+
+        self.mortality_age_value.set(f"Age {age_label}")
+        self.mortality_probability_value.set(
+            f"{table[age_label]:.4f}"
+        )
+        self.save_mortality_button.set_enabled(True)
+
+    def save_mortality_probability(self):
+        if self.selected_mortality_age is None:
+            return False
+
+        try:
+            changed = self.controller.set_mortality_probability(
+                self.selected_mortality_age,
+                self.mortality_probability_value.get(),
+            )
+        except (TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Cannot save mortality probability",
+                str(error),
+                parent=self,
+            )
+            return False
+
+        selected_age = self.selected_mortality_age
+        self.refresh()
+        self.selected_mortality_age = selected_age
+
+        if self.mortality_table.exists(selected_age):
+            self.mortality_table.selection_set(selected_age)
+            self.mortality_table.see(selected_age)
+
+        self.populate_mortality_editor()
+        self.status_command(
+            (
+                f"Mortality probability for age {selected_age} updated"
+                if changed
+                else f"Mortality probability for age {selected_age} unchanged"
+            )
+        )
+        return True
 
     def select_group(self, group_id):
         self.selected_group_id = str(group_id or "").strip()

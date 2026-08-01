@@ -5,8 +5,6 @@ from mage_maker.sections.profile.school_dialog import (
     SchoolSelectionDialog,
 )
 from mage_maker.ui.theme import (
-    BORDER,
-    FIELD_BACKGROUND,
     PRIMARY,
     PRIMARY_HOVER,
     SURFACE,
@@ -65,10 +63,8 @@ class SchoolField(tk.Frame):
         )
         value_frame = tk.Frame(
             self,
-            bg=FIELD_BACKGROUND,
-            highlightbackground=BORDER,
-            highlightthickness=1,
-            height=42,
+            bg=background,
+            height=36,
             cursor="hand2",
         )
         value_frame.grid(
@@ -82,11 +78,11 @@ class SchoolField(tk.Frame):
         value_label = tk.Label(
             value_frame,
             textvariable=self.display_value,
-            bg=FIELD_BACKGROUND,
+            bg=background,
             fg=TEXT_DARK,
-            font=app_font(10),
+            font=app_font(11, "bold"),
             anchor="w",
-            padx=10,
+            padx=0,
             cursor="hand2",
         )
         value_label.grid(row=0, column=0, sticky="nsew")
@@ -101,7 +97,7 @@ class SchoolField(tk.Frame):
             hover_fill=PRIMARY_HOVER,
             foreground=TEXT_DARK,
             width=122,
-            height=42,
+            height=36,
             font=app_font(9, "bold"),
         )
         self.picker.grid(
@@ -130,6 +126,13 @@ class SchoolField(tk.Frame):
             self.choice_value.set(SCHOOL_SPECIALTY)
             self.specialty_value.set(normalized_name)
             self.display_value.set(normalized_name)
+
+        if hasattr(self, "picker"):
+            self.picker.set_text(
+                "Select school"
+                if self.choice_value.get() == SCHOOL_NONE
+                else "Change school"
+            )
 
         self.loading = False
 

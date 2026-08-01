@@ -21,7 +21,12 @@ from mage_maker.ui.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.ui.widgets import LabeledEntry, RoundedEntry, SoftButton
+from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
+    LabeledEntry,
+    RoundedEntry,
+    SoftButton,
+)
 
 
 class AddChildDialog(tk.Toplevel):
@@ -988,6 +993,18 @@ class BasicChildDialog(tk.Toplevel):
             background=SURFACE,
         )
         birth_day_field.grid(row=1, column=2, sticky="ew", padx=(5, 0))
+        calendar_notice = CalendarAdoptionNotice(
+            birth_frame,
+            background=SURFACE,
+            wraplength=480,
+        )
+        calendar_notice.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
+        )
 
         can_give_birth_check = tk.Checkbutton(
             card,

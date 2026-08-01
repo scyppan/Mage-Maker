@@ -68,6 +68,20 @@ def period_event_sort_key(event):
     )
 
 
+def period_event_display_text(event):
+    date_text = str(event.get("date", "") or "nd.")
+    title = str(event.get("title", "") or "Event")
+    event_summary = (
+        title
+        if str(
+            event.get("event_type", "") or ""
+        ).strip().casefold()
+        == "founding"
+        else f"{event_type_label(event)}  ·  {title}"
+    )
+    return f"{date_text}  ·  {event_summary}"
+
+
 class PeriodEventsView(tk.Frame):
     def __init__(
         self,
@@ -389,14 +403,9 @@ class PeriodEventsView(tk.Frame):
 
                 continue
 
-            date_text = str(event.get("date", "") or "nd.")
-            title = str(event.get("title", "") or "Event")
             self.listbox.insert(
                 "end",
-                (
-                    f"{date_text}  ·  {event_type_label(event)}  ·  "
-                    f"{title}"
-                ),
+                period_event_display_text(event),
             )
             self.listbox.itemconfigure(
                 index,

@@ -444,6 +444,7 @@ class PeopleControllerTests(unittest.TestCase):
                 "birth_year": 1984,
                 "birth_month": 3,
                 "starting_location": "Godric's Hollow",
+                "starting_location_id": "godrics-hollow",
             }
         )
         events = created["timeline_events"]
@@ -454,6 +455,13 @@ class PeopleControllerTests(unittest.TestCase):
         self.assertEqual("Godric's Hollow", events[0]["detail"])
         self.assertEqual("1984-03", events[0]["date"])
         self.assertEqual("1984-03", events[1]["date"])
+        self.assertEqual(
+            [["godrics-hollow"], ["godrics-hollow"]],
+            [
+                events[0]["location_ids"],
+                events[1]["location_ids"],
+            ],
+        )
 
     def test_assigning_same_location_parents_updates_child_starting_location(self):
         birthing_parent = self.controller.create_person(
@@ -488,6 +496,51 @@ class PeopleControllerTests(unittest.TestCase):
         )
         self.assertEqual("London", updated_child["timeline_events"][0]["detail"])
         self.assertEqual("born", updated_child["timeline_events"][1]["event_type"])
+
+    def test_manually_selected_birth_location_survives_parent_synchronization(self):
+        birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "Manual Location Birthing Parent",
+                "birth_year": 1970,
+                "starting_location": "London",
+                "can_give_birth": True,
+            }
+        )
+        non_birthing_parent = self.controller.create_person(
+            {
+                "displayed_name": "Manual Location Other Parent",
+                "birth_year": 1968,
+                "starting_location": "London",
+                "can_give_birth": False,
+            }
+        )
+        child = self.controller.create_person(
+            {
+                "displayed_name": "Manual Location Child",
+                "birth_year": 2000,
+                "biological_mother_id": birthing_parent["record_id"],
+                "biological_father_id": non_birthing_parent["record_id"],
+            }
+        )
+        events = json.loads(json.dumps(child["timeline_events"]))
+        events[0]["detail"] = "Paris"
+        events[0]["location_ids"] = ["paris"]
+        events[0]["birth_location_source"] = "manual"
+        events[1]["location_ids"] = ["paris"]
+        events[1]["birth_location_source"] = "manual"
+        updated_child = self.controller.update_person(
+            child["record_id"],
+            {"timeline_events": events},
+        )
+
+        self.assertEqual(
+            "Paris",
+            updated_child["timeline_events"][0]["detail"],
+        )
+        self.assertEqual(
+            ["paris"],
+            updated_child["timeline_events"][1]["location_ids"],
+        )
 
     def test_different_parent_locations_require_long_distance_override(self):
         birthing_parent = self.controller.create_person(

@@ -10,6 +10,9 @@ from mage_maker.sections.development.models import (
 from mage_maker.sections.development.strategy_dialog import (
     DevelopmentStrategyDialog,
 )
+from mage_maker.sections.locations.period_definitions import (
+    load_period_definitions,
+)
 from mage_maker.sections.profile.page import PersonForm
 from mage_maker.sections.timeline.locations import ParentLocationConflict
 from mage_maker.shell.person_list import PeopleList
@@ -42,6 +45,10 @@ class MagesPage(tk.Frame):
         records_changed_command,
         event_controller=None,
         navigate_event_command=None,
+        organization_provider=None,
+        settings_provider=None,
+        organization_create_command=None,
+        organization_location_provider=None,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
@@ -50,6 +57,14 @@ class MagesPage(tk.Frame):
         self.records_changed_command = records_changed_command
         self.event_controller = event_controller
         self.navigate_event_command = navigate_event_command
+        self.organization_provider = organization_provider
+        self.settings_provider = settings_provider
+        self.organization_create_command = (
+            organization_create_command
+        )
+        self.organization_location_provider = (
+            organization_location_provider
+        )
         self.people = []
         self.current_record_id = None
         self.form_dirty = False
@@ -90,6 +105,7 @@ class MagesPage(tk.Frame):
             list_card,
             selection_command=self.select_person,
             create_command=self.open_creation_wizard,
+            period_provider=load_period_definitions,
         )
         self.people_list.grid(row=0, column=0, sticky="nsew")
         editor_card = tk.Frame(
@@ -114,6 +130,14 @@ class MagesPage(tk.Frame):
             self.records_changed_command,
             self.navigate_event_command,
             mage_group_provider=self.controller.list_mage_groups,
+            organization_provider=self.organization_provider,
+            settings_provider=self.settings_provider,
+            organization_create_command=(
+                self.organization_create_command
+            ),
+            organization_location_provider=(
+                self.organization_location_provider
+            ),
         )
         self.person_form.grid(
             row=1,
@@ -220,8 +244,9 @@ class MagesPage(tk.Frame):
 
         self.current_record_id = record_id
         self.controller.remember_person_interaction(record_id)
-        self.person_form.set_person(person)
         self.update_editor_identity(person)
+        self.update_idletasks()
+        self.person_form.set_person(person)
         self.people_list.set_selected_record(record_id)
         self.form_dirty = False
         self.set_editor_state(True)
@@ -345,11 +370,14 @@ class MagesPage(tk.Frame):
     def refresh_linked_events(self):
         self.person_form.refresh_linked_events()
 
+    def refresh_period_filters(self):
+        self.people_list.refresh_periods()
+
     def save_person(self):
         if self.current_record_id is None:
             return False
 
-        if self.person_form.school_field.specialty_is_blank():
+        if self.person_form.specialty_school_is_blank():
             messagebox.showerror(
                 "Specialty school required",
                 "Enter the specialty school name.",
@@ -452,7 +480,8 @@ class MagesPage(tk.Frame):
         self.form_dirty = True
         self.people_list.set_initial_values_status(
             self.current_record_id,
-            self.person_form.development.initial_values_complete(),
+            self.person_form.initial_values_complete(),
+            self.person_form.variables["unfinished"].get(),
         )
         self.update_editor_identity_from_form()
         self.save_button.set_enabled(True)

@@ -1,5 +1,6 @@
 import tkinter as tk
 from copy import deepcopy
+from datetime import date
 from functools import partial
 from tkinter import messagebox
 
@@ -16,11 +17,25 @@ from mage_maker.sections.locations.models import (
     location_path,
     recent_location_label,
 )
+from mage_maker.shell.person_list import (
+    AGE_FILTER_BOUNDS,
+    AGE_FILTER_OPTIONS,
+    FILTER_SHOW_ALL,
+    SORT_AGE,
+    SORT_BIRTH_YEAR,
+    SORT_BIRTH_YEAR_NEWEST,
+    SORT_GROUP,
+    SORT_NAME,
+    SORT_OPTIONS,
+)
 from mage_maker.ui.theme import (
+    ADD_GREEN,
+    ADD_GREEN_HOVER,
     APP_BACKGROUND,
     BORDER,
     BORDER_SOFT,
     FIELD_BACKGROUND,
+    LIST_HOVER,
     LIST_SELECTED,
     PRIMARY,
     PRIMARY_HOVER,
@@ -31,6 +46,7 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
     LabeledEntry,
     RoundedEntry,
     RoundedSelect,
@@ -206,6 +222,18 @@ class WorldEventDialog(tk.Toplevel):
             background=SURFACE,
         )
         day_field.grid(row=0, column=2, sticky="ew", padx=(6, 0))
+        calendar_notice = CalendarAdoptionNotice(
+            date_panel,
+            background=SURFACE,
+            wraplength=640,
+        )
+        calendar_notice.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
+        )
         description_panel = tk.Frame(card, bg=SURFACE)
         description_panel.grid(row=4, column=0, sticky="ew", pady=(14, 0))
         description_panel.grid_columnconfigure(0, weight=1)
@@ -452,10 +480,21 @@ class WorldEventDialog(tk.Toplevel):
             self.recent_people_options,
             selected_id,
             self.person_chosen,
+            create_person_command=getattr(
+                self.controller,
+                "create_event_person",
+                None,
+            ),
+            mage_groups=(
+                self.controller.mage_groups()
+                if hasattr(self.controller, "mage_groups")
+                else []
+            ),
         )
 
     def person_chosen(self, person_id):
         normalized_id = str(person_id or "").strip()
+        self.people_options = self.controller.people_options()
 
         if normalized_id and normalized_id not in self.selected_person_ids:
             self.selected_person_ids.append(normalized_id)
@@ -723,6 +762,8 @@ class EventPersonPickerDialog(tk.Toplevel):
         recent_people_options,
         selected_person_id,
         save_command,
+        create_person_command=None,
+        mage_groups=None,
     ):
         super().__init__(parent)
         self.people_options = [
@@ -742,7 +783,25 @@ class EventPersonPickerDialog(tk.Toplevel):
             selected_person_id or ""
         ).strip()
         self.save_command = save_command
+        self.create_person_command = create_person_command
+        self.mage_groups = [
+            deepcopy(group)
+            for group in mage_groups or []
+            if isinstance(group, dict)
+        ]
         self.search_value = tk.StringVar()
+        self.group_filter_value = tk.StringVar(
+            value=FILTER_SHOW_ALL
+        )
+        self.age_filter_value = tk.StringVar(
+            value=FILTER_SHOW_ALL
+        )
+        self.sort_value = tk.StringVar(value=SORT_BIRTH_YEAR)
+        self.filter_summary_value = tk.StringVar(
+            value="All people · Birth year"
+        )
+        self.filter_updates_paused = False
+        self.show_all_requested = False
         self.result_heading_value = tk.StringVar(value="Recently viewed")
         self.selection_value = tk.StringVar(
             value="Select a person to add."
@@ -757,6 +816,15 @@ class EventPersonPickerDialog(tk.Toplevel):
         self.grid_columnconfigure(0, weight=1)
         self.build_dialog()
         self.search_value.trace_add("write", self.refresh_results)
+        self.group_filter_value.trace_add(
+            "write",
+            self.refresh_results,
+        )
+        self.age_filter_value.trace_add(
+            "write",
+            self.refresh_results,
+        )
+        self.sort_value.trace_add("write", self.refresh_results)
         self.refresh_results()
         self.bind("<Escape>", self.close_dialog)
         self.protocol("WM_DELETE_WINDOW", self.destroy)
@@ -771,7 +839,7 @@ class EventPersonPickerDialog(tk.Toplevel):
             pady=16,
         )
         card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        card.grid_rowconfigure(4, weight=1)
+        card.grid_rowconfigure(5, weight=1)
         card.grid_columnconfigure(0, weight=1)
         heading = tk.Label(
             card,
@@ -806,6 +874,44 @@ class EventPersonPickerDialog(tk.Toplevel):
         self.search_control.grid(row=2, column=0, sticky="ew")
         self.search_control.bind_input("<Escape>", self.clear_search)
         self.search_control.bind_input("<Return>", self.choose_first_result)
+        filter_row = tk.Frame(card, bg=SURFACE)
+        filter_row.grid(row=3, column=0, sticky="ew", pady=(9, 0))
+        filter_row.grid_columnconfigure(1, weight=1)
+        self.filter_button = SoftButton(
+            filter_row,
+            text="Filters ▾",
+            command=self.show_filter_menu,
+            background=SURFACE,
+            width=82,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.filter_button.grid(row=0, column=0, sticky="w")
+        filter_summary = tk.Label(
+            filter_row,
+            textvariable=self.filter_summary_value,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(8),
+            anchor="w",
+        )
+        filter_summary.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=8,
+        )
+        show_all_button = SoftButton(
+            filter_row,
+            text="Show all",
+            command=self.show_all_people,
+            background=SURFACE,
+            width=68,
+            height=30,
+            font=app_font(8, "bold"),
+        )
+        show_all_button.grid(row=0, column=2, sticky="e")
+        self.build_filter_menu()
         results_heading = tk.Label(
             card,
             textvariable=self.result_heading_value,
@@ -814,14 +920,14 @@ class EventPersonPickerDialog(tk.Toplevel):
             font=app_font(9, "bold"),
             anchor="w",
         )
-        results_heading.grid(row=3, column=0, sticky="ew", pady=(11, 5))
+        results_heading.grid(row=4, column=0, sticky="ew", pady=(11, 5))
         results_frame = tk.Frame(
             card,
             bg=FIELD_BACKGROUND,
             highlightbackground=BORDER_SOFT,
             highlightthickness=1,
         )
-        results_frame.grid(row=4, column=0, sticky="nsew")
+        results_frame.grid(row=5, column=0, sticky="nsew")
         results_frame.grid_rowconfigure(0, weight=1)
         results_frame.grid_columnconfigure(0, weight=1)
         self.results_list = tk.Listbox(
@@ -854,9 +960,25 @@ class EventPersonPickerDialog(tk.Toplevel):
             font=app_font(9, "bold"),
             anchor="w",
         )
-        selected_label.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+        selected_label.grid(row=6, column=0, sticky="ew", pady=(10, 0))
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=6, column=0, sticky="e", pady=(14, 0))
+        footer.grid(row=7, column=0, sticky="ew", pady=(14, 0))
+        footer.grid_columnconfigure(1, weight=1)
+
+        if self.create_person_command is not None:
+            new_person_button = SoftButton(
+                footer,
+                text="New person",
+                command=self.open_quick_person,
+                background=SURFACE,
+                fill=ADD_GREEN,
+                hover_fill=ADD_GREEN_HOVER,
+                foreground=TEXT_DARK,
+                width=104,
+                height=36,
+            )
+            new_person_button.grid(row=0, column=0, sticky="w")
+
         cancel_button = SoftButton(
             footer,
             text="Cancel",
@@ -865,7 +987,7 @@ class EventPersonPickerDialog(tk.Toplevel):
             width=88,
             height=36,
         )
-        cancel_button.pack(side="left", padx=(0, 6))
+        cancel_button.grid(row=0, column=2, padx=(0, 6))
         self.add_button = SoftButton(
             footer,
             text="Add person",
@@ -877,23 +999,357 @@ class EventPersonPickerDialog(tk.Toplevel):
             width=108,
             height=36,
         )
-        self.add_button.pack(side="left")
+        self.add_button.grid(row=0, column=3)
         self.add_button.set_enabled(False)
         self.after_idle(self.search_control.focus_set)
 
-    def refresh_results(self, *arguments):
-        query = " ".join(
-            self.search_value.get().strip().split()
+    def build_filter_menu(self):
+        self.filter_menu = tk.Menu(
+            self,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+        group_menu = tk.Menu(
+            self.filter_menu,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+        group_names = {
+            str(option.get("group_name", "") or "").strip()
+            for option in self.people_options
+            if str(option.get("group_name", "") or "").strip()
+        }
+
+        for group in self.mage_groups:
+            group_name = str(group.get("name", "") or "").strip()
+
+            if group_name:
+                group_names.add(group_name)
+
+        for group_name in [
+            FILTER_SHOW_ALL,
+            *sorted(group_names, key=str.casefold),
+        ]:
+            group_menu.add_radiobutton(
+                label=group_name,
+                variable=self.group_filter_value,
+                value=group_name,
+            )
+
+        age_menu = tk.Menu(
+            self.filter_menu,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+
+        for age_option in AGE_FILTER_OPTIONS:
+            age_menu.add_radiobutton(
+                label=age_option,
+                variable=self.age_filter_value,
+                value=age_option,
+            )
+
+        sort_menu = tk.Menu(
+            self.filter_menu,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+
+        for sort_option in SORT_OPTIONS:
+            sort_menu.add_radiobutton(
+                label=sort_option,
+                variable=self.sort_value,
+                value=sort_option,
+            )
+
+        self.filter_menu.add_cascade(label="Group", menu=group_menu)
+        self.filter_menu.add_cascade(label="Age", menu=age_menu)
+        self.filter_menu.add_cascade(
+            label="Sort by",
+            menu=sort_menu,
+        )
+        self.filter_menu.add_separator()
+        self.filter_menu.add_command(
+            label=FILTER_SHOW_ALL,
+            command=self.show_all_people,
+        )
+
+    def show_filter_menu(self):
+        self.filter_button.update_idletasks()
+
+        try:
+            self.filter_menu.tk_popup(
+                self.filter_button.winfo_rootx(),
+                (
+                    self.filter_button.winfo_rooty()
+                    + self.filter_button.winfo_height()
+                ),
+            )
+        finally:
+            self.filter_menu.grab_release()
+
+    def show_all_people(self):
+        self.filter_updates_paused = True
+        self.search_value.set("")
+        self.group_filter_value.set(FILTER_SHOW_ALL)
+        self.age_filter_value.set(FILTER_SHOW_ALL)
+        self.filter_updates_paused = False
+        self.show_all_requested = True
+        self.refresh_results()
+
+    def update_filter_summary(self):
+        parts = []
+
+        if self.group_filter_value.get() != FILTER_SHOW_ALL:
+            parts.append(self.group_filter_value.get())
+
+        if self.age_filter_value.get() != FILTER_SHOW_ALL:
+            parts.append(self.age_filter_value.get())
+
+        if not parts:
+            parts.append("All people")
+
+        parts.append(self.sort_value.get())
+        self.filter_summary_value.set(" · ".join(parts))
+
+    def option_person(self, option):
+        person = option.get("person")
+
+        if isinstance(person, dict):
+            return person
+
+        return {
+            "record_id": option.get("value"),
+            "displayed_name": option.get("label"),
+            "mage_group_id": "",
+        }
+
+    def integer_value(self, value):
+        if isinstance(value, bool):
+            return None
+
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def person_age(self, person):
+        birth_year = self.integer_value(person.get("birth_year"))
+
+        if birth_year is None:
+            return None
+
+        death_year = self.integer_value(person.get("death_year"))
+        has_death_date = bool(person.get("deceased")) or death_year is not None
+        today = date.today()
+        end_year = death_year if has_death_date else today.year
+        age = end_year - birth_year
+        birth_month = self.integer_value(person.get("birth_month"))
+        birth_day = self.integer_value(person.get("birth_day"))
+
+        if has_death_date:
+            end_month = self.integer_value(person.get("death_month"))
+            end_day = self.integer_value(person.get("death_day"))
+        else:
+            end_month = today.month
+            end_day = today.day
+
+        if (
+            birth_month is not None
+            and birth_day is not None
+            and end_month is not None
+            and end_day is not None
+            and (end_month, end_day) < (birth_month, birth_day)
+        ):
+            age -= 1
+
+        return age if age >= 0 else None
+
+    def matches_age_filter(self, person):
+        selected_filter = self.age_filter_value.get()
+
+        if selected_filter == FILTER_SHOW_ALL:
+            return True
+
+        age = self.person_age(person)
+
+        if selected_filter == "Unknown age":
+            return age is None
+
+        bounds = AGE_FILTER_BOUNDS.get(selected_filter)
+
+        if bounds is None or age is None:
+            return bounds is None
+
+        minimum_age, maximum_age = bounds
+        return (
+            age >= minimum_age
+            and (
+                maximum_age is None
+                or age <= maximum_age
+            )
+        )
+
+    def person_search_text(self, option):
+        person = self.option_person(option)
+        name_details = person.get("name_details", {})
+        entries = (
+            name_details.get("entries", [])
+            if isinstance(name_details, dict)
+            else []
+        )
+        previous_names = " ".join(
+            " ".join(
+                str(entry.get(field_name, "") or "")
+                for field_name in (
+                    "name_type",
+                    "name_entry",
+                    "date",
+                    "note",
+                )
+            )
+            for entry in entries
+            if isinstance(entry, dict)
+        )
+        return " ".join(
+            str(value or "")
+            for value in (
+                option.get("label"),
+                previous_names,
+                person.get("school"),
+                option.get("group_name"),
+                person.get("birth_year"),
+                person.get("death_year"),
+            )
         ).casefold()
 
-        if query:
-            self.visible_options = [
-                option
-                for option in self.people_options
-                if query in str(option.get("label", "") or "").casefold()
-            ]
+    def person_sort_key(self, option):
+        person = self.option_person(option)
+        selected_sort = self.sort_value.get()
+        name = str(option.get("label", "") or "").casefold()
+        group_name = str(
+            option.get("group_name", "") or ""
+        ).casefold()
+        birth_year = self.integer_value(person.get("birth_year"))
+        birth_month = self.integer_value(person.get("birth_month"))
+        birth_day = self.integer_value(person.get("birth_day"))
+        birth_is_dated = birth_year is not None
+        oldest_birth_key = (
+            birth_is_dated,
+            birth_year if birth_year is not None else 0,
+            birth_month if birth_month is not None else 13,
+            birth_day if birth_day is not None else 32,
+            name,
+        )
+
+        if selected_sort == SORT_BIRTH_YEAR_NEWEST:
+            return (
+                birth_is_dated,
+                -birth_year if birth_year is not None else 0,
+                -birth_month if birth_month is not None else 0,
+                -birth_day if birth_day is not None else 0,
+                name,
+            )
+
+        if selected_sort == SORT_NAME:
+            return name, *oldest_birth_key
+
+        if selected_sort == SORT_GROUP:
+            return group_name, *oldest_birth_key
+
+        if selected_sort == SORT_AGE:
+            age = self.person_age(person)
+            return (
+                age is None,
+                -age if age is not None else 0,
+                *oldest_birth_key,
+            )
+
+        return oldest_birth_key
+
+    def person_display_text(self, option):
+        person = self.option_person(option)
+        birth_year = self.integer_value(person.get("birth_year"))
+        birth_text = (
+            f"Born {birth_year}"
+            if birth_year is not None
+            else "Birth date unknown"
+        )
+        group_name = str(option.get("group_name", "") or "").strip()
+        details = (
+            f"{birth_text} · {group_name}"
+            if group_name
+            else birth_text
+        )
+        return (
+            f"{option.get('label', 'Unnamed person')}"
+            f"  ·  {details}"
+        )
+
+    def refresh_results(self, *arguments):
+        if self.filter_updates_paused:
+            return
+
+        self.update_filter_summary()
+        query_terms = [
+            term
+            for term in self.search_value.get().casefold().split()
+            if term
+        ]
+        selected_group = self.group_filter_value.get()
+        filters_are_active = bool(
+            query_terms
+            or selected_group != FILTER_SHOW_ALL
+            or self.age_filter_value.get() != FILTER_SHOW_ALL
+            or self.sort_value.get() != SORT_BIRTH_YEAR
+            or self.show_all_requested
+        )
+
+        if filters_are_active:
+            self.visible_options = sorted(
+                [
+                    option
+                    for option in self.people_options
+                    if (
+                        selected_group == FILTER_SHOW_ALL
+                        or option.get("group_name") == selected_group
+                    )
+                    and self.matches_age_filter(
+                        self.option_person(option)
+                    )
+                    and all(
+                        term in self.person_search_text(option)
+                        for term in query_terms
+                    )
+                ],
+                key=self.person_sort_key,
+            )
             self.result_heading_value.set(
-                f"Search results ({len(self.visible_options)})"
+                f"People ({len(self.visible_options)})"
             )
         else:
             self.visible_options = list(self.recent_people_options)
@@ -910,7 +1366,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         for index, option in enumerate(self.visible_options):
             self.results_list.insert(
                 "end",
-                str(option.get("label", "") or "Unnamed person"),
+                self.person_display_text(option),
             )
 
             if option.get("value") == self.selected_person_id:
@@ -967,6 +1423,48 @@ class EventPersonPickerDialog(tk.Toplevel):
         self.save_command(self.selected_person_id)
         self.destroy()
 
+    def open_quick_person(self):
+        if self.create_person_command is None:
+            return
+
+        QuickEventPersonDialog(
+            self,
+            self.mage_groups,
+            self.create_person_command,
+            self.quick_person_created,
+        )
+
+    def quick_person_created(self, person):
+        if not isinstance(person, dict):
+            return
+
+        person_id = str(person.get("record_id", "") or "").strip()
+
+        if not person_id:
+            return
+
+        group_name = next(
+            (
+                str(group.get("name", "") or "")
+                for group in self.mage_groups
+                if str(group.get("group_id", "") or "")
+                == str(person.get("mage_group_id", "") or "")
+            ),
+            "Unassigned",
+        )
+        option = {
+            "value": person_id,
+            "label": str(
+                person.get("displayed_name", "")
+                or "Unnamed magician"
+            ).strip(),
+            "person": deepcopy(person),
+            "group_name": group_name,
+        }
+        self.people_options.append(option)
+        self.save_command(person_id)
+        self.after_idle(self.destroy)
+
     def clear_search(self, event=None):
         if self.search_value.get():
             self.search_value.set("")
@@ -974,6 +1472,332 @@ class EventPersonPickerDialog(tk.Toplevel):
 
         self.destroy()
         return "break"
+
+    def close_dialog(self, event=None):
+        self.destroy()
+        return "break"
+
+
+class QuickEventPersonDialog(tk.Toplevel):
+    def __init__(
+        self,
+        parent,
+        mage_groups,
+        create_command,
+        saved_command,
+    ):
+        super().__init__(parent)
+        self.mage_groups = [
+            deepcopy(group)
+            for group in mage_groups or []
+            if isinstance(group, dict)
+        ]
+        self.create_command = create_command
+        self.saved_command = saved_command
+        self.name_value = tk.StringVar()
+        self.birth_year_value = tk.StringVar()
+        self.birth_month_value = tk.StringVar()
+        self.birth_day_value = tk.StringVar()
+        self.can_give_birth_value = tk.BooleanVar(value=False)
+        self.non_magical_value = tk.BooleanVar(value=False)
+        group_names = [
+            str(group.get("name", "") or "").strip()
+            for group in self.mage_groups
+            if str(group.get("name", "") or "").strip()
+        ]
+        self.group_names = group_names or ["Unassigned"]
+        self.group_value = tk.StringVar(value=self.group_names[0])
+        self.title("New person")
+        self.geometry("560x500")
+        self.minsize(500, 460)
+        self.configure(bg=APP_BACKGROUND)
+        self.transient(parent.winfo_toplevel())
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_dialog()
+        self.grab_set()
+        self.after_idle(self.name_entry.focus_set)
+
+    def build_dialog(self):
+        header = tk.Frame(self, bg=PRIMARY, height=58)
+        header.grid(row=0, column=0, sticky="ew")
+        header.grid_propagate(False)
+        heading = tk.Label(
+            header,
+            text="New person",
+            bg=PRIMARY,
+            fg=TEXT_DARK,
+            font=app_font(15, "bold"),
+            anchor="w",
+            padx=18,
+        )
+        heading.pack(fill="both", expand=True)
+        body = tk.Frame(self, bg=SURFACE, padx=20, pady=18)
+        body.grid(row=1, column=0, sticky="nsew")
+        body.grid_columnconfigure((0, 1, 2), weight=1)
+        name_label = tk.Label(
+            body,
+            text="Displayed name",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        name_label.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+        self.name_entry = RoundedEntry(
+            body,
+            textvariable=self.name_value,
+            background=SURFACE,
+            height=38,
+            font=app_font(10),
+        )
+        self.name_entry.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(5, 14),
+        )
+        birth_label = tk.Label(
+            body,
+            text="Birth date",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        birth_label.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+
+        for column, label_text, variable in (
+            (0, "Year", self.birth_year_value),
+            (1, "Month", self.birth_month_value),
+            (2, "Day", self.birth_day_value),
+        ):
+            part_label = tk.Label(
+                body,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(8),
+                anchor="w",
+            )
+            part_label.grid(
+                row=3,
+                column=column,
+                sticky="ew",
+                padx=(
+                    (0, 6)
+                    if column == 0
+                    else ((6, 0) if column == 2 else 6)
+                ),
+                pady=(5, 3),
+            )
+            entry = RoundedEntry(
+                body,
+                textvariable=variable,
+                background=SURFACE,
+                height=38,
+                font=app_font(10),
+                justify="center",
+            )
+            entry.grid(
+                row=4,
+                column=column,
+                sticky="ew",
+                padx=(
+                    (0, 6)
+                    if column == 0
+                    else ((6, 0) if column == 2 else 6)
+                ),
+                pady=(0, 14),
+            )
+
+        calendar_notice = CalendarAdoptionNotice(
+            body,
+            background=SURFACE,
+            wraplength=500,
+        )
+        calendar_notice.grid(
+            row=5,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(0, 10),
+        )
+
+        group_label = tk.Label(
+            body,
+            text="Group",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        group_label.grid(
+            row=6,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+        group_select = RoundedSelect(
+            body,
+            self.group_value,
+            self.group_names,
+            background=SURFACE,
+            height=38,
+            font=app_font(10),
+        )
+        group_select.grid(
+            row=7,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(5, 14),
+        )
+        flags = tk.Frame(body, bg=SURFACE)
+        flags.grid(
+            row=8,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+        can_give_birth = tk.Checkbutton(
+            flags,
+            text="Can give birth",
+            variable=self.can_give_birth_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9),
+        )
+        can_give_birth.pack(side="left")
+        non_magical = tk.Checkbutton(
+            flags,
+            text="Non-magical",
+            variable=self.non_magical_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9),
+        )
+        non_magical.pack(side="left", padx=(20, 0))
+        footer = tk.Frame(self, bg=APP_BACKGROUND)
+        footer.grid(
+            row=2,
+            column=0,
+            sticky="e",
+            padx=18,
+            pady=(0, 16),
+        )
+        cancel_button = SoftButton(
+            footer,
+            text="Cancel",
+            command=self.close_dialog,
+            background=APP_BACKGROUND,
+            width=88,
+            height=36,
+        )
+        cancel_button.pack(side="left", padx=(0, 7))
+        create_button = SoftButton(
+            footer,
+            text="Create and add",
+            command=self.create_person,
+            background=APP_BACKGROUND,
+            fill=ADD_GREEN,
+            hover_fill=ADD_GREEN_HOVER,
+            foreground=TEXT_DARK,
+            width=132,
+            height=36,
+        )
+        create_button.pack(side="left")
+
+    def optional_integer(
+        self,
+        value,
+        label,
+        minimum=None,
+        maximum=None,
+    ):
+        text = str(value or "").strip()
+
+        if not text:
+            return None
+
+        try:
+            number = int(text)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"{label} must be a whole number.") from error
+
+        if minimum is not None and number < minimum:
+            raise ValueError(f"{label} cannot be less than {minimum}.")
+
+        if maximum is not None and number > maximum:
+            raise ValueError(f"{label} cannot exceed {maximum}.")
+
+        return number
+
+    def selected_group_id(self):
+        return next(
+            (
+                str(group.get("group_id", "") or "")
+                for group in self.mage_groups
+                if str(group.get("name", "") or "")
+                == self.group_value.get()
+            ),
+            "unassigned",
+        )
+
+    def create_person(self):
+        try:
+            person = self.create_command(
+                {
+                    "displayed_name": self.name_value.get(),
+                    "birth_year": self.optional_integer(
+                        self.birth_year_value.get(),
+                        "Birth year",
+                        -99999,
+                        99999,
+                    ),
+                    "birth_month": self.optional_integer(
+                        self.birth_month_value.get(),
+                        "Birth month",
+                        1,
+                        12,
+                    ),
+                    "birth_day": self.optional_integer(
+                        self.birth_day_value.get(),
+                        "Birth day",
+                        1,
+                        31,
+                    ),
+                    "mage_group_id": self.selected_group_id(),
+                    "can_give_birth": self.can_give_birth_value.get(),
+                    "non_magical": self.non_magical_value.get(),
+                }
+            )
+        except (TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Cannot create person",
+                str(error),
+                parent=self,
+            )
+            return
+
+        self.saved_command(person)
+        self.destroy()
 
     def close_dialog(self, event=None):
         self.destroy()
@@ -1067,7 +1891,7 @@ class EventLocationPickerDialog(tk.Toplevel):
             card,
             self.location_selected,
             background=SURFACE,
-            show_scope_controls=False,
+            show_scope_controls=True,
         )
         self.location_tree.grid(row=2, column=0, sticky="nsew")
         selected_label = tk.Label(
@@ -1244,9 +2068,10 @@ class PlaceholderLocationDialog(tk.Toplevel):
         self.parent_value = tk.StringVar(
             value=selected_parent_label
         )
+        self.selected_parent_id = selected_parent_id
         self.title("New location")
-        self.geometry("520x330")
-        self.minsize(480, 310)
+        self.geometry("520x390")
+        self.minsize(480, 370)
         self.resizable(False, False)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent.winfo_toplevel())
@@ -1311,18 +2136,47 @@ class PlaceholderLocationDialog(tk.Toplevel):
             anchor="w",
         )
         parent_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        self.parent_field = RoundedSelect(
+        parent_display = tk.Label(
             parent_panel,
             textvariable=self.parent_value,
-            values=[
-                option["label"]
-                for option in self.parent_options
-            ],
-            background=SURFACE,
-            height=40,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
             font=app_font(10),
+            anchor="w",
+            padx=10,
+            pady=9,
         )
-        self.parent_field.grid(row=1, column=0, sticky="ew")
+        parent_display.grid(row=1, column=0, sticky="ew")
+        choose_parent_button = SoftButton(
+            parent_panel,
+            text="Choose…",
+            command=self.choose_parent_location,
+            background=SURFACE,
+            width=82,
+            height=38,
+            font=app_font(9, "bold"),
+        )
+        choose_parent_button.grid(
+            row=1,
+            column=1,
+            padx=(6, 0),
+        )
+
+        if self.allow_world_parent:
+            world_button = SoftButton(
+                parent_panel,
+                text="The World",
+                command=self.use_world_parent,
+                background=SURFACE,
+                width=88,
+                height=38,
+                font=app_font(9, "bold"),
+            )
+            world_button.grid(
+                row=1,
+                column=2,
+                padx=(6, 0),
+            )
         footer = tk.Frame(card, bg=SURFACE)
         footer.grid(row=4, column=0, sticky="e", pady=(16, 0))
         cancel_button = SoftButton(
@@ -1349,13 +2203,32 @@ class PlaceholderLocationDialog(tk.Toplevel):
         self.after_idle(self.place_field.control.focus_set)
 
     def selected_parent_location_id(self):
-        selected_label = self.parent_value.get()
+        return self.selected_parent_id
 
-        for option in self.parent_options:
-            if option["label"] == selected_label:
-                return option["value"]
+    def choose_parent_location(self):
+        EventLocationPickerDialog(
+            self,
+            self.locations,
+            self.selected_parent_id,
+            self.parent_location_selected,
+            dialog_title="Choose parent location",
+            action_text="Use parent",
+        )
 
-        return ""
+    def parent_location_selected(self, location_id):
+        self.selected_parent_id = str(location_id or "").strip()
+        self.parent_value.set(
+            location_path(
+                self.selected_parent_id,
+                self.locations,
+            )
+            if self.selected_parent_id
+            else "The World"
+        )
+
+    def use_world_parent(self):
+        self.selected_parent_id = ""
+        self.parent_value.set("The World")
 
     def save_location(self, event=None):
         try:

@@ -2,7 +2,20 @@ import tkinter as tk
 from copy import deepcopy
 from functools import partial
 
-from mage_maker.core.dates import format_date_parts, split_partial_date
+from mage_maker.core.dates import (
+    format_date_parts,
+    person_death_age_text,
+    split_partial_date,
+)
+from mage_maker.sections.development.characteristics import (
+    initial_values_are_complete,
+)
+from mage_maker.sections.development.models import (
+    calculate_development_start_year,
+    development_year_pages,
+    normalize_development_plan,
+    school_progress_text,
+)
 from mage_maker.sections.development.page import DevelopmentView
 from mage_maker.sections.family_tree.page import FamilyTreeView
 from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
@@ -19,7 +32,9 @@ from mage_maker.sections.profile.famous_connections import (
     FamousConnectionMap,
     FamousConnectionsView,
 )
+from mage_maker.sections.profile.books import BooksView
 from mage_maker.sections.relationships.page import RelationshipsView
+from mage_maker.sections.ledger.page import LedgerView
 from mage_maker.sections.settings.mage_groups import (
     default_mage_groups,
     normalize_mage_group_id,
@@ -44,6 +59,7 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
     HoverTooltip,
     LabeledEntry,
     MultilineField,
@@ -60,6 +76,7 @@ class PersonForm(tk.Frame):
         ("non_magical", "Non-magical"),
         ("can_give_birth", "Can give birth"),
         ("famous_person", "This is a famous person"),
+        ("unfinished", "Mark as unfinished"),
     )
 
     def __init__(
@@ -76,6 +93,10 @@ class PersonForm(tk.Frame):
         events_changed_command=None,
         navigate_event_command=None,
         mage_group_provider=None,
+        organization_provider=None,
+        settings_provider=None,
+        organization_create_command=None,
+        organization_location_provider=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
@@ -85,6 +106,14 @@ class PersonForm(tk.Frame):
         self.events_changed_command = events_changed_command
         self.navigate_event_command = navigate_event_command
         self.mage_group_provider = mage_group_provider
+        self.organization_provider = organization_provider
+        self.settings_provider = settings_provider
+        self.organization_create_command = (
+            organization_create_command
+        )
+        self.organization_location_provider = (
+            organization_location_provider
+        )
         self.loading = False
         self.variables = {}
         self.boolean_widgets = {}
@@ -95,6 +124,11 @@ class PersonForm(tk.Frame):
         self.navigation_buttons = {}
         self.active_page_name = "profile"
         self.current_record_id = None
+        self.person_snapshot = {}
+        self.loaded_section_record_ids = {}
+        self.deferred_load_job = None
+        self.load_generation = 0
+        self.linked_events_snapshot = []
         self.mage_groups = default_mage_groups()
         self.mage_group_value = tk.StringVar(
             value=self.mage_groups[0]["name"]
@@ -124,6 +158,8 @@ class PersonForm(tk.Frame):
         self.build_relationships_page()
         self.build_timeline_page(navigate_command)
         self.build_development_page()
+        self.build_books_page()
+        self.build_ledger_page()
         self.show_page("profile")
 
     def build_navigation(self):
@@ -131,11 +167,13 @@ class PersonForm(tk.Frame):
         navigation.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 14))
 
         page_definitions = (
-            ("profile", "Profile", 98),
-            ("family_tree", "Family Tree", 122),
-            ("relationships", "Relationships", 130),
-            ("timeline", "Timeline", 104),
-            ("development", "Development", 126),
+            ("profile", "Profile", 84),
+            ("family_tree", "Family Tree", 108),
+            ("relationships", "Relationships", 116),
+            ("timeline", "Timeline", 90),
+            ("development", "Development", 112),
+            ("books", "Books", 76),
+            ("ledger", "Ledger", 78),
         )
 
         for page_name, button_text, width in page_definitions:
@@ -186,7 +224,8 @@ class PersonForm(tk.Frame):
 
         name_row = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
         name_row.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        name_row.grid_columnconfigure(0, weight=1)
+        name_row.grid_columnconfigure(0, weight=3, minsize=300)
+        name_row.grid_columnconfigure(2, weight=2, minsize=235)
 
         displayed_name_value = tk.StringVar()
         displayed_name_value.trace_add("write", self.variable_changed)
@@ -215,20 +254,20 @@ class PersonForm(tk.Frame):
             row=0,
             column=1,
             sticky="n",
-            padx=(7, 0),
+            padx=(7, 10),
             pady=(22, 0),
         )
 
         school_summary = tk.Frame(
-            identity_panel.content,
+            name_row,
             bg=SURFACE_MUTED,
         )
         school_summary.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-            pady=(0, 10),
+            row=0,
+            column=2,
+            sticky="new",
         )
+        school_summary.grid_columnconfigure(0, weight=1)
         school_label = tk.Label(
             school_summary,
             text="School",
@@ -240,17 +279,17 @@ class PersonForm(tk.Frame):
         school_label.grid(
             row=0,
             column=0,
-            sticky="w",
-            padx=(0, 9),
+            sticky="ew",
+            pady=(0, 5),
         )
         school_value_controls = tk.Frame(
             school_summary,
             bg=SURFACE_MUTED,
         )
         school_value_controls.grid(
-            row=0,
-            column=1,
-            sticky="w",
+            row=1,
+            column=0,
+            sticky="ew",
         )
         self.school_summary_value = tk.StringVar(
             value="none"
@@ -282,7 +321,7 @@ class PersonForm(tk.Frame):
             bg=SURFACE_MUTED,
         )
         development_summary.grid(
-            row=2,
+            row=1,
             column=0,
             sticky="ew",
             pady=(0, 10),
@@ -332,35 +371,35 @@ class PersonForm(tk.Frame):
             sticky="ew",
             pady=(4, 0),
         )
-        allowance_block = tk.Frame(
+        eminence_block = tk.Frame(
             development_summary,
             bg=SURFACE_MUTED,
         )
-        allowance_block.grid(
+        eminence_block.grid(
             row=0,
             column=1,
             sticky="ew",
             padx=(8, 0),
         )
-        allowance_label = tk.Label(
-            allowance_block,
-            text="Monthly allowance",
+        eminence_label = tk.Label(
+            eminence_block,
+            text="Total eminence points",
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
             anchor="w",
         )
-        allowance_label.grid(
+        eminence_label.grid(
             row=0,
             column=0,
             sticky="ew",
         )
-        self.allowance_summary_value = tk.StringVar(
-            value="Not assigned"
+        self.total_eminence_summary_value = tk.StringVar(
+            value="0 points"
         )
-        allowance_value = tk.Label(
-            allowance_block,
-            textvariable=self.allowance_summary_value,
+        eminence_value = tk.Label(
+            eminence_block,
+            textvariable=self.total_eminence_summary_value,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(10),
@@ -368,7 +407,7 @@ class PersonForm(tk.Frame):
             justify="left",
             wraplength=300,
         )
-        allowance_value.grid(
+        eminence_value.grid(
             row=1,
             column=0,
             sticky="ew",
@@ -376,7 +415,7 @@ class PersonForm(tk.Frame):
         )
 
         birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        birth_frame.grid(row=3, column=0, sticky="ew", pady=(0, 9))
+        birth_frame.grid(row=2, column=0, sticky="ew", pady=(0, 9))
         birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
         birth_heading = tk.Label(
             birth_frame,
@@ -419,12 +458,35 @@ class PersonForm(tk.Frame):
             "Day",
             SURFACE_MUTED,
         )
+        calendar_notice = CalendarAdoptionNotice(
+            birth_frame,
+            background=SURFACE_MUTED,
+            wraplength=620,
+        )
+        calendar_notice.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
+        )
 
         deceased_value = tk.BooleanVar(value=False)
         deceased_value.trace_add("write", self.deceased_changed)
         self.variables["deceased"] = deceased_value
-        deceased_check = tk.Checkbutton(
+        death_status_row = tk.Frame(
             identity_panel.content,
+            bg=SURFACE_MUTED,
+        )
+        death_status_row.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            pady=(0, 7),
+        )
+        death_status_row.grid_columnconfigure(1, weight=1)
+        deceased_check = tk.Checkbutton(
+            death_status_row,
             text="Dead",
             variable=deceased_value,
             bg=SURFACE_MUTED,
@@ -437,14 +499,29 @@ class PersonForm(tk.Frame):
             borderwidth=0,
             highlightthickness=0,
         )
-        deceased_check.grid(row=4, column=0, sticky="w", pady=(0, 7))
+        deceased_check.grid(row=0, column=0, sticky="w")
         self.boolean_widgets["deceased"] = deceased_check
+        self.death_overview_value = tk.StringVar(value="")
+        death_overview = tk.Label(
+            death_status_row,
+            textvariable=self.death_overview_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        death_overview.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(12, 0),
+        )
 
         self.death_date_frame = tk.Frame(
             identity_panel.content,
             bg=SURFACE_MUTED,
         )
-        self.death_date_frame.grid(row=5, column=0, sticky="ew", pady=(0, 9))
+        self.death_date_frame.grid(row=4, column=0, sticky="ew", pady=(0, 9))
         self.death_date_frame.grid_columnconfigure((0, 1, 2), weight=1)
         death_heading = tk.Label(
             self.death_date_frame,
@@ -661,11 +738,39 @@ class PersonForm(tk.Frame):
             self.game_database,
             self.development_changed,
             self.people_provider,
+            self.organization_provider,
+            self.settings_provider,
+            self.apply_development_mortality,
+            self.organization_create_command,
+            self.organization_location_provider,
+            event_provider=(
+                self.event_controller.events_for_person
+                if self.event_controller is not None
+                else None
+            ),
         )
         page.grid(row=0, column=0, sticky="nsew")
         self.development = page
         self.school_field = page.school_field
         self.pages["development"] = page
+
+    def build_books_page(self):
+        page = BooksView(
+            self.content,
+            self.open_intentional_study_development_page,
+        )
+        page.grid(row=0, column=0, sticky="nsew")
+        self.books = page
+        self.pages["books"] = page
+
+    def build_ledger_page(self):
+        page = LedgerView(
+            self.content,
+            self.ledger_changed,
+        )
+        page.grid(row=0, column=0, sticky="nsew")
+        self.ledger = page
+        self.pages["ledger"] = page
 
     def build_relationships_page(self):
         page = RelationshipsView(self.content)
@@ -752,34 +857,175 @@ class PersonForm(tk.Frame):
             if field_name == "can_give_birth":
                 self.tooltips[field_name] = HoverTooltip(checkbutton)
 
-    def show_page(self, page_name):
+    def section_is_current(self, section_name):
+        return (
+            self.loaded_section_record_ids.get(section_name)
+            == self.current_record_id
+        )
+
+    def current_development_values(self):
+        if self.section_is_current("development"):
+            return self.development.get_values()
+
+        person = self.person_snapshot
+        return {
+            "school": str(person.get("school", "") or ""),
+            "blood_status": person.get("blood_status"),
+            "developmental_environment": person.get(
+                "developmental_environment"
+            ),
+            "parental_values": deepcopy(person.get("parental_values")),
+            "initial_bonuses": deepcopy(person.get("initial_bonuses")),
+            "characteristics": deepcopy(person.get("characteristics")),
+            "development_plan": deepcopy(person.get("development_plan")),
+        }
+
+    def current_development_plan(self):
+        development_values = self.current_development_values()
+        return normalize_development_plan(
+            development_values.get("development_plan"),
+            default_schema="Scattershot",
+        )
+
+    def current_timeline_events(self):
+        if self.section_is_current("timeline"):
+            return self.timeline.get_events()
+
+        return deepcopy(
+            self.person_snapshot.get("timeline_events", [])
+        )
+
+    def current_relationship_values(self):
+        if self.section_is_current("family_tree"):
+            return self.family_tree.get_relationship_values()
+
+        return {
+            "biological_mother_id": str(
+                self.person_snapshot.get("biological_mother_id", "") or ""
+            ),
+            "biological_father_id": str(
+                self.person_snapshot.get("biological_father_id", "") or ""
+            ),
+            "biological_mother_status": str(
+                self.person_snapshot.get(
+                    "biological_mother_status",
+                    "unknown",
+                )
+                or "unknown"
+            ),
+            "biological_father_status": str(
+                self.person_snapshot.get(
+                    "biological_father_status",
+                    "unknown",
+                )
+                or "unknown"
+            ),
+            "mate_ids": deepcopy(
+                self.person_snapshot.get("mate_ids", [])
+            ),
+            "spouse_relationships": deepcopy(
+                self.person_snapshot.get("spouse_relationships", [])
+            ),
+        }
+
+    def person_for_deferred_load(self):
+        person = deepcopy(self.person_snapshot)
+        person.update(self.current_profile_values())
+        person.update(self.current_relationship_values())
+        return person
+
+    def cancel_deferred_load(self):
+        if self.deferred_load_job is None:
+            return
+
+        try:
+            self.after_cancel(self.deferred_load_job)
+        except tk.TclError:
+            pass
+
+        self.deferred_load_job = None
+
+    def schedule_deferred_active_page(self):
+        self.cancel_deferred_load()
+        self.deferred_load_job = self.after_idle(
+            partial(
+                self.load_deferred_active_page,
+                self.load_generation,
+                self.current_record_id,
+            )
+        )
+
+    def load_deferred_active_page(self, load_generation, record_id):
+        self.deferred_load_job = None
+
+        if (
+            load_generation != self.load_generation
+            or record_id != self.current_record_id
+        ):
+            return
+
+        self.show_page(self.active_page_name)
+
+    def ensure_family_context(self, draw_graph=False):
+        if not self.current_record_id:
+            return
+
+        if not self.section_is_current("family_tree"):
+            self.family_tree.set_person(
+                self.person_for_deferred_load(),
+                redraw=draw_graph,
+            )
+            self.loaded_section_record_ids[
+                "family_tree"
+            ] = self.current_record_id
+            return
+
+        if draw_graph:
+            self.family_tree.redraw_graph()
+
+    def ensure_development_loaded(self):
+        if (
+            not getattr(self, "current_record_id", None)
+            or self.section_is_current("development")
+        ):
+            return
+
+        self.development.set_person(self.person_for_deferred_load())
+        self.loaded_section_record_ids[
+            "development"
+        ] = self.current_record_id
+
+    def ensure_timeline_loaded(self):
+        if (
+            not self.current_record_id
+            or self.section_is_current("timeline")
+        ):
+            return
+
+        timeline_person = self.person_for_deferred_load()
+        timeline_person["name_details"] = deepcopy(self.name_details)
+        timeline_person["timeline_events"] = self.current_timeline_events()
+        self.timeline.set_events(
+            synchronize_name_change_events(
+                self.name_details,
+                ensure_life_start_events(timeline_person),
+            )
+        )
+        self.linked_events_snapshot = (
+            self.event_controller.events_for_person(
+                self.current_record_id
+            )
+            if self.event_controller is not None
+            else []
+        )
+        self.timeline.set_linked_events(self.linked_events_snapshot)
+        self.loaded_section_record_ids["timeline"] = self.current_record_id
+
+    def show_page(self, page_name, defer_loading=False):
         if page_name not in self.pages:
             return
 
         self.active_page_name = page_name
-
-        if page_name == "family_tree" and self.current_record_id:
-            self.family_tree.update_current_person(self.current_profile_values())
-
-        if page_name == "profile":
-            self.update_famous_connections()
-
-        if page_name == "development":
-            self.development.set_birth_date(
-                self.variables["birth_year"].get(),
-                self.variables["birth_month"].get(),
-                self.variables["birth_day"].get(),
-            )
-            parental_values_initialized = (
-                self.development.activate()
-            )
-
-            if parental_values_initialized:
-                self.development_changed()
-
-                if self.loading:
-                    self.after_idle(self.change_command)
-
         self.pages[page_name].tkraise()
 
         for name, button in self.navigation_buttons.items():
@@ -788,18 +1034,142 @@ class PersonForm(tk.Frame):
             else:
                 button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
 
+        if defer_loading:
+            return
+
+        if page_name == "profile":
+            self.ensure_family_context(draw_graph=False)
+            self.update_can_give_birth_control()
+            self.update_famous_connections()
+
+        if page_name == "family_tree":
+            self.ensure_family_context(draw_graph=True)
+
+        if page_name == "timeline":
+            self.ensure_timeline_loaded()
+
+        if page_name == "development":
+            self.ensure_development_loaded()
+            self.development.set_birth_date(
+                self.variables["birth_year"].get(),
+                self.variables["birth_month"].get(),
+                self.variables["birth_day"].get(),
+            )
+            parental_values_initialized = self.development.activate()
+
+            if parental_values_initialized:
+                self.development_changed()
+
+                if self.loading:
+                    self.after_idle(self.change_command)
+
+        if page_name in ("books", "ledger"):
+            self.refresh_books_and_ledger()
+
     def open_school_editor(self):
+        self.ensure_development_loaded()
         self.development.focus_school()
 
     def update_school_summary(self):
+        if not self.section_is_current("development"):
+            self.update_school_summary_from_person(self.person_snapshot)
+            return
+
         self.school_summary_value.set(
             self.development.school_display_text()
         )
         self.school_year_summary_value.set(
             self.development.school_progress_display_text()
         )
-        self.allowance_summary_value.set(
-            self.development.monthly_allowance_text()
+        self.total_eminence_summary_value.set(
+            self.development.total_eminence_text()
+        )
+
+    def update_school_summary_from_person(self, person):
+        person_values = person if isinstance(person, dict) else {}
+        plan = (
+            person_values.get("development_plan")
+            if isinstance(person_values.get("development_plan"), dict)
+            else {}
+        )
+        school_name = str(person_values.get("school", "") or "").strip()
+        self.school_summary_value.set(school_name or "none")
+        self.school_year_summary_value.set(
+            school_progress_text(
+                plan.get("school_started", False),
+                plan.get("academic_years_advanced", 0),
+            )
+        )
+        initial_eminence = plan.get("initial_eminence", [])
+        point_count = (
+            len(initial_eminence)
+            if isinstance(initial_eminence, list)
+            else 0
+        )
+
+        for collection_name in ("school_years", "adult_years"):
+            year_records = plan.get(collection_name, [])
+
+            if not isinstance(year_records, list):
+                continue
+
+            for year_record in year_records:
+                if not isinstance(year_record, dict):
+                    continue
+
+                eminence_records = year_record.get("eminence", [])
+
+                if isinstance(eminence_records, list):
+                    point_count += len(eminence_records)
+
+        self.total_eminence_summary_value.set(
+            "1 point" if point_count == 1 else f"{point_count} points"
+        )
+
+    def refresh_books_and_ledger(self):
+        if not hasattr(self, "books") or not hasattr(self, "ledger"):
+            return
+
+        plan = self.current_development_plan()
+        development_values = self.current_development_values()
+        school_attended = bool(
+            str(development_values.get("school", "") or "").strip()
+        )
+        academic_start_year = calculate_development_start_year(
+            self.variables["birth_year"].get(),
+            self.variables["birth_month"].get(),
+            self.variables["birth_day"].get(),
+            school_attended=school_attended,
+        )
+        self.books.set_development_records(
+            plan.get("school_years", []),
+            plan.get("adult_years", []),
+            academic_start_year,
+            school_attended=school_attended,
+        )
+        self.ledger.set_context(
+            plan.get("ledger_entries", []),
+            development_year_pages(
+                plan,
+                academic_start_year,
+                self.variables["birth_year"].get(),
+                self.variables["birth_month"].get(),
+                self.variables["birth_day"].get(),
+                school_attended=school_attended,
+            ),
+            academic_start_year,
+            self.current_record_id,
+        )
+
+    def open_intentional_study_development_page(
+        self,
+        page_type,
+        page_number,
+    ):
+        self.show_page("development")
+        self.development.show_development_record(
+            page_type,
+            page_number,
         )
 
     def open_name_details(self):
@@ -817,6 +1187,7 @@ class PersonForm(tk.Frame):
         )
 
     def save_name_details(self, name_details):
+        self.ensure_timeline_loaded()
         normalized_details = normalize_name_details(name_details)
         birth_date = format_date_parts(
             self.variables["birth_year"].get(),
@@ -850,8 +1221,14 @@ class PersonForm(tk.Frame):
 
         self.name_details = deepcopy(normalized_details)
         self.timeline.set_events(synchronized_events)
+        self.person_snapshot["name_details"] = deepcopy(
+            self.name_details
+        )
+        self.person_snapshot["timeline_events"] = deepcopy(
+            synchronized_events
+        )
 
-        if self.current_record_id:
+        if self.section_is_current("family_tree"):
             self.family_tree.update_current_person(self.current_profile_values())
 
         if not self.loading:
@@ -1076,45 +1453,64 @@ class PersonForm(tk.Frame):
             else f"name-change:{normalized_entry['entry_id']}"
         )
         self.timeline.set_events(synchronized_events)
+        self.person_snapshot["name_details"] = deepcopy(
+            self.name_details
+        )
+        self.person_snapshot["timeline_events"] = deepcopy(
+            synchronized_events
+        )
 
-        if self.current_record_id:
+        if self.section_is_current("family_tree"):
             self.family_tree.update_current_person(self.current_profile_values())
 
         if not self.loading:
             self.change_command()
 
     def set_person(self, person):
+        person_values = dict(person) if isinstance(person, dict) else {}
+        self.cancel_deferred_load()
+        self.load_generation += 1
         self.loading = True
-        self.current_record_id = person.get("record_id")
-        displayed_name = person.get("displayed_name", "")
+        self.current_record_id = person_values.get("record_id")
+        self.person_snapshot = person_values
+        self.loaded_section_record_ids = {}
+        self.linked_events_snapshot = []
+        displayed_name = person_values.get("displayed_name", "")
         self.current_name_value.set(displayed_name or "Unnamed magician")
 
         for field_name, variable in self.variables.items():
-            value = person.get(field_name)
+            value = person_values.get(field_name)
 
             if isinstance(variable, tk.BooleanVar):
                 variable.set(bool(value))
             else:
                 variable.set("" if value is None else str(value))
 
-        self.development.set_person(person)
-        self.refresh_mage_groups(person.get("mage_group_id"))
-        self.update_school_summary()
+        self.refresh_mage_groups(person_values.get("mage_group_id"))
+        self.update_school_summary_from_person(person_values)
         self.update_death_date_visibility()
+        self.update_death_overview()
 
         for field_name, text_widget in self.text_widgets.items():
             text_widget.delete("1.0", "end")
-            text_widget.insert("1.0", str(person.get(field_name, "") or ""))
+            text_widget.insert(
+                "1.0",
+                str(person_values.get(field_name, "") or ""),
+            )
             text_widget.edit_modified(False)
 
-        name_details = person.get("name_details", {})
+        name_details = person_values.get("name_details", {})
         self.name_details = (
             deepcopy(name_details)
             if isinstance(name_details, dict)
             else {"entries": []}
         )
-        imported_fields = person.get("imported_fields", {})
-        imported_count = len(imported_fields) if isinstance(imported_fields, dict) else 0
+        imported_fields = person_values.get("imported_fields", {})
+        imported_count = (
+            len(imported_fields)
+            if isinstance(imported_fields, dict)
+            else 0
+        )
         self.imported_count_value.set(
             (
                 f"{imported_count} original Formidable fields are preserved with this record. "
@@ -1123,24 +1519,25 @@ class PersonForm(tk.Frame):
             if imported_count
             else ""
         )
-        self.family_tree.set_person(person)
-        timeline_person = deepcopy(person)
-        timeline_person["name_details"] = deepcopy(self.name_details)
-        timeline_person["timeline_events"] = person.get("timeline_events", [])
-        self.timeline.set_events(
-            synchronize_name_change_events(
-                self.name_details,
-                ensure_life_start_events(timeline_person),
-            )
+        self.famous_connections.set_connections([])
+        can_give_birth_control = self.boolean_widgets.get(
+            "can_give_birth"
         )
-        self.refresh_linked_events()
-        self.update_can_give_birth_control()
-        self.update_famous_connections()
-        self.show_page(self.active_page_name)
+        can_give_birth_tooltip = self.tooltips.get("can_give_birth")
+
+        if can_give_birth_control is not None:
+            can_give_birth_control.configure(state="disabled")
+
+        if can_give_birth_tooltip is not None:
+            can_give_birth_tooltip.set_text("Loading family links.")
+
+        self.show_page(self.active_page_name, defer_loading=True)
         self.loading = False
+        self.update_idletasks()
+        self.schedule_deferred_active_page()
 
     def current_profile_values(self):
-        development_values = self.development.get_values()
+        development_values = self.current_development_values()
         return {
             "record_id": self.current_record_id,
             "displayed_name": self.variables["displayed_name"].get(),
@@ -1154,6 +1551,7 @@ class PersonForm(tk.Frame):
             "non_magical": self.variables["non_magical"].get(),
             "can_give_birth": self.variables["can_give_birth"].get(),
             "famous_person": self.variables["famous_person"].get(),
+            "unfinished": self.variables["unfinished"].get(),
             "mage_group_id": self.selected_mage_group_id(),
             "school": development_values["school"],
             "blood_status": development_values["blood_status"],
@@ -1172,7 +1570,7 @@ class PersonForm(tk.Frame):
             "development_plan": development_values[
                 "development_plan"
             ],
-            "timeline_events": self.timeline.get_events(),
+            "timeline_events": self.current_timeline_events(),
             "name_details": deepcopy(self.name_details),
         }
 
@@ -1185,18 +1583,33 @@ class PersonForm(tk.Frame):
         for field_name, text_widget in self.text_widgets.items():
             values[field_name] = text_widget.get("1.0", "end-1c")
 
-        values.update(self.development.get_values())
+        values.update(self.current_development_values())
         values["mage_group_id"] = self.selected_mage_group_id()
         values["name_details"] = deepcopy(self.name_details)
-        values["timeline_events"] = self.timeline.get_events()
-        values.update(self.family_tree.get_relationship_values())
+        values["timeline_events"] = self.current_timeline_events()
+        values.update(self.current_relationship_values())
 
         return values
 
+    def specialty_school_is_blank(self):
+        if not self.section_is_current("development"):
+            return False
+
+        return self.school_field.specialty_is_blank()
+
+    def initial_values_complete(self):
+        if self.section_is_current("development"):
+            return self.development.initial_values_complete()
+
+        return initial_values_are_complete(self.person_snapshot)
+
     def family_tree_changed(self):
-        self.development.set_parentage(
-            self.family_tree.get_relationship_values()
-        )
+        relationship_values = self.family_tree.get_relationship_values()
+        self.person_snapshot.update(deepcopy(relationship_values))
+
+        if self.section_is_current("development"):
+            self.development.set_parentage(relationship_values)
+
         self.update_can_give_birth_control()
         self.update_famous_connections()
 
@@ -1208,12 +1621,45 @@ class PersonForm(tk.Frame):
             self.change_command()
 
     def development_changed(self):
+        development_values = self.current_development_values()
+        self.person_snapshot.update(deepcopy(development_values))
         self.update_school_summary()
+        self.refresh_books_and_ledger()
+        self.loaded_section_record_ids.pop("family_tree", None)
 
-        if self.current_record_id:
-            self.family_tree.update_current_person(
-                self.current_profile_values()
-            )
+        if not self.loading:
+            self.change_command()
+
+    def apply_development_mortality(self, mortality_values):
+        if not isinstance(mortality_values, dict):
+            return
+
+        previous_loading = self.loading
+        self.loading = True
+        self.variables["deceased"].set(
+            bool(mortality_values.get("deceased"))
+        )
+        self.variables["death_year"].set(
+            str(mortality_values.get("death_year", "") or "")
+        )
+        self.variables["death_month"].set(
+            str(mortality_values.get("death_month", "") or "")
+        )
+        self.variables["death_day"].set(
+            str(mortality_values.get("death_day", "") or "")
+        )
+        self.loading = previous_loading
+        self.update_death_date_visibility()
+        self.update_death_overview()
+
+    def ledger_changed(self, entries):
+        if self.section_is_current("development"):
+            self.development.set_ledger_entries(entries)
+            return
+
+        plan = self.current_development_plan()
+        plan["ledger_entries"] = deepcopy(entries)
+        self.person_snapshot["development_plan"] = plan
 
         if not self.loading:
             self.change_command()
@@ -1261,18 +1707,46 @@ class PersonForm(tk.Frame):
             self.change_command()
 
     def refresh_linked_events(self):
-        if (
-            self.event_controller is None
-            or not self.current_record_id
-        ):
-            self.timeline.set_linked_events([])
+        if not self.current_record_id:
             return
 
-        self.timeline.set_linked_events(
+        self.linked_events_snapshot = (
             self.event_controller.events_for_person(
                 self.current_record_id
             )
+            if self.event_controller is not None
+            else []
         )
+
+        if self.section_is_current("timeline"):
+            self.timeline.set_linked_events(
+                self.linked_events_snapshot
+            )
+
+        if self.section_is_current("development") and (
+            self.development.reconcile_linked_event_eminence(
+                self.linked_events_snapshot
+            )
+        ):
+            self.update_school_summary()
+            self.refresh_books_and_ledger()
+            return
+
+        current_person = next(
+            (
+                person
+                for person in self.people_provider()
+                if str(person.get("record_id", "") or "")
+                == str(self.current_record_id or "")
+            ),
+            None,
+        )
+
+        if current_person is not None:
+            self.person_snapshot["development_plan"] = deepcopy(
+                current_person.get("development_plan")
+            )
+            self.update_school_summary_from_person(self.person_snapshot)
 
     def current_person_identifier(self):
         return str(self.current_record_id or "")
@@ -1284,10 +1758,12 @@ class PersonForm(tk.Frame):
             self.events_changed_command()
 
     def deceased_changed(self, *arguments):
-        self.update_death_date_visibility()
+        if self.loading:
+            return
 
-        if not self.loading:
-            self.change_command()
+        self.update_death_date_visibility()
+        self.update_death_overview()
+        self.change_command()
 
     def update_death_date_visibility(self):
         if not hasattr(self, "death_date_frame"):
@@ -1298,8 +1774,31 @@ class PersonForm(tk.Frame):
         else:
             self.death_date_frame.grid_remove()
 
+    def update_death_overview(self):
+        if not hasattr(self, "death_overview_value"):
+            return
+
+        if not self.variables["deceased"].get():
+            self.death_overview_value.set("")
+            return
+
+        age_text = person_death_age_text(
+            {
+                "birth_year": self.variables["birth_year"].get(),
+                "birth_month": self.variables["birth_month"].get(),
+                "birth_day": self.variables["birth_day"].get(),
+                "death_year": self.variables["death_year"].get(),
+                "death_month": self.variables["death_month"].get(),
+                "death_day": self.variables["death_day"].get(),
+            }
+        )
+        self.death_overview_value.set(age_text)
+
     def update_famous_connections(self):
-        if not self.current_record_id or not hasattr(self, "family_tree"):
+        if (
+            not self.current_record_id
+            or not self.section_is_current("family_tree")
+        ):
             self.famous_connections.set_connections([])
             return
 
@@ -1326,6 +1825,11 @@ class PersonForm(tk.Frame):
         if not record_id:
             checkbutton.configure(state="disabled")
             tooltip.set_text("Select a magician before changing this setting.")
+            return
+
+        if not self.section_is_current("family_tree"):
+            checkbutton.configure(state="disabled")
+            tooltip.set_text("Loading family links.")
             return
 
         relationship_map = self.family_tree.relationship_map
@@ -1406,7 +1910,10 @@ class PersonForm(tk.Frame):
         )
 
     def variable_changed(self, *arguments):
-        if hasattr(self, "development"):
+        if self.loading:
+            return
+
+        if self.section_is_current("development"):
             birth_year_variable = self.variables.get("birth_year")
             birth_month_variable = self.variables.get("birth_month")
             birth_day_variable = self.variables.get("birth_day")
@@ -1428,8 +1935,9 @@ class PersonForm(tk.Frame):
                 ),
             )
 
-        if not self.loading:
-            self.change_command()
+        self.loaded_section_record_ids.pop("family_tree", None)
+        self.update_death_overview()
+        self.change_command()
 
     def text_changed(self, event):
         if event.widget.edit_modified():

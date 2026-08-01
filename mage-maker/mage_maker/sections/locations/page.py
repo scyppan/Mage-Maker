@@ -13,7 +13,11 @@ from mage_maker.sections.locations.location_hierarchy import (
     location_ids_in_scope,
 )
 from mage_maker.sections.locations.models import descendant_ids
+from mage_maker.sections.locations.models import (
+    location_event_is_foundation,
+)
 from mage_maker.ui.theme import (
+    ADD_GREEN,
     APP_BACKGROUND,
     BORDER,
     BORDER_SOFT,
@@ -22,7 +26,11 @@ from mage_maker.ui.theme import (
     DELETE_HOVER,
     DELETE_SOFT,
     FIELD_BACKGROUND,
+    FAMILY_GREEN,
+    FAMILY_GREEN_DARK,
     LIST_SELECTED,
+    LOCKED_BORDER,
+    LOCKED_RED,
     PRIMARY,
     PRIMARY_DARK,
     PRIMARY_HOVER,
@@ -35,6 +43,7 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
     LabeledEntry,
     RoundedEntry,
     RoundedText,
@@ -79,6 +88,7 @@ class LocationPage(tk.Frame):
         event_controller=None,
         navigate_event_command=None,
         events_changed_command=None,
+        navigate_organization_command=None,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
@@ -88,7 +98,9 @@ class LocationPage(tk.Frame):
         self.event_controller = event_controller
         self.navigate_event_command = navigate_event_command
         self.events_changed_command = events_changed_command
+        self.navigate_organization_command = navigate_organization_command
         self.locations = []
+        self.assigned_organizations = []
         self.visible_events = []
         self.draft_event = None
         self.selected_timeline_event_id = ""
@@ -99,6 +111,7 @@ class LocationPage(tk.Frame):
         self.region_lock_id = ""
         self.selected_parent_location_id = ""
         self.loaded_parent_location_id = ""
+        self.active_view_name = "details"
         self.content = None
         self.editor_heading_value = tk.StringVar(value="Location details")
         self.parent_path_value = tk.StringVar(value=WORLD_LOCATION_LABEL)
@@ -216,6 +229,25 @@ class LocationPage(tk.Frame):
             scope_change_command=self.region_lock_changed,
         )
         self.location_tree.grid(row=1, column=0, sticky="nsew")
+        foundation_notice = tk.Label(
+            list_card,
+            text=(
+                "Red: the first event must be Founding or "
+                "Wizarding community established."
+            ),
+            bg=SURFACE,
+            fg=LOCKED_RED,
+            font=app_font(8, "bold"),
+            anchor="w",
+            justify="left",
+            wraplength=285,
+        )
+        foundation_notice.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(8, 0),
+        )
 
         editor_card = tk.Frame(
             workspace,
@@ -225,13 +257,167 @@ class LocationPage(tk.Frame):
             padx=18,
             pady=16,
         )
-        editor_card.grid_rowconfigure(2, weight=1)
+        editor_card.grid_rowconfigure(1, weight=1)
         editor_card.grid_columnconfigure(0, weight=1)
-        self.build_location_fields(editor_card)
-        self.build_timeline(editor_card)
+        self.build_location_view_navigation(editor_card)
+
+        self.location_details_page = tk.Frame(
+            editor_card,
+            bg=SURFACE,
+        )
+        self.location_details_page.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+        )
+        self.location_details_page.grid_columnconfigure(0, weight=1)
+        self.build_location_fields(self.location_details_page)
+
+        self.location_events_page = tk.Frame(
+            editor_card,
+            bg=SURFACE,
+        )
+        self.location_events_page.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+        )
+        self.location_events_page.grid_rowconfigure(0, weight=1)
+        self.location_events_page.grid_columnconfigure(0, weight=1)
+        self.build_timeline(self.location_events_page, row=0)
+
+        self.location_organizations_page = tk.Frame(
+            editor_card,
+            bg=SURFACE,
+        )
+        self.location_organizations_page.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+        )
+        self.location_organizations_page.grid_rowconfigure(0, weight=1)
+        self.location_organizations_page.grid_columnconfigure(0, weight=1)
+        self.build_assigned_organizations(
+            self.location_organizations_page
+        )
+        self.show_location_view("details")
 
         workspace.add(list_card, minsize=290, width=330)
         workspace.add(editor_card, minsize=680)
+
+    def build_location_view_navigation(self, parent):
+        navigation = tk.Frame(parent, bg=SURFACE)
+        navigation.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 8),
+        )
+        self.location_details_button = SoftButton(
+            navigation,
+            text="Details",
+            command=self.show_location_details,
+            background=SURFACE,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=92,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.location_details_button.pack(side="left", padx=(0, 6))
+        self.location_events_button = SoftButton(
+            navigation,
+            text="Timeline & Events",
+            command=self.show_location_events,
+            background=SURFACE,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=134,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.location_events_button.pack(side="left", padx=(0, 6))
+        self.location_organizations_button = SoftButton(
+            navigation,
+            text="Organizations",
+            command=self.show_location_organizations,
+            background=SURFACE,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=120,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.location_organizations_button.pack(side="left")
+
+    def show_location_details(self):
+        self.show_location_view("details")
+
+    def show_location_events(self):
+        self.show_location_view("events")
+
+    def show_location_organizations(self):
+        self.show_location_view("organizations")
+
+    def show_location_view(self, view_name):
+        requested_view = str(view_name or "").strip()
+        normalized_view = (
+            requested_view
+            if requested_view in ("details", "events", "organizations")
+            else "details"
+        )
+        self.active_view_name = normalized_view
+        self.location_details_page.grid_remove()
+        self.location_events_page.grid_remove()
+        self.location_organizations_page.grid_remove()
+        self.location_details_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+        self.location_events_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+        self.location_organizations_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+
+        if normalized_view == "events":
+            self.location_events_page.grid()
+            self.location_events_page.tkraise()
+            self.location_events_button.set_colors(
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
+            )
+            self.refresh_timeline()
+            return
+
+        if normalized_view == "organizations":
+            self.location_organizations_page.grid()
+            self.location_organizations_page.tkraise()
+            self.location_organizations_button.set_colors(
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
+            )
+            self.refresh_assigned_organizations()
+            return
+
+        self.location_details_page.grid()
+        self.location_details_page.tkraise()
+        self.location_details_button.set_colors(
+            PRIMARY,
+            PRIMARY_HOVER,
+            TEXT_DARK,
+        )
 
     def save_shortcut(self):
         return self.save_location()
@@ -375,6 +561,18 @@ class LocationPage(tk.Frame):
             font=app_font(10),
         )
         self.toggle_extinction_fields()
+        calendar_notice = CalendarAdoptionNotice(
+            identity,
+            background=SURFACE_MUTED,
+            wraplength=620,
+        )
+        calendar_notice.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(5, 0),
+        )
 
         narrative = tk.Frame(parent, bg=SURFACE)
         narrative.grid(row=1, column=0, sticky="ew", pady=(10, 0))
@@ -427,6 +625,121 @@ class LocationPage(tk.Frame):
         else:
             self.extinction_year_label.pack_forget()
             self.extinction_year_control.pack_forget()
+
+    def build_assigned_organizations(self, parent):
+        panel = tk.Frame(
+            parent,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            padx=12,
+            pady=8,
+        )
+        panel.grid(row=0, column=0, sticky="nsew")
+        panel.grid_rowconfigure(1, weight=1)
+        panel.grid_columnconfigure(0, weight=1)
+        heading = tk.Label(
+            panel,
+            text="Organizations assigned here",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        heading.grid(row=0, column=0, sticky="ew")
+        open_button = SoftButton(
+            panel,
+            text="Open organization",
+            command=self.open_selected_organization,
+            background=SURFACE_MUTED,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=132,
+            height=30,
+            font=app_font(8, "bold"),
+        )
+        open_button.grid(row=0, column=1, sticky="e")
+        list_frame = tk.Frame(
+            panel,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="nsew",
+            pady=(6, 0),
+        )
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.organization_list = tk.Listbox(
+            list_frame,
+            height=3,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            font=app_font(9),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.organization_list.grid(row=0, column=0, sticky="nsew")
+        self.organization_list.bind(
+            "<Double-Button-1>",
+            self.open_selected_organization,
+        )
+        scrollbar = tk.Scrollbar(
+            list_frame,
+            command=self.organization_list.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.organization_list.configure(yscrollcommand=scrollbar.set)
+
+    def refresh_assigned_organizations(self):
+        self.assigned_organizations = (
+            self.controller.organizations_for_location(
+                self.current_location_id
+            )
+            if self.current_location_id
+            else []
+        )
+        self.organization_list.delete(0, "end")
+
+        for organization in self.assigned_organizations:
+            name = str(
+                organization.get("name", "") or "Unnamed organization"
+            ).strip()
+            organization_type = str(
+                organization.get("organization_type", "") or ""
+            ).strip()
+            self.organization_list.insert(
+                "end",
+                (
+                    f"{name} · {organization_type}"
+                    if organization_type
+                    else name
+                ),
+            )
+
+    def open_selected_organization(self, event=None):
+        if self.navigate_organization_command is None:
+            return False
+
+        selected = self.organization_list.curselection()
+
+        if not selected:
+            return False
+
+        organization = self.assigned_organizations[int(selected[0])]
+        return self.navigate_organization_command(
+            organization.get("record_id", "")
+        )
 
     def set_parent_location(self, location_id=""):
         requested_id = str(location_id or "").strip()
@@ -518,7 +831,7 @@ class LocationPage(tk.Frame):
         parent_name = self.parent_path_value.get()
         self.status_command(f"Location will be placed within {parent_name}")
 
-    def build_timeline(self, parent):
+    def build_timeline(self, parent, row=3):
         timeline_panel = tk.Frame(
             parent,
             bg=SURFACE_MUTED,
@@ -527,7 +840,12 @@ class LocationPage(tk.Frame):
             padx=14,
             pady=8,
         )
-        timeline_panel.grid(row=2, column=0, sticky="nsew", pady=(10, 0))
+        timeline_panel.grid(
+            row=row,
+            column=0,
+            sticky="nsew",
+            pady=(10, 0),
+        )
         timeline_panel.grid_rowconfigure(2, weight=1)
         timeline_panel.grid_columnconfigure(0, weight=1)
         timeline_heading = tk.Label(
@@ -580,8 +898,8 @@ class LocationPage(tk.Frame):
         legend = tk.Label(
             timeline_panel,
             text=(
-                "White/gray: this location  ·  Color: inherited  ·  "
-                "Mage births and marriages appear automatically"
+                "Green: founding or wizarding community established  ·  "
+                "White/gray: this location  ·  Other colors: inherited"
             ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -861,6 +1179,7 @@ class LocationPage(tk.Frame):
         )
         self.save_location_button.set_enabled(True)
         self.timeline_add_button.set_enabled(True)
+        self.refresh_assigned_organizations()
         self.refresh_timeline()
         self.status_command(f"Loaded location {location.get('name', 'Unnamed')}")
 
@@ -960,7 +1279,6 @@ class LocationPage(tk.Frame):
             return
 
         self.visible_events = self.controller.timeline_for(self.current_location_id)
-
         if (
             self.draft_event is not None
             and self.draft_event.get("_location_id")
@@ -1025,6 +1343,18 @@ class LocationPage(tk.Frame):
                 color = LOCAL_EVENT_COLORS[index % 2]
 
             self.timeline_list.itemconfigure(index, background=color)
+
+            if (
+                location_event_is_foundation(event)
+                and not event.get("propagation_distance", 0)
+            ):
+                self.timeline_list.itemconfigure(
+                    index,
+                    background=FAMILY_GREEN,
+                    foreground=FAMILY_GREEN_DARK,
+                    selectbackground=ADD_GREEN,
+                    selectforeground=FAMILY_GREEN_DARK,
+                )
 
             if (
                 str(event.get("event_id", "") or "")
@@ -1250,6 +1580,7 @@ class LocationPage(tk.Frame):
         self.toggle_extinction_fields()
         self.demographics_control.text.delete("1.0", "end")
         self.notes_control.text.delete("1.0", "end")
+        self.refresh_assigned_organizations()
         self.timeline_list.delete(0, "end")
         self.visible_events = []
         self.selected_timeline_event_id = ""
@@ -1259,6 +1590,7 @@ class LocationPage(tk.Frame):
         self.timeline_add_button.set_enabled(False)
 
     def create_location(self):
+        self.show_location_details()
         parent_id = (
             self.current_location_id
             if location_id_is_in_scope(

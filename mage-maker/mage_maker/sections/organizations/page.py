@@ -1,16 +1,45 @@
 import tkinter as tk
+from copy import deepcopy
 from tkinter import messagebox, simpledialog, ttk
 
-from mage_maker.sections.organizations.controller import ORGANIZATION_TYPES
+from mage_maker.core.wizarding_currency import format_monthly_salary
+from mage_maker.sections.development.organization_dialogs import (
+    OrganizationLocationSelectionDialog,
+    OrganizationSelectionDialog,
+)
+
+from mage_maker.sections.organizations.controller import (
+    ORGANIZATION_EVENT_FOUNDING,
+    ORGANIZATION_TYPES,
+    SHOP_STOCK_CATEGORIES,
+    normalize_organization_jobs,
+    normalize_organization_events,
+    normalize_shop_inventory,
+    organization_context_label,
+    organization_id_is_in_scope,
+    organization_ids_in_scope,
+)
+from mage_maker.sections.organizations.event_dialog import (
+    OrganizationEventDialog,
+)
+from mage_maker.sections.organizations.job_dialog import (
+    OrganizationJobDialog,
+)
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
     BORDER_SOFT,
+    BUTTON_SOFT,
+    BUTTON_SOFT_HOVER,
     DELETE_HOVER,
     DELETE_SOFT,
     FIELD_BACKGROUND,
     LIST_ALTERNATE,
+    LIST_HOVER,
     LIST_SELECTED,
+    LOCKED_BORDER,
+    LOCKED_RED,
+    LOCKED_RED_HOVER,
     PRIMARY,
     PRIMARY_DARK,
     PRIMARY_HOVER,
@@ -21,25 +50,553 @@ from mage_maker.ui.theme import (
     TEXT_MUTED,
     app_font,
 )
-from mage_maker.ui.widgets import LabeledEntry, RoundedText, SoftButton
+from mage_maker.ui.widgets import (
+    CalendarAdoptionNotice,
+    LabeledEntry,
+    RoundedEntry,
+    RoundedText,
+    SoftButton,
+)
+
+
+ORGANIZATION_TREE_ROOT_ID = "__mage_maker_organizations__"
+
+
+class OrganizationSchoolSelectionDialog(tk.Toplevel):
+    def __init__(
+        self,
+        parent,
+        schools,
+        selected_school_id,
+        save_command,
+        cancel_command=None,
+    ):
+        super().__init__(parent)
+        self.schools = [
+            deepcopy(school)
+            for school in schools or []
+            if isinstance(school, dict)
+            and str(school.get("record_id", "") or "").strip()
+        ]
+        self.visible_schools = []
+        self.selected_school_id = str(
+            selected_school_id or ""
+        ).strip()
+        self.save_command = save_command
+        self.cancel_command = cancel_command
+        self.search_value = tk.StringVar()
+        self.results_value = tk.StringVar()
+        self.title("Link school")
+        self.geometry("660x600")
+        self.minsize(540, 480)
+        self.configure(bg=APP_BACKGROUND)
+        self.transient(parent.winfo_toplevel())
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_dialog()
+        self.search_value.trace_add("write", self.refresh_results)
+        self.refresh_results()
+        self.grab_set()
+        self.after_idle(self.search_control.focus_set)
+
+    def build_dialog(self):
+        header = tk.Frame(self, bg=PRIMARY_DARK, height=58)
+        header.grid(row=0, column=0, sticky="ew")
+        header.grid_propagate(False)
+        heading = tk.Label(
+            header,
+            text="Link school",
+            bg=PRIMARY_DARK,
+            fg=TEXT_LIGHT,
+            font=app_font(15, "bold"),
+            anchor="w",
+            padx=18,
+        )
+        heading.pack(fill="both", expand=True)
+        body = tk.Frame(self, bg=SURFACE, padx=20, pady=18)
+        body.grid(row=1, column=0, sticky="nsew")
+        body.grid_rowconfigure(3, weight=1)
+        body.grid_columnconfigure(0, weight=1)
+        explanation = tk.Label(
+            body,
+            text=(
+                "Search school names, locations, descriptions, and "
+                "curriculum. Linking controls the organization name."
+            ),
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+            wraplength=570,
+        )
+        explanation.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        self.search_control = RoundedEntry(
+            body,
+            textvariable=self.search_value,
+            background=SURFACE,
+            height=38,
+            font=app_font(10),
+        )
+        self.search_control.grid(row=1, column=0, sticky="ew")
+        results_label = tk.Label(
+            body,
+            textvariable=self.results_value,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        results_label.grid(row=2, column=0, sticky="ew", pady=(10, 5))
+        list_frame = tk.Frame(
+            body,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(row=3, column=0, sticky="nsew")
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.school_list = tk.Listbox(
+            list_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.school_list.grid(row=0, column=0, sticky="nsew")
+        self.school_list.bind(
+            "<Double-Button-1>",
+            self.use_selected_school,
+        )
+        scrollbar = tk.Scrollbar(
+            list_frame,
+            command=self.school_list.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.school_list.configure(yscrollcommand=scrollbar.set)
+        footer = tk.Frame(self, bg=APP_BACKGROUND)
+        footer.grid(
+            row=2,
+            column=0,
+            sticky="e",
+            padx=18,
+            pady=(0, 16),
+        )
+        cancel_button = SoftButton(
+            footer,
+            text="Cancel",
+            command=self.close_dialog,
+            background=APP_BACKGROUND,
+            width=88,
+            height=36,
+        )
+        cancel_button.pack(side="left", padx=(0, 7))
+        self.use_button = SoftButton(
+            footer,
+            text="Link school",
+            command=self.use_selected_school,
+            background=APP_BACKGROUND,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=112,
+            height=36,
+        )
+        self.use_button.pack(side="left")
+
+    def school_search_text(self, school):
+        curriculum = school.get("curriculum", [])
+        curriculum_text = " ".join(
+            str(value or "")
+            for value in (
+                curriculum
+                if isinstance(curriculum, (list, tuple))
+                else [curriculum]
+            )
+        )
+        return " ".join(
+            str(value or "").strip()
+            for value in (
+                school.get("name"),
+                school.get("location"),
+                school.get("description"),
+                curriculum_text,
+            )
+            if str(value or "").strip()
+        ).casefold()
+
+    def refresh_results(self, *arguments):
+        query_terms = [
+            term
+            for term in self.search_value.get().casefold().split()
+            if term
+        ]
+        self.visible_schools = sorted(
+            [
+                school
+                for school in self.schools
+                if all(
+                    term in self.school_search_text(school)
+                    for term in query_terms
+                )
+            ],
+            key=self.school_sort_key,
+        )
+        self.school_list.delete(0, "end")
+
+        for index, school in enumerate(self.visible_schools):
+            name = str(
+                school.get("name", "") or "Unnamed school"
+            ).strip()
+            location = str(school.get("location", "") or "").strip()
+            self.school_list.insert(
+                "end",
+                f"{name}  ·  {location}" if location else name,
+            )
+            self.school_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+            if school.get("record_id") == self.selected_school_id:
+                self.school_list.selection_set(index)
+                self.school_list.see(index)
+
+        self.results_value.set(
+            f"Schools ({len(self.visible_schools)})"
+        )
+        self.use_button.set_enabled(bool(self.visible_schools))
+
+    def school_sort_key(self, school):
+        return (
+            str(school.get("name", "") or "").casefold(),
+            str(school.get("location", "") or "").casefold(),
+        )
+
+    def use_selected_school(self, event=None):
+        selected = self.school_list.curselection()
+
+        if not selected:
+            return
+
+        self.save_command(
+            deepcopy(self.visible_schools[int(selected[0])])
+        )
+        self.destroy()
+
+    def close_dialog(self, event=None):
+        if self.cancel_command is not None:
+            self.cancel_command()
+
+        self.destroy()
+        return "break"
 
 
 class OrganizationPage(tk.Frame):
-    def __init__(self, parent, controller, status_command):
+    def __init__(
+        self,
+        parent,
+        controller,
+        status_command,
+        event_controller=None,
+        events_changed_command=None,
+        scope_change_command=None,
+    ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
         self.status_command = status_command
+        self.event_controller = event_controller
+        self.events_changed_command = events_changed_command
+        self.scope_change_command = scope_change_command
+        self.all_organizations = []
         self.organizations = []
+        self.organization_id_by_line = {}
+        self.organizations_by_id = {}
+        self.organization_lock_id = ""
+        self.suppress_tree_selection = False
+        self.hovered_tree_id = ""
+        self.form_updates_paused = True
+        self.form_dirty = False
         self.current_organization_id = None
-        self.location_ids_by_label = {}
+        self.loaded_parent_organization_id = ""
+        self.selected_location_id = ""
+        self.selected_parent_organization_id = ""
+        self.selected_school_id = ""
+        self.active_editor_page = "details"
+        self.organization_events = normalize_organization_events([])
+        self.organization_jobs = normalize_organization_jobs([])
+        self.visible_job_timeline = []
+        self.job_timeline_value = tk.StringVar(
+            value="Select a job to see its timeline"
+        )
         self.name_value = tk.StringVar()
         self.type_value = tk.StringVar(value=ORGANIZATION_TYPES[0])
         self.location_value = tk.StringVar(value="No location selected")
+        self.parent_value = tk.StringVar(
+            value="No parent organization"
+        )
+        self.link_school_value = tk.BooleanVar(value=False)
+        self.school_value = tk.StringVar(value="Choose a school")
+        self.has_shop_value = tk.BooleanVar(value=False)
+        self.shop_inventory = normalize_shop_inventory({})
+        self.extinct_value = tk.BooleanVar(value=False)
+        self.extinction_date_value = tk.StringVar()
+        self.search_value = tk.StringVar()
+        self.type_filter_value = tk.StringVar(value="All types")
+        self.school_filter_value = tk.StringVar(value="All school links")
+        self.filter_updates_paused = False
+        self.year_filter_value = None
+        self.location_filter_id = ""
+        self.location_filter_value = tk.StringVar(value="All places")
+        self.filter_summary_value = tk.StringVar(
+            value="All organizations"
+        )
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_toolbar()
         self.build_workspace()
+        self.name_value.trace_add("write", self.form_value_changed)
+        self.type_value.trace_add("write", self.form_value_changed)
+        self.link_school_value.trace_add(
+            "write",
+            self.form_value_changed,
+        )
+        self.extinction_date_value.trace_add(
+            "write",
+            self.form_value_changed,
+        )
+        self.overview_control.text.bind(
+            "<<Modified>>",
+            self.narrative_changed,
+            add="+",
+        )
+        self.notes_control.text.bind(
+            "<<Modified>>",
+            self.narrative_changed,
+            add="+",
+        )
+        self.search_value.trace_add("write", self.filter_changed)
+        self.type_filter_value.trace_add("write", self.filter_changed)
+        self.school_filter_value.trace_add(
+            "write",
+            self.filter_changed,
+        )
+        self.form_updates_paused = False
         self.refresh()
+
+    def form_value_changed(self, *arguments):
+        self.mark_form_dirty()
+
+    def narrative_changed(self, event):
+        if not event.widget.edit_modified():
+            return
+
+        event.widget.edit_modified(False)
+        self.mark_form_dirty()
+
+    def mark_form_dirty(self):
+        if self.form_updates_paused or not self.current_organization_id:
+            return
+
+        self.form_dirty = True
+        self.revert_button.set_enabled(True)
+        self.save_button.set_enabled(True)
+        self.status_command("Unsaved organization changes")
+
+    def build_filter_menu(self):
+        self.filter_menu = tk.Menu(
+            self,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=PRIMARY_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+        type_menu = tk.Menu(
+            self.filter_menu,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=PRIMARY_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+
+        for organization_type in ("All types", *ORGANIZATION_TYPES):
+            type_menu.add_radiobutton(
+                label=organization_type,
+                variable=self.type_filter_value,
+                value=organization_type,
+            )
+
+        school_menu = tk.Menu(
+            self.filter_menu,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=PRIMARY_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+
+        for school_filter in (
+            "All school links",
+            "Linked schools",
+            "Unlinked organizations",
+        ):
+            school_menu.add_radiobutton(
+                label=school_filter,
+                variable=self.school_filter_value,
+                value=school_filter,
+            )
+
+        self.filter_menu.add_cascade(label="Type", menu=type_menu)
+        self.filter_menu.add_cascade(
+            label="School link",
+            menu=school_menu,
+        )
+        self.filter_menu.add_command(
+            label="Existing in year…",
+            command=self.choose_year_filter,
+        )
+        self.filter_menu.add_command(
+            label="Place…",
+            command=self.choose_location_filter,
+        )
+        self.filter_menu.add_separator()
+        self.filter_menu.add_command(
+            label="Show all",
+            command=self.show_all_organizations,
+        )
+
+    def show_filter_menu(self):
+        self.filter_button.update_idletasks()
+
+        try:
+            self.filter_menu.tk_popup(
+                self.filter_button.winfo_rootx(),
+                (
+                    self.filter_button.winfo_rooty()
+                    + self.filter_button.winfo_height()
+                ),
+            )
+        finally:
+            self.filter_menu.grab_release()
+
+    def choose_year_filter(self):
+        selected_year = simpledialog.askinteger(
+            "Existing in year",
+            (
+                "Show organizations founded on or before which year?\n"
+                "Cancel to keep the current filter."
+            ),
+            parent=self,
+            initialvalue=self.year_filter_value,
+            minvalue=-99999,
+            maxvalue=99999,
+        )
+
+        if selected_year is None:
+            return
+
+        self.year_filter_value = selected_year
+        self.refresh(self.current_organization_id)
+
+    def choose_location_filter(self):
+        OrganizationLocationSelectionDialog(
+            self,
+            self.controller.location_records(),
+            self.location_filter_selected,
+            self.location_filter_id,
+            dialog_title="Filter organizations by place",
+            action_text="Use place",
+            allow_clear=True,
+        )
+
+    def location_filter_selected(self, location):
+        self.location_filter_id = (
+            str(location.get("record_id", "") or "").strip()
+            if isinstance(location, dict)
+            else ""
+        )
+        self.location_filter_value.set(
+            self.controller.location_label(
+                self.location_filter_id
+            )
+            if self.location_filter_id
+            else "All places"
+        )
+        self.refresh(self.current_organization_id)
+
+    def school_filter_key(self):
+        selected = self.school_filter_value.get()
+
+        if selected == "Linked schools":
+            return "linked"
+
+        if selected == "Unlinked organizations":
+            return "unlinked"
+
+        return "all"
+
+    def update_filter_summary(self):
+        parts = []
+
+        if self.type_filter_value.get() != "All types":
+            parts.append(self.type_filter_value.get())
+
+        if self.school_filter_value.get() != "All school links":
+            parts.append(self.school_filter_value.get())
+
+        if self.year_filter_value is not None:
+            parts.append(f"By {self.year_filter_value}")
+
+        if self.location_filter_id:
+            parts.append(self.location_filter_value.get())
+
+        self.filter_summary_value.set(
+            " · ".join(parts) or "All organizations"
+        )
+
+    def filter_changed(self, *arguments):
+        if self.filter_updates_paused:
+            return
+
+        self.refresh(self.current_organization_id)
+
+    def show_all_organizations(self):
+        self.filter_updates_paused = True
+        self.search_value.set("")
+        self.type_filter_value.set("All types")
+        self.school_filter_value.set("All school links")
+        self.year_filter_value = None
+        self.location_filter_id = ""
+        self.location_filter_value.set("All places")
+        self.filter_updates_paused = False
+        self.refresh(self.current_organization_id)
+
+    def search_shortcut(self):
+        self.search_control.focus_set()
+        return True
 
     def build_toolbar(self):
         toolbar = tk.Frame(self, bg=PRIMARY_DARK, height=64)
@@ -56,19 +613,19 @@ class OrganizationPage(tk.Frame):
             padx=20,
         )
         title.grid(row=0, column=0, sticky="nsew")
-        new_button = SoftButton(
+        self.new_button = SoftButton(
             toolbar,
-            text="New organization",
+            text="New",
             command=self.create_organization,
             background=PRIMARY_DARK,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
             foreground=TEXT_DARK,
-            width=148,
+            width=82,
             height=38,
         )
-        new_button.grid(row=0, column=1, padx=4, pady=13)
-        delete_button = SoftButton(
+        self.new_button.grid(row=0, column=1, padx=4, pady=13)
+        self.delete_button = SoftButton(
             toolbar,
             text="Delete",
             command=self.delete_organization,
@@ -79,7 +636,36 @@ class OrganizationPage(tk.Frame):
             width=88,
             height=38,
         )
-        delete_button.grid(row=0, column=2, padx=(4, 16), pady=13)
+        self.delete_button.grid(row=0, column=2, padx=4, pady=13)
+        self.revert_button = SoftButton(
+            toolbar,
+            text="Revert",
+            command=self.revert_organization,
+            background=PRIMARY_DARK,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=88,
+            height=38,
+        )
+        self.revert_button.grid(row=0, column=3, padx=4, pady=13)
+        self.save_button = SoftButton(
+            toolbar,
+            text="Save",
+            command=self.save_organization,
+            background=PRIMARY_DARK,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=92,
+            height=38,
+        )
+        self.save_button.grid(
+            row=0,
+            column=4,
+            padx=(4, 16),
+            pady=13,
+        )
 
     def build_workspace(self):
         workspace = tk.PanedWindow(
@@ -106,7 +692,7 @@ class OrganizationPage(tk.Frame):
             padx=14,
             pady=14,
         )
-        list_card.grid_rowconfigure(1, weight=1)
+        list_card.grid_rowconfigure(4, weight=1)
         list_card.grid_columnconfigure(0, weight=1)
         list_title = tk.Label(
             list_card,
@@ -117,31 +703,209 @@ class OrganizationPage(tk.Frame):
             anchor="w",
         )
         list_title.grid(row=0, column=0, sticky="ew", pady=(0, 9))
-        self.organization_list = tk.Listbox(
+        advanced_button = SoftButton(
+            list_card,
+            text="Advanced…",
+            command=self.open_organization_search,
+            background=SURFACE,
+            width=92,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        advanced_button.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            pady=(0, 9),
+        )
+        scope_bar = tk.Frame(list_card, bg=SURFACE)
+        scope_bar.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 9),
+        )
+        scope_bar.grid_columnconfigure(0, weight=1)
+        self.organization_scope_status_value = tk.StringVar(
+            value="All organizations"
+        )
+        scope_status = tk.Label(
+            scope_bar,
+            textvariable=self.organization_scope_status_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        scope_status.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=(0, 7),
+        )
+        self.organization_scope_button = SoftButton(
+            scope_bar,
+            text="Select to lock",
+            command=self.toggle_organization_lock,
+            background=SURFACE,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=92,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.organization_scope_button.grid(
+            row=0,
+            column=1,
+            sticky="e",
+        )
+        self.search_control = RoundedEntry(
+            list_card,
+            textvariable=self.search_value,
+            background=SURFACE,
+            height=38,
+            font=app_font(10),
+        )
+        self.search_control.grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 8),
+        )
+        filter_row = tk.Frame(list_card, bg=SURFACE)
+        filter_row.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 8),
+        )
+        filter_row.grid_columnconfigure(1, weight=1)
+        self.filter_button = SoftButton(
+            filter_row,
+            text="Filters ▾",
+            command=self.show_filter_menu,
+            background=SURFACE,
+            fill=BUTTON_SOFT,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=82,
+            height=30,
+            font=app_font(9, "bold"),
+        )
+        self.filter_button.grid(row=0, column=0, sticky="w")
+        filter_summary = tk.Label(
+            filter_row,
+            textvariable=self.filter_summary_value,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(8),
+            anchor="w",
+        )
+        filter_summary.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=8,
+        )
+        show_all_button = SoftButton(
+            filter_row,
+            text="Show all",
+            command=self.show_all_organizations,
+            background=SURFACE,
+            fill=BUTTON_SOFT,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=68,
+            height=30,
+            font=app_font(8, "bold"),
+        )
+        show_all_button.grid(row=0, column=2, sticky="e")
+        self.build_filter_menu()
+        self.organization_tree_frame = tk.Frame(
             list_card,
             bg=FIELD_BACKGROUND,
-            fg=TEXT_DARK,
-            selectbackground=LIST_SELECTED,
-            selectforeground=TEXT_DARK,
-            relief="flat",
             highlightbackground=BORDER_SOFT,
+            highlightcolor=BORDER_SOFT,
             highlightthickness=1,
-            borderwidth=0,
-            font=app_font(10),
-            activestyle="none",
-            exportselection=False,
         )
-        self.organization_list.grid(row=1, column=0, sticky="nsew")
-        self.organization_list.bind(
-            "<<ListboxSelect>>",
+        self.organization_tree_frame.grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="nsew",
+        )
+        self.organization_tree_frame.grid_rowconfigure(0, weight=1)
+        self.organization_tree_frame.grid_columnconfigure(0, weight=1)
+        organization_tree_style = ttk.Style(self)
+        organization_tree_style.configure(
+            "OrganizationHierarchy.Treeview",
+            background=FIELD_BACKGROUND,
+            fieldbackground=FIELD_BACKGROUND,
+            foreground=TEXT_DARK,
+            borderwidth=0,
+            relief="flat",
+            rowheight=46,
+            indent=10,
+            font=app_font(10),
+        )
+        organization_tree_style.map(
+            "OrganizationHierarchy.Treeview",
+            background=[("selected", LIST_SELECTED)],
+            foreground=[("selected", TEXT_DARK)],
+        )
+        self.organization_tree = ttk.Treeview(
+            self.organization_tree_frame,
+            style="OrganizationHierarchy.Treeview",
+            show="tree",
+            selectmode="browse",
+            takefocus=True,
+        )
+        self.organization_tree.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.organization_tree.tag_configure(
+            "context",
+            foreground=TEXT_MUTED,
+        )
+        self.organization_tree.tag_configure(
+            "hover",
+            background=LIST_HOVER,
+        )
+        self.organization_tree.bind(
+            "<<TreeviewSelect>>",
             self.organization_selected,
         )
-        list_scrollbar = tk.Scrollbar(
-            list_card,
-            command=self.organization_list.yview,
+        self.organization_tree.bind(
+            "<Motion>",
+            self.organization_tree_motion,
         )
-        list_scrollbar.grid(row=1, column=1, sticky="ns")
-        self.organization_list.configure(yscrollcommand=list_scrollbar.set)
+        self.organization_tree.bind(
+            "<Leave>",
+            self.organization_tree_left,
+        )
+        self.organization_tree.bind(
+            "<Return>",
+            self.toggle_selected_organization_branch,
+        )
+        self.organization_tree.bind(
+            "<space>",
+            self.toggle_selected_organization_branch,
+        )
+        self.organization_tree.configure(cursor="hand2")
+        list_scrollbar = tk.Scrollbar(
+            self.organization_tree_frame,
+            command=self.organization_tree.yview,
+        )
+        list_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.organization_tree.configure(
+            yscrollcommand=list_scrollbar.set
+        )
 
         editor_card = tk.Frame(
             workspace,
@@ -158,6 +922,119 @@ class OrganizationPage(tk.Frame):
         workspace.add(editor_card, minsize=680)
 
     def build_editor(self, parent):
+        page_navigation = tk.Frame(parent, bg=SURFACE)
+        page_navigation.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 10),
+        )
+        self.details_page_button = SoftButton(
+            page_navigation,
+            text="Details",
+            command=self.show_details_page,
+            background=SURFACE,
+            width=92,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        self.details_page_button.pack(
+            side="left",
+            padx=(0, 6),
+        )
+        self.children_page_button = SoftButton(
+            page_navigation,
+            text="Nested organizations",
+            command=self.show_children_page,
+            background=SURFACE,
+            width=156,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        self.children_page_button.pack(side="left")
+        self.jobs_page_button = SoftButton(
+            page_navigation,
+            text="Jobs",
+            command=self.show_jobs_page,
+            background=SURFACE,
+            width=92,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        self.jobs_page_button.pack(
+            side="left",
+            padx=(6, 0),
+        )
+        self.shop_page_button = SoftButton(
+            page_navigation,
+            text="Shop",
+            command=self.show_shop_page,
+            background=SURFACE,
+            width=92,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        page_container = tk.Frame(parent, bg=SURFACE)
+        page_container.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+        )
+        page_container.grid_rowconfigure(0, weight=1)
+        page_container.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(1, weight=1)
+        self.details_page = tk.Frame(
+            page_container,
+            bg=SURFACE,
+        )
+        self.details_page.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.details_page.grid_columnconfigure(0, weight=1)
+        self.details_page.grid_rowconfigure(2, weight=1)
+        self.children_page = tk.Frame(
+            page_container,
+            bg=SURFACE,
+        )
+        self.children_page.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.children_page.grid_columnconfigure(0, weight=1)
+        self.children_page.grid_rowconfigure(1, weight=1)
+        self.jobs_page = tk.Frame(
+            page_container,
+            bg=SURFACE,
+        )
+        self.jobs_page.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.jobs_page.grid_columnconfigure(0, weight=1)
+        self.jobs_page.grid_rowconfigure(1, weight=1)
+        self.shop_page = tk.Frame(
+            page_container,
+            bg=SURFACE,
+        )
+        self.shop_page.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.shop_page.grid_columnconfigure(0, weight=1)
+        self.shop_page.grid_rowconfigure(1, weight=1)
+        self.build_details_editor(self.details_page)
+        self.build_children_editor(self.children_page)
+        self.build_jobs(self.jobs_page)
+        self.build_shop(self.shop_page)
+        self.show_editor_page("details")
+        self.update_shop_page_visibility()
+
+    def build_details_editor(self, parent):
         explanation = tk.Label(
             parent,
             text=(
@@ -179,13 +1056,18 @@ class OrganizationPage(tk.Frame):
         fields.grid_columnconfigure(0, weight=2)
         fields.grid_columnconfigure(1, weight=1)
         fields.grid_columnconfigure(2, weight=2)
-        name_field = LabeledEntry(
+        self.name_field = LabeledEntry(
             fields,
             "Organization name",
             self.name_value,
             background=SURFACE,
         )
-        name_field.grid(row=0, column=0, sticky="ew", padx=(0, 7))
+        self.name_field.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=(0, 7),
+        )
         type_frame = tk.Frame(fields, bg=SURFACE)
         type_frame.grid(row=0, column=1, sticky="ew", padx=7)
         type_frame.grid_columnconfigure(0, weight=1)
@@ -218,18 +1100,281 @@ class OrganizationPage(tk.Frame):
             anchor="w",
         )
         location_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        self.location_picker = ttk.Combobox(
+        location_value_label = tk.Label(
             location_frame,
             textvariable=self.location_value,
-            state="readonly",
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
             font=app_font(10),
+            anchor="w",
+            padx=10,
+            pady=9,
         )
-        self.location_picker.grid(row=1, column=0, sticky="ew", ipady=7)
+        location_value_label.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+        )
+        choose_location_button = SoftButton(
+            location_frame,
+            text="Choose…",
+            command=self.open_location_dialog,
+            background=SURFACE,
+            width=82,
+            height=38,
+            font=app_font(9, "bold"),
+        )
+        choose_location_button.grid(
+            row=1,
+            column=1,
+            padx=(6, 0),
+        )
+        clear_location_button = SoftButton(
+            location_frame,
+            text="Clear",
+            command=self.clear_location,
+            background=SURFACE,
+            width=62,
+            height=38,
+            font=app_font(9, "bold"),
+        )
+        clear_location_button.grid(
+            row=1,
+            column=2,
+            padx=(6, 0),
+        )
+        parent_frame = tk.Frame(fields, bg=SURFACE)
+        parent_frame.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(12, 0),
+        )
+        parent_frame.grid_columnconfigure(0, weight=1)
+        parent_label = tk.Label(
+            parent_frame,
+            text="Nested within",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        parent_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        parent_value_label = tk.Label(
+            parent_frame,
+            textvariable=self.parent_value,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            font=app_font(10),
+            anchor="w",
+            padx=10,
+            pady=9,
+        )
+        parent_value_label.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+        )
+        self.choose_parent_button = SoftButton(
+            parent_frame,
+            text="Choose…",
+            command=self.open_parent_dialog,
+            background=SURFACE,
+            width=82,
+            height=38,
+            font=app_font(9, "bold"),
+        )
+        self.choose_parent_button.grid(
+            row=1,
+            column=1,
+            padx=(6, 0),
+        )
+        self.clear_parent_button = SoftButton(
+            parent_frame,
+            text="No parent",
+            command=self.clear_parent,
+            background=SURFACE,
+            width=92,
+            height=38,
+            font=app_font(9, "bold"),
+        )
+        self.clear_parent_button.grid(
+            row=1,
+            column=2,
+            padx=(6, 0),
+        )
+        school_frame = tk.Frame(fields, bg=SURFACE)
+        school_frame.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(12, 0),
+        )
+        school_frame.grid_columnconfigure(1, weight=1)
+        self.school_link_checkbox = tk.Checkbutton(
+            school_frame,
+            text="Link school",
+            variable=self.link_school_value,
+            command=self.toggle_school_link,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            padx=0,
+            pady=0,
+        )
+        self.school_link_checkbox.grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 10),
+        )
+        school_value_label = tk.Label(
+            school_frame,
+            textvariable=self.school_value,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            font=app_font(9),
+            anchor="w",
+            padx=10,
+            pady=8,
+        )
+        school_value_label.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+        )
+        self.choose_school_button = SoftButton(
+            school_frame,
+            text="Choose school…",
+            command=self.open_school_dialog,
+            background=SURFACE,
+            width=118,
+            height=36,
+            font=app_font(9, "bold"),
+        )
+        self.choose_school_button.grid(
+            row=0,
+            column=2,
+            padx=(6, 0),
+        )
+        flags_frame = tk.Frame(fields, bg=SURFACE)
+        flags_frame.grid(
+            row=3,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(12, 0),
+        )
+        flags_frame.grid_columnconfigure(2, weight=1)
+        self.has_shop_checkbox = tk.Checkbutton(
+            flags_frame,
+            text="Has a shop",
+            variable=self.has_shop_value,
+            command=self.shop_state_changed,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            padx=0,
+            pady=0,
+        )
+        self.has_shop_checkbox.grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 20),
+        )
+        self.extinct_checkbox = tk.Checkbutton(
+            flags_frame,
+            text="Extinct",
+            variable=self.extinct_value,
+            command=self.extinction_state_changed,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            padx=0,
+            pady=0,
+        )
+        self.extinct_checkbox.grid(
+            row=0,
+            column=1,
+            sticky="w",
+            padx=(0, 20),
+        )
+        self.extinction_date_frame = tk.Frame(
+            flags_frame,
+            bg=SURFACE,
+        )
+        self.extinction_date_frame.grid(
+            row=0,
+            column=2,
+            sticky="e",
+        )
+        extinction_date_label = tk.Label(
+            self.extinction_date_frame,
+            text="Extinction date",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(8, "bold"),
+            anchor="e",
+        )
+        extinction_date_label.grid(
+            row=0,
+            column=0,
+            sticky="e",
+            padx=(0, 8),
+        )
+        self.extinction_date_control = RoundedEntry(
+            self.extinction_date_frame,
+            textvariable=self.extinction_date_value,
+            background=SURFACE,
+            width=168,
+            height=36,
+            font=app_font(9),
+            justify="center",
+        )
+        self.extinction_date_control.grid(
+            row=0,
+            column=1,
+            sticky="e",
+        )
+        calendar_notice = CalendarAdoptionNotice(
+            flags_frame,
+            background=SURFACE,
+            wraplength=620,
+        )
+        calendar_notice.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(5, 0),
+        )
+        self.update_extinction_date_visibility()
         narrative = tk.Frame(parent, bg=SURFACE)
         narrative.grid(row=2, column=0, sticky="nsew", pady=(16, 0))
         narrative.grid_rowconfigure(0, weight=1)
         narrative.grid_columnconfigure(0, weight=1)
         narrative.grid_columnconfigure(1, weight=1)
+        narrative.grid_columnconfigure(2, weight=1)
         overview_frame = tk.Frame(narrative, bg=SURFACE)
         overview_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
         overview_label = tk.Label(
@@ -264,68 +1409,1473 @@ class OrganizationPage(tk.Frame):
             height=12,
         )
         self.notes_control.pack(fill="both", expand=True)
-        save_button = SoftButton(
+
+        events_frame = tk.Frame(narrative, bg=SURFACE)
+        events_frame.grid(
+            row=0,
+            column=2,
+            sticky="nsew",
+            padx=(14, 0),
+        )
+        events_frame.grid_rowconfigure(1, weight=1)
+        events_frame.grid_columnconfigure(0, weight=1)
+        events_label = tk.Label(
+            events_frame,
+            text="Events",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        events_label.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        self.event_list = tk.Listbox(
+            events_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            borderwidth=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+            height=10,
+        )
+        self.event_list.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="nsew",
+        )
+        self.event_list.bind(
+            "<Double-Button-1>",
+            self.edit_selected_event,
+        )
+        event_scrollbar = tk.Scrollbar(
+            events_frame,
+            command=self.event_list.yview,
+        )
+        event_scrollbar.grid(row=1, column=2, sticky="ns")
+        self.event_list.configure(
+            yscrollcommand=event_scrollbar.set
+        )
+        add_event_button = SoftButton(
+            events_frame,
+            text="Add event",
+            command=self.add_event,
+            background=SURFACE,
+            width=76,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        add_event_button.grid(
+            row=2,
+            column=0,
+            sticky="w",
+            pady=(8, 0),
+        )
+        edit_event_button = SoftButton(
+            events_frame,
+            text="Edit",
+            command=self.edit_selected_event,
+            background=SURFACE,
+            width=56,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        edit_event_button.grid(
+            row=2,
+            column=1,
+            sticky="w",
+            padx=(6, 0),
+            pady=(8, 0),
+        )
+        remove_event_button = SoftButton(
+            events_frame,
+            text="Remove",
+            command=self.remove_selected_event,
+            background=SURFACE,
+            width=68,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        remove_event_button.grid(
+            row=2,
+            column=2,
+            sticky="e",
+            padx=(6, 0),
+            pady=(8, 0),
+        )
+    def build_children_editor(self, parent):
+        explanation = tk.Label(
             parent,
-            text="Save organization",
-            command=self.save_organization,
+            text=(
+                "These are the organizations nested directly within the "
+                "selected organization."
+            ),
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            justify="left",
+            anchor="w",
+            padx=14,
+            pady=12,
+        )
+        explanation.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        list_frame = tk.Frame(
+            parent,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            pady=(14, 0),
+        )
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.children_list = tk.Listbox(
+            list_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            font=app_font(11),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.children_list.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.children_list.bind(
+            "<Double-Button-1>",
+            self.open_selected_child,
+        )
+        scrollbar = tk.Scrollbar(
+            list_frame,
+            command=self.children_list.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.children_list.configure(
+            yscrollcommand=scrollbar.set
+        )
+        open_button = SoftButton(
+            parent,
+            text="Open selected organization",
+            command=self.open_selected_child,
             background=SURFACE,
             fill=PRIMARY,
             hover_fill=PRIMARY_HOVER,
             foreground=TEXT_DARK,
-            width=148,
+            width=190,
             height=38,
+            font=app_font(9, "bold"),
         )
-        save_button.grid(row=3, column=0, sticky="e", pady=(12, 0))
+        open_button.grid(
+            row=2,
+            column=0,
+            sticky="e",
+            pady=(12, 0),
+        )
 
-    def refresh(self, selected_organization_id=None):
-        selected_id = selected_organization_id or self.current_organization_id
-        self.organizations = self.controller.list_organizations()
-        self.organization_list.delete(0, "end")
+    def show_editor_page(self, page_name):
+        if page_name == "shop" and self.has_shop_value.get():
+            self.active_editor_page = "shop"
+            self.shop_page.tkraise()
+            self.shop_page_button.set_colors(
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
+            )
+            self.details_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.children_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.jobs_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            return
 
-        for index, organization in enumerate(self.organizations):
-            self.organization_list.insert(
+        if page_name == "jobs":
+            self.active_editor_page = "jobs"
+            self.jobs_page.tkraise()
+            self.jobs_page_button.set_colors(
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
+            )
+            self.details_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.children_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.shop_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.refresh_job_list()
+            return
+
+        if page_name == "children":
+            self.active_editor_page = "children"
+            self.children_page.tkraise()
+            self.children_page_button.set_colors(
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
+            )
+            self.details_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.jobs_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.shop_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.refresh_children_list()
+            return
+
+        self.active_editor_page = "details"
+        self.details_page.tkraise()
+        self.details_page_button.set_colors(
+            PRIMARY,
+            PRIMARY_HOVER,
+            TEXT_DARK,
+        )
+        self.children_page_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+        self.jobs_page_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+        self.shop_page_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+
+    def show_details_page(self):
+        self.show_editor_page("details")
+
+    def show_children_page(self):
+        self.show_editor_page("children")
+
+    def show_jobs_page(self):
+        self.show_editor_page("jobs")
+
+    def show_shop_page(self):
+        self.show_editor_page("shop")
+
+    def shop_state_changed(self):
+        self.update_shop_page_visibility()
+        self.mark_form_dirty()
+
+    def update_shop_page_visibility(self):
+        if not hasattr(self, "shop_page_button"):
+            return
+
+        if self.has_shop_value.get():
+            if not self.shop_page_button.winfo_manager():
+                self.shop_page_button.pack(
+                    side="left",
+                    padx=(6, 0),
+                )
+            return
+
+        if self.active_editor_page == "shop":
+            self.show_details_page()
+
+        self.shop_page_button.pack_forget()
+
+    def extinction_state_changed(self):
+        self.update_extinction_date_visibility()
+        self.mark_form_dirty()
+
+    def update_extinction_date_visibility(self):
+        if not hasattr(self, "extinction_date_frame"):
+            return
+
+        if self.extinct_value.get():
+            self.extinction_date_frame.grid()
+        else:
+            self.extinction_date_frame.grid_remove()
+
+    def refresh_children_list(self):
+        if not hasattr(self, "children_list"):
+            return
+
+        self.child_organizations = (
+            self.controller.first_order_children(
+                self.current_organization_id
+            )
+            if self.current_organization_id
+            else []
+        )
+        self.children_list.delete(0, "end")
+
+        for index, organization in enumerate(
+            self.child_organizations
+        ):
+            self.children_list.insert(
                 "end",
-                f"{organization.get('name', 'Unnamed')}\n"
-                f"{organization.get('organization_type', '')}",
+                (
+                    f"{organization.get('name', 'Unnamed')}\n"
+                    f"{organization.get('organization_type', '')}"
+                ),
             )
-            self.organization_list.itemconfigure(
+            self.children_list.itemconfigure(
                 index,
-                background=FIELD_BACKGROUND if index % 2 == 0 else LIST_ALTERNATE,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
             )
 
-            if organization.get("record_id") == selected_id:
-                self.organization_list.selection_set(index)
-                self.organization_list.see(index)
+    def open_selected_child(self, event=None):
+        selected = self.children_list.curselection()
 
-        if selected_id and self.controller.get_organization(selected_id):
+        if not selected:
+            return
+
+        if not self.confirm_unsaved_organization_changes():
+            return
+
+        organization = self.child_organizations[
+            int(selected[0])
+        ]
+        self.refresh(organization["record_id"], force_load=True)
+        self.show_details_page()
+
+    def build_jobs(self, parent):
+        explanation = tk.Label(
+            parent,
+            text=(
+                "Positions belong to this organization. Each position records "
+                "when it opened and whether it is currently filled."
+            ),
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            justify="left",
+            anchor="w",
+            wraplength=760,
+            padx=14,
+            pady=12,
+        )
+        explanation.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        jobs_frame = tk.Frame(
+            parent,
+            bg=SURFACE,
+        )
+        jobs_frame.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            pady=(14, 0),
+        )
+        jobs_frame.grid_columnconfigure(
+            (0, 1),
+            weight=1,
+            uniform="organization_jobs",
+        )
+        jobs_frame.grid_rowconfigure(1, weight=1)
+        jobs_label = tk.Label(
+            jobs_frame,
+            text="Jobs",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        jobs_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        timeline_label = tk.Label(
+            jobs_frame,
+            textvariable=self.job_timeline_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+            justify="left",
+            wraplength=320,
+        )
+        timeline_label.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(14, 0),
+            pady=(0, 5),
+        )
+        job_list_frame = tk.Frame(
+            jobs_frame,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        job_list_frame.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+        )
+        job_list_frame.grid_rowconfigure(0, weight=1)
+        job_list_frame.grid_columnconfigure(0, weight=1)
+        self.job_list = tk.Listbox(
+            job_list_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            highlightthickness=0,
+            borderwidth=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.job_list.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        job_scrollbar = tk.Scrollbar(
+            job_list_frame,
+            command=self.job_list.yview,
+        )
+        job_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.job_list.configure(
+            yscrollcommand=job_scrollbar.set
+        )
+        self.job_list.bind(
+            "<<ListboxSelect>>",
+            self.job_selected,
+        )
+        self.job_list.bind(
+            "<Double-Button-1>",
+            self.edit_selected_job,
+        )
+        timeline_frame = tk.Frame(
+            jobs_frame,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        timeline_frame.grid(
+            row=1,
+            column=1,
+            rowspan=2,
+            sticky="nsew",
+            padx=(14, 0),
+        )
+        timeline_frame.grid_rowconfigure(0, weight=1)
+        timeline_frame.grid_columnconfigure(0, weight=1)
+        self.job_timeline_list = tk.Listbox(
+            timeline_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            highlightthickness=0,
+            borderwidth=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.job_timeline_list.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        timeline_scrollbar = tk.Scrollbar(
+            timeline_frame,
+            command=self.job_timeline_list.yview,
+        )
+        timeline_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.job_timeline_list.configure(
+            yscrollcommand=timeline_scrollbar.set
+        )
+        job_actions = tk.Frame(
+            jobs_frame,
+            bg=SURFACE,
+        )
+        job_actions.grid(
+            row=2,
+            column=0,
+            sticky="w",
+            pady=(8, 0),
+        )
+        add_job_button = SoftButton(
+            job_actions,
+            text="Add job",
+            command=self.add_job,
+            background=SURFACE,
+            width=76,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        add_job_button.grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
+        edit_job_button = SoftButton(
+            job_actions,
+            text="Edit",
+            command=self.edit_selected_job,
+            background=SURFACE,
+            width=56,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        edit_job_button.grid(
+            row=0,
+            column=1,
+            sticky="w",
+            padx=(6, 0),
+        )
+        remove_job_button = SoftButton(
+            job_actions,
+            text="Remove",
+            command=self.remove_selected_job,
+            background=SURFACE,
+            width=68,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        remove_job_button.grid(
+            row=0,
+            column=2,
+            sticky="w",
+            padx=(6, 0),
+        )
+
+    def build_shop(self, parent):
+        explanation = tk.Label(
+            parent,
+            text=(
+                "Products will be linked here when shop inventory is built. "
+                "The four stock categories are reserved below."
+            ),
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            justify="left",
+            anchor="w",
+            wraplength=760,
+            padx=14,
+            pady=12,
+        )
+        explanation.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        categories = tk.Frame(parent, bg=SURFACE)
+        categories.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            pady=(14, 0),
+        )
+        categories.grid_rowconfigure((0, 1), weight=1)
+        categories.grid_columnconfigure((0, 1), weight=1)
+
+        for index, (category_key, category_label) in enumerate(
+            SHOP_STOCK_CATEGORIES
+        ):
+            category_card = tk.Frame(
+                categories,
+                bg=FIELD_BACKGROUND,
+                highlightbackground=BORDER_SOFT,
+                highlightthickness=1,
+                padx=14,
+                pady=12,
+            )
+            category_card.grid(
+                row=index // 2,
+                column=index % 2,
+                sticky="nsew",
+                padx=(0, 7) if index % 2 == 0 else (7, 0),
+                pady=(0, 7) if index < 2 else (7, 0),
+            )
+            category_heading = tk.Label(
+                category_card,
+                text=category_label,
+                bg=FIELD_BACKGROUND,
+                fg=TEXT_DARK,
+                font=app_font(11, "bold"),
+                anchor="w",
+            )
+            category_heading.pack(fill="x")
+            placeholder = tk.Label(
+                category_card,
+                text="Product linking placeholder",
+                bg=FIELD_BACKGROUND,
+                fg=TEXT_MUTED,
+                font=app_font(9),
+                anchor="nw",
+                justify="left",
+            )
+            placeholder.pack(fill="both", expand=True, pady=(8, 0))
+
+    def refresh(
+        self,
+        selected_organization_id=None,
+        force_load=False,
+    ):
+        selected_id = (
+            self.current_organization_id
+            if selected_organization_id is None
+            else str(selected_organization_id or "").strip()
+        )
+        self.all_organizations = self.controller.list_organizations()
+        self.organizations_by_id = {
+            str(organization.get("record_id", "") or "").strip(): organization
+            for organization in self.all_organizations
+            if str(organization.get("record_id", "") or "").strip()
+        }
+
+        if self.organization_lock_id not in self.organizations_by_id:
+            self.organization_lock_id = ""
+
+        self.organizations = self.controller.search_organizations(
+            self.search_value.get(),
+            self.type_filter_value.get(),
+            self.year_filter_value,
+            self.location_filter_id,
+            self.school_filter_key(),
+        )
+        self.update_filter_summary()
+        matching_ids = {
+            str(organization.get("record_id", "") or "")
+            for organization in self.organizations
+        }
+        scoped_ids = organization_ids_in_scope(
+            self.all_organizations,
+            self.organization_lock_id,
+        )
+        matching_ids &= scoped_ids
+        visible_ids = self.organization_visible_ids(
+            matching_ids,
+            scoped_ids,
+        )
+
+        if (
+            self.form_dirty
+            and self.current_organization_id in scoped_ids
+        ):
+            visible_ids |= self.organization_visible_ids(
+                {self.current_organization_id},
+                scoped_ids,
+            )
+
+        if selected_id not in visible_ids:
+            selected_id = (
+                self.organization_lock_id
+                if self.organization_lock_id in visible_ids
+                else next(
+                    (
+                        str(organization.get("record_id", "") or "")
+                        for organization in self.organizations
+                        if str(
+                            organization.get("record_id", "") or ""
+                        )
+                        in visible_ids
+                    ),
+                    "",
+                )
+            )
+
+        if self.form_dirty and not force_load:
+            selected_id = (
+                self.current_organization_id
+                if self.current_organization_id in visible_ids
+                else ""
+            )
+
+        self.rebuild_organization_tree(
+            visible_ids,
+            matching_ids,
+            selected_id,
+        )
+        self.update_organization_lock_controls()
+
+        if self.form_dirty and not force_load:
+            return
+
+        if selected_id:
             self.load_organization(selected_id)
-        elif self.organizations:
-            self.organization_list.selection_set(0)
-            self.load_organization(self.organizations[0]["record_id"])
         else:
             self.clear_form()
 
-    def organization_selected(self, event=None):
-        selected = self.organization_list.curselection()
+    def organization_visible_ids(self, matching_ids, scoped_ids):
+        visible_ids = set(matching_ids)
 
-        if selected:
-            self.load_organization(self.organizations[selected[0]]["record_id"])
+        for matching_id in matching_ids:
+            current_id = matching_id
+            visited_ids = set()
+
+            while current_id and current_id not in visited_ids:
+                visited_ids.add(current_id)
+                organization = self.organizations_by_id.get(current_id)
+
+                if organization is None:
+                    break
+
+                parent_id = str(
+                    organization.get(
+                        "parent_organization_id",
+                        "",
+                    )
+                    or ""
+                ).strip()
+
+                if not parent_id or parent_id not in scoped_ids:
+                    break
+
+                visible_ids.add(parent_id)
+                current_id = parent_id
+
+        return visible_ids
+
+    def expanded_organization_ids(self):
+        return {
+            organization_id
+            for organization_id in self.organizations_by_id
+            if self.organization_tree.exists(organization_id)
+            and bool(
+                self.organization_tree.item(
+                    organization_id,
+                    "open",
+                )
+            )
+        }
+
+    def rebuild_organization_tree(
+        self,
+        visible_ids,
+        matching_ids,
+        selected_id,
+    ):
+        expanded_ids = self.expanded_organization_ids()
+        children_by_parent_id = {}
+
+        for organization_id, organization in self.organizations_by_id.items():
+            parent_id = str(
+                organization.get("parent_organization_id", "") or ""
+            ).strip()
+
+            if parent_id not in self.organizations_by_id:
+                parent_id = ""
+
+            children_by_parent_id.setdefault(parent_id, []).append(
+                organization_id
+            )
+
+        for child_ids in children_by_parent_id.values():
+            child_ids.sort(key=self.organization_tree_sort_key)
+
+        self.suppress_tree_selection = True
+        root_items = self.organization_tree.get_children("")
+
+        if root_items:
+            self.organization_tree.delete(*root_items)
+
+        self.organization_tree.insert(
+            "",
+            "end",
+            iid=ORGANIZATION_TREE_ROOT_ID,
+            text="All organizations",
+            open=True,
+        )
+        inserted_ids = set()
+        query_is_active = bool(
+            self.search_value.get().strip()
+            or self.type_filter_value.get() != "All types"
+            or self.school_filter_value.get() != "All school links"
+            or self.year_filter_value is not None
+            or self.location_filter_id
+        )
+
+        if (
+            self.organization_lock_id
+            and self.organization_lock_id in visible_ids
+        ):
+            self.insert_organization_record(
+                ORGANIZATION_TREE_ROOT_ID,
+                self.organization_lock_id,
+                matching_ids,
+                expanded_ids,
+                query_is_active,
+            )
+            inserted_ids.add(self.organization_lock_id)
+            self.insert_organization_children(
+                self.organization_lock_id,
+                self.organization_lock_id,
+                children_by_parent_id,
+                visible_ids,
+                matching_ids,
+                expanded_ids,
+                query_is_active,
+                inserted_ids,
+            )
+        elif not self.organization_lock_id:
+            self.insert_organization_children(
+                ORGANIZATION_TREE_ROOT_ID,
+                "",
+                children_by_parent_id,
+                visible_ids,
+                matching_ids,
+                expanded_ids,
+                query_is_active,
+                inserted_ids,
+            )
+
+        for organization_id in sorted(
+            visible_ids - inserted_ids,
+            key=self.organization_tree_sort_key,
+        ):
+            self.insert_organization_record(
+                ORGANIZATION_TREE_ROOT_ID,
+                organization_id,
+                matching_ids,
+                expanded_ids,
+                query_is_active,
+            )
+
+        tree_id = (
+            selected_id
+            if selected_id and self.organization_tree.exists(selected_id)
+            else ORGANIZATION_TREE_ROOT_ID
+        )
+        self.organization_tree.selection_set(tree_id)
+        self.organization_tree.focus(tree_id)
+        self.organization_tree.see(tree_id)
+        self.suppress_tree_selection = False
+
+    def insert_organization_children(
+        self,
+        tree_parent_id,
+        parent_organization_id,
+        children_by_parent_id,
+        visible_ids,
+        matching_ids,
+        expanded_ids,
+        query_is_active,
+        inserted_ids,
+    ):
+        for organization_id in children_by_parent_id.get(
+            parent_organization_id,
+            [],
+        ):
+            if (
+                organization_id not in visible_ids
+                or organization_id in inserted_ids
+            ):
+                continue
+
+            inserted_ids.add(organization_id)
+            self.insert_organization_record(
+                tree_parent_id,
+                organization_id,
+                matching_ids,
+                expanded_ids,
+                query_is_active,
+            )
+            self.insert_organization_children(
+                organization_id,
+                organization_id,
+                children_by_parent_id,
+                visible_ids,
+                matching_ids,
+                expanded_ids,
+                query_is_active,
+                inserted_ids,
+            )
+
+    def insert_organization_record(
+        self,
+        tree_parent_id,
+        organization_id,
+        matching_ids,
+        expanded_ids,
+        query_is_active,
+    ):
+        organization = self.organizations_by_id[organization_id]
+        name = str(
+            organization.get("name", "") or "Unnamed organization"
+        ).strip()
+        location_label = self.controller.location_label(
+            organization.get("location_id", "")
+        )
+        self.organization_tree.insert(
+            tree_parent_id,
+            "end",
+            iid=organization_id,
+            text=f"{name}\n{location_label}",
+            open=(
+                query_is_active
+                or organization_id in expanded_ids
+            ),
+            tags=(
+                ()
+                if organization_id in matching_ids
+                else ("context",)
+            ),
+        )
+
+    def organization_tree_sort_key(self, organization_id):
+        organization = self.organizations_by_id.get(
+            organization_id,
+            {},
+        )
+        return (
+            str(organization.get("name", "") or "").casefold(),
+            str(organization_id),
+        )
+
+    def organization_selected(self, event=None):
+        if self.suppress_tree_selection:
+            return
+
+        selection = self.organization_tree.selection()
+
+        if not selection:
+            return
+
+        tree_id = selection[0]
+        organization_id = (
+            ""
+            if tree_id == ORGANIZATION_TREE_ROOT_ID
+            else tree_id
+        )
+
+        if not organization_id and self.organization_lock_id:
+            organization_id = self.organization_lock_id
+            self.select_organization_tree_item(organization_id)
+
+        if organization_id == self.current_organization_id:
+            self.update_organization_lock_controls()
+            return
+
+        if not self.confirm_unsaved_organization_changes():
+            self.select_organization_tree_item(
+                self.current_organization_id
+            )
+            return
+
+        if organization_id:
+            self.load_organization(organization_id)
+        else:
+            self.clear_form()
+
+        self.update_organization_lock_controls()
+
+    def confirm_unsaved_organization_changes(self):
+        if not self.form_dirty:
+            return True
+
+        save_choice = messagebox.askyesnocancel(
+            "Unsaved organization changes",
+            "Save changes before continuing?",
+            parent=self,
+        )
+
+        if save_choice is None:
+            return False
+
+        if save_choice:
+            return self.save_organization()
+
+        self.form_dirty = False
+        return True
+
+    def select_organization_tree_item(self, organization_id=""):
+        requested_id = str(organization_id or "").strip()
+        tree_id = (
+            requested_id
+            if requested_id
+            and self.organization_tree.exists(requested_id)
+            else ORGANIZATION_TREE_ROOT_ID
+        )
+        self.suppress_tree_selection = True
+        self.organization_tree.selection_set(tree_id)
+        self.organization_tree.focus(tree_id)
+        self.organization_tree.see(tree_id)
+        self.suppress_tree_selection = False
+
+    def toggle_selected_organization_branch(self, event=None):
+        selection = self.organization_tree.selection()
+
+        if not selection:
+            return "break"
+
+        tree_id = selection[0]
+
+        if self.organization_tree.get_children(tree_id):
+            self.organization_tree.item(
+                tree_id,
+                open=not bool(
+                    self.organization_tree.item(tree_id, "open")
+                ),
+            )
+
+        return "break"
+
+    def organization_tree_motion(self, event):
+        tree_id = self.organization_tree.identify_row(event.y)
+
+        if tree_id == self.hovered_tree_id:
+            return
+
+        self.clear_organization_tree_hover()
+
+        if not tree_id:
+            return
+
+        tags = list(self.organization_tree.item(tree_id, "tags"))
+
+        if "hover" not in tags:
+            tags.append("hover")
+
+        self.organization_tree.item(tree_id, tags=tuple(tags))
+        self.hovered_tree_id = tree_id
+
+    def organization_tree_left(self, event=None):
+        self.clear_organization_tree_hover()
+
+    def clear_organization_tree_hover(self):
+        if (
+            not self.hovered_tree_id
+            or not self.organization_tree.exists(
+                self.hovered_tree_id
+            )
+        ):
+            self.hovered_tree_id = ""
+            return
+
+        tags = [
+            tag
+            for tag in self.organization_tree.item(
+                self.hovered_tree_id,
+                "tags",
+            )
+            if tag != "hover"
+        ]
+        self.organization_tree.item(
+            self.hovered_tree_id,
+            tags=tuple(tags),
+        )
+        self.hovered_tree_id = ""
+
+    def toggle_organization_lock(self):
+        if self.organization_lock_id:
+            return self.set_organization_lock("")
+
+        requested_id = str(
+            self.current_organization_id or ""
+        ).strip()
+
+        if not requested_id:
+            return ""
+
+        return self.set_organization_lock(requested_id)
+
+    def set_organization_lock(
+        self,
+        organization_id="",
+        notify=True,
+    ):
+        requested_id = str(organization_id or "").strip()
+
+        if requested_id not in self.organizations_by_id:
+            requested_id = ""
+
+        previous_lock_id = self.organization_lock_id
+        self.organization_lock_id = requested_id
+        self.refresh(self.current_organization_id)
+
+        if requested_id:
+            organization = self.organizations_by_id.get(
+                requested_id,
+                {},
+            )
+            organization_name = str(
+                organization.get("name", "") or "selected organization"
+            ).strip()
+            self.status_command(
+                f"Locked organization work to {organization_name}"
+            )
+        else:
+            self.status_command("Showing all organizations")
+
+        if (
+            notify
+            and previous_lock_id != self.organization_lock_id
+            and self.scope_change_command is not None
+        ):
+            self.scope_change_command(self.organization_lock_id)
+
+        return self.organization_lock_id
+
+    def update_organization_lock_controls(self):
+        if not hasattr(self, "organization_scope_button"):
+            return
+
+        current_id = str(
+            self.current_organization_id or ""
+        ).strip()
+        locked_root = self.organizations_by_id.get(
+            self.organization_lock_id
+        )
+
+        if locked_root is not None:
+            organization_name = str(
+                locked_root.get("name", "") or "Unnamed organization"
+            ).strip()
+            self.organization_scope_status_value.set(
+                f"Showing only {organization_name}"
+            )
+            self.organization_scope_button.set_text("Unlock")
+            self.organization_scope_button.set_colors(
+                LOCKED_RED,
+                LOCKED_RED_HOVER,
+                TEXT_LIGHT,
+            )
+            self.organization_scope_button.set_enabled(True)
+            self.organization_tree_frame.configure(
+                highlightbackground=LOCKED_BORDER,
+                highlightcolor=LOCKED_BORDER,
+                highlightthickness=2,
+            )
+        else:
+            self.organization_scope_status_value.set("All organizations")
+            self.organization_scope_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
+            self.organization_scope_button.set_text(
+                "Lock here" if current_id else "Select to lock"
+            )
+            self.organization_scope_button.set_enabled(bool(current_id))
+            self.organization_tree_frame.configure(
+                highlightbackground=BORDER_SOFT,
+                highlightcolor=BORDER_SOFT,
+                highlightthickness=1,
+            )
+
+        parent_change_allowed = not (
+            self.organization_lock_id
+            and current_id == self.organization_lock_id
+        )
+
+        if hasattr(self, "choose_parent_button"):
+            self.choose_parent_button.set_enabled(parent_change_allowed)
+
+        if hasattr(self, "clear_parent_button"):
+            self.clear_parent_button.set_enabled(parent_change_allowed)
+
+    def open_organization_search(self):
+        OrganizationSelectionDialog(
+            self,
+            self.controller.list_organizations(),
+            self.organization_search_selected,
+            location_provider=self.controller.location_records,
+        )
+
+    def organization_search_selected(self, organization):
+        organization_id = str(
+            organization.get("record_id", "") or ""
+        ).strip()
+
+        if organization_id:
+            if not organization_id_is_in_scope(
+                organization_id,
+                self.all_organizations,
+                self.organization_lock_id,
+            ):
+                self.status_command(
+                    "Unlock the current organization branch to open that organization"
+                )
+                return
+
+            if not self.confirm_unsaved_organization_changes():
+                return
+
+            self.filter_updates_paused = True
+            self.search_value.set("")
+            self.type_filter_value.set("All types")
+            self.school_filter_value.set("All school links")
+            self.year_filter_value = None
+            self.location_filter_id = ""
+            self.location_filter_value.set("All places")
+            self.filter_updates_paused = False
+            self.refresh(organization_id, force_load=True)
 
     def refresh_location_picker(self, selected_location_id=""):
-        self.location_ids_by_label = {"No location selected": ""}
+        self.selected_location_id = str(
+            selected_location_id or ""
+        ).strip()
+        self.location_value.set(
+            self.controller.location_label(
+                self.selected_location_id
+            )
+        )
 
-        for option in self.controller.location_options():
-            self.location_ids_by_label[option["label"]] = option["record_id"]
+    def refresh_school_link(self, selected_school_id=None):
+        if selected_school_id is not None:
+            self.selected_school_id = str(
+                selected_school_id or ""
+            ).strip()
 
-        self.location_picker.configure(values=list(self.location_ids_by_label))
-        selected_label = "No location selected"
+        school = self.controller.school_by_id(
+            self.selected_school_id
+        )
+        is_linked = school is not None
 
-        for label, location_id in self.location_ids_by_label.items():
-            if location_id == selected_location_id:
-                selected_label = label
-                break
+        if not is_linked:
+            self.selected_school_id = ""
 
-        self.location_value.set(selected_label)
+        self.link_school_value.set(is_linked)
+        self.school_value.set(
+            self.controller.school_label(
+                self.selected_school_id
+            )
+            if is_linked
+            else "Choose a school"
+        )
+        self.choose_school_button.set_enabled(
+            bool(self.link_school_value.get())
+        )
+        self.name_field.control.set_enabled(not is_linked)
+        self.type_picker.configure(
+            state="disabled" if is_linked else "readonly"
+        )
+
+        if is_linked:
+            self.name_value.set(
+                str(school.get("name", "") or "")
+            )
+            self.type_value.set("School")
+
+    def toggle_school_link(self):
+        if not self.link_school_value.get():
+            self.selected_school_id = ""
+            self.refresh_school_link("")
+            return
+
+        if not self.selected_school_id:
+            self.open_school_dialog()
+
+    def available_schools_for_link(self):
+        linked_school_ids = {
+            str(organization.get("school_id", "") or "").strip()
+            for organization in self.controller.list_organizations()
+            if str(
+                organization.get("record_id", "") or ""
+            ).strip()
+            != str(self.current_organization_id or "").strip()
+            and str(organization.get("school_id", "") or "").strip()
+        }
+        return [
+            school
+            for school in self.controller.school_records()
+            if str(school.get("record_id", "") or "").strip()
+            not in linked_school_ids
+        ]
+
+    def open_school_dialog(self):
+        if not self.link_school_value.get():
+            self.link_school_value.set(True)
+
+        OrganizationSchoolSelectionDialog(
+            self,
+            self.available_schools_for_link(),
+            self.selected_school_id,
+            self.school_selected,
+            self.school_selection_cancelled,
+        )
+
+    def school_selection_cancelled(self):
+        if self.selected_school_id:
+            return
+
+        self.link_school_value.set(False)
+        self.refresh_school_link("")
+
+    def school_selected(self, school):
+        if not isinstance(school, dict):
+            return
+
+        self.selected_school_id = str(
+            school.get("record_id", "") or ""
+        ).strip()
+        self.link_school_value.set(True)
+        self.refresh_school_link()
+        self.mark_form_dirty()
+
+    def refresh_parent_picker(self, selected_parent_id=""):
+        self.selected_parent_organization_id = str(
+            selected_parent_id or ""
+        ).strip()
+        self.parent_value.set(
+            organization_context_label(
+                self.selected_parent_organization_id,
+                self.controller.list_organizations(),
+            )
+            if self.selected_parent_organization_id
+            else "No parent organization"
+        )
+
+    def open_location_dialog(self):
+        OrganizationLocationSelectionDialog(
+            self,
+            self.controller.location_records(),
+            self.location_selected,
+            self.selected_location_id,
+            dialog_title="Select organization location",
+            action_text="Use location",
+            allow_clear=True,
+        )
+
+    def location_selected(self, location):
+        self.refresh_location_picker(
+            location.get("record_id", "")
+            if isinstance(location, dict)
+            else ""
+        )
+        self.mark_form_dirty()
+
+    def clear_location(self):
+        self.refresh_location_picker("")
+        self.mark_form_dirty()
+
+    def open_parent_dialog(self):
+        if (
+            self.organization_lock_id
+            and self.current_organization_id
+            == self.organization_lock_id
+        ):
+            messagebox.showinfo(
+                "Organization branch is locked",
+                "Unlock this organization before moving the branch itself.",
+                parent=self,
+            )
+            return
+
+        allowed_parent_ids = {
+            option["record_id"]
+            for option in self.controller.parent_options(
+                self.current_organization_id or "",
+            )
+            if option["record_id"]
+        }
+        parent_candidates = [
+            organization
+            for organization in self.controller.list_organizations()
+            if (
+                organization.get("record_id") in allowed_parent_ids
+                and organization_id_is_in_scope(
+                    organization.get("record_id", ""),
+                    self.all_organizations,
+                    self.organization_lock_id,
+                )
+            )
+        ]
+        OrganizationSelectionDialog(
+            self,
+            parent_candidates,
+            self.parent_selected,
+            location_provider=self.controller.location_records,
+        )
+
+    def parent_selected(self, organization):
+        parent_id = str(
+            organization.get("record_id", "") or ""
+        ).strip()
+        self.refresh_parent_picker(
+            parent_id
+        )
+
+        if not self.selected_location_id:
+            parent = self.controller.get_organization(parent_id)
+
+            if parent is not None:
+                self.refresh_location_picker(
+                    parent.get("location_id", "")
+                )
+
+        self.mark_form_dirty()
+
+    def clear_parent(self):
+        if (
+            self.organization_lock_id
+            and self.current_organization_id
+            == self.organization_lock_id
+        ):
+            messagebox.showinfo(
+                "Organization branch is locked",
+                "Unlock this organization before moving the branch itself.",
+                parent=self,
+            )
+            return
+
+        self.refresh_parent_picker("")
+        self.mark_form_dirty()
 
     def load_organization(self, record_id):
         organization = self.controller.get_organization(record_id)
@@ -333,12 +2883,33 @@ class OrganizationPage(tk.Frame):
         if organization is None:
             return
 
+        self.form_updates_paused = True
         self.current_organization_id = record_id
+        self.loaded_parent_organization_id = str(
+            organization.get("parent_organization_id", "") or ""
+        ).strip()
         self.name_value.set(str(organization.get("name", "") or ""))
         self.type_value.set(
             str(organization.get("organization_type", "") or ORGANIZATION_TYPES[0])
         )
+        self.has_shop_value.set(bool(organization.get("has_shop")))
+        self.shop_inventory = normalize_shop_inventory(
+            organization.get("shop_inventory", {})
+        )
+        self.extinct_value.set(bool(organization.get("extinct")))
+        self.extinction_date_value.set(
+            str(organization.get("extinction_date", "") or "")
+        )
+        self.update_shop_page_visibility()
+        self.update_extinction_date_visibility()
+        self.link_school_value.set(
+            bool(str(organization.get("school_id", "") or "").strip())
+        )
+        self.refresh_school_link(organization.get("school_id", ""))
         self.refresh_location_picker(organization.get("location_id", ""))
+        self.refresh_parent_picker(
+            organization.get("parent_organization_id", "")
+        )
         self.overview_control.text.delete("1.0", "end")
         self.overview_control.text.insert(
             "1.0",
@@ -349,37 +2920,82 @@ class OrganizationPage(tk.Frame):
             "1.0",
             str(organization.get("notes", "") or ""),
         )
+        self.organization_events = normalize_organization_events(
+            organization.get("events", [])
+        )
+        self.organization_jobs = normalize_organization_jobs(
+            organization.get("jobs", [])
+        )
+        self.overview_control.text.edit_modified(False)
+        self.notes_control.text.edit_modified(False)
+        self.refresh_event_list()
+        self.refresh_job_list()
+        self.refresh_children_list()
+        self.form_updates_paused = False
+        self.form_dirty = False
+        self.set_editor_state(True, False)
+        self.update_organization_lock_controls()
         self.status_command(
             f"Loaded organization {organization.get('name', 'Unnamed')}"
         )
 
     def clear_form(self):
+        self.form_updates_paused = True
         self.current_organization_id = None
+        self.loaded_parent_organization_id = ""
         self.name_value.set("")
         self.type_value.set(ORGANIZATION_TYPES[0])
+        self.has_shop_value.set(False)
+        self.shop_inventory = normalize_shop_inventory({})
+        self.extinct_value.set(False)
+        self.extinction_date_value.set("")
+        self.update_shop_page_visibility()
+        self.update_extinction_date_visibility()
+        self.link_school_value.set(False)
+        self.refresh_school_link("")
         self.refresh_location_picker()
+        self.refresh_parent_picker()
         self.overview_control.text.delete("1.0", "end")
         self.notes_control.text.delete("1.0", "end")
+        self.organization_events = normalize_organization_events([])
+        self.organization_jobs = normalize_organization_jobs([])
+        self.overview_control.text.edit_modified(False)
+        self.notes_control.text.edit_modified(False)
+        self.refresh_event_list()
+        self.refresh_job_list()
+        self.refresh_children_list()
+        self.form_updates_paused = False
+        self.form_dirty = False
+        self.set_editor_state(False, False)
+        self.update_organization_lock_controls()
 
-    def create_organization(self):
-        name = simpledialog.askstring(
-            "New organization",
-            "Organization name",
-            parent=self.winfo_toplevel(),
+    def set_editor_state(self, has_organization, has_changes=False):
+        enabled = bool(has_organization)
+        self.delete_button.set_enabled(enabled)
+        self.revert_button.set_enabled(
+            enabled and bool(has_changes)
+        )
+        self.save_button.set_enabled(
+            enabled and bool(has_changes)
         )
 
-        if name is None:
+    def create_organization(self):
+        if not self.confirm_unsaved_organization_changes():
             return
 
+        parent_id = (
+            self.current_organization_id
+            if organization_id_is_in_scope(
+                self.current_organization_id,
+                self.all_organizations,
+                self.organization_lock_id,
+            )
+            else self.organization_lock_id
+        )
+
         try:
-            created = self.controller.create_organization(
-                {
-                    "name": name,
-                    "organization_type": ORGANIZATION_TYPES[0],
-                    "location_id": "",
-                    "overview": "",
-                    "notes": "",
-                }
+            created = self.controller.create_default_organization(
+                parent_organization_id=parent_id,
             )
         except (TypeError, ValueError) as error:
             messagebox.showerror(
@@ -389,29 +3005,95 @@ class OrganizationPage(tk.Frame):
             )
             return
 
-        self.refresh(created["record_id"])
+        self.filter_updates_paused = True
+        self.search_value.set("")
+        self.type_filter_value.set("All types")
+        self.school_filter_value.set("All school links")
+        self.year_filter_value = None
+        self.location_filter_id = ""
+        self.location_filter_value.set("All places")
+        self.filter_updates_paused = False
+        self.organization_created(created)
+
+    def organization_created(self, created):
+        self.refresh(created["record_id"], force_load=True)
         self.status_command(f"Created organization {created['name']}")
 
-    def save_organization(self):
+    def revert_organization(self):
         if not self.current_organization_id:
-            return False
+            return
 
+        self.form_dirty = False
+        self.refresh(
+            self.current_organization_id,
+            force_load=True,
+        )
+        self.status_command("Organization changes reverted")
+
+    def save_organization(self):
+        if (
+            self.link_school_value.get()
+            and not self.selected_school_id
+        ):
+            self.link_school_value.set(False)
+            self.refresh_school_link("")
+
+        has_shop_value = getattr(self, "has_shop_value", None)
+        extinct_value = getattr(self, "extinct_value", None)
+        extinction_date_value = getattr(
+            self,
+            "extinction_date_value",
+            None,
+        )
         values = {
             "name": self.name_value.get(),
             "organization_type": self.type_value.get(),
-            "location_id": self.location_ids_by_label.get(
-                self.location_value.get(),
-                "",
+            "location_id": self.selected_location_id,
+            "parent_organization_id": (
+                self.selected_parent_organization_id
+            ),
+            "school_id": self.selected_school_id,
+            "has_shop": (
+                bool(has_shop_value.get())
+                if has_shop_value is not None
+                else False
+            ),
+            "shop_inventory": getattr(
+                self,
+                "shop_inventory",
+                normalize_shop_inventory({}),
+            ),
+            "extinct": (
+                bool(extinct_value.get())
+                if extinct_value is not None
+                else False
+            ),
+            "extinction_date": (
+                extinction_date_value.get()
+                if extinction_date_value is not None
+                else ""
             ),
             "overview": self.overview_control.text.get("1.0", "end-1c"),
             "notes": self.notes_control.text.get("1.0", "end-1c"),
+            "events": self.organization_events,
+            "jobs": self.organization_jobs,
         }
+        parent_changed = bool(
+            self.current_organization_id
+            and self.loaded_parent_organization_id
+            != str(self.selected_parent_organization_id or "").strip()
+        )
 
         try:
-            updated = self.controller.update_organization(
-                self.current_organization_id,
-                values,
-            )
+            if self.current_organization_id:
+                updated = self.controller.update_organization(
+                    self.current_organization_id,
+                    values,
+                )
+            else:
+                updated = self.controller.create_organization(
+                    values
+                )
         except (KeyError, TypeError, ValueError) as error:
             messagebox.showerror(
                 "Cannot save organization",
@@ -420,7 +3102,46 @@ class OrganizationPage(tk.Frame):
             )
             return False
 
-        self.refresh(updated["record_id"])
+        if hasattr(self, "search_value"):
+            visible_ids = {
+                str(organization.get("record_id", "") or "").strip()
+                for organization in self.controller.search_organizations(
+                    self.search_value.get(),
+                    self.type_filter_value.get(),
+                    self.year_filter_value,
+                    self.location_filter_id,
+                    self.school_filter_key(),
+                )
+            }
+
+            if updated["record_id"] not in visible_ids:
+                self.filter_updates_paused = True
+                self.search_value.set("")
+                self.type_filter_value.set("All types")
+                self.school_filter_value.set("All school links")
+                self.year_filter_value = None
+                self.location_filter_id = ""
+                self.location_filter_value.set("All places")
+                self.filter_updates_paused = False
+
+        if parent_changed and self.organization_lock_id:
+            self.organization_lock_id = ""
+
+            if self.scope_change_command is not None:
+                self.scope_change_command("")
+
+        self.form_dirty = False
+        self.refresh(updated["record_id"], force_load=True)
+
+        events_changed_command = getattr(
+            self,
+            "events_changed_command",
+            None,
+        )
+
+        if events_changed_command is not None:
+            events_changed_command()
+
         self.status_command(f"Saved organization {updated['name']}")
         return True
 
@@ -439,9 +3160,371 @@ class OrganizationPage(tk.Frame):
         ):
             return
 
-        self.controller.delete_organization(self.current_organization_id)
+        try:
+            self.controller.delete_organization(
+                self.current_organization_id
+            )
+        except (KeyError, ValueError) as error:
+            messagebox.showerror(
+                "Cannot delete organization",
+                str(error),
+                parent=self,
+            )
+            return
         self.current_organization_id = None
+        self.form_dirty = False
+
+        if self.organization_lock_id == organization.get("record_id"):
+            self.organization_lock_id = ""
+
+            if self.scope_change_command is not None:
+                self.scope_change_command("")
+
         self.refresh()
         self.status_command(
             f"Deleted organization {organization.get('name', 'Unnamed')}"
         )
+
+    def refresh_event_list(self):
+        if not hasattr(self, "event_list"):
+            return
+
+        self.event_list.delete(0, "end")
+        people_labels_by_id = {
+            str(option.get("value", "") or "").strip(): str(
+                option.get("label", "") or "Unknown person"
+            ).strip()
+            for option in (
+                self.event_controller.people_options()
+                if self.event_controller is not None
+                else []
+            )
+            if isinstance(option, dict)
+            and str(option.get("value", "") or "").strip()
+        }
+
+        for index, event in enumerate(self.organization_events):
+            year_text = (
+                str(event["year"])
+                if event["year"] is not None
+                else "Year required"
+            )
+            person_ids = list(event.get("person_ids", []))
+            people_count = len(person_ids)
+
+            if people_count == 1:
+                people_text = (
+                    " · "
+                    + people_labels_by_id.get(
+                        str(person_ids[0] or "").strip(),
+                        "Unknown person",
+                    )
+                )
+            elif people_count > 1:
+                people_text = f" · {people_count} people"
+            else:
+                people_text = ""
+            self.event_list.insert(
+                "end",
+                f"{year_text} — {event['title']}{people_text}",
+            )
+            self.event_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+        if self.organization_events:
+            self.event_list.selection_set(0)
+
+    def selected_event_index(self):
+        selected = self.event_list.curselection()
+
+        if not selected:
+            return None
+
+        return int(selected[0])
+
+    def add_event(self):
+        OrganizationEventDialog(
+            self,
+            self.save_added_event,
+            event_controller=self.event_controller,
+        )
+
+    def save_added_event(self, event):
+        self.organization_events = normalize_organization_events(
+            [*self.organization_events, event]
+        )
+        self.refresh_event_list()
+        self.event_list.selection_clear(0, "end")
+        self.event_list.selection_set(
+            len(self.organization_events) - 1
+        )
+        self.persist_organization_event_changes()
+
+    def edit_selected_event(self, event=None):
+        selected_index = self.selected_event_index()
+
+        if selected_index is None:
+            return
+
+        OrganizationEventDialog(
+            self,
+            self.save_edited_event,
+            self.organization_events[selected_index],
+            self.event_controller,
+        )
+
+    def save_edited_event(self, event):
+        event_id = event["record_id"]
+        self.organization_events = normalize_organization_events(
+            [
+                (
+                    event
+                    if stored_event["record_id"] == event_id
+                    else stored_event
+                )
+                for stored_event in self.organization_events
+            ]
+        )
+        self.refresh_event_list()
+
+        for index, stored_event in enumerate(
+            self.organization_events
+        ):
+            if stored_event["record_id"] == event_id:
+                self.event_list.selection_clear(0, "end")
+                self.event_list.selection_set(index)
+                break
+
+        self.persist_organization_event_changes()
+
+    def remove_selected_event(self):
+        selected_index = self.selected_event_index()
+
+        if selected_index is None:
+            return
+
+        selected_event = self.organization_events[selected_index]
+
+        if (
+            selected_event["event_type"]
+            == ORGANIZATION_EVENT_FOUNDING
+        ):
+            messagebox.showinfo(
+                "Founding cannot be removed",
+                "The founding event must remain the first organization event.",
+                parent=self,
+            )
+            return
+
+        self.organization_events = normalize_organization_events(
+            [
+                event
+                for index, event in enumerate(
+                    self.organization_events
+                )
+                if index != selected_index
+            ]
+        )
+        self.refresh_event_list()
+        self.persist_organization_event_changes()
+
+    def persist_organization_event_changes(self):
+        self.mark_form_dirty()
+
+    def refresh_job_list(self, selected_job_id=""):
+        if not hasattr(self, "job_list"):
+            return
+
+        retained_job_id = str(selected_job_id or "").strip()
+
+        if not retained_job_id:
+            selected_index = self.selected_job_index()
+
+            if (
+                selected_index is not None
+                and selected_index < len(self.organization_jobs)
+            ):
+                retained_job_id = self.organization_jobs[
+                    selected_index
+                ]["record_id"]
+
+        self.job_list.delete(0, "end")
+        selected_index = None
+
+        for index, organization_job in enumerate(
+            self.organization_jobs
+        ):
+            status = self.controller.organization_job_status(
+                organization_job
+            )
+            self.job_list.insert(
+                "end",
+                (
+                    f"{organization_job['title']} · "
+                    f"{format_monthly_salary(organization_job['salary'])} · "
+                    f"opened {organization_job['opened_year']} · "
+                    f"{status}"
+                ),
+            )
+            self.job_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+            if organization_job["record_id"] == retained_job_id:
+                selected_index = index
+
+        if self.organization_jobs:
+            if selected_index is None:
+                selected_index = 0
+
+            self.job_list.selection_set(selected_index)
+            self.job_list.see(selected_index)
+
+        self.refresh_job_timeline()
+
+    def selected_job_index(self):
+        selected = self.job_list.curselection()
+
+        if not selected:
+            return None
+
+        return int(selected[0])
+
+    def job_selected(self, event=None):
+        self.refresh_job_timeline()
+
+    def refresh_job_timeline(self):
+        if not hasattr(self, "job_timeline_list"):
+            return
+
+        self.job_timeline_list.delete(0, "end")
+        selected_index = self.selected_job_index()
+
+        if (
+            selected_index is None
+            or not 0 <= selected_index < len(self.organization_jobs)
+        ):
+            self.visible_job_timeline = []
+            self.job_timeline_value.set(
+                "Select a job to see its timeline"
+            )
+            return
+
+        selected_job = self.organization_jobs[selected_index]
+        self.visible_job_timeline = (
+            self.controller.organization_job_yearly_timeline(
+                selected_job
+            )
+        )
+        self.job_timeline_value.set(
+            f"{selected_job['title']} · year-by-year timeline"
+        )
+
+        if not self.visible_job_timeline:
+            self.job_timeline_list.insert(
+                "end",
+                "No one has held this role.",
+            )
+            return
+
+        for index, timeline_entry in enumerate(
+            self.visible_job_timeline
+        ):
+            self.job_timeline_list.insert(
+                "end",
+                timeline_entry["label"],
+            )
+            self.job_timeline_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+    def add_job(self):
+        founding_year = self.organization_events[0]["year"]
+        OrganizationJobDialog(
+            self,
+            self.save_added_job,
+            default_opened_year=founding_year,
+        )
+
+    def save_added_job(self, organization_job):
+        self.organization_jobs = normalize_organization_jobs(
+            [*self.organization_jobs, organization_job]
+        )
+        self.refresh_job_list(
+            organization_job["record_id"]
+        )
+        self.mark_form_dirty()
+
+    def edit_selected_job(self, event=None):
+        selected_index = self.selected_job_index()
+
+        if selected_index is None:
+            return
+
+        OrganizationJobDialog(
+            self,
+            self.save_edited_job,
+            existing_job=self.organization_jobs[selected_index],
+        )
+
+    def save_edited_job(self, organization_job):
+        job_id = organization_job["record_id"]
+        self.organization_jobs = normalize_organization_jobs(
+            [
+                (
+                    organization_job
+                    if stored_job["record_id"] == job_id
+                    else stored_job
+                )
+                for stored_job in self.organization_jobs
+            ]
+        )
+        self.refresh_job_list(job_id)
+
+        self.mark_form_dirty()
+
+    def remove_selected_job(self):
+        selected_index = self.selected_job_index()
+
+        if selected_index is None:
+            return
+
+        selected_job = self.organization_jobs[selected_index]
+
+        if self.controller.organization_job_is_referenced(
+            selected_job["record_id"]
+        ):
+            messagebox.showerror(
+                "Cannot remove job",
+                "This job has character assignments and cannot be removed.",
+                parent=self,
+            )
+            return
+
+        self.organization_jobs = normalize_organization_jobs(
+            [
+                organization_job
+                for index, organization_job in enumerate(
+                    self.organization_jobs
+                )
+                if index != selected_index
+            ]
+        )
+        self.refresh_job_list()
+        self.mark_form_dirty()

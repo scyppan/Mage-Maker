@@ -28,6 +28,12 @@ from mage_maker.sections.locations.period_definitions import (
 LOCATION_EVENT_DATE_PATTERN = re.compile(
     r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
+LOCATION_FOUNDATION_EVENT_TYPES = frozenset(
+    (
+        "founding",
+        "wizarding_community_established",
+    )
+)
 
 
 def normalize_location_event(event):
@@ -77,6 +83,94 @@ def normalize_location_events(events):
 
     normalized_events.sort(key=location_event_sort_key)
     return normalized_events
+
+
+def location_event_is_foundation(event):
+    if not isinstance(event, dict):
+        return False
+
+    return (
+        canonical_event_type(event.get("event_type"))
+        in LOCATION_FOUNDATION_EVENT_TYPES
+    )
+
+
+def location_foundation_event_state(location, world_events=None):
+    if not isinstance(location, dict):
+        return {
+            "valid": False,
+            "first_event_id": "",
+            "foundation_event_id": "",
+        }
+
+    location_id = str(
+        location.get("record_id", "") or ""
+    ).strip()
+    direct_events = []
+
+    for event in normalize_location_events(
+        location.get("timeline_events", [])
+    ):
+        direct_events.append(
+            {
+                "event_id": str(
+                    event.get("event_id", "") or ""
+                ).strip(),
+                "event_type": canonical_event_type(
+                    event.get("event_type")
+                ),
+                "title": str(event.get("title", "") or ""),
+                "date": str(event.get("date", "") or ""),
+            }
+        )
+
+    for event in normalize_world_events(world_events or []):
+        if (
+            not location_id
+            or location_id not in event.get("location_ids", [])
+            or bool(event.get("organization_event"))
+        ):
+            continue
+
+        direct_events.append(
+            {
+                "event_id": str(
+                    event.get("record_id", "") or ""
+                ).strip(),
+                "event_type": canonical_event_type(
+                    event.get("event_type")
+                ),
+                "title": str(event.get("title", "") or ""),
+                "date": str(event.get("date", "") or ""),
+            }
+        )
+
+    direct_events.sort(key=location_event_sort_key)
+    first_event = direct_events[0] if direct_events else None
+    foundation_event = next(
+        (
+            event
+            for event in direct_events
+            if location_event_is_foundation(event)
+        ),
+        None,
+    )
+    return {
+        "valid": bool(
+            first_event is not None
+            and location_event_is_foundation(first_event)
+        ),
+        "first_event_id": (
+            first_event["event_id"]
+            if first_event is not None
+            else ""
+        ),
+        "foundation_event_id": (
+            foundation_event["event_id"]
+            if foundation_event is not None
+            else ""
+        ),
+    }
 
 
 def normalize_location_record(values):
@@ -196,6 +290,10 @@ def location_depth(location_id, locations):
 
 def location_path(location_id, locations):
     records = locations_by_id(locations)
+    return location_path_from_records(location_id, records)
+
+
+def location_path_from_records(location_id, records):
     current_id = str(location_id or "").strip()
     visited = set()
     names = []
@@ -215,6 +313,17 @@ def location_path(location_id, locations):
 
     names.reverse()
     return " › ".join(names)
+
+
+def location_paths_by_id(locations):
+    records = locations_by_id(locations)
+    return {
+        record_id: location_path_from_records(
+            record_id,
+            records,
+        )
+        for record_id in records
+    }
 
 
 def ancestor_locations(location_id, locations):
@@ -316,6 +425,7 @@ def descendant_ids(location_id, locations):
 def location_event_sort_key(event):
     return (
         location_event_date_key(event.get("date")),
+        0 if location_event_is_foundation(event) else 1,
         str(event.get("title", "") or "").casefold(),
         str(event.get("event_id", "") or ""),
     )

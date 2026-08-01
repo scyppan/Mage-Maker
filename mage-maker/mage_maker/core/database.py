@@ -6,14 +6,23 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from mage_maker.core.wizarding_currency import monthly_salary_identity
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
+    calculate_school_start_year,
     migrated_development_plan,
     normalize_development_assignment_policy,
     normalize_development_plan,
+    normalize_job_records,
+    require_job_position_available,
+)
+from mage_maker.sections.development.school_years import (
+    migrate_annual_progression_choices,
 )
 from mage_maker.sections.development.initial_bonuses import (
+    allowance_sickles,
     normalize_initial_bonuses,
+    starting_allowance_sickles,
 )
 from mage_maker.sections.development.characteristics import (
     normalize_characteristics,
@@ -44,6 +53,23 @@ from mage_maker.sections.settings.mage_groups import (
     normalize_mage_group_id,
     normalize_mage_groups,
     require_mage_group_id,
+)
+from mage_maker.sections.settings.simulation import (
+    DATABASE_DATE_SETTING_KEY,
+    MORTALITY_TABLE_SETTING_KEY,
+    normalize_database_date,
+    normalize_mortality_table,
+)
+from mage_maker.sections.organizations.controller import (
+    normalize_organization_job,
+    normalize_organization_jobs,
+    normalize_organization_events,
+    normalize_organization_record,
+    organization_descendant_ids,
+)
+from mage_maker.sections.ledger.models import (
+    normalize_ledger_entries,
+    reconcile_development_ledger_entries,
 )
 
 
@@ -85,7 +111,7 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version >= 16:
+        if not isinstance(schema_version, int) or schema_version >= 29:
             return False
 
         migrated = False
@@ -558,8 +584,471 @@ class JsonDatabase:
             schema_version = 16
             migrated = True
 
-        metadata["schema_version"] = 16
-        metadata["database_version"] = "0.16.0"
+        if schema_version < 17:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = (
+                    normalize_development_plan(
+                        person.get("development_plan"),
+                        default_schema="Scattershot",
+                    )
+                )
+
+            schema_version = 17
+            migrated = True
+
+        if schema_version < 18:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = (
+                    normalize_development_plan(
+                        person.get("development_plan"),
+                        default_schema="Scattershot",
+                    )
+                )
+
+            schema_version = 18
+            migrated = True
+
+        if schema_version < 19:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = (
+                    normalize_development_plan(
+                        person.get("development_plan"),
+                        default_schema="Scattershot",
+                    )
+                )
+
+            for organization in database_data.get(
+                "organizations",
+                [],
+            ):
+                if not isinstance(organization, dict):
+                    continue
+
+                organization["events"] = (
+                    normalize_organization_events(
+                        organization.get("events", [])
+                    )
+                )
+
+            schema_version = 19
+            migrated = True
+
+        if schema_version < 20:
+            settings = database_data.setdefault(
+                "_application_settings",
+                {},
+            )
+            settings[DATABASE_DATE_SETTING_KEY] = (
+                normalize_database_date(
+                    settings.get(DATABASE_DATE_SETTING_KEY)
+                )
+            )
+            settings[MORTALITY_TABLE_SETTING_KEY] = (
+                normalize_mortality_table(
+                    settings.get(MORTALITY_TABLE_SETTING_KEY)
+                )
+            )
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                development_plan = (
+                    migrate_annual_progression_choices(
+                        person.get("development_plan"),
+                        person.get("characteristics"),
+                        person.get("record_id"),
+                    )
+                )
+                initial_bonuses = normalize_initial_bonuses(
+                    person.get("initial_bonuses")
+                )
+                selected_traits = (
+                    initial_bonuses["traits"]
+                    if initial_bonuses is not None
+                    else []
+                )
+                development_plan["ledger_entries"] = (
+                    reconcile_development_ledger_entries(
+                        development_plan.get("ledger_entries", []),
+                        development_plan.get("school_years", []),
+                        development_plan.get("adult_years", []),
+                        allowance_sickles(
+                            person.get("parental_values"),
+                            selected_traits,
+                        ),
+                        starting_allowance_sickles(
+                            person.get("parental_values")
+                        ),
+                        calculate_school_start_year(
+                            person.get("birth_year"),
+                            person.get("birth_month"),
+                            person.get("birth_day"),
+                        ),
+                    )
+                )
+                person["development_plan"] = (
+                    normalize_development_plan(development_plan)
+                )
+
+            schema_version = 20
+            migrated = True
+
+        if schema_version < 21:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                development_plan = normalize_development_plan(
+                    person.get("development_plan"),
+                    default_schema="Scattershot",
+                )
+                initial_bonuses = normalize_initial_bonuses(
+                    person.get("initial_bonuses")
+                )
+                selected_traits = (
+                    initial_bonuses["traits"]
+                    if initial_bonuses is not None
+                    else []
+                )
+                development_plan["ledger_entries"] = (
+                    reconcile_development_ledger_entries(
+                        development_plan.get("ledger_entries", []),
+                        development_plan.get("school_years", []),
+                        development_plan.get("adult_years", []),
+                        allowance_sickles(
+                            person.get("parental_values"),
+                            selected_traits,
+                        ),
+                        starting_allowance_sickles(
+                            person.get("parental_values")
+                        ),
+                        calculate_school_start_year(
+                            person.get("birth_year"),
+                            person.get("birth_month"),
+                            person.get("birth_day"),
+                        ),
+                    )
+                )
+                person["development_plan"] = normalize_development_plan(
+                    development_plan
+                )
+
+            schema_version = 21
+            migrated = True
+
+        if schema_version < 22:
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["initial_bonuses"] = normalize_initial_bonuses(
+                    person.get("initial_bonuses")
+                )
+                person["development_plan"] = (
+                    normalize_development_plan(
+                        person.get("development_plan"),
+                        default_schema="Scattershot",
+                    )
+                )
+
+            schema_version = 22
+            migrated = True
+
+        if schema_version < 23:
+            normalized_organizations = []
+
+            for organization in database_data.get(
+                "organizations",
+                [],
+            ):
+                if not isinstance(organization, dict):
+                    continue
+
+                normalized_organizations.append(
+                    normalize_organization_record(organization)
+                )
+
+            database_data["organizations"] = (
+                normalized_organizations
+            )
+            organizations_by_id = {
+                str(
+                    organization.get("record_id", "") or ""
+                ): organization
+                for organization in normalized_organizations
+                if str(
+                    organization.get("record_id", "") or ""
+                )
+            }
+            organizations_by_name = {
+                str(
+                    organization.get("name", "") or ""
+                ).strip().casefold(): organization
+                for organization in normalized_organizations
+                if str(
+                    organization.get("name", "") or ""
+                ).strip()
+            }
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                plan = normalize_development_plan(
+                    person.get("development_plan"),
+                    default_schema="Scattershot",
+                )
+
+                for adult_year in plan.get(
+                    "adult_years",
+                    [],
+                ):
+                    assignments = normalize_job_records(
+                        adult_year.get("jobs", [])
+                    )
+
+                    for assignment in assignments:
+                        organization = organizations_by_id.get(
+                            assignment["organization_id"]
+                        )
+
+                        if organization is None:
+                            organization = organizations_by_name.get(
+                                assignment[
+                                    "organization_name"
+                                ].casefold()
+                            )
+
+                        if organization is None:
+                            continue
+
+                        assignment["organization_id"] = str(
+                            organization.get("record_id", "")
+                            or ""
+                        )
+                        assignment["organization_name"] = str(
+                            organization.get("name", "") or ""
+                        )
+
+                        if assignment["organization_job_id"]:
+                            continue
+
+                        matching_job = next(
+                            (
+                                organization_job
+                                for organization_job in (
+                                    organization.get("jobs", [])
+                                )
+                                if organization_job["title"].casefold()
+                                == assignment["title"].casefold()
+                                and monthly_salary_identity(
+                                    organization_job["salary"]
+                                )
+                                == monthly_salary_identity(
+                                    assignment["salary"]
+                                )
+                                and organization_job[
+                                    "opened_year"
+                                ]
+                                <= assignment["start_year"]
+                            ),
+                            None,
+                        )
+
+                        if matching_job is None:
+                            matching_job = (
+                                normalize_organization_job(
+                                    {
+                                        "organization_id": (
+                                            assignment[
+                                                "organization_id"
+                                            ]
+                                        ),
+                                        "title": assignment["title"],
+                                        "salary": assignment["salary"],
+                                        "opened_year": assignment[
+                                            "start_year"
+                                        ],
+                                    }
+                                )
+                            )
+                            organization["jobs"] = (
+                                normalize_organization_jobs(
+                                    [
+                                        *organization.get(
+                                            "jobs",
+                                            [],
+                                        ),
+                                        matching_job,
+                                    ]
+                                )
+                            )
+
+                        assignment["organization_job_id"] = (
+                            matching_job["record_id"]
+                        )
+
+                    adult_year["jobs"] = normalize_job_records(
+                        assignments
+                    )
+
+                person["development_plan"] = (
+                    normalize_development_plan(plan)
+                )
+
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in normalized_organizations
+            ]
+            schema_version = 23
+            migrated = True
+
+        if schema_version < 24:
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                plan = normalize_development_plan(
+                    person.get("development_plan"),
+                    default_schema="Scattershot",
+                )
+                plan["ledger_entries"] = normalize_ledger_entries(
+                    plan.get("ledger_entries", [])
+                )
+                person["development_plan"] = (
+                    normalize_development_plan(plan)
+                )
+
+            schema_version = 24
+            migrated = True
+
+        if schema_version < 25:
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+            schema_version = 25
+            migrated = True
+
+        if schema_version < 26:
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["development_plan"] = normalize_development_plan(
+                    person.get("development_plan"),
+                    default_schema="Scattershot",
+                )
+
+            schema_version = 26
+            migrated = True
+
+        if schema_version < 27:
+            for person in database_data.get("people", []):
+                if isinstance(person, dict):
+                    person["unfinished"] = bool(
+                        person.get("unfinished", False)
+                    )
+
+            schema_version = 27
+            migrated = True
+
+        if schema_version < 28:
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+            schema_version = 28
+            migrated = True
+
+        if schema_version < 29:
+            database_data["events"] = normalize_world_events(
+                database_data.get("events", [])
+            )
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                stored_plan = person.get("development_plan")
+                has_stored_initialization_flag = (
+                    isinstance(stored_plan, dict)
+                    and "blood_status_initialized" in stored_plan
+                )
+                plan = normalize_development_plan(
+                    stored_plan,
+                    default_schema="Scattershot",
+                )
+                initialized = (
+                    bool(stored_plan.get("blood_status_initialized"))
+                    if has_stored_initialization_flag
+                    else any(
+                        person.get(field_name) not in (None, "")
+                        for field_name in (
+                            "parental_values",
+                            "initial_bonuses",
+                            "characteristics",
+                        )
+                    )
+                    or bool(plan.get("school_started"))
+                    or bool(plan.get("academic_years_advanced"))
+                    or bool(plan.get("school_years"))
+                    or bool(plan.get("adult_years"))
+                )
+                plan["blood_status_initialized"] = initialized
+                person["development_plan"] = (
+                    normalize_development_plan(plan)
+                )
+
+            schema_version = 29
+            migrated = True
+
+        metadata["schema_version"] = 29
+        metadata["database_version"] = "0.29.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -597,6 +1086,30 @@ class JsonDatabase:
                 "The application settings must contain mage groups."
             )
 
+        normalized_database_date = normalize_database_date(
+            settings.get(DATABASE_DATE_SETTING_KEY)
+        )
+
+        if (
+            settings.get(DATABASE_DATE_SETTING_KEY)
+            != normalized_database_date
+        ):
+            raise ValueError(
+                "Database date must use its canonical stored value."
+            )
+
+        normalized_mortality_table = normalize_mortality_table(
+            settings.get(MORTALITY_TABLE_SETTING_KEY)
+        )
+
+        if (
+            settings.get(MORTALITY_TABLE_SETTING_KEY)
+            != normalized_mortality_table
+        ):
+            raise ValueError(
+                "Mortality table must use canonical stored values."
+            )
+
         mage_groups = normalize_mage_groups(
             settings[MAGE_GROUPS_SETTING_KEY]
         )
@@ -628,6 +1141,12 @@ class JsonDatabase:
                 raise ValueError(f"Duplicate displayed name: {displayed_name}")
 
             seen_displayed_names.add(normalized_name)
+
+            if not isinstance(person.get("unfinished"), bool):
+                raise TypeError(
+                    "Every person's unfinished flag must be true or false."
+                )
+
             require_mage_group_id(
                 person.get("mage_group_id"),
                 mage_groups,
@@ -762,6 +1281,136 @@ class JsonDatabase:
 
                 seen_record_ids.add(record_id)
 
+                if collection_name == "organizations":
+                    normalized_organization = (
+                        normalize_organization_record(record)
+                    )
+
+                    if record != normalized_organization:
+                        raise ValueError(
+                            "Organizations must use their canonical "
+                            "stored structure."
+                        )
+
+        organizations = database_data["organizations"]
+        organization_ids = {
+            str(organization.get("record_id", "") or "")
+            for organization in organizations
+        }
+        organization_jobs_by_key = {}
+        seen_organization_job_ids = set()
+
+        for organization in organizations:
+            organization_id = str(
+                organization.get("record_id", "") or ""
+            )
+            parent_id = str(
+                organization.get(
+                    "parent_organization_id",
+                    "",
+                )
+                or ""
+            )
+
+            if parent_id and parent_id not in organization_ids:
+                raise ValueError(
+                    "Every parent organization must exist."
+                )
+
+            if organization_id in organization_descendant_ids(
+                organization_id,
+                organizations,
+            ):
+                raise ValueError(
+                    "Organization nesting cannot contain a cycle."
+                )
+
+            founding_year = normalize_organization_events(
+                organization.get("events", [])
+            )[0]["year"]
+
+            if founding_year is None:
+                raise ValueError(
+                    "Every organization must have a founding year."
+                )
+
+            for organization_event in normalize_organization_events(
+                organization.get("events", [])
+            ):
+                unknown_person_ids = [
+                    person_id
+                    for person_id in organization_event.get(
+                        "person_ids",
+                        [],
+                    )
+                    if person_id not in seen_ids
+                ]
+
+                if unknown_person_ids:
+                    raise ValueError(
+                        "Every person linked to an organization event "
+                        "must exist."
+                    )
+
+            for organization_job in normalize_organization_jobs(
+                organization.get("jobs", [])
+            ):
+                job_id = organization_job["record_id"]
+
+                if job_id in seen_organization_job_ids:
+                    raise ValueError(
+                        "Organization job record IDs must be unique."
+                    )
+
+                if organization_job["opened_year"] < founding_year:
+                    raise ValueError(
+                        "An organization job cannot open before its "
+                        "organization was founded."
+                    )
+
+                organization_jobs_by_key[
+                    (organization_id, job_id)
+                ] = organization_job
+                seen_organization_job_ids.add(job_id)
+
+        all_job_assignments = []
+
+        for person in database_data["people"]:
+            plan = normalize_development_plan(
+                person.get("development_plan")
+            )
+
+            for adult_year in plan.get("adult_years", []):
+                all_job_assignments.extend(
+                    normalize_job_records(
+                        adult_year.get("jobs", [])
+                    )
+                )
+
+        for assignment in all_job_assignments:
+            if not assignment["organization_job_id"]:
+                continue
+
+            organization_job = organization_jobs_by_key.get(
+                (
+                    assignment["organization_id"],
+                    assignment["organization_job_id"],
+                )
+            )
+
+            if organization_job is None:
+                raise ValueError(
+                    "Every job assignment must reference an existing "
+                    "organization job."
+                )
+
+            require_job_position_available(
+                organization_job,
+                assignment,
+                all_job_assignments,
+                assignment["record_id"],
+            )
+
         normalize_world_events(database_data["events"])
 
     def list_people(self):
@@ -780,6 +1429,11 @@ class JsonDatabase:
 
         person = deepcopy(values)
         person.setdefault("record_id", str(uuid.uuid4()))
+        person.setdefault("unfinished", False)
+
+        if not isinstance(person["unfinished"], bool):
+            raise TypeError("A person's unfinished flag must be true or false.")
+
         settings = self.data.get("_application_settings", {})
         assignment_policy = (
             settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
@@ -1000,10 +1654,56 @@ class JsonDatabase:
                     for person_id in event.get("person_ids", [])
                     if person_id != record_id
                 ]
+                event["eminence_person_ids"] = [
+                    person_id
+                    for person_id in event.get(
+                        "eminence_person_ids",
+                        [],
+                    )
+                    if person_id != record_id
+                ]
 
                 retained_events.append(event)
 
             self.data["events"] = retained_events
+
+            for organization in self.data.get(
+                "organizations",
+                [],
+            ):
+                if not isinstance(organization, dict):
+                    continue
+
+                organization["events"] = (
+                    normalize_organization_events(
+                        [
+                            {
+                                **organization_event,
+                                "person_ids": [
+                                    person_id
+                                    for person_id in organization_event.get(
+                                        "person_ids",
+                                        [],
+                                    )
+                                    if person_id != record_id
+                                ],
+                                "eminence_person_ids": [
+                                    person_id
+                                    for person_id in organization_event.get(
+                                        "eminence_person_ids",
+                                        [],
+                                    )
+                                    if person_id != record_id
+                                ],
+                            }
+                            for organization_event in (
+                                normalize_organization_events(
+                                    organization.get("events", [])
+                                )
+                            )
+                        ]
+                    )
+                )
 
             self.dirty = True
 

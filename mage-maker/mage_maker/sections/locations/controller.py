@@ -3,9 +3,11 @@ from copy import deepcopy
 from mage_maker.sections.locations.models import (
     descendant_ids,
     founding_event_title,
+    location_foundation_event_state,
     location_events_for_period,
     location_depth,
     location_path,
+    location_paths_by_id,
     normalize_location_event,
     normalize_location_record,
     visible_location_timeline,
@@ -66,19 +68,47 @@ class LocationController:
     def list_locations(self):
         self.synchronize_mage_locations()
         locations = self.database.list_records("locations")
+        world_events = self.database.list_records("events")
+        paths_by_id = location_paths_by_id(locations)
         decorated = []
 
         for location in locations:
             record_id = str(location.get("record_id", "") or "")
+            foundation_state = location_foundation_event_state(
+                location,
+                world_events,
+            )
+            decorated_location = deepcopy(location)
+            decorated_location["_foundation_event_valid"] = (
+                foundation_state["valid"]
+            )
+            decorated_location["_foundation_event_id"] = (
+                foundation_state["foundation_event_id"]
+            )
             decorated.append(
                 (
-                    location_path(record_id, locations).casefold(),
-                    location,
+                    paths_by_id.get(record_id, "").casefold(),
+                    decorated_location,
                 )
             )
 
         decorated.sort(key=self.decorated_location_sort_key)
         return [location for path, location in decorated]
+
+    def foundation_state_for_location(self, location_id):
+        location = self.get_location(location_id)
+
+        if location is None:
+            return {
+                "valid": False,
+                "first_event_id": "",
+                "foundation_event_id": "",
+            }
+
+        return location_foundation_event_state(
+            location,
+            self.database.list_records("events"),
+        )
 
     def synchronize_mage_locations(self):
         locations = self.database.list_records("locations")
@@ -119,6 +149,29 @@ class LocationController:
 
     def get_location(self, record_id):
         return self.database.read_record("locations", record_id)
+
+    def organizations_for_location(self, location_id):
+        selected_id = str(location_id or "").strip()
+        organizations = [
+            organization
+            for organization in self.database.list_records(
+                "organizations"
+            )
+            if str(
+                organization.get("location_id", "") or ""
+            ).strip()
+            == selected_id
+        ]
+        organizations.sort(key=self.organization_sort_key)
+        return organizations
+
+    def organization_sort_key(self, organization):
+        return (
+            str(organization.get("name", "") or "").casefold(),
+            str(
+                organization.get("organization_type", "") or ""
+            ).casefold(),
+        )
 
     def remember_location_interaction(self, location_id=""):
         normalized_location_id = str(location_id or "").strip()
