@@ -1167,6 +1167,7 @@ class LocationPage(tk.Frame):
             self.clear_form()
 
     def refresh_person_data(self):
+        self.controller.invalidate_caches(include_people_sync=True)
         self.refresh(self.current_location_id)
 
     def location_selected(self, location_id):

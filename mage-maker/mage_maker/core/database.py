@@ -65,6 +65,7 @@ from mage_maker.sections.organizations.controller import (
     normalize_organization_jobs,
     normalize_organization_events,
     normalize_organization_record,
+    organization_job_date_tuple,
     organization_descendant_ids,
 )
 from mage_maker.sections.ledger.models import (
@@ -238,10 +239,10 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version > 31:
+        if not isinstance(schema_version, int) or schema_version > 32:
             return False
 
-        if schema_version == 31:
+        if schema_version == 32:
             stored_events = database_data.get("events", [])
             stored_organizations = database_data.get("organizations", [])
             normalized_events = normalize_world_events(stored_events)
@@ -1296,8 +1297,36 @@ class JsonDatabase:
             schema_version = 31
             migrated = True
 
-        metadata["schema_version"] = 31
-        metadata["database_version"] = "0.31.0"
+        if schema_version < 32:
+            database_data["events"] = normalize_world_events(
+                database_data.get("events", [])
+            )
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["timeline_events"] = normalize_timeline_events(
+                    person.get("timeline_events", [])
+                )
+                person["development_plan"] = normalize_development_plan(
+                    person.get("development_plan"),
+                    default_schema="Scattershot",
+                )
+
+            schema_version = 32
+            migrated = True
+
+        metadata["schema_version"] = 32
+        metadata["database_version"] = "0.32.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -1622,9 +1651,10 @@ class JsonDatabase:
                     "Organization nesting cannot contain a cycle."
                 )
 
-            founding_year = normalize_organization_events(
+            founding_event = normalize_organization_events(
                 organization.get("events", [])
-            )[0]["year"]
+            )[0]
+            founding_year = founding_event["year"]
 
             if founding_year is None:
                 raise ValueError(
@@ -1669,7 +1699,11 @@ class JsonDatabase:
                         "Organization job record IDs must be unique."
                     )
 
-                if organization_job["opened_year"] < founding_year:
+                if organization_job_date_tuple(
+                    organization_job["opened_date"]
+                ) < organization_job_date_tuple(
+                    founding_event["date"]
+                ):
                     raise ValueError(
                         "An organization job cannot open before its "
                         "organization was founded."

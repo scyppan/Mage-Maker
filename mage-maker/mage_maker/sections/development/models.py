@@ -843,10 +843,44 @@ def require_job_position_available(
             "The assignment does not match the selected organization job."
         )
 
-    if normalized_assignment["start_year"] < opened_year:
+    opened_date = job_date_tuple(
+        opened_year,
+        organization_job.get("opened_month"),
+        organization_job.get("opened_day"),
+    )
+    assignment_start = job_date_tuple(
+        normalized_assignment["start_year"],
+        normalized_assignment["start_month"],
+        normalized_assignment["start_day"],
+    )
+    assignment_end = job_date_tuple(
+        normalized_assignment["end_year"],
+        normalized_assignment["end_month"],
+        normalized_assignment["end_day"],
+        end_boundary=True,
+    )
+
+    if assignment_start < opened_date:
         raise ValueError(
-            f"This position does not open until {opened_year}."
+            "This position does not open until "
+            f"{organization_job.get('opened_date', opened_year)}."
         )
+
+    closed_year = organization_job.get("closed_year")
+
+    if closed_year not in (None, ""):
+        closed_date = job_date_tuple(
+            closed_year,
+            organization_job.get("closed_month"),
+            organization_job.get("closed_day"),
+            end_boundary=True,
+        )
+
+        if assignment_end is not None and assignment_end > closed_date:
+            raise ValueError(
+                "This position closes on "
+                f"{organization_job.get('closed_date', closed_year)}."
+            )
 
     ignored_id = str(ignored_assignment_id or "").strip()
 
@@ -1727,16 +1761,13 @@ def development_year_page_title(page):
         if calendar_year is None or calendar_end_year is None:
             return "First development year"
 
-        return f"{calendar_year}-{calendar_end_year}"
+        return f"{calendar_year} - {calendar_end_year}"
 
     if page_type == "adult" and page.get("adult_year") == 1:
         if calendar_year is None or calendar_end_year is None:
-            return "First year out of school"
+            return "Development year"
 
-        return (
-            "First year out of school "
-            f"({calendar_year} - {calendar_end_year})"
-        )
+        return f"{calendar_year} - {calendar_end_year}"
 
     if page_type == "adult":
         return (

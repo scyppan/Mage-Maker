@@ -147,6 +147,11 @@ class CreationWizardDialog(tk.Toplevel):
             card,
             background=SURFACE,
             wraplength=520,
+            date_variables=(
+                self.birth_year_value,
+                self.birth_month_value,
+                self.birth_day_value,
+            ),
         )
         calendar_notice.grid(
             row=3,

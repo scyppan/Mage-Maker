@@ -29,12 +29,15 @@ from mage_maker.sections.events.types import (
 from mage_maker.sections.locations.models import (
     ancestor_locations,
     founding_event_title,
+    location_foundation_event_state,
     recent_location_label,
 )
 from mage_maker.sections.organizations.controller import (
     ORGANIZATION_EVENT_FOUNDING,
     normalize_organization_jobs,
     normalize_organization_events,
+    normalize_organization_record,
+    organization_context_label,
     organization_event_as_world_event,
     organization_event_from_world_event,
     organization_events_as_world_events,
@@ -128,6 +131,10 @@ class EventController:
             )
         )
         self.validate_associations(normalized)
+
+        if normalized["event_type"] == "organization_founding":
+            return self.create_organization_founding_event(normalized)
+
         eminence_updates = prepare_event_eminence_updates(
             self.database,
             (),
@@ -142,6 +149,28 @@ class EventController:
         self.remember_associations(created)
         self.database.save()
         return normalize_world_event(created)
+
+    def create_organization_founding_event(self, values):
+        organization = self.database.read_record(
+            "organizations",
+            values["organization_id"],
+        )
+
+        if organization is None:
+            raise KeyError("The selected organization no longer exists.")
+
+        founding_event = normalize_organization_events(
+            organization.get("events", [])
+        )[0]
+        current = organization_event_as_world_event(
+            organization,
+            founding_event,
+        )
+        prepared = deepcopy(values)
+        prepared["record_id"] = current["record_id"]
+        prepared["organization_event"] = True
+        prepared["organization_event_id"] = founding_event["record_id"]
+        return self.update_organization_event(current, prepared)
 
     def update_event(self, record_id, values):
         current = self.get_event(record_id)
@@ -351,11 +380,35 @@ class EventController:
 
     def apply_title_rules(self, event):
         titled_event = deepcopy(event) if isinstance(event, dict) else {}
+        event_type = canonical_event_type(
+            titled_event.get("event_type")
+        )
 
-        if (
-            canonical_event_type(titled_event.get("event_type"))
-            != "founding"
-        ):
+        if event_type == "organization_founding":
+            organization_id = str(
+                titled_event.get("organization_id", "") or ""
+            ).strip()
+            organization = self.database.read_record(
+                "organizations",
+                organization_id,
+            )
+            organization_name = str(
+                (organization or {}).get("name", "")
+                or titled_event.get("organization_name", "")
+                or ""
+            ).strip()
+
+            if organization_name:
+                titled_event["organization_name"] = organization_name
+                titled_event["title"] = (
+                    f"Founding of {organization_name}"
+                )
+
+            titled_event["location_ids"] = []
+            titled_event["locked_location_ids"] = []
+            return titled_event
+
+        if event_type != "founding":
             return titled_event
 
         location_ids = [
@@ -921,8 +974,15 @@ class EventController:
 
         return deepcopy(self.people_creator(values))
 
-    def location_options(self):
-        locations = self.location_provider()
+    def location_options(
+        self,
+        available_for_founding=False,
+        include_ids=(),
+    ):
+        locations = self.location_records(
+            available_for_founding=available_for_founding,
+            include_ids=include_ids,
+        )
         options = [
             {
                 "value": str(location.get("record_id", "") or ""),
@@ -937,12 +997,105 @@ class EventController:
         options.sort(key=self.association_option_sort_key)
         return options
 
-    def location_records(self):
-        return [
+    def location_records(
+        self,
+        available_for_founding=False,
+        include_ids=(),
+    ):
+        locations = [
             deepcopy(location)
             for location in self.location_provider()
             if isinstance(location, dict)
         ]
+
+        if not available_for_founding:
+            return locations
+
+        included_ids = {
+            str(location_id or "").strip()
+            for location_id in include_ids or ()
+            if str(location_id or "").strip()
+        }
+        world_events = self.database.list_records("events")
+        return [
+            location
+            for location in locations
+            if (
+                str(location.get("record_id", "") or "")
+                in included_ids
+                or not location_foundation_event_state(
+                    location,
+                    world_events,
+                ).get(
+                    "foundation_event_id"
+                )
+            )
+        ]
+
+    def location_has_foundation_event(
+        self,
+        location_id,
+        ignored_event_id="",
+    ):
+        selected_id = str(location_id or "").strip()
+        ignored_id = str(ignored_event_id or "").strip()
+        location = next(
+            (
+                candidate
+                for candidate in self.location_provider()
+                if str(candidate.get("record_id", "") or "").strip()
+                == selected_id
+            ),
+            None,
+        )
+
+        if location is None:
+            return False
+
+        world_events = [
+            event
+            for event in (
+                self.database.list_records("events")
+                if self.database is not None
+                else []
+            )
+            if str(event.get("record_id", "") or "").strip()
+            != ignored_id
+        ]
+        state = location_foundation_event_state(
+            location,
+            world_events,
+        )
+        return bool(state.get("foundation_event_id"))
+
+    def organization_records(self):
+        return [
+            normalize_organization_record(organization)
+            for organization in self.database.list_records(
+                "organizations"
+            )
+            if isinstance(organization, dict)
+        ]
+
+    def organization_options(self):
+        organizations = self.organization_records()
+        options = [
+            {
+                "value": str(
+                    organization.get("record_id", "") or ""
+                ).strip(),
+                "label": organization_context_label(
+                    organization.get("record_id", ""),
+                    organizations,
+                ),
+            }
+            for organization in organizations
+            if str(
+                organization.get("record_id", "") or ""
+            ).strip()
+        ]
+        options.sort(key=self.association_option_sort_key)
+        return options
 
     def create_placeholder_location(self, place, parent_location_id=""):
         if self.location_creator is None:
@@ -1280,6 +1433,46 @@ class EventController:
                 "Select exactly one location for a founding event."
             )
 
+        if event.get("event_type") == "founding":
+            founding_location_id = event["location_ids"][0]
+            ignored_event_id = (
+                str(current_event.get("record_id", "") or "")
+                if isinstance(current_event, dict)
+                else ""
+            )
+
+            if self.location_has_foundation_event(
+                founding_location_id,
+                ignored_event_id,
+            ):
+                raise ValueError(
+                    "The selected location already has a founding event."
+                )
+
+        if (
+            event.get("event_type") == "organization_founding"
+            and not str(event.get("organization_id", "") or "").strip()
+        ):
+            raise ValueError(
+                "Select exactly one organization for its founding event."
+            )
+
+        if (
+            event.get("event_type") == "organization_founding"
+            and event.get("location_ids", [])
+        ):
+            raise ValueError(
+                "Organization founding events do not use locations."
+            )
+
+        if (
+            event.get("event_type") == "began_friendship"
+            and len(event.get("person_ids", [])) < 2
+        ):
+            raise ValueError(
+                "A friendship event needs at least two people."
+            )
+
         known_person_ids = {
             str(person.get("record_id", "") or "")
             for person in self.people_provider()
@@ -1291,6 +1484,14 @@ class EventController:
         known_location_ids = {
             str(location.get("record_id", "") or "")
             for location in self.location_provider()
+        }
+        known_organization_ids = {
+            str(organization.get("record_id", "") or "")
+            for organization in (
+                self.database.list_records("organizations")
+                if self.database is not None
+                else []
+            )
         }
         missing_people = [
             person_id
@@ -1321,6 +1522,15 @@ class EventController:
         if missing_locations:
             raise ValueError(
                 "One or more selected locations no longer exist."
+            )
+
+        if (
+            event.get("event_type") == "organization_founding"
+            and event.get("organization_id")
+            not in known_organization_ids
+        ):
+            raise ValueError(
+                "The selected organization no longer exists."
             )
 
     def validate_job_event(self, event, current_event=None):

@@ -78,6 +78,7 @@ from mage_maker.sections.development.models import (
     SCHOOL_YEAR_BOOK_COUNT,
     adult_year_calendar_year,
     adult_year_calendar_year_range,
+    calendar_year_age_range,
     calculate_development_start_year,
     calculate_school_start_year,
     development_year_page_title,
@@ -246,6 +247,7 @@ class DevelopmentView(tk.Frame):
         self.development_page_heading_value = tk.StringVar(
             value="Initial Values"
         )
+        self.development_page_age_value = tk.StringVar()
         self.eminence_summary_value = tk.StringVar(
             value="No eminence earned"
         )
@@ -737,20 +739,35 @@ class DevelopmentView(tk.Frame):
             row=0,
             column=0,
         )
-        development_page_heading = tk.Label(
+        development_page_heading_panel = tk.Frame(
             page_navigation_controls,
+            bg=SURFACE_MUTED,
+        )
+        development_page_heading_panel.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=8,
+        )
+        development_page_heading_panel.grid_columnconfigure(0, weight=1)
+        development_page_heading = tk.Label(
+            development_page_heading_panel,
             textvariable=self.development_page_heading_value,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(10, "bold"),
             anchor="center",
         )
-        development_page_heading.grid(
-            row=0,
-            column=1,
-            sticky="ew",
-            padx=8,
+        development_page_heading.pack(side="left", expand=True)
+        development_page_age = tk.Label(
+            development_page_heading_panel,
+            textvariable=self.development_page_age_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(8),
+            anchor="center",
         )
+        development_page_age.pack(side="left", padx=(5, 0))
         self.next_development_page_button = SoftButton(
             page_navigation_controls,
             text=">",
@@ -3415,6 +3432,7 @@ class DevelopmentView(tk.Frame):
             self.active_year_tab = 0
             self.active_adult_year = 0
             self.development_page_heading_value.set("Initial Values")
+            self.development_page_age_value.set("")
             self.initial_values_panel.grid()
             return
 
@@ -3441,6 +3459,14 @@ class DevelopmentView(tk.Frame):
                             else None
                         ),
                     }
+                )
+            )
+            self.set_development_page_age(
+                calendar_year_age_range(
+                    calendar_year,
+                    self.birth_year,
+                    self.birth_month,
+                    self.birth_day,
                 )
             )
             self.render_school_year_record()
@@ -3474,7 +3500,30 @@ class DevelopmentView(tk.Frame):
                 }
             )
         )
+        self.set_development_page_age(
+            (
+                (0, 1)
+                if adult_year == 1
+                and not self.school_is_selected()
+                and self.birth_year not in (None, "")
+                else calendar_year_age_range(
+                    calendar_year,
+                    self.birth_year,
+                    self.birth_month,
+                    self.birth_day,
+                )
+            )
+        )
         self.render_adult_year_record()
+
+    def set_development_page_age(self, age_range):
+        if not age_range:
+            self.development_page_age_value.set("")
+            return
+
+        self.development_page_age_value.set(
+            f"ages {age_range[0]} to {age_range[1]}"
+        )
 
     def show_previous_development_page(self):
         if self.active_development_page_index <= 0:

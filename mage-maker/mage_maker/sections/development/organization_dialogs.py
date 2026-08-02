@@ -684,7 +684,8 @@ class OrganizationSelectionDialog(tk.Toplevel):
             searchable_values.extend(
                 (
                     organization_job.get("title"),
-                    organization_job.get("opened_year"),
+                    organization_job.get("opened_date"),
+                    organization_job.get("closed_date"),
                 )
             )
 
@@ -954,6 +955,8 @@ class QuickOrganizationDialog(tk.Toplevel):
         self.founding_day_value = tk.StringVar()
         self.job_title_value = tk.StringVar()
         self.job_opened_year_value = tk.StringVar()
+        self.job_opened_month_value = tk.StringVar()
+        self.job_opened_day_value = tk.StringVar()
         self.location_search_value = tk.StringVar()
         self.location_results_value = tk.StringVar()
         self.location_value = tk.StringVar(
@@ -1161,26 +1164,94 @@ class QuickOrganizationDialog(tk.Toplevel):
             padx=(0, 7),
             pady=(5, 13),
         )
-        job_opened_year_entry = RoundedEntry(
-            body,
-            textvariable=self.job_opened_year_value,
-            background=SURFACE,
-            width=150,
-            height=38,
-            font=app_font(10),
-            justify="center",
-        )
-        job_opened_year_entry.grid(
+        job_opened_panel = tk.Frame(body, bg=SURFACE)
+        job_opened_panel.grid(
             row=5,
             column=1,
             sticky="ew",
             padx=(7, 0),
             pady=(5, 13),
         )
+        job_opened_panel.grid_columnconfigure((0, 1, 2), weight=1)
+
+        for column, label_text in enumerate(("Year", "Month", "Day")):
+            job_opened_part_label = tk.Label(
+                job_opened_panel,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(8, "bold"),
+                anchor="w",
+            )
+            job_opened_part_label.grid(
+                row=0,
+                column=column,
+                sticky="ew",
+                padx=(0, 4) if column < 2 else 0,
+                pady=(0, 3),
+            )
+
+        job_opened_year_entry = RoundedEntry(
+            job_opened_panel,
+            textvariable=self.job_opened_year_value,
+            background=SURFACE,
+            width=92,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        job_opened_year_entry.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=(0, 4),
+        )
+        job_opened_month_entry = RoundedEntry(
+            job_opened_panel,
+            textvariable=self.job_opened_month_value,
+            background=SURFACE,
+            width=72,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        job_opened_month_entry.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            padx=4,
+        )
+        job_opened_day_entry = RoundedEntry(
+            job_opened_panel,
+            textvariable=self.job_opened_day_value,
+            background=SURFACE,
+            width=72,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        job_opened_day_entry.grid(
+            row=1,
+            column=2,
+            sticky="ew",
+            padx=(4, 0),
+        )
         calendar_notice = CalendarAdoptionNotice(
             body,
             background=SURFACE,
             wraplength=680,
+            date_variables=(
+                (
+                    self.founding_year_value,
+                    self.founding_month_value,
+                    self.founding_day_value,
+                ),
+                (
+                    self.job_opened_year_value,
+                    self.job_opened_month_value,
+                    self.job_opened_day_value,
+                ),
+            ),
         )
         calendar_notice.grid(
             row=8,
@@ -1411,13 +1482,40 @@ class QuickOrganizationDialog(tk.Toplevel):
             job_opened_year = (
                 self.job_opened_year_value.get().strip()
             )
+            job_opened_month_value = getattr(
+                self,
+                "job_opened_month_value",
+                None,
+            )
+            job_opened_day_value = getattr(
+                self,
+                "job_opened_day_value",
+                None,
+            )
+            job_opened_month = (
+                job_opened_month_value.get().strip()
+                if job_opened_month_value is not None
+                else ""
+            )
+            job_opened_day = (
+                job_opened_day_value.get().strip()
+                if job_opened_day_value is not None
+                else ""
+            )
             organization_jobs = []
 
-            if job_title or job_opened_year:
+            if (
+                job_title
+                or job_opened_year
+                or job_opened_month
+                or job_opened_day
+            ):
                 organization_jobs.append(
                     new_organization_job(
                         job_title,
                         job_opened_year or founding_year,
+                        job_opened_month or founding_month,
+                        job_opened_day or founding_day,
                     )
                 )
 

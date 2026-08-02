@@ -1008,6 +1008,11 @@ class BasicChildDialog(tk.Toplevel):
             birth_frame,
             background=SURFACE,
             wraplength=480,
+            date_variables=(
+                self.birth_year_value,
+                self.birth_month_value,
+                self.birth_day_value,
+            ),
         )
         calendar_notice.grid(
             row=2,

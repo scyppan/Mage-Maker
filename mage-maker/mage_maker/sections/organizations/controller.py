@@ -26,6 +26,7 @@ from mage_maker.sections.events.models import (
     normalize_eminence_skill_values,
     normalize_world_event,
     normalize_world_event_date,
+    split_world_event_date,
     world_event_year,
 )
 from mage_maker.sections.settings.simulation import (
@@ -275,8 +276,15 @@ def organization_event_as_world_event(
     organization_id = str(
         normalized_organization.get("record_id", "") or ""
     ).strip()
-    location_id = normalized_organization["location_id"]
-    location_ids = [location_id] if location_id else []
+    is_founding = (
+        normalized_event["event_type"]
+        == ORGANIZATION_EVENT_FOUNDING
+    )
+    world_title = (
+        f"Founding of {normalized_organization['name']}"
+        if is_founding
+        else normalized_event["title"]
+    )
     return normalize_world_event(
         {
             "record_id": organization_event_world_id(
@@ -284,12 +292,11 @@ def organization_event_as_world_event(
                 normalized_event["record_id"],
             ),
             "event_type": (
-                "founding"
-                if normalized_event["event_type"]
-                == ORGANIZATION_EVENT_FOUNDING
+                "organization_founding"
+                if is_founding
                 else "other"
             ),
-            "title": normalized_event["title"],
+            "title": world_title,
             "date": normalized_event["date"],
             "description": normalized_event["description"],
             "person_ids": normalized_event["person_ids"],
@@ -299,8 +306,8 @@ def organization_event_as_world_event(
             "eminence_skills": normalized_event[
                 "eminence_skills"
             ],
-            "location_ids": location_ids,
-            "locked_location_ids": location_ids,
+            "location_ids": [],
+            "locked_location_ids": [],
             "organization_id": organization_id,
             "organization_name": normalized_organization["name"],
             "organization_event_id": normalized_event["record_id"],
@@ -359,29 +366,33 @@ def normalize_organization_job(value):
         raise TypeError("An organization job must be an object.")
 
     title = str(value.get("title", "") or "").strip()
-    opened_year_value = value.get(
-        "opened_year",
-        value.get("start_year"),
-    )
-
     if not title:
         raise ValueError("An organization job must have a title.")
 
-    if isinstance(opened_year_value, bool):
-        raise ValueError(
-            "A job opening year must be a whole number."
-        )
+    opened_date = organization_job_date(
+        value,
+        "opened",
+        required=True,
+    )
+    closed_date = organization_job_date(
+        value,
+        "closed",
+        required=False,
+    )
+    opened_year_text, opened_month_text, opened_day_text = (
+        split_world_event_date(opened_date)
+    )
+    closed_year_text, closed_month_text, closed_day_text = (
+        split_world_event_date(closed_date)
+    )
+    opened_year = int(opened_year_text)
 
-    try:
-        opened_year = int(opened_year_value)
-    except (TypeError, ValueError) as error:
+    if closed_date and organization_job_date_tuple(
+        closed_date,
+        end_boundary=True,
+    ) < organization_job_date_tuple(opened_date):
         raise ValueError(
-            "A job opening year must be a whole number."
-        ) from error
-
-    if not -99999 <= opened_year <= 99999:
-        raise ValueError(
-            "A job opening year must be between -99999 and 99999."
+            "A position cannot close before it opened."
         )
 
     record_id = str(
@@ -395,7 +406,7 @@ def normalize_organization_job(value):
                     value.get("organization_id", "") or ""
                 ).strip().casefold(),
                 title.casefold(),
-                str(opened_year),
+                opened_date,
             )
         )
         record_id = "organization-job-" + hashlib.sha256(
@@ -405,8 +416,83 @@ def normalize_organization_job(value):
     return {
         "record_id": record_id,
         "title": title,
+        "opened_date": opened_date,
         "opened_year": opened_year,
+        "opened_month": (
+            int(opened_month_text) if opened_month_text else None
+        ),
+        "opened_day": (
+            int(opened_day_text) if opened_day_text else None
+        ),
+        "closed_date": closed_date,
+        "closed_year": (
+            int(closed_year_text) if closed_year_text else None
+        ),
+        "closed_month": (
+            int(closed_month_text) if closed_month_text else None
+        ),
+        "closed_day": (
+            int(closed_day_text) if closed_day_text else None
+        ),
     }
+
+
+def organization_job_date(value, prefix, required=False):
+    date_value = str(
+        value.get(f"{prefix}_date", "") or ""
+    ).strip()
+
+    if not date_value:
+        year_value = value.get(
+            f"{prefix}_year",
+            value.get("start_year") if prefix == "opened" else None,
+        )
+        month_value = value.get(f"{prefix}_month")
+        day_value = value.get(f"{prefix}_day")
+
+        if year_value not in (None, ""):
+            date_value = str(year_value).strip()
+
+            if month_value not in (None, ""):
+                date_value += f"-{month_value}"
+
+            if day_value not in (None, ""):
+                if month_value in (None, ""):
+                    raise ValueError(
+                        f"Position {prefix} day requires a month."
+                    )
+
+                date_value += f"-{day_value}"
+        elif month_value not in (None, "") or day_value not in (None, ""):
+            raise ValueError(
+                f"Position {prefix} month and day require a year."
+            )
+
+    if not date_value:
+        if required:
+            raise ValueError("Enter the year this position opened.")
+
+        return ""
+
+    try:
+        return normalize_world_event_date(date_value)
+    except ValueError as error:
+        field_name = f"Position {prefix}"
+        message = str(error).replace("Event", field_name).replace(
+            "event",
+            field_name.casefold(),
+        )
+        raise ValueError(message) from error
+
+
+def organization_job_date_tuple(value, end_boundary=False):
+    year_text, month_text, day_text = split_world_event_date(value)
+    return job_date_tuple(
+        int(year_text),
+        int(month_text) if month_text else None,
+        int(day_text) if day_text else None,
+        end_boundary=end_boundary,
+    )
 
 
 def normalize_organization_jobs(value):
@@ -439,12 +525,22 @@ def normalize_organization_jobs(value):
 def new_organization_job(
     title,
     opened_year,
+    opened_month=None,
+    opened_day=None,
+    closed_year=None,
+    closed_month=None,
+    closed_day=None,
 ):
     return normalize_organization_job(
         {
             "record_id": str(uuid.uuid4()),
             "title": title,
             "opened_year": opened_year,
+            "opened_month": opened_month,
+            "opened_day": opened_day,
+            "closed_year": closed_year,
+            "closed_month": closed_month,
+            "closed_day": closed_day,
         }
     )
 
@@ -560,19 +656,36 @@ def normalize_organization_record(values):
     normalized["events"] = normalize_organization_events(
         normalized.get("events", [])
     )
-    normalized["jobs"] = normalize_organization_jobs(
-        [
-            {
-                **organization_job,
-                "organization_id": str(
-                    normalized.get("record_id", "") or ""
-                ),
-            }
-            if isinstance(organization_job, dict)
-            else organization_job
-            for organization_job in normalized.get("jobs", []) or []
-        ]
-    )
+    job_values = []
+
+    for organization_job in normalized.get("jobs", []) or []:
+        if not isinstance(organization_job, dict):
+            job_values.append(organization_job)
+            continue
+
+        prepared_job = {
+            **organization_job,
+            "organization_id": str(
+                normalized.get("record_id", "") or ""
+            ),
+        }
+
+        if (
+            normalized["extinct"]
+            and normalized["extinction_date"]
+            and not organization_job_date(
+                prepared_job,
+                "closed",
+                required=False,
+            )
+        ):
+            prepared_job["closed_date"] = normalized[
+                "extinction_date"
+            ]
+
+        job_values.append(prepared_job)
+
+    normalized["jobs"] = normalize_organization_jobs(job_values)
     return normalized
 
 
@@ -1152,8 +1265,20 @@ class OrganizationController:
                 )
 
         founding_year = int(events[0]["year"])
-        extinction_year = world_event_year(
-            values.get("extinction_date", "")
+        founding_date = organization_job_date_tuple(
+            events[0]["date"]
+        )
+        extinction_date_value = str(
+            values.get("extinction_date", "") or ""
+        ).strip()
+        extinction_year = world_event_year(extinction_date_value)
+        extinction_date = (
+            organization_job_date_tuple(
+                extinction_date_value,
+                end_boundary=True,
+            )
+            if extinction_date_value
+            else None
         )
 
         if (
@@ -1174,10 +1299,32 @@ class OrganizationController:
         }
 
         for organization_job in organization_jobs:
-            if organization_job["opened_year"] < founding_year:
+            opened_date = organization_job_date_tuple(
+                organization_job["opened_date"]
+            )
+            closed_date = (
+                organization_job_date_tuple(
+                    organization_job["closed_date"],
+                    end_boundary=True,
+                )
+                if organization_job["closed_date"]
+                else None
+            )
+
+            if opened_date < founding_date:
                 raise ValueError(
                     f"{organization_job['title']} cannot open before "
                     "the organization was founded."
+                )
+
+            if (
+                extinction_date is not None
+                and closed_date is not None
+                and closed_date > extinction_date
+            ):
+                raise ValueError(
+                    f"{organization_job['title']} cannot close after "
+                    "the organization became extinct."
                 )
 
         for assignment in self.job_assignments():
@@ -1193,13 +1340,45 @@ class OrganizationController:
                     "An assigned organization job cannot be removed."
                 )
 
-            if (
-                assignment["start_year"]
-                < organization_job["opened_year"]
-            ):
+            assignment_start = job_date_tuple(
+                assignment["start_year"],
+                assignment["start_month"],
+                assignment["start_day"],
+            )
+            assignment_end = job_date_tuple(
+                assignment["end_year"],
+                assignment["end_month"],
+                assignment["end_day"],
+                end_boundary=True,
+            )
+            opened_date = organization_job_date_tuple(
+                organization_job["opened_date"]
+            )
+            closed_date = (
+                organization_job_date_tuple(
+                    organization_job["closed_date"],
+                    end_boundary=True,
+                )
+                if organization_job["closed_date"]
+                else None
+            )
+
+            if assignment_start < opened_date:
                 raise ValueError(
                     f"{organization_job['title']} cannot be moved to "
-                    "an opening year after an existing assignment began."
+                    "an opening date after an existing assignment began."
+                )
+
+            if (
+                closed_date is not None
+                and (
+                    assignment_end is not None
+                    and assignment_end > closed_date
+                )
+            ):
+                raise ValueError(
+                    f"{organization_job['title']} cannot close before "
+                    "an existing assignment ended."
                 )
 
         for organization in self.list_organizations():
@@ -1478,7 +1657,8 @@ class OrganizationController:
                 searchable_values.extend(
                     (
                         job.get("title"),
-                        job.get("opened_year"),
+                        job.get("opened_date"),
+                        job.get("closed_date"),
                     )
                 )
 
@@ -1905,16 +2085,17 @@ class OrganizationController:
                 {},
             ).get(DATABASE_DATE_SETTING_KEY)
         )
-        timeline_start = (
-            normalized_job["opened_year"],
-            1,
-            1,
+        timeline_start = organization_job_date_tuple(
+            normalized_job["opened_date"]
         )
         timeline_end = (
             database_date["year"],
             database_date["month"],
             database_date["day"],
         )
+
+        if timeline_end < timeline_start:
+            timeline_end = timeline_start
 
         for assignment in assignments:
             assignment_start = job_date_tuple(
@@ -1934,6 +2115,15 @@ class OrganizationController:
 
             if assignment_end is not None and assignment_end > timeline_end:
                 timeline_end = assignment_end
+
+        if normalized_job["closed_date"]:
+            timeline_end = min(
+                timeline_end,
+                organization_job_date_tuple(
+                    normalized_job["closed_date"],
+                    end_boundary=True,
+                ),
+            )
 
         assignments.sort(key=self.job_assignment_person_sort_key)
         timeline = []
@@ -2182,12 +2372,31 @@ class OrganizationController:
         job_id = str(
             organization_job.get("record_id", "") or ""
         )
-        opened_year = normalize_organization_job(
+        normalized_job = normalize_organization_job(
             organization_job
-        )["opened_year"]
+        )
+        current_date = (
+            database_date["year"],
+            database_date["month"],
+            database_date["day"],
+        )
+        opened_date = organization_job_date_tuple(
+            normalized_job["opened_date"]
+        )
+        closed_date = (
+            organization_job_date_tuple(
+                normalized_job["closed_date"],
+                end_boundary=True,
+            )
+            if normalized_job["closed_date"]
+            else None
+        )
 
-        if database_date["year"] < opened_year:
-            return f"Opens {opened_year}"
+        if current_date < opened_date:
+            return f"Opens {normalized_job['opened_date']}"
+
+        if closed_date is not None and current_date > closed_date:
+            return f"Closed {normalized_job['closed_date']}"
 
         active_assignment = next(
             (

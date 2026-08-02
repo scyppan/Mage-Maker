@@ -197,6 +197,11 @@ class SettingsPage(tk.Frame):
             date_row,
             background=SURFACE_MUTED,
             wraplength=620,
+            date_variables=(
+                self.database_year_value,
+                self.database_month_value,
+                self.database_day_value,
+            ),
         )
         calendar_notice.grid(
             row=1,

@@ -2,7 +2,7 @@
   "_database": {
     "schema_version": 31,
     "database_version": "0.31.0",
-    "last_saved": "2026-08-02T08:33:59.904386+00:00"
+    "last_saved": "2026-08-02T11:04:37.626721+00:00"
   },
   "people": [
     {
@@ -26235,8 +26235,8 @@
       "birth_year": 1027,
       "birth_month": null,
       "birth_day": null,
-      "deceased": false,
-      "death_year": null,
+      "deceased": true,
+      "death_year": 1160,
       "death_month": null,
       "death_day": null,
       "canon": true,
@@ -26328,6 +26328,16 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1160",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "",
@@ -26378,6 +26388,21 @@
               }
             ],
             "jobs": []
+          },
+          {
+            "adult_year": 2,
+            "reading_characteristic": "willpower",
+            "reading_rolls": [
+              1,
+              6,
+              3,
+              8
+            ],
+            "reading_total": 18,
+            "book_limit": 0,
+            "books": [],
+            "eminence": [],
+            "jobs": []
           }
         ],
         "initial_eminence": [],
@@ -26392,7 +26417,7 @@
       "imported_fields": {},
       "record_id": "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
       "created_at": "2026-08-02T08:07:06.721121+00:00",
-      "last_updated": "2026-08-02T08:21:32.929778+00:00"
+      "last_updated": "2026-08-02T11:04:37.597332+00:00"
     }
   ],
   "locations": [
@@ -27187,6 +27212,138 @@
       "record_id": "45e5a2df-7b87-4424-8d81-d10ab034d139",
       "created_at": "2026-08-02T08:28:28.923043+00:00",
       "last_updated": "2026-08-02T08:30:43.426927+00:00"
+    },
+    {
+      "name": "Arabian Peninsula",
+      "parent_location_id": "b8db052f-3f7d-4a18-84bf-b82297d37553",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "demographics": "",
+      "timeline_events": [],
+      "record_id": "d0faae51-593b-440f-95f9-8e3b8b252353",
+      "created_at": "2026-08-02T08:39:49.468483+00:00",
+      "last_updated": "2026-08-02T08:39:49.468483+00:00"
+    },
+    {
+      "name": "The Empty Quarter",
+      "parent_location_id": "d0faae51-593b-440f-95f9-8e3b8b252353",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "demographics": "",
+      "timeline_events": [],
+      "record_id": "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
+      "created_at": "2026-08-02T08:40:12.928675+00:00",
+      "last_updated": "2026-08-02T08:40:47.313774+00:00"
+    },
+    {
+      "name": "Egypt",
+      "parent_location_id": "b8db052f-3f7d-4a18-84bf-b82297d37553",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "e2f7a85b-83ff-4c25-a779-d05da445a37b",
+      "created_at": "2026-08-02T08:47:31.140038+00:00",
+      "last_updated": "2026-08-02T08:47:31.140038+00:00"
+    },
+    {
+      "name": "Honshu",
+      "parent_location_id": "6c2cbcd9-1f55-4145-a16b-48527adfec42",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "2fccf06f-c60f-440c-a1f3-7e99ba48bbeb",
+      "created_at": "2026-08-02T08:58:46.910237+00:00",
+      "last_updated": "2026-08-02T08:58:46.910237+00:00"
+    },
+    {
+      "name": "Hokkaido",
+      "parent_location_id": "6c2cbcd9-1f55-4145-a16b-48527adfec42",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "670b762f-6aa6-4e21-8c7a-e187ac2e886f",
+      "created_at": "2026-08-02T08:59:02.604260+00:00",
+      "last_updated": "2026-08-02T08:59:02.604260+00:00"
+    },
+    {
+      "name": "Kyushu",
+      "parent_location_id": "6c2cbcd9-1f55-4145-a16b-48527adfec42",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "529792ba-6505-4ce6-88ac-5328afb89550",
+      "created_at": "2026-08-02T08:59:10.931138+00:00",
+      "last_updated": "2026-08-02T08:59:10.931138+00:00"
+    },
+    {
+      "name": "Shikoku",
+      "parent_location_id": "6c2cbcd9-1f55-4145-a16b-48527adfec42",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "ed3b86ce-2a46-48aa-a180-362163be17f7",
+      "created_at": "2026-08-02T08:59:18.205358+00:00",
+      "last_updated": "2026-08-02T08:59:18.205358+00:00"
+    },
+    {
+      "name": "Volcano Islands",
+      "parent_location_id": "2fccf06f-c60f-440c-a1f3-7e99ba48bbeb",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "6c9d0119-d23a-4b36-8369-7363c59ca944",
+      "created_at": "2026-08-02T08:59:44.419021+00:00",
+      "last_updated": "2026-08-02T08:59:44.419021+00:00"
+    },
+    {
+      "name": "Minami Iwo Jima",
+      "parent_location_id": "6c9d0119-d23a-4b36-8369-7363c59ca944",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "f6c823f8-7f67-49a3-98de-84331105deed",
+      "created_at": "2026-08-02T09:00:07.533830+00:00",
+      "last_updated": "2026-08-02T09:00:07.533830+00:00"
+    },
+    {
+      "name": "French Polynesia",
+      "parent_location_id": "274823c0-acc2-4303-b637-789e5e4201ca",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "57108b0b-3ae0-4f8f-9d02-627e6649dd52",
+      "created_at": "2026-08-02T09:01:48.828790+00:00",
+      "last_updated": "2026-08-02T09:01:48.828790+00:00"
+    },
+    {
+      "name": "Matureivaveo",
+      "parent_location_id": "57108b0b-3ae0-4f8f-9d02-627e6649dd52",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "77f07ff9-955c-4f2d-a2d5-761141b5b5dd",
+      "created_at": "2026-08-02T09:02:02.367584+00:00",
+      "last_updated": "2026-08-02T09:02:02.367584+00:00"
     }
   ],
   "organizations": [
@@ -28022,6 +28179,44 @@
       "record_id": "7b65e3c9-05e0-480c-b672-ccba403671fb",
       "created_at": "2026-08-02T06:54:23.586876+00:00",
       "last_updated": "2026-08-02T07:51:02.935111+00:00"
+    },
+    {
+      "name": "Crucethu",
+      "organization_type": "School",
+      "location_id": "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
+      "parent_organization_id": "",
+      "school_id": "school_334",
+      "has_shop": false,
+      "shop_inventory": {
+        "always_in_stock": [],
+        "regularly_in_stock": [],
+        "sometimes_in_stock": [],
+        "rarely_in_stock": []
+      },
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": [],
+      "extinct": false,
+      "extinction_date": "",
+      "overview": "",
+      "notes": "",
+      "events": [
+        {
+          "record_id": "organization-founding",
+          "event_type": "founding",
+          "title": "Founding",
+          "date": "1065-04-09",
+          "year": 1065,
+          "description": "As the muslim world engaged in significant institutionalization and expansion, the Wizarding world correspondingly began to solidify its institutions in the region. The establishment of Crucethu was one of the first and most significant institutional solidifications in the region at the time.",
+          "person_ids": [],
+          "eminence_person_ids": [],
+          "eminence_skills": {}
+        }
+      ],
+      "jobs": [],
+      "record_id": "395b69b4-6931-48a7-a6b5-9ee49251ef28",
+      "created_at": "2026-08-02T08:41:05.456808+00:00",
+      "last_updated": "2026-08-02T08:44:06.372276+00:00"
     }
   ],
   "events": [
@@ -28572,25 +28767,31 @@
     {
       "event_type": "custom",
       "title": "Travel to London",
-      "date": "1066-01",
+      "date": "1066-01-02",
       "description": "He is in London when Emeric the Evil kills 25 mages and reports this information back to William of Normandy",
       "person_ids": [
         "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
       ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
       "period_names": [],
       "location_ids": [],
       "locked_location_ids": [],
       "record_id": "4d80a20d-cbee-4bc8-9dfa-44db2d32eb73",
       "created_at": "2026-08-02T08:17:19.638680+00:00",
-      "last_updated": "2026-08-02T08:17:19.638680+00:00"
+      "last_updated": "2026-08-02T10:59:59.445035+00:00",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
-      "title": "Travels to London and kills many muggles",
-      "date": "1066-01",
-      "description": "He murders many many muggles and 25 wizards in London as a display of his hatred of muggleborns, a kind of self-hatred.",
+      "title": "Travels to London and kills many",
+      "date": "1066-01-03",
+      "description": "He murders many many muggles and 25 wizards in London over the course of a month.",
       "person_ids": [
         "6cd8d366-28a4-4199-9c5c-ff55362851b2"
       ],
@@ -28604,10 +28805,12 @@
       "locked_location_ids": [],
       "record_id": "b359b89b-e38f-481e-a927-d951665ffd05",
       "created_at": "2026-08-01T10:56:21.486762+00:00",
-      "last_updated": "2026-08-02T08:14:51.726196+00:00",
+      "last_updated": "2026-08-02T11:00:40.361257+00:00",
       "eminence_skills": {
         "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
-      }
+      },
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "died",
@@ -28786,13 +28989,231 @@
       "last_updated": "2026-07-31T13:43:03.671812+00:00",
       "eminence_person_ids": [],
       "eminence_skills": {}
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Egypt",
+      "date": "1048-07",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e2f7a85b-83ff-4c25-a779-d05da445a37b"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "27cc7d38-2849-40dc-a4ae-8a392c4561f2",
+      "created_at": "2026-08-02T08:37:08.966532+00:00",
+      "last_updated": "2026-08-02T08:48:29.425317+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to the new Crucethu school",
+      "date": "1065-06-30",
+      "description": "Prior to the school's grand opening, Malfoy visits the founders and tours the campus.",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
+      },
+      "period_names": [],
+      "location_ids": [
+        "00000deb-7be6-42e8-a8d2-0d23dff11c0b"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "ccf62814-2ad6-43f3-9585-484eae059f99",
+      "created_at": "2026-08-02T08:39:10.327317+00:00",
+      "last_updated": "2026-08-02T08:45:24.118295+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Cyprus",
+      "date": "1048-12",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "17f13302-0137-4d49-aa19-f8f7fbf10d0d",
+      "created_at": "2026-08-02T08:48:54.338044+00:00",
+      "last_updated": "2026-08-02T08:49:10.584395+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Hogwarts Campus",
+      "date": "1052",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "378dc7ab-3ef1-48e3-8474-d05d4b0f1a1a",
+      "created_at": "2026-08-02T08:50:00.331537+00:00",
+      "last_updated": "2026-08-02T08:55:53.700956+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Mahoutokoro",
+      "date": "1055",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f6c823f8-7f67-49a3-98de-84331105deed"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "e226bfd2-8448-4718-abfb-587edfccedf3",
+      "created_at": "2026-08-02T09:00:26.756197+00:00",
+      "last_updated": "2026-08-02T09:00:26.756197+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Matureivaveo",
+      "date": "1061",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "77f07ff9-955c-4f2d-a2d5-761141b5b5dd"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "bc00a037-c2e0-4904-a469-374630367d5f",
+      "created_at": "2026-08-02T09:02:13.755983+00:00",
+      "last_updated": "2026-08-02T09:02:20.417861+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Ireland",
+      "date": "1065-01",
+      "description": "He travels around Ireland for several months before leaving to Arabia",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "ec397fa8-dfa3-4278-b78f-c3d96b4066fe"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "5dc48e4e-f61f-42fb-9102-c3d1a5223a95",
+      "created_at": "2026-08-02T09:03:31.547319+00:00",
+      "last_updated": "2026-08-02T09:03:31.547319+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Learns of many slain by Emeric",
+      "date": "1066-01-09",
+      "description": "Malfoy is on the ground in London when Emeric's killing spree ensues. While he never physically interacts with Emeric himself, he is in culture at the time of this travesty.",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "c7691490-fefa-467e-9dfe-75a5156fe583",
+      "created_at": "2026-08-02T10:59:30.923701+00:00",
+      "last_updated": "2026-08-02T11:01:47.170965+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Informs William of weakened British Wizards",
+      "date": "1066-05-25",
+      "description": "Malfoy informs William of the loss of many wizards in England and Scotland suggesting a relative vulnerability.",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "a9a470fa-683d-4944-b8a8-076e6858f6c4",
+      "created_at": "2026-08-02T11:03:30.102245+00:00",
+      "last_updated": "2026-08-02T11:03:30.102245+00:00"
     }
   ],
   "_recent_people": [
     "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
-    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "0164a838-659c-40f7-b201-ff20fef4679d",
     "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
     "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
     "731751aa-a668-4887-840f-c8e5d624c655",
@@ -28803,18 +29224,18 @@
     "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
   ],
   "_recent_locations": [
+    "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
+    "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
+    "d0faae51-593b-440f-95f9-8e3b8b252353",
+    "b8db052f-3f7d-4a18-84bf-b82297d37553",
+    "75038204-dd2e-41ce-83fb-c1ca009f0120",
+    "b140ddd1-77e2-4387-9a6d-d773c6b1fbb1",
     "45e5a2df-7b87-4424-8d81-d10ab034d139",
     "d51a30e1-25ce-4c79-afc8-49c2d3ee0745",
     "cce73c77-b94d-47a5-b386-66387b3dcd8d",
     "__mage_maker_world__",
     "96103198-d236-4041-92af-7fb8580ae909",
-    "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
-    "23b54b30-b742-4e20-a224-915ca732fd61",
-    "66a30d33-afe8-4134-9c98-b120e07cf519",
-    "a1bdfa5d-ed43-4775-a505-42e43d0a006e",
-    "de9bca8f-8fea-4db4-a040-131af6804693",
-    "66b781c8-1a17-43d5-8e03-3fe184d5df8c",
-    "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f"
+    "23b54b30-b742-4e20-a224-915ca732fd61"
   ],
   "_recent_event_associations": {
     "person_ids": [
@@ -28829,18 +29250,18 @@
       "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
     ],
     "location_ids": [
+      "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
+      "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
+      "77f07ff9-955c-4f2d-a2d5-761141b5b5dd",
+      "f6c823f8-7f67-49a3-98de-84331105deed",
+      "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
+      "e2f7a85b-83ff-4c25-a779-d05da445a37b",
+      "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
+      "1df35516-b69f-45df-ac06-b52616e5ed41",
       "45e5a2df-7b87-4424-8d81-d10ab034d139",
       "f02e9fc5-b286-4197-b08b-de69383a67e4",
       "8ca999ab-62a2-40c4-ba41-cfdcb3bca870",
-      "c2cc8919-1108-47c9-b3be-9423eea86c1a",
-      "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
-      "5bc80b00-51ab-4463-a11c-379c8de449c7",
-      "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f",
-      "66b781c8-1a17-43d5-8e03-3fe184d5df8c",
-      "26b19885-3ce3-4df3-8b4b-3dded23625f2",
-      "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
-      "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4",
-      "d3ba12b1-afe7-443b-a75b-31de101048c6"
+      "c2cc8919-1108-47c9-b3be-9423eea86c1a"
     ]
   },
   "_application_settings": {

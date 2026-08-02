@@ -225,6 +225,11 @@ class WorldEventDialog(tk.Toplevel):
             date_panel,
             background=SURFACE,
             wraplength=640,
+            date_variables=(
+                self.year_value,
+                self.month_value,
+                self.day_value,
+            ),
         )
         calendar_notice.grid(
             row=1,
@@ -1626,6 +1631,11 @@ class QuickEventPersonDialog(tk.Toplevel):
             body,
             background=SURFACE,
             wraplength=500,
+            date_variables=(
+                self.birth_year_value,
+                self.birth_month_value,
+                self.birth_day_value,
+            ),
         )
         calendar_notice.grid(
             row=5,

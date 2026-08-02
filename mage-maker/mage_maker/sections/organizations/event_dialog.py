@@ -236,6 +236,11 @@ class OrganizationEventDialog(tk.Toplevel):
             body,
             background=SURFACE,
             wraplength=620,
+            date_variables=(
+                self.year_value,
+                self.month_value,
+                self.day_value,
+            ),
         )
         calendar_notice.grid(
             row=2,

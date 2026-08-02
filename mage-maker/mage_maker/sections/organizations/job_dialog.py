@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
+
+from mage_maker.sections.events.models import split_world_event_date
 from mage_maker.sections.organizations.controller import (
     new_organization_job,
     normalize_organization_job,
@@ -29,6 +31,10 @@ class OrganizationJobDialog(tk.Toplevel):
         save_command,
         existing_job=None,
         default_opened_year=None,
+        default_opened_month=None,
+        default_opened_day=None,
+        organization_extinct=False,
+        organization_extinction_date="",
     ):
         super().__init__(parent)
         self.save_command = save_command
@@ -37,6 +43,33 @@ class OrganizationJobDialog(tk.Toplevel):
             if isinstance(existing_job, dict)
             else None
         )
+        self.organization_extinct = bool(organization_extinct)
+        opened_date = (
+            self.existing_job["opened_date"]
+            if self.existing_job is not None
+            else self.default_date_text(
+                default_opened_year,
+                default_opened_month,
+                default_opened_day,
+            )
+        )
+        closed_date = (
+            self.existing_job["closed_date"]
+            if self.existing_job is not None
+            else ""
+        )
+
+        if self.organization_extinct and not closed_date:
+            closed_date = str(
+                organization_extinction_date or ""
+            ).strip()
+
+        opened_year, opened_month, opened_day = (
+            split_world_event_date(opened_date)
+        )
+        closed_year, closed_month, closed_day = (
+            split_world_event_date(closed_date)
+        )
         self.title_value = tk.StringVar(
             value=(
                 self.existing_job["title"]
@@ -44,34 +77,46 @@ class OrganizationJobDialog(tk.Toplevel):
                 else ""
             )
         )
-        self.opened_year_value = tk.StringVar(
-            value=(
-                str(self.existing_job["opened_year"])
-                if self.existing_job is not None
-                else (
-                    ""
-                    if default_opened_year in (None, "")
-                    else str(default_opened_year)
-                )
-            )
-        )
+        self.opened_year_value = tk.StringVar(value=opened_year)
+        self.opened_month_value = tk.StringVar(value=opened_month)
+        self.opened_day_value = tk.StringVar(value=opened_day)
+        self.closed_year_value = tk.StringVar(value=closed_year)
+        self.closed_month_value = tk.StringVar(value=closed_month)
+        self.closed_day_value = tk.StringVar(value=closed_day)
+        self.opened_entries = []
+        self.closed_entries = []
         self.title(
             "Edit organization job"
             if self.existing_job is not None
             else "Add organization job"
         )
         self.configure(bg=APP_BACKGROUND)
-        self.geometry("640x365")
-        self.minsize(580, 340)
+        self.geometry("700x520")
+        self.minsize(640, 490)
         self.transient(parent.winfo_toplevel())
         self.protocol("WM_DELETE_WINDOW", self.close_dialog)
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_dialog()
+        self.update_closed_date_state()
         self.update_idletasks()
         self.position_upper_right()
         self.grab_set()
         self.after_idle(self.focus_title)
+
+    def default_date_text(self, year, month, day):
+        if year in (None, ""):
+            return ""
+
+        value = str(year).strip()
+
+        if month not in (None, ""):
+            value += f"-{month}"
+
+        if day not in (None, ""):
+            value += f"-{day}"
+
+        return value
 
     def build_dialog(self):
         header = tk.Frame(self, bg=PRIMARY_DARK, height=58)
@@ -92,15 +137,9 @@ class OrganizationJobDialog(tk.Toplevel):
         )
         heading.pack(fill="both", expand=True)
 
-        body = tk.Frame(
-            self,
-            bg=SURFACE,
-            padx=20,
-            pady=18,
-        )
+        body = tk.Frame(self, bg=SURFACE, padx=20, pady=18)
         body.grid(row=1, column=0, sticky="nsew")
         body.grid_columnconfigure(0, weight=1)
-
         title_label = tk.Label(
             body,
             text="Title",
@@ -124,41 +163,67 @@ class OrganizationJobDialog(tk.Toplevel):
             sticky="ew",
             pady=(5, 14),
         )
-
-        opened_year_label = tk.Label(
+        opened_panel = self.build_date_panel(
             body,
-            text="Position opened",
+            2,
+            "Position opened",
+            (
+                self.opened_year_value,
+                self.opened_month_value,
+                self.opened_day_value,
+            ),
+        )
+        self.opened_entries = opened_panel
+        closed_panel = self.build_date_panel(
+            body,
+            3,
+            "Position closed",
+            (
+                self.closed_year_value,
+                self.closed_month_value,
+                self.closed_day_value,
+            ),
+        )
+        self.closed_entries = closed_panel
+        self.extinction_note = tk.Label(
+            body,
+            text=(
+                "This date is controlled by the organization's "
+                "extinction date."
+            ),
             bg=SURFACE,
             fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
+            font=app_font(8),
             anchor="w",
         )
-        opened_year_label.grid(row=2, column=0, sticky="ew")
-        opened_year_entry = RoundedEntry(
-            body,
-            textvariable=self.opened_year_value,
-            background=SURFACE,
-            width=150,
-            height=38,
-            font=app_font(10),
-            justify="center",
-        )
-        opened_year_entry.grid(
-            row=3,
-            column=0,
-            sticky="w",
-            pady=(5, 0),
-        )
-        calendar_notice = CalendarAdoptionNotice(
-            body,
-            background=SURFACE,
-            wraplength=500,
-        )
-        calendar_notice.grid(
+        self.extinction_note.grid(
             row=4,
             column=0,
+            sticky="ew",
+            pady=(0, 4),
+        )
+        self.calendar_notice = CalendarAdoptionNotice(
+            body,
+            background=SURFACE,
+            wraplength=620,
+            date_variables=(
+                (
+                    self.opened_year_value,
+                    self.opened_month_value,
+                    self.opened_day_value,
+                ),
+                (
+                    self.closed_year_value,
+                    self.closed_month_value,
+                    self.closed_day_value,
+                ),
+            ),
+        )
+        self.calendar_notice.grid(
+            row=5,
+            column=0,
             sticky="w",
-            pady=(6, 0),
+            pady=(4, 0),
         )
 
         footer = tk.Frame(self, bg=APP_BACKGROUND)
@@ -196,10 +261,75 @@ class OrganizationJobDialog(tk.Toplevel):
         )
         save_button.grid(row=0, column=2)
 
+    def build_date_panel(self, parent, row, heading_text, variables):
+        panel = tk.Frame(parent, bg=SURFACE)
+        panel.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+        panel.grid_columnconfigure((0, 1, 2), weight=1)
+        heading = tk.Label(
+            panel,
+            text=heading_text,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
+        )
+        entries = []
+
+        for column, label_text, variable in (
+            (0, "Year", variables[0]),
+            (1, "Month", variables[1]),
+            (2, "Day", variables[2]),
+        ):
+            field = tk.Frame(panel, bg=SURFACE)
+            field.grid(
+                row=1,
+                column=column,
+                sticky="ew",
+                padx=(0, 6) if column < 2 else 0,
+            )
+            field.grid_columnconfigure(0, weight=1)
+            label = tk.Label(
+                field,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(8, "bold"),
+                anchor="w",
+            )
+            label.grid(row=0, column=0, sticky="ew")
+            entry = RoundedEntry(
+                field,
+                textvariable=variable,
+                background=SURFACE,
+                height=36,
+                font=app_font(10),
+                justify="center",
+            )
+            entry.grid(row=1, column=0, sticky="ew", pady=(3, 0))
+            entries.append(entry)
+
+        return entries
+
+    def update_closed_date_state(self):
+        for entry in self.closed_entries:
+            entry.set_enabled(not self.organization_extinct)
+
+        if self.organization_extinct:
+            self.extinction_note.grid()
+        else:
+            self.extinction_note.grid_remove()
+
     def position_upper_right(self):
         owner = self.master.winfo_toplevel()
-        dialog_width = max(580, self.winfo_width())
-        dialog_height = max(340, self.winfo_height())
+        dialog_width = max(640, self.winfo_width())
+        dialog_height = max(490, self.winfo_height())
         owner_left = owner.winfo_rootx()
         owner_top = owner.winfo_rooty()
         owner_width = max(owner.winfo_width(), dialog_width + 48)
@@ -219,12 +349,15 @@ class OrganizationJobDialog(tk.Toplevel):
             job = new_organization_job(
                 self.title_value.get(),
                 self.opened_year_value.get(),
+                self.opened_month_value.get(),
+                self.opened_day_value.get(),
+                self.closed_year_value.get(),
+                self.closed_month_value.get(),
+                self.closed_day_value.get(),
             )
 
             if self.existing_job is not None:
-                job["record_id"] = self.existing_job[
-                    "record_id"
-                ]
+                job["record_id"] = self.existing_job["record_id"]
                 job = normalize_organization_job(job)
         except (TypeError, ValueError) as error:
             messagebox.showerror(

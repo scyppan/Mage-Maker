@@ -129,6 +129,13 @@ def normalize_world_event(event):
         if location_id not in normalized["location_ids"]:
             normalized["location_ids"].append(location_id)
 
+    normalized["organization_id"] = str(
+        normalized.get("organization_id", "") or ""
+    ).strip()
+    normalized["organization_name"] = str(
+        normalized.get("organization_name", "") or ""
+    ).strip()
+
     if normalized["event_type"] not in EVENT_TYPE_LABELS:
         normalized["event_type"] = "other"
 

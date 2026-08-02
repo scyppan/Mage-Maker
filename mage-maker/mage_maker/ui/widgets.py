@@ -2,7 +2,10 @@ import tkinter as tk
 from functools import partial
 from tkinter import messagebox
 
-from mage_maker.core.dates import CALENDAR_ADOPTION_NOTE
+from mage_maker.core.dates import (
+    CALENDAR_ADOPTION_NOTE,
+    historical_date_was_skipped,
+)
 from mage_maker.ui.theme import (
     BORDER,
     BORDER_SOFT,
@@ -112,6 +115,7 @@ class CalendarAdoptionNotice(tk.Label):
         background=SURFACE,
         foreground=TEXT_MUTED,
         wraplength=520,
+        date_variables=(),
     ):
         super().__init__(
             parent,
@@ -129,11 +133,105 @@ class CalendarAdoptionNotice(tk.Label):
             delay=180,
             wraplength=wraplength,
         )
+        self.date_variable_groups = self.normalize_date_variables(
+            date_variables
+        )
+        self.date_trace_tokens = []
+        self.grid_requested = False
+
+        for variable_group in self.date_variable_groups:
+            for variable in variable_group:
+                if hasattr(variable, "trace_add"):
+                    token = variable.trace_add(
+                        "write",
+                        self.date_changed,
+                    )
+                    self.date_trace_tokens.append((variable, token))
+
         self.bind(
             "<Button-1>",
             self.show_calendar_note,
             add="+",
         )
+
+    def normalize_date_variables(self, date_variables):
+        values = tuple(date_variables or ())
+
+        if len(values) == 3 and not any(
+            isinstance(value, (list, tuple))
+            for value in values
+        ):
+            values = (values,)
+
+        return tuple(
+            tuple(group)
+            for group in values
+            if isinstance(group, (list, tuple)) and len(group) == 3
+        )
+
+    def grid(self, *arguments, **keywords):
+        result = super().grid(*arguments, **keywords)
+        self.grid_requested = True
+        self.update_visibility()
+        return result
+
+    def date_changed(self, *arguments):
+        self.update_visibility()
+
+    def update_visibility(self):
+        if not self.grid_requested:
+            return
+
+        if self.should_be_visible():
+            super().grid()
+        else:
+            super().grid_remove()
+
+    def should_be_visible(self):
+        for year_value, month_value, day_value in self.date_variable_groups:
+            year = self.date_variable_value(year_value)
+            month = self.date_month_number(
+                self.date_variable_value(month_value)
+            )
+            day = self.date_variable_value(day_value)
+
+            try:
+                if historical_date_was_skipped(year, month, day):
+                    return True
+            except (TypeError, ValueError):
+                continue
+
+        return False
+
+    def date_variable_value(self, value):
+        return value.get() if hasattr(value, "get") else value
+
+    def date_month_number(self, value):
+        month_text = str(value or "").strip()
+
+        try:
+            return int(month_text)
+        except ValueError:
+            month_names = (
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "may",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "oct",
+                "nov",
+                "dec",
+            )
+            normalized = month_text.casefold()[:3]
+            return (
+                month_names.index(normalized) + 1
+                if normalized in month_names
+                else month_text
+            )
         self.bind(
             "<Return>",
             self.show_calendar_note,

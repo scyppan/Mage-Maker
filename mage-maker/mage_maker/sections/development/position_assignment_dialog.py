@@ -428,6 +428,18 @@ class PositionAssignmentDialog(tk.Toplevel):
             body,
             background=SURFACE,
             wraplength=680,
+            date_variables=(
+                (
+                    self.start_year_value,
+                    self.start_month_value,
+                    self.start_day_value,
+                ),
+                (
+                    self.end_year_value,
+                    self.end_month_value,
+                    self.end_day_value,
+                ),
+            ),
         )
         calendar_notice.grid(
             row=7,
@@ -682,7 +694,7 @@ class PositionAssignmentDialog(tk.Toplevel):
                 "end",
                 (
                     f"{organization_job['title']} · "
-                    f"opened {organization_job['opened_year']} · "
+                    f"opened {organization_job['opened_date']} · "
                     f"{status}"
                 ),
             )

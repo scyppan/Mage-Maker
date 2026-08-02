@@ -10,11 +10,18 @@ EVENT_TYPE_DEFINITIONS = (
     ("opened_business", "Opened a business", ("person",), False),
     ("started_job", "Started job", ("person",), False),
     ("received_raise", "Received a raise", ("person",), False),
+    ("began_friendship", "Began friendship", ("person",), False),
     ("work_change", "Change in work", ("person",), False),
     ("relocated", "Relocated", ("person",), False),
     ("name_change", "Name change", ("person",), False),
     ("custom", "Custom event", ("person",), False),
-    ("founding", "Founding", ("location",), False),
+    ("founding", "Founding a location", ("location",), False),
+    (
+        "organization_founding",
+        "Founding an organization",
+        ("organization",),
+        False,
+    ),
     (
         "wizarding_community_established",
         "Wizarding community established",
@@ -43,6 +50,7 @@ EVENT_LABEL_TYPES.update(
         "Died": "died",
         "Started at school": "started_school",
         "Got a job": "started_job",
+        "Founding": "founding",
     }
 )
 LEGACY_EVENT_TYPE_ALIASES = {
@@ -54,6 +62,7 @@ LEGACY_EVENT_TYPE_ALIASES = {
     "got job": "started_job",
     "started job": "started_job",
     "received a raise": "received_raise",
+    "began friendship": "began_friendship",
     "relocation": "relocated",
     "wizarding community established": (
         "wizarding_community_established"

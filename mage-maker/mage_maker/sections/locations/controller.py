@@ -65,11 +65,43 @@ class LocationController:
     def __init__(self, database, people_provider):
         self.database = database
         self.people_provider = people_provider
+        self._locations_cache = None
+        self._foundation_state_cache = {}
+        self._timeline_cache = {}
+        self._distinctions_cache = {}
+        self._mage_locations_synchronized = False
+
+    def invalidate_caches(self, include_people_sync=False):
+        self._locations_cache = None
+        self._foundation_state_cache = {}
+        self._timeline_cache = {}
+        self._distinctions_cache = {}
+
+        if include_people_sync:
+            self._mage_locations_synchronized = False
 
     def list_locations(self):
-        self.synchronize_mage_locations()
+        if not self._mage_locations_synchronized:
+            self.synchronize_mage_locations()
+            self._mage_locations_synchronized = True
+
+        if self._locations_cache is not None:
+            return deepcopy(self._locations_cache)
+
         locations = self.database.list_records("locations")
         world_events = self.database.list_records("events")
+        world_events_by_location_id = {}
+
+        for event in world_events:
+            if not isinstance(event, dict):
+                continue
+
+            for location_id in event.get("location_ids", []) or []:
+                world_events_by_location_id.setdefault(
+                    str(location_id or "").strip(),
+                    [],
+                ).append(event)
+
         paths_by_id = location_paths_by_id(locations)
         decorated = []
 
@@ -77,7 +109,10 @@ class LocationController:
             record_id = str(location.get("record_id", "") or "")
             foundation_state = location_foundation_event_state(
                 location,
-                world_events,
+                world_events_by_location_id.get(record_id, []),
+            )
+            self._foundation_state_cache[record_id] = deepcopy(
+                foundation_state
             )
             decorated_location = deepcopy(location)
             decorated_location["_foundation_event_valid"] = (
@@ -94,9 +129,19 @@ class LocationController:
             )
 
         decorated.sort(key=self.decorated_location_sort_key)
-        return [location for path, location in decorated]
+        self._locations_cache = [
+            location for path, location in decorated
+        ]
+        return deepcopy(self._locations_cache)
 
     def foundation_state_for_location(self, location_id):
+        selected_id = str(location_id or "").strip()
+
+        if selected_id in self._foundation_state_cache:
+            return deepcopy(
+                self._foundation_state_cache[selected_id]
+            )
+
         location = self.get_location(location_id)
 
         if location is None:
@@ -106,13 +151,19 @@ class LocationController:
                 "foundation_event_id": "",
             }
 
-        return location_foundation_event_state(
+        state = location_foundation_event_state(
             location,
             self.database.list_records("events"),
         )
+        self._foundation_state_cache[selected_id] = deepcopy(state)
+        return state
 
     def location_distinctions(self, location_id):
         selected_id = str(location_id or "").strip()
+
+        if selected_id in self._distinctions_cache:
+            return deepcopy(self._distinctions_cache[selected_id])
+
         location = self.get_location(selected_id)
 
         if location is None:
@@ -210,6 +261,7 @@ class LocationController:
         for organization_name in famous_organizations:
             distinctions.append(f"Home of {organization_name}")
 
+        self._distinctions_cache[selected_id] = deepcopy(distinctions)
         return distinctions
 
     def synchronize_mage_locations(self):
@@ -243,6 +295,10 @@ class LocationController:
 
         if created_locations:
             self.database.save()
+            self._locations_cache = None
+            self._foundation_state_cache = {}
+            self._timeline_cache = {}
+            self._distinctions_cache = {}
 
         return created_locations
 
@@ -380,6 +436,7 @@ class LocationController:
         normalized = normalize_location_record(values)
         self.validate_location(normalized)
         created = self.database.create_record("locations", normalized)
+        self.invalidate_caches()
         self.database.save()
         return created
 
@@ -413,6 +470,7 @@ class LocationController:
             record_id,
             prospective,
         )
+        self.invalidate_caches()
         self.database.save()
         return updated
 
@@ -472,6 +530,7 @@ class LocationController:
             )
 
         deleted = self.database.delete_record("locations", record_id)
+        self.invalidate_caches()
         self.database.save()
         return deleted
 
@@ -482,6 +541,15 @@ class LocationController:
             raise KeyError(f"Unknown location record_id: {location_id}")
 
         event_values = deepcopy(event)
+
+        if (
+            str(event_values.get("event_type", "") or "")
+            in ("founding", "wizarding_community_established")
+            and self.location_has_other_foundation(location)
+        ):
+            raise ValueError(
+                "This location already has a founding event."
+            )
 
         if str(event_values.get("event_type", "") or "") == "founding":
             event_values["title"] = (
@@ -505,6 +573,18 @@ class LocationController:
             raise KeyError(f"Unknown location record_id: {location_id}")
 
         event_values = deepcopy(values)
+
+        if (
+            str(event_values.get("event_type", "") or "")
+            in ("founding", "wizarding_community_established")
+            and self.location_has_other_foundation(
+                location,
+                ignored_local_event_id=event_id,
+            )
+        ):
+            raise ValueError(
+                "This location already has a founding event."
+            )
 
         if str(event_values.get("event_type", "") or "") == "founding":
             event_values["title"] = (
@@ -552,12 +632,41 @@ class LocationController:
         return self.update_location(location_id, {"timeline_events": events})
 
     def timeline_for(self, location_id):
-        return visible_location_timeline(
-            location_id,
+        selected_id = str(location_id or "").strip()
+
+        if selected_id in self._timeline_cache:
+            return deepcopy(self._timeline_cache[selected_id])
+
+        timeline = visible_location_timeline(
+            selected_id,
             self.list_locations(),
             self.people_provider(),
             self.database.list_records("events"),
         )
+        self._timeline_cache[selected_id] = deepcopy(timeline)
+        return timeline
+
+    def location_has_other_foundation(
+        self,
+        location,
+        ignored_local_event_id="",
+    ):
+        if not isinstance(location, dict):
+            return False
+
+        ignored_id = str(ignored_local_event_id or "").strip()
+        candidate = deepcopy(location)
+        candidate["timeline_events"] = [
+            event
+            for event in location.get("timeline_events", []) or []
+            if str(event.get("event_id", "") or "").strip()
+            != ignored_id
+        ]
+        state = location_foundation_event_state(
+            candidate,
+            self.database.list_records("events"),
+        )
+        return bool(state.get("foundation_event_id"))
 
     def people_for_period(
         self,

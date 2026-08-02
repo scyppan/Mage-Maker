@@ -546,6 +546,18 @@ class VacantJobFillDialog(tk.Toplevel):
             body,
             background=SURFACE,
             wraplength=680,
+            date_variables=(
+                (
+                    self.start_year_value,
+                    self.start_month_value,
+                    self.start_day_value,
+                ),
+                (
+                    self.end_year_value,
+                    self.end_month_value,
+                    self.end_day_value,
+                ),
+            ),
         )
         calendar_notice.grid(
             row=6,
@@ -2102,6 +2114,11 @@ class OrganizationPage(tk.Frame):
             self.extinction_date_frame,
             background=SURFACE,
             wraplength=620,
+            date_variables=(
+                self.extinction_year_value,
+                self.extinction_month_value,
+                self.extinction_day_value,
+            ),
         )
         calendar_notice.grid(
             row=2,
@@ -4446,7 +4463,13 @@ class OrganizationPage(tk.Frame):
                 "end",
                 (
                     f"{organization_job['title']} · "
-                    f"opened {organization_job['opened_year']} · "
+                    f"opened {organization_job['opened_date']}"
+                    + (
+                        f" · closed {organization_job['closed_date']}"
+                        if organization_job["closed_date"]
+                        else ""
+                    )
+                    + " · "
                     f"{status}"
                 ),
             )
@@ -4665,11 +4688,30 @@ class OrganizationPage(tk.Frame):
         return saved_event
 
     def add_job(self):
-        founding_year = self.organization_events[0]["year"]
+        founding_year, founding_month, founding_day = (
+            split_world_event_date(
+                self.organization_events[0]["date"]
+            )
+        )
+
+        try:
+            extinction_date = self.extinction_date_from_form()
+        except ValueError as error:
+            messagebox.showerror(
+                "Cannot add organization job",
+                str(error),
+                parent=self,
+            )
+            return
+
         OrganizationJobDialog(
             self,
             self.save_added_job,
             default_opened_year=founding_year,
+            default_opened_month=founding_month,
+            default_opened_day=founding_day,
+            organization_extinct=self.extinct_value.get(),
+            organization_extinction_date=extinction_date,
         )
 
     def save_added_job(self, organization_job):
@@ -4687,10 +4729,22 @@ class OrganizationPage(tk.Frame):
         if selected_index is None:
             return
 
+        try:
+            extinction_date = self.extinction_date_from_form()
+        except ValueError as error:
+            messagebox.showerror(
+                "Cannot edit organization job",
+                str(error),
+                parent=self,
+            )
+            return
+
         OrganizationJobDialog(
             self,
             self.save_edited_job,
             existing_job=self.organization_jobs[selected_index],
+            organization_extinct=self.extinct_value.get(),
+            organization_extinction_date=extinction_date,
         )
 
     def save_edited_job(self, organization_job):

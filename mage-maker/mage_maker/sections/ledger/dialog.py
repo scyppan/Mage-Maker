@@ -266,6 +266,11 @@ class LedgerEntryDialog(tk.Toplevel):
             date_controls,
             background=SURFACE,
             wraplength=440,
+            date_variables=(
+                self.year_value,
+                self.month_value,
+                self.day_value,
+            ),
         )
         calendar_notice.grid(
             row=1,

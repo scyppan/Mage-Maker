@@ -472,6 +472,11 @@ class PersonForm(tk.Frame):
             birth_frame,
             background=SURFACE_MUTED,
             wraplength=620,
+            date_variables=(
+                self.variables["birth_year"],
+                self.variables["birth_month"],
+                self.variables["birth_day"],
+            ),
         )
         calendar_notice.grid(
             row=2,
@@ -796,8 +801,14 @@ class PersonForm(tk.Frame):
         self.pages["ledger"] = page
 
     def build_relationships_page(self):
-        page = RelationshipsView(self.content)
+        page = RelationshipsView(
+            self.content,
+            people_provider=self.people_provider,
+            event_controller=self.event_controller,
+            navigate_command=self.family_tree.navigate_command,
+        )
         page.grid(row=0, column=0, sticky="nsew")
+        self.relationships = page
         self.pages["relationships"] = page
 
     def build_timeline_page(self, navigate_command):
@@ -865,7 +876,7 @@ class PersonForm(tk.Frame):
                 "activebackground": background,
                 "activeforeground": TEXT_DARK,
                 "selectcolor": FIELD_BACKGROUND,
-                "font": app_font(10),
+                "font": app_font(9),
                 "anchor": "w",
                 "borderwidth": 0,
                 "highlightthickness": 0,
@@ -879,8 +890,8 @@ class PersonForm(tk.Frame):
                 row=start_row + (index // column_count),
                 column=index % column_count,
                 sticky="w",
-                padx=(0, 12),
-                pady=4,
+                padx=(0, 4),
+                pady=2,
             )
             self.boolean_widgets[field_name] = checkbutton
 
@@ -1143,6 +1154,9 @@ class PersonForm(tk.Frame):
 
         if page_name == "timeline":
             self.ensure_timeline_loaded()
+
+        if page_name == "relationships":
+            self.relationships.set_person(self.person_snapshot)
 
         if page_name == "jobs":
             self.ensure_jobs_loaded()
@@ -1780,6 +1794,9 @@ class PersonForm(tk.Frame):
         self.update_does_not_have_children_control()
         self.update_famous_connections()
 
+        if self.active_page_name == "relationships":
+            self.relationships.set_person(self.person_snapshot)
+
         if not self.loading:
             self.change_command()
 
@@ -1907,6 +1924,9 @@ class PersonForm(tk.Frame):
             self.timeline.set_linked_events(
                 self.linked_events_snapshot
             )
+
+        if self.active_page_name == "relationships":
+            self.relationships.set_person(self.person_snapshot)
 
         if self.variables["non_magical"].get():
             self.person_snapshot["development_plan"] = (

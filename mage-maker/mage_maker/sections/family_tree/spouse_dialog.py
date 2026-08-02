@@ -296,6 +296,18 @@ class SpousePickerDialog(tk.Toplevel):
             panel,
             background=SURFACE_MUTED,
             wraplength=500,
+            date_variables=(
+                (
+                    self.marriage_year_value,
+                    self.marriage_month_value,
+                    self.marriage_day_value,
+                ),
+                (
+                    self.divorce_year_value,
+                    self.divorce_month_value,
+                    self.divorce_day_value,
+                ),
+            ),
         )
         calendar_notice.grid(
             row=5,
@@ -614,6 +626,11 @@ class NewSpousePersonDialog(tk.Toplevel):
             birth_frame,
             background=SURFACE,
             wraplength=480,
+            date_variables=(
+                self.birth_year_value,
+                self.birth_month_value,
+                self.birth_day_value,
+            ),
         )
         calendar_notice.grid(
             row=1,

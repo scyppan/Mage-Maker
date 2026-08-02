@@ -1056,6 +1056,7 @@ class FamilyTreeView(tk.Frame):
                 ),
             }
         )
+        self.reload_people(redraw=False)
         self.set_parent(parent_role, created_person["record_id"])
         return created_person
 

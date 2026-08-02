@@ -17,6 +17,9 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
+from mage_maker.sections.development.organization_dialogs import (
+    OrganizationSelectionDialog,
+)
 from mage_maker.ui.theme import (
     BORDER_SOFT,
     FIELD_BACKGROUND,
@@ -88,6 +91,7 @@ class EventAssociationPicker(tk.Frame):
         self.locked_order = []
         self.is_enabled = True
         self.single_selection = False
+        self.foundation_only = False
         self.include_recent = True
         self.change_command = None
         self.result_heading_value = tk.StringVar(value="Recently viewed")
@@ -99,12 +103,16 @@ class EventAssociationPicker(tk.Frame):
         heading_row = tk.Frame(self, bg=self.background)
         heading_row.grid(row=0, column=0, sticky="ew", pady=(0, 2))
         heading_row.grid_columnconfigure(0, weight=1)
+        heading_labels = {
+            "people": "People",
+            "locations": "Locations",
+            "organizations": "Organizations",
+        }
         heading = tk.Label(
             heading_row,
-            text=(
-                "People"
-                if self.association_kind == "people"
-                else "Locations"
+            text=heading_labels.get(
+                self.association_kind,
+                "Records",
             ),
             bg=self.background,
             fg=TEXT_DARK,
@@ -164,12 +172,16 @@ class EventAssociationPicker(tk.Frame):
         scrollbar = tk.Scrollbar(list_frame, command=self.listbox.yview)
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.listbox.configure(yscrollcommand=scrollbar.set)
+        select_button_labels = {
+            "people": "Select another person",
+            "locations": "Select another location",
+            "organizations": "Select an organization",
+        }
         self.select_button = SoftButton(
             self,
-            text=(
-                "Select another person"
-                if self.association_kind == "people"
-                else "Select another location"
+            text=select_button_labels.get(
+                self.association_kind,
+                "Select a record",
             ),
             command=self.open_selector,
             background=self.background,
@@ -217,14 +229,25 @@ class EventAssociationPicker(tk.Frame):
     def refresh_options(self):
         if self.association_kind == "people":
             self.options = self.controller.people_options()
+        elif self.association_kind == "organizations":
+            self.options = self.controller.organization_options()
         else:
-            self.options = self.controller.location_options()
+            if getattr(self, "foundation_only", False):
+                self.options = self.controller.location_options(
+                    available_for_founding=True,
+                    include_ids=self.selected_ids,
+                )
+            else:
+                self.options = self.controller.location_options()
 
         self.refresh_results()
 
     def recent_options(self, limit=12):
         if self.association_kind == "people":
             return self.controller.recent_people_options(limit=limit)
+
+        if self.association_kind == "organizations":
+            return []
 
         return self.controller.recent_location_options(limit=limit)
 
@@ -410,10 +433,18 @@ class EventAssociationPicker(tk.Frame):
                     else []
                 ),
             )
-        else:
+        elif self.association_kind == "locations":
+            location_records = (
+                self.controller.location_records(
+                    available_for_founding=True,
+                    include_ids=self.selected_ids,
+                )
+                if getattr(self, "foundation_only", False)
+                else self.controller.location_records()
+            )
             EventLocationPickerDialog(
                 self,
-                self.controller.location_records(),
+                location_records,
                 selected_id,
                 self.selector_chosen,
                 create_location_command=getattr(
@@ -421,6 +452,12 @@ class EventAssociationPicker(tk.Frame):
                     "create_placeholder_location",
                     None,
                 ),
+            )
+        else:
+            OrganizationSelectionDialog(
+                self,
+                self.controller.organization_records(),
+                self.organization_selector_chosen,
             )
 
         return True
@@ -433,8 +470,16 @@ class EventAssociationPicker(tk.Frame):
 
         if self.association_kind == "people":
             self.options = self.controller.people_options()
+        elif self.association_kind == "organizations":
+            self.options = self.controller.organization_options()
         else:
-            self.options = self.controller.location_options()
+            if getattr(self, "foundation_only", False):
+                self.options = self.controller.location_options(
+                    available_for_founding=True,
+                    include_ids=(*self.selected_ids, normalized_id),
+                )
+            else:
+                self.options = self.controller.location_options()
 
         if self.single_selection:
             self.selected_ids = [
@@ -462,6 +507,14 @@ class EventAssociationPicker(tk.Frame):
             self.change_command()
 
         return True
+
+    def organization_selector_chosen(self, organization):
+        if not isinstance(organization, dict):
+            return False
+
+        return self.selector_chosen(
+            organization.get("record_id", "")
+        )
 
     def set_enabled(self, enabled):
         self.is_enabled = bool(enabled)
@@ -707,6 +760,11 @@ class EventEditor(tk.Frame):
             date_panel,
             background=self.background,
             wraplength=560,
+            date_variables=(
+                self.year_value,
+                self.month_value,
+                self.day_value,
+            ),
         )
         calendar_notice.grid(
             row=1,
@@ -927,6 +985,18 @@ class EventEditor(tk.Frame):
             sticky="ew",
             padx=(4, 0),
         )
+        self.organizations_picker = EventAssociationPicker(
+            self.association_panel,
+            self.controller,
+            "organizations",
+            background=self.background,
+        )
+        self.organizations_picker.single_selection = True
+        self.organizations_picker.include_recent = False
+        self.organizations_picker.change_command = (
+            self.organization_selection_changed
+        )
+        self.organizations_picker.grid_remove()
         self.eminence_picker = EventEminencePicker(
             self.form,
             self.controller,
@@ -1046,6 +1116,7 @@ class EventEditor(tk.Frame):
         self.generated_founding_title = ""
         self.people_picker.include_recent = True
         self.locations_picker.single_selection = False
+        self.locations_picker.foundation_only = False
         self.set_year_bounds()
         self.heading_value.set("Event details")
         self.explanation_value.set(message)
@@ -1068,6 +1139,8 @@ class EventEditor(tk.Frame):
             self.eminence_picker.set_values((), (), {}, "")
 
         self.locations_picker.set_values(())
+        if hasattr(self, "organizations_picker"):
+            self.organizations_picker.set_values(())
         self.show_locations(True)
         self.set_controls_enabled(False)
         self.clear_feedback()
@@ -1099,6 +1172,7 @@ class EventEditor(tk.Frame):
         self.generated_job_event_title = ""
         self.people_picker.include_recent = True
         self.locations_picker.single_selection = False
+        self.locations_picker.foundation_only = False
         self.set_year_bounds(minimum_year, maximum_year)
         self.heading_value.set("New event")
         self.explanation_value.set(
@@ -1132,6 +1206,8 @@ class EventEditor(tk.Frame):
             default_location_ids,
             locked_location_ids,
         )
+        if hasattr(self, "organizations_picker"):
+            self.organizations_picker.set_values(())
         self.show_locations(not hide_locations)
         self.set_controls_enabled(True)
         self.clear_feedback()
@@ -1202,8 +1278,11 @@ class EventEditor(tk.Frame):
         self.set_year_bounds(minimum_year, maximum_year)
         self.lock_type = bool(
             self.event.get("automatic_source")
+            or self.event.get("organization_event")
         )
-        self.lock_title = bool(lock_title)
+        self.lock_title = bool(
+            lock_title or self.event.get("organization_event")
+        )
         self.lock_date = bool(lock_date)
         self.lock_people = bool(lock_people)
         self.title_from_location = bool(title_from_location)
@@ -1211,6 +1290,9 @@ class EventEditor(tk.Frame):
         self.generated_founding_title = ""
         self.people_picker.include_recent = not self.lock_people
         self.locations_picker.single_selection = bool(single_location)
+        self.locations_picker.foundation_only = (
+            self.event.get("event_type") == "founding"
+        )
         self.heading_value.set(
             "Event details" if self.read_only else "Edit event"
         )
@@ -1270,6 +1352,20 @@ class EventEditor(tk.Frame):
             list(stored_locked_location_ids or ())
             + list(locked_location_ids or ()),
         )
+        organization_id = str(
+            self.event.get("organization_id", "") or ""
+        ).strip()
+        if hasattr(self, "organizations_picker"):
+            self.organizations_picker.set_values(
+                (organization_id,) if organization_id else (),
+                (
+                    (organization_id,)
+                    if organization_id
+                    and self.event.get("organization_event")
+                    else ()
+                ),
+            )
+            self.organization_selection_changed()
         self.location_selection_changed()
         self.show_locations(not hide_locations)
         self.set_controls_enabled(not self.read_only)
@@ -1469,31 +1565,51 @@ class EventEditor(tk.Frame):
     def show_locations(self, visible):
         self.hide_locations = not bool(visible)
 
-        if self.hide_locations:
-            self.locations_picker.grid_remove()
-            self.people_picker.grid(
+        self.update_association_layout()
+        self.form.after_idle(self.form_resized)
+
+    def update_association_layout(self):
+        event_type = event_type_from_label(
+            self.event_type_value.get(),
+            "other",
+        )
+        self.people_picker.grid_remove()
+        self.locations_picker.grid_remove()
+        if hasattr(self, "organizations_picker"):
+            self.organizations_picker.grid_remove()
+
+        self.people_picker.grid(
+            row=0,
+            column=0,
+            columnspan=(
+                1
+                if event_type == "organization_founding"
+                or not self.hide_locations
+                else 2
+            ),
+            sticky="ew",
+            padx=(0, 4) if not self.hide_locations else 0,
+        )
+
+        if (
+            event_type == "organization_founding"
+            and hasattr(self, "organizations_picker")
+        ):
+            self.organizations_picker.grid(
                 row=0,
-                column=0,
-                columnspan=2,
+                column=1,
                 sticky="ew",
-                padx=0,
+                padx=(4, 0),
             )
-        else:
-            self.people_picker.grid(
-                row=0,
-                column=0,
-                columnspan=1,
-                sticky="ew",
-                padx=(0, 4),
-            )
+            return
+
+        if not self.hide_locations:
             self.locations_picker.grid(
                 row=0,
                 column=1,
                 sticky="ew",
                 padx=(4, 0),
             )
-
-        self.form.after_idle(self.form_resized)
 
     def set_controls_enabled(self, enabled):
         editable = bool(enabled)
@@ -1523,6 +1639,11 @@ class EventEditor(tk.Frame):
             self.eminence_picker.set_enabled(editable)
 
         self.locations_picker.set_enabled(editable)
+        if hasattr(self, "organizations_picker"):
+            self.organizations_picker.set_enabled(
+                editable
+                and not bool(self.event.get("organization_event"))
+            )
         if hasattr(self, "job_event_picker"):
             self.job_event_picker.set_enabled(editable)
 
@@ -1574,17 +1695,52 @@ class EventEditor(tk.Frame):
             )
             return
 
-    def event_type_changed(self, *arguments):
-        self.update_job_event_panel()
-
+    def organization_selection_changed(self):
         if (
             event_type_from_label(
                 self.event_type_value.get(),
                 "other",
             )
-            == "founding"
+            == "organization_founding"
         ):
+            self.apply_organization_founding_title()
+
+    def event_type_changed(self, *arguments):
+        self.update_job_event_panel()
+        selected_type = event_type_from_label(
+            self.event_type_value.get(),
+            "other",
+        )
+        self.locations_picker.single_selection = (
+            selected_type == "founding"
+        )
+        self.locations_picker.foundation_only = (
+            selected_type == "founding"
+        )
+
+        if (
+            selected_type == "founding"
+            and len(self.locations_picker.get_values()) > 1
+        ):
+            retained_location_ids = (
+                self.locations_picker.locked_order[:1]
+                or self.locations_picker.get_values()[-1:]
+            )
+            self.locations_picker.set_values(
+                retained_location_ids,
+                self.locations_picker.locked_order[:1],
+            )
+
+        if hasattr(self.locations_picker, "refresh_options"):
+            self.locations_picker.refresh_options()
+        self.update_association_layout()
+
+        if selected_type == "founding":
             self.apply_founding_title()
+            return
+
+        if selected_type == "organization_founding":
+            self.apply_organization_founding_title()
             return
 
         if (
@@ -1652,6 +1808,56 @@ class EventEditor(tk.Frame):
                 and not self.lock_title
                 and not self.founding_title_locked
             )
+
+    def apply_organization_founding_title(self):
+        if not hasattr(self, "organizations_picker"):
+            return
+
+        organization_ids = (
+            self.organizations_picker.get_values()
+            if hasattr(self, "organizations_picker")
+            else []
+        )
+        selected_id = organization_ids[0] if organization_ids else ""
+        selected_organization = next(
+            (
+                organization
+                for organization in self.controller.organization_records()
+                if str(
+                    organization.get("record_id", "") or ""
+                ).strip()
+                == selected_id
+            ),
+            None,
+        )
+        organization_name = str(
+            (selected_organization or {}).get("name", "") or ""
+        ).strip()
+        generated_title = (
+            f"Founding of {organization_name}"
+            if organization_name
+            else ""
+        )
+        previous_generated_title = self.generated_founding_title
+
+        if (
+            not generated_title
+            and previous_generated_title
+            and self.title_value.get() == previous_generated_title
+        ):
+            self.title_value.set("")
+
+        self.generated_founding_title = generated_title
+        self.founding_title_locked = bool(generated_title)
+
+        if generated_title:
+            self.title_value.set(generated_title)
+
+        self.title_field.control.set_enabled(
+            self.controls_enabled
+            and not self.lock_title
+            and not self.founding_title_locked
+        )
 
     def update_period_display(self, *arguments):
         if getattr(self, "adjusting_year", False):
@@ -1746,6 +1952,36 @@ class EventEditor(tk.Frame):
             "other",
         )
         job_option = self.selected_job_event_option()
+        organization_ids = (
+            self.organizations_picker.get_values()
+            if hasattr(self, "organizations_picker")
+            else []
+        )
+        selected_organization_id = (
+            organization_ids[0] if organization_ids else ""
+        )
+        organization_records_command = getattr(
+            self.controller,
+            "organization_records",
+            None,
+        )
+        organization_records = (
+            organization_records_command()
+            if selected_organization_id
+            and callable(organization_records_command)
+            else []
+        )
+        selected_organization = next(
+            (
+                organization
+                for organization in organization_records
+                if str(
+                    organization.get("record_id", "") or ""
+                ).strip()
+                == selected_organization_id
+            ),
+            None,
+        )
         return {
             "event_type": event_type,
             "title": self.title_value.get(),
@@ -1766,19 +2002,40 @@ class EventEditor(tk.Frame):
                 else self.event.get("eminence_skills", {})
             ),
             "period_names": [],
-            "location_ids": list(
-                dict.fromkeys(selected_locations + locked_locations)
+            "location_ids": (
+                []
+                if event_type == "organization_founding"
+                else list(
+                    dict.fromkeys(
+                        selected_locations + locked_locations
+                    )
+                )
             ),
-            "locked_location_ids": locked_locations,
+            "locked_location_ids": (
+                []
+                if event_type == "organization_founding"
+                else locked_locations
+            ),
             "organization_id": (
-                str(job_option.get("organization_id", "") or "")
-                if job_option is not None
-                else ""
+                selected_organization_id
+                if event_type == "organization_founding"
+                else (
+                    str(job_option.get("organization_id", "") or "")
+                    if job_option is not None
+                    else ""
+                )
             ),
             "organization_name": (
-                str(job_option.get("organization_name", "") or "")
-                if job_option is not None
-                else ""
+                str(
+                    (selected_organization or {}).get("name", "")
+                    or ""
+                )
+                if event_type == "organization_founding"
+                else (
+                    str(job_option.get("organization_name", "") or "")
+                    if job_option is not None
+                    else ""
+                )
             ),
             "organization_job_id": (
                 str(
@@ -1848,6 +2105,24 @@ class EventEditor(tk.Frame):
         ):
             self.show_error(
                 "Select exactly one location for a founding event."
+            )
+            return False
+
+        if (
+            values["event_type"] == "organization_founding"
+            and not values["organization_id"]
+        ):
+            self.show_error(
+                "Select exactly one organization for its founding event."
+            )
+            return False
+
+        if (
+            values["event_type"] == "began_friendship"
+            and len(values["person_ids"]) < 2
+        ):
+            self.show_error(
+                "A friendship event needs at least two people."
             )
             return False
 

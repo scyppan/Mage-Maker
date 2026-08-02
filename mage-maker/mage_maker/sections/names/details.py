@@ -666,6 +666,11 @@ class NameEntryDialog(tk.Toplevel):
             date_frame,
             background=SURFACE,
             wraplength=520,
+            date_variables=(
+                self.values["date_year"],
+                self.values["date_month"],
+                self.values["date_day"],
+            ),
         )
         calendar_notice.grid(
             row=2,
