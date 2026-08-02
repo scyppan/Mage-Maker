@@ -543,6 +543,9 @@ class MagesPage(tk.Frame):
         self.update_editor_identity(person)
 
     def confirm_unsaved_changes(self):
+        if not self.person_form.confirm_unsaved_event_changes():
+            return False
+
         if not self.form_dirty:
             return True
 

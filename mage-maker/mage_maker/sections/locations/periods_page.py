@@ -4,6 +4,7 @@ from copy import deepcopy
 from functools import partial
 from tkinter import messagebox
 
+from mage_maker.core.dates import format_historical_display_date
 from mage_maker.sections.events.period_view import (
     PeriodEventsView as UnifiedPeriodEventsView,
 )
@@ -1243,7 +1244,9 @@ class LegacyPeriodEventsView(tk.Frame):
         self.title_value.set(f"Events ({len(self.events)})")
 
         for index, event in enumerate(self.events):
-            date_text = str(event.get("date", "") or "nd.")
+            date_text = format_historical_display_date(
+                event.get("date")
+            )
             event_type = self.event_type_text(event)
             title = str(event.get("title", "") or "Event")
             self.listbox.insert(
@@ -1308,7 +1311,8 @@ class LegacyPeriodEventsView(tk.Frame):
                 f"{event.get('title', 'Event')}"
             )
             self.date_value.set(
-                f"Date: {event.get('date') or 'nd.'}"
+                "Date: "
+                + format_historical_display_date(event.get("date"))
             )
             self.people_value.set(
                 ", ".join(labels.get("people", [])) or "None"

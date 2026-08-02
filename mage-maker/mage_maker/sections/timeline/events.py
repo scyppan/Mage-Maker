@@ -321,9 +321,9 @@ def automatic_death_timeline_event(person, existing_event=None):
         event.get("event_id") or DEATH_DATE_EVENT_ID
     )
     event["event_type"] = "died"
-    event["detail"] = ""
+    event["detail"] = str(event.get("detail", "") or "").strip()
     event["date"] = death_date
-    event["note"] = ""
+    event["note"] = str(event.get("note", "") or "").strip()
     event["related_person_id"] = ""
     event["automatic_source"] = DEATH_DATE_EVENT_SOURCE
     return normalize_timeline_event(event)
@@ -424,16 +424,27 @@ def synchronize_profile_timeline_events(person, timeline_events=None):
     )
     automatic_events = {}
     retained_events = []
+    has_profile_death_date = bool(
+        person_death_timeline_date(person_values)
+    )
 
     for event in source_events:
         automatic_source = str(
             event.get("automatic_source", "") or ""
         ).strip()
 
-        if automatic_source in (
-            DEATH_DATE_EVENT_SOURCE,
-            SCHOOL_START_EVENT_SOURCE,
+        if automatic_source == DEATH_DATE_EVENT_SOURCE:
+            automatic_events.setdefault(automatic_source, event)
+            continue
+
+        if (
+            has_profile_death_date
+            and event.get("event_type") == "died"
         ):
+            automatic_events.setdefault(DEATH_DATE_EVENT_SOURCE, event)
+            continue
+
+        if automatic_source == SCHOOL_START_EVENT_SOURCE:
             automatic_events.setdefault(automatic_source, event)
             continue
 

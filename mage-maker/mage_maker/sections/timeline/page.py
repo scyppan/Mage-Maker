@@ -1,7 +1,16 @@
 import tkinter as tk
 from copy import deepcopy
+from tkinter import messagebox
 
+from mage_maker.core.dates import (
+    format_historical_display_date,
+    historical_year_shift,
+)
 from mage_maker.core.wizarding_currency import format_monthly_salary
+from mage_maker.sections.development.models import (
+    ACADEMIC_YEARS_TO_ADULTHOOD,
+    calculate_school_start_year,
+)
 from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
@@ -56,61 +65,11 @@ LIFE_START_PRIORITIES = {
     "born": 1,
     "birth_name": 2,
 }
-MONTH_ABBREVIATIONS = (
-    "",
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-)
+TIMELINE_SECTION_DASHES = "-" * 32
 
 
 def format_timeline_date(value):
-    date_text = str(value or "").strip()
-
-    if not date_text:
-        return "nd."
-
-    negative = date_text.startswith("-")
-    body = date_text[1:] if negative else date_text
-    parts = body.split("-")
-
-    try:
-        year = int(parts[0])
-    except (IndexError, TypeError, ValueError):
-        return date_text
-
-    if negative:
-        year = -year
-
-    if len(parts) == 1:
-        return str(year)
-
-    try:
-        month = int(parts[1])
-    except (IndexError, TypeError, ValueError):
-        return date_text
-
-    if not 1 <= month <= 12:
-        return date_text
-
-    if len(parts) == 2:
-        return f"{MONTH_ABBREVIATIONS[month]} {year}"
-
-    try:
-        day = int(parts[2])
-    except (IndexError, TypeError, ValueError):
-        return date_text
-
-    return f"{day} {MONTH_ABBREVIATIONS[month]} {year}"
+    return format_historical_display_date(value)
 
 
 class TimelineView(tk.Frame):
@@ -142,6 +101,7 @@ class TimelineView(tk.Frame):
         self.events = []
         self.linked_events = []
         self.visible_events = []
+        self.list_rows = []
         self.draft_event = None
         self.selected_event_id = None
         self.event_editor_visible = False
@@ -409,6 +369,113 @@ class TimelineView(tk.Frame):
 
         return str(self.person_id_provider() or "").strip()
 
+    def current_person(self):
+        person_id = self.current_person_id()
+        people_provider = getattr(self, "people_provider", None)
+
+        if not person_id or people_provider is None:
+            return {}
+
+        return next(
+            (
+                person
+                for person in people_provider()
+                if isinstance(person, dict)
+                and str(person.get("record_id", "") or "").strip()
+                == person_id
+            ),
+            {},
+        )
+
+    def timeline_section_boundaries(self):
+        person = self.current_person()
+        school_name = str(person.get("school", "") or "").strip()
+        attends_school = bool(
+            school_name and not bool(person.get("non_magical"))
+        )
+        birth_year = person.get("birth_year")
+        birth_month = person.get("birth_month")
+        birth_day = person.get("birth_day")
+
+        if attends_school:
+            school_start_year = calculate_school_start_year(
+                birth_year,
+                birth_month,
+                birth_day,
+            )
+
+            if school_start_year is None:
+                return attends_school, None, None
+
+            school_start_key = (school_start_year, 9, 1)
+            actual_school_starts = [
+                self.event_date_parts(event.get("date"))
+                for event in [*self.events, *self.linked_events]
+                if str(event.get("event_type", "") or "")
+                == "started_school"
+                and self.event_date_parts(event.get("date"))[0] < 10000
+            ]
+
+            if actual_school_starts:
+                school_start_key = min(actual_school_starts)
+
+            try:
+                adulthood_year = historical_year_shift(
+                    school_start_year,
+                    ACADEMIC_YEARS_TO_ADULTHOOD,
+                )
+            except (TypeError, ValueError):
+                adulthood_year = None
+
+            adulthood_key = (
+                (adulthood_year, 9, 1)
+                if adulthood_year is not None
+                else None
+            )
+            return True, school_start_key, adulthood_key
+
+        try:
+            adulthood_year = historical_year_shift(birth_year, 18)
+        except (TypeError, ValueError):
+            adulthood_year = None
+
+        adulthood_key = (
+            (
+                adulthood_year,
+                int(birth_month or 1),
+                int(birth_day or 1),
+            )
+            if adulthood_year is not None
+            else None
+        )
+        return False, None, adulthood_key
+
+    def timeline_section_name(
+        self,
+        event,
+        attends_school,
+        school_start_key,
+        adulthood_key,
+    ):
+        event_key = self.event_date_parts(event.get("date"))
+
+        if event_key[0] >= 10000:
+            return "childhood"
+
+        if attends_school:
+            if school_start_key is None or event_key < school_start_key:
+                return "childhood"
+
+            if adulthood_key is None or event_key < adulthood_key:
+                return "school"
+
+            return "adulthood"
+
+        if adulthood_key is not None and event_key >= adulthood_key:
+            return "adulthood"
+
+        return "childhood"
+
     def set_events(self, events):
         self.loading = True
 
@@ -468,6 +535,22 @@ class TimelineView(tk.Frame):
         self.filter_events()
 
     def filter_events(self, *arguments):
+        unsaved_changes_command = getattr(
+            getattr(self, "event_editor", None),
+            "has_unsaved_changes",
+            None,
+        )
+        preserve_unsaved_editor = bool(
+            callable(unsaved_changes_command)
+            and unsaved_changes_command()
+            and not bool(
+                getattr(
+                    getattr(self, "event_editor", None),
+                    "saving",
+                    False,
+                )
+            )
+        )
         query = self.search_value.get().strip().casefold()
         candidate_events = [deepcopy(event) for event in self.events]
 
@@ -501,38 +584,104 @@ class TimelineView(tk.Frame):
 
         self.visible_events.sort(key=self.display_event_sort_key)
         self.listbox.delete(0, "end")
+        self.list_rows = []
+        draft_events = [
+            event
+            for event in self.visible_events
+            if event.get("_draft_event")
+        ]
+        dated_events = [
+            event
+            for event in self.visible_events
+            if not event.get("_draft_event")
+        ]
 
-        for index, event in enumerate(self.visible_events):
-            if event.get("_draft_event"):
-                self.listbox.insert("end", "New event (unsaved)")
-            else:
+        for draft_event in draft_events:
+            row_index = len(self.list_rows)
+            self.list_rows.append(draft_event)
+            self.listbox.insert("end", "New event (unsaved)")
+            self.listbox.itemconfigure(
+                row_index,
+                background=PRIMARY_SOFT,
+            )
+
+            if draft_event.get("event_id") == self.selected_event_id:
+                self.listbox.selection_set(row_index)
+                self.listbox.see(row_index)
+
+        if not dated_events:
+            if not preserve_unsaved_editor:
+                self.refresh_editor()
+            self.update_button_state()
+            return
+
+        attends_school, school_start_key, adulthood_key = (
+            self.timeline_section_boundaries()
+        )
+        section_definitions = [
+            ("childhood", "Childhood"),
+        ]
+
+        if attends_school:
+            section_definitions.append(("school", "School"))
+
+        section_definitions.append(("adulthood", "Adulthood"))
+
+        for section_name, section_label in section_definitions:
+            header_index = len(self.list_rows)
+            self.list_rows.append(None)
+            self.listbox.insert(
+                "end",
+                (
+                    f"{TIMELINE_SECTION_DASHES} {section_label} "
+                    f"{TIMELINE_SECTION_DASHES}"
+                ),
+            )
+            self.listbox.itemconfigure(
+                header_index,
+                background=PRIMARY_SOFT,
+                foreground=TEXT_DARK,
+                selectbackground=PRIMARY_SOFT,
+                selectforeground=TEXT_DARK,
+            )
+
+            for event in dated_events:
+                if (
+                    self.timeline_section_name(
+                        event,
+                        attends_school,
+                        school_start_key,
+                        adulthood_key,
+                    )
+                    != section_name
+                ):
+                    continue
+
+                row_index = len(self.list_rows)
+                self.list_rows.append(event)
                 event_date = format_timeline_date(event.get("date"))
                 self.listbox.insert(
                     "end",
                     f"{event_date}: {self.event_summary_text(event)}",
                 )
-
-            self.listbox.itemconfigure(
-                index,
-                background=(
-                    PRIMARY_SOFT
-                    if event.get("_draft_event")
-                    else (
+                self.listbox.itemconfigure(
+                    row_index,
+                    background=(
                         LIST_ALTERNATE
                         if event.get("_stored_event")
                         else EVENT_COLORS.get(
                             event.get("event_type"),
                             FIELD_BACKGROUND,
                         )
-                    )
-                ),
-            )
+                    ),
+                )
 
-            if event.get("event_id") == self.selected_event_id:
-                self.listbox.selection_set(index)
-                self.listbox.see(index)
+                if event.get("event_id") == self.selected_event_id:
+                    self.listbox.selection_set(row_index)
+                    self.listbox.see(row_index)
 
-        self.refresh_editor()
+        if not preserve_unsaved_editor:
+            self.refresh_editor()
         self.update_button_state()
 
     def event_summary_text(self, event):
@@ -618,12 +767,85 @@ class TimelineView(tk.Frame):
         if not selected_indexes:
             return
 
-        self.selected_event_id = self.visible_events[
-            selected_indexes[0]
-        ]["event_id"]
+        list_rows = getattr(self, "list_rows", self.visible_events)
+        selected_index = selected_indexes[0]
+        requested_event = (
+            list_rows[selected_index]
+            if selected_index < len(list_rows)
+            else None
+        )
+        requested_event_id = (
+            str(requested_event.get("event_id", "") or "")
+            if isinstance(requested_event, dict)
+            else ""
+        )
+
+        if (
+            requested_event_id != str(self.selected_event_id or "")
+            and not self.confirm_unsaved_event_changes()
+        ):
+            self.restore_selected_event_row()
+            return "break"
+
+        if requested_event is None:
+            self.selected_event_id = None
+            self.listbox.selection_clear(0, "end")
+            self.refresh_editor()
+            self.update_button_state()
+            return
+
+        self.selected_event_id = requested_event_id
         self.reset_remove_confirmation()
         self.refresh_editor()
         self.update_button_state()
+
+    def restore_selected_event_row(self):
+        self.listbox.selection_clear(0, "end")
+
+        for index, row in enumerate(
+            getattr(self, "list_rows", self.visible_events)
+        ):
+            if not isinstance(row, dict):
+                continue
+
+            if str(row.get("event_id", "") or "") != str(
+                self.selected_event_id or ""
+            ):
+                continue
+
+            self.listbox.selection_set(index)
+            self.listbox.see(index)
+            return True
+
+        return False
+
+    def confirm_unsaved_event_changes(self):
+        unsaved_changes_command = getattr(
+            getattr(self, "event_editor", None),
+            "has_unsaved_changes",
+            None,
+        )
+
+        if (
+            not callable(unsaved_changes_command)
+            or not unsaved_changes_command()
+        ):
+            return True
+
+        save_choice = messagebox.askyesnocancel(
+            "Unsaved event changes",
+            "Save this event before continuing?",
+            parent=self,
+        )
+
+        if save_choice is None:
+            return False
+
+        if save_choice:
+            return self.event_editor.save()
+
+        self.event_editor.cancel()
+        return True
 
     def selected_event(self):
         for event in self.visible_events:
@@ -632,11 +854,14 @@ class TimelineView(tk.Frame):
 
         selected_indexes = self.listbox.curselection()
 
-        if (
-            selected_indexes
-            and selected_indexes[0] < len(self.visible_events)
-        ):
-            selected_event = self.visible_events[selected_indexes[0]]
+        list_rows = getattr(self, "list_rows", self.visible_events)
+
+        if selected_indexes and selected_indexes[0] < len(list_rows):
+            selected_event = list_rows[selected_indexes[0]]
+
+            if selected_event is None:
+                return None
+
             self.selected_event_id = selected_event.get("event_id")
             return selected_event
 
@@ -799,6 +1024,24 @@ class TimelineView(tk.Frame):
             )
             return
 
+        if automatic_source == "death_date":
+            self.event_editor.load_event(
+                selected_event,
+                storage_kind="timeline",
+                context="person",
+                person_ids=(person_id,),
+                locked_person_ids=(person_id,),
+                read_only=False,
+                explanation=(
+                    "The death date is synchronized from Profile. "
+                    "The title and description remain editable."
+                ),
+                lock_date=True,
+                lock_people=True,
+                title_and_description_only=True,
+            )
+            return
+
         read_only = bool(automatic_source)
         explanation = ""
 
@@ -832,6 +1075,9 @@ class TimelineView(tk.Frame):
             )
             return
 
+        if not self.confirm_unsaved_event_changes():
+            return
+
         self.draft_event = {
             "event_id": NEW_EVENT_DRAFT_ID,
             "event_type": "custom",
@@ -860,7 +1106,10 @@ class TimelineView(tk.Frame):
             self.event_editor.ensure_new_event_editable()
             return
 
-        if selected_event.get("automatic_source"):
+        if (
+            selected_event.get("automatic_source")
+            and selected_event.get("automatic_source") != "death_date"
+        ):
             return
 
         self.refresh_editor()
@@ -971,6 +1220,24 @@ class TimelineView(tk.Frame):
 
     def save_event(self, event):
         normalized_event = normalize_timeline_event(event)
+
+        if normalized_event.get("event_type") == "died":
+            existing_death_event = next(
+                (
+                    existing_event
+                    for existing_event in self.events
+                    if existing_event.get("event_id")
+                    != normalized_event["event_id"]
+                    and existing_event.get("event_type") == "died"
+                ),
+                None,
+            )
+
+            if existing_death_event is not None:
+                raise ValueError(
+                    "This person already has a Death event."
+                )
+
         replacement_index = None
 
         for index, existing_event in enumerate(self.events):

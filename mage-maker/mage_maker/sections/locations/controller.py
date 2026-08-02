@@ -3,6 +3,7 @@ from copy import deepcopy
 from mage_maker.sections.locations.models import (
     descendant_ids,
     founding_event_title,
+    location_extinction_event_state,
     location_foundation_event_state,
     location_events_for_period,
     location_depth,
@@ -67,6 +68,7 @@ class LocationController:
         self.people_provider = people_provider
         self._locations_cache = None
         self._foundation_state_cache = {}
+        self._extinction_state_cache = {}
         self._timeline_cache = {}
         self._distinctions_cache = {}
         self._mage_locations_synchronized = False
@@ -74,6 +76,7 @@ class LocationController:
     def invalidate_caches(self, include_people_sync=False):
         self._locations_cache = None
         self._foundation_state_cache = {}
+        self._extinction_state_cache = {}
         self._timeline_cache = {}
         self._distinctions_cache = {}
 
@@ -114,12 +117,33 @@ class LocationController:
             self._foundation_state_cache[record_id] = deepcopy(
                 foundation_state
             )
+            extinction_state = location_extinction_event_state(
+                location,
+                world_events_by_location_id.get(record_id, []),
+            )
+            self._extinction_state_cache[record_id] = deepcopy(
+                extinction_state
+            )
             decorated_location = deepcopy(location)
             decorated_location["_foundation_event_valid"] = (
                 foundation_state["valid"]
             )
             decorated_location["_foundation_event_id"] = (
                 foundation_state["foundation_event_id"]
+            )
+            decorated_location["extinct"] = bool(
+                extinction_state["exists"]
+            )
+            decorated_location["extinction_year"] = (
+                extinction_state["year"]
+                if extinction_state["exists"]
+                else ""
+            )
+            decorated_location["_extinction_event_id"] = (
+                extinction_state["event_id"]
+            )
+            decorated_location["_extinction_event_date"] = (
+                extinction_state["date"]
             )
             decorated.append(
                 (
@@ -156,6 +180,34 @@ class LocationController:
             self.database.list_records("events"),
         )
         self._foundation_state_cache[selected_id] = deepcopy(state)
+        return state
+
+    def extinction_state_for_location(self, location_id):
+        selected_id = str(location_id or "").strip()
+
+        if selected_id in self._extinction_state_cache:
+            return deepcopy(
+                self._extinction_state_cache[selected_id]
+            )
+
+        location = self.database.read_record(
+            "locations",
+            selected_id,
+        )
+
+        if location is None:
+            return {
+                "exists": False,
+                "event_id": "",
+                "date": "",
+                "year": None,
+            }
+
+        state = location_extinction_event_state(
+            location,
+            self.database.list_records("events"),
+        )
+        self._extinction_state_cache[selected_id] = deepcopy(state)
         return state
 
     def location_distinctions(self, location_id):
@@ -250,10 +302,16 @@ class LocationController:
                 )
                 if isinstance(organization, dict)
                 and bool(organization.get("famous_organization"))
-                and str(
-                    organization.get("location_id", "") or ""
-                ).strip()
-                == selected_id
+                and selected_id
+                in (
+                    str(
+                        organization.get("location_id", "") or ""
+                    ).strip(),
+                    str(
+                        organization.get("campus_location_id", "")
+                        or ""
+                    ).strip(),
+                )
             },
             key=str.casefold,
         )
@@ -297,6 +355,7 @@ class LocationController:
             self.database.save()
             self._locations_cache = None
             self._foundation_state_cache = {}
+            self._extinction_state_cache = {}
             self._timeline_cache = {}
             self._distinctions_cache = {}
 
@@ -306,7 +365,19 @@ class LocationController:
         return decorated_location[0]
 
     def get_location(self, record_id):
-        return self.database.read_record("locations", record_id)
+        location = self.database.read_record("locations", record_id)
+
+        if location is None:
+            return None
+
+        state = self.extinction_state_for_location(record_id)
+        location["extinct"] = bool(state["exists"])
+        location["extinction_year"] = (
+            state["year"] if state["exists"] else ""
+        )
+        location["_extinction_event_id"] = state["event_id"]
+        location["_extinction_event_date"] = state["date"]
+        return location
 
     def organizations_for_location(self, location_id):
         selected_id = str(location_id or "").strip()
@@ -317,6 +388,10 @@ class LocationController:
             )
             if str(
                 organization.get("location_id", "") or ""
+            ).strip()
+            == selected_id
+            or str(
+                organization.get("campus_location_id", "") or ""
             ).strip()
             == selected_id
         ]
@@ -432,12 +507,15 @@ class LocationController:
 
         return recent_ids
 
-    def create_location(self, values):
+    def create_location(self, values, save_database=True):
         normalized = normalize_location_record(values)
         self.validate_location(normalized)
         created = self.database.create_record("locations", normalized)
         self.invalidate_caches()
-        self.database.save()
+
+        if save_database:
+            self.database.save()
+
         return created
 
     def create_placeholder_location(self, place, parent_location_id=""):
@@ -455,8 +533,13 @@ class LocationController:
             }
         )
 
-    def update_location(self, record_id, values):
-        current = self.get_location(record_id)
+    def update_location(
+        self,
+        record_id,
+        values,
+        save_database=True,
+    ):
+        current = self.database.read_record("locations", record_id)
 
         if current is None:
             raise KeyError(f"Unknown location record_id: {record_id}")
@@ -471,7 +554,10 @@ class LocationController:
             prospective,
         )
         self.invalidate_caches()
-        self.database.save()
+
+        if save_database:
+            self.database.save()
+
         return updated
 
     def delete_location(self, record_id):
@@ -489,7 +575,13 @@ class LocationController:
         linked_organizations = [
             organization
             for organization in self.database.list_records("organizations")
-            if str(organization.get("location_id", "") or "") == record_id
+            if record_id
+            in (
+                str(organization.get("location_id", "") or ""),
+                str(
+                    organization.get("campus_location_id", "") or ""
+                ),
+            )
         ]
 
         if linked_organizations:
@@ -560,9 +652,21 @@ class LocationController:
         normalized_event = normalize_location_event(event_values)
         events = list(location.get("timeline_events", []))
         events.append(normalized_event)
+        extinction_state = location_extinction_event_state(
+            {**location, "timeline_events": events},
+            self.database.list_records("events"),
+        )
         updated = self.update_location(
             location_id,
-            {"timeline_events": events},
+            {
+                "timeline_events": events,
+                "extinct": bool(extinction_state["exists"]),
+                "extinction_year": (
+                    extinction_state["year"]
+                    if extinction_state["exists"]
+                    else ""
+                ),
+            },
         )
         return updated, normalized_event
 
@@ -608,9 +712,21 @@ class LocationController:
         if not replaced:
             raise KeyError(f"Unknown location event_id: {event_id}")
 
+        extinction_state = location_extinction_event_state(
+            {**location, "timeline_events": events},
+            self.database.list_records("events"),
+        )
         updated = self.update_location(
             location_id,
-            {"timeline_events": events},
+            {
+                "timeline_events": events,
+                "extinct": bool(extinction_state["exists"]),
+                "extinction_year": (
+                    extinction_state["year"]
+                    if extinction_state["exists"]
+                    else ""
+                ),
+            },
         )
         return updated, normalized_event
 
@@ -629,7 +745,22 @@ class LocationController:
         if len(events) == len(location.get("timeline_events", [])):
             raise KeyError(f"Unknown location event_id: {event_id}")
 
-        return self.update_location(location_id, {"timeline_events": events})
+        extinction_state = location_extinction_event_state(
+            {**location, "timeline_events": events},
+            self.database.list_records("events"),
+        )
+        return self.update_location(
+            location_id,
+            {
+                "timeline_events": events,
+                "extinct": bool(extinction_state["exists"]),
+                "extinction_year": (
+                    extinction_state["year"]
+                    if extinction_state["exists"]
+                    else ""
+                ),
+            },
+        )
 
     def timeline_for(self, location_id):
         selected_id = str(location_id or "").strip()

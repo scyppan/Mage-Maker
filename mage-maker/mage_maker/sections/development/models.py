@@ -1213,17 +1213,9 @@ def normalize_development_plan(value, default_schema=None):
         plan["academic_years_advanced"] = 0
         plan["school_started"] = False
 
-    visible_years = visible_school_year_count(
-        plan["school_started"],
-        plan["academic_years_advanced"],
+    plan["school_years"] = normalize_school_year_records(
+        plan.get("school_years", [])
     )
-    plan["school_years"] = [
-        school_year
-        for school_year in normalize_school_year_records(
-            plan.get("school_years", [])
-        )
-        if school_year["year"] <= visible_years
-    ]
     plan["ledger_entries"] = normalize_ledger_entries(
         plan.get("ledger_entries", [])
     )
@@ -1612,23 +1604,11 @@ def calculate_development_start_year(
     birth_day=None,
     school_attended=True,
 ):
-    if school_attended:
-        return calculate_school_start_year(
-            birth_year,
-            birth_month,
-            birth_day,
-        )
-
-    if birth_year in (None, "") or isinstance(birth_year, bool):
-        return None
-
-    try:
-        return historical_year_shift(
-            int(birth_year),
-            -ACADEMIC_YEARS_TO_ADULTHOOD,
-        )
-    except (TypeError, ValueError):
-        return None
+    return calculate_school_start_year(
+        birth_year,
+        birth_month,
+        birth_day,
+    )
 
 
 def school_year_calendar_year(academic_start_year, school_year):
@@ -1816,11 +1796,9 @@ def development_year_pages(
             "adult_year": None,
             "calendar_year": calendar_year,
             "calendar_end_year": calendar_end_year,
-            "age_range": calendar_year_age_range(
-                calendar_year,
-                birth_year,
-                birth_month,
-                birth_day,
+            "age_range": (
+                school_year + 10,
+                school_year + 11,
             ),
             "school_attended": bool(school_attended),
         }

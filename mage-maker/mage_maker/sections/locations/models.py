@@ -14,6 +14,7 @@ from mage_maker.sections.timeline.locations import location_at_date, normalize_l
 from mage_maker.sections.events.models import (
     normalize_world_event_date,
     normalize_world_events,
+    world_event_year,
 )
 from mage_maker.sections.events.types import (
     canonical_event_type,
@@ -34,6 +35,7 @@ LOCATION_FOUNDATION_EVENT_TYPES = frozenset(
         "wizarding_community_established",
     )
 )
+LOCATION_EXTINCTION_EVENT_TYPE = "extinction"
 
 
 def normalize_location_event(event):
@@ -55,6 +57,12 @@ def normalize_location_event(event):
     normalized["event_type"] = canonical_event_type(
         normalized.get("event_type") or "other"
     )
+
+    if (
+        normalized["event_type"] == LOCATION_EXTINCTION_EVENT_TYPE
+        and not normalized["date"]
+    ):
+        raise ValueError("An extinction event needs a date.")
 
     if not normalized["title"]:
         raise ValueError("A location event needs a title.")
@@ -185,6 +193,154 @@ def location_foundation_event_state(location, world_events=None):
     }
 
 
+def location_extinction_event_state(location, world_events=None):
+    if not isinstance(location, dict):
+        return {
+            "exists": False,
+            "event_id": "",
+            "date": "",
+            "year": None,
+        }
+
+    location_id = str(
+        location.get("record_id", "") or ""
+    ).strip()
+    extinction_events = []
+
+    for event in normalize_location_events(
+        location.get("timeline_events", [])
+    ):
+        if (
+            canonical_event_type(event.get("event_type"))
+            != LOCATION_EXTINCTION_EVENT_TYPE
+        ):
+            continue
+
+        extinction_events.append(
+            {
+                "event_id": str(
+                    event.get("event_id", "") or ""
+                ).strip(),
+                "date": str(event.get("date", "") or ""),
+            }
+        )
+
+    for event in normalize_world_events(world_events or []):
+        if (
+            canonical_event_type(event.get("event_type"))
+            != LOCATION_EXTINCTION_EVENT_TYPE
+            or not location_id
+            or location_id not in event.get("location_ids", [])
+            or bool(event.get("organization_event"))
+        ):
+            continue
+
+        extinction_events.append(
+            {
+                "event_id": str(
+                    event.get("record_id", "") or ""
+                ).strip(),
+                "date": str(event.get("date", "") or ""),
+            }
+        )
+
+    extinction_events.sort(key=location_event_sort_key)
+    extinction_event = (
+        extinction_events[0] if extinction_events else None
+    )
+    extinction_date = (
+        extinction_event["date"]
+        if extinction_event is not None
+        else ""
+    )
+    return {
+        "exists": extinction_event is not None,
+        "event_id": (
+            extinction_event["event_id"]
+            if extinction_event is not None
+            else ""
+        ),
+        "date": extinction_date,
+        "year": world_event_year(extinction_date),
+    }
+
+
+def synchronize_location_extinction_records(
+    database_data,
+    create_legacy_events=False,
+):
+    if not isinstance(database_data, dict):
+        return False
+
+    locations = database_data.get("locations", [])
+    world_events = database_data.get("events", [])
+
+    if not isinstance(locations, list) or not isinstance(world_events, list):
+        return False
+
+    changed = False
+
+    for location in locations:
+        if not isinstance(location, dict):
+            continue
+
+        state = location_extinction_event_state(
+            location,
+            world_events,
+        )
+
+        if (
+            create_legacy_events
+            and not state["exists"]
+            and bool(location.get("extinct"))
+            and location.get("extinction_year") not in (None, "")
+        ):
+            location_id = str(
+                location.get("record_id", "") or ""
+            ).strip()
+            location_name = str(
+                location.get("name", "") or "Unnamed location"
+            ).strip()
+            legacy_event = normalize_location_event(
+                {
+                    "event_id": f"location-extinction:{location_id}",
+                    "event_type": LOCATION_EXTINCTION_EVENT_TYPE,
+                    "title": f"Extinction of {location_name}",
+                    "date": format_date_parts(
+                        location.get("extinction_year"),
+                        None,
+                        None,
+                        unknown="",
+                    ),
+                    "note": "",
+                }
+            )
+            location["timeline_events"] = normalize_location_events(
+                [
+                    *location.get("timeline_events", []),
+                    legacy_event,
+                ]
+            )
+            state = location_extinction_event_state(
+                location,
+                world_events,
+            )
+            changed = True
+
+        expected_extinct = bool(state["exists"])
+        expected_year = state["year"] if expected_extinct else ""
+
+        if location.get("extinct") is not expected_extinct:
+            location["extinct"] = expected_extinct
+            changed = True
+
+        if location.get("extinction_year", "") != expected_year:
+            location["extinction_year"] = expected_year
+            changed = True
+
+    return changed
+
+
 def normalize_location_record(values):
     if not isinstance(values, dict):
         raise TypeError("A location must be an object.")
@@ -193,6 +349,9 @@ def normalize_location_record(values):
     normalized["name"] = str(normalized.get("name", "") or "").strip()
     normalized["parent_location_id"] = str(
         normalized.get("parent_location_id", "") or ""
+    ).strip()
+    normalized["campus_organization_id"] = str(
+        normalized.get("campus_organization_id", "") or ""
     ).strip()
     normalized["demographics"] = str(
         normalized.get("demographics", "") or ""

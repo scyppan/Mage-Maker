@@ -67,6 +67,11 @@ from mage_maker.sections.organizations.controller import (
     normalize_organization_record,
     organization_job_date_tuple,
     organization_descendant_ids,
+    synchronize_school_campus_locations,
+)
+from mage_maker.sections.locations.models import (
+    normalize_location_record,
+    synchronize_location_extinction_records,
 )
 from mage_maker.sections.ledger.models import (
     normalize_ledger_entries,
@@ -239,17 +244,34 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version > 32:
+        if not isinstance(schema_version, int) or schema_version > 33:
             return False
 
-        if schema_version == 32:
+        if schema_version == 33:
             stored_events = database_data.get("events", [])
             stored_organizations = database_data.get("organizations", [])
+            stored_locations = database_data.get("locations", [])
             normalized_events = normalize_world_events(stored_events)
             normalized_organizations = [
                 normalize_organization_record(organization)
                 for organization in stored_organizations
             ]
+            normalized_locations = [
+                normalize_location_record(location)
+                for location in stored_locations
+            ]
+            database_data["events"] = normalized_events
+            database_data["organizations"] = normalized_organizations
+            database_data["locations"] = normalized_locations
+            campus_changed = synchronize_school_campus_locations(
+                database_data
+            )
+            extinction_changed = (
+                synchronize_location_extinction_records(
+                    database_data,
+                    create_legacy_events=False,
+                )
+            )
             people_changed = False
 
             for person in database_data.get("people", []):
@@ -267,12 +289,11 @@ class JsonDatabase:
             migrated = (
                 stored_events != normalized_events
                 or stored_organizations != normalized_organizations
+                or stored_locations != normalized_locations
+                or campus_changed
+                or extinction_changed
                 or people_changed
             )
-
-            if migrated:
-                database_data["events"] = normalized_events
-                database_data["organizations"] = normalized_organizations
 
             return (
                 self.normalize_person_access_rules(database_data)
@@ -1325,8 +1346,38 @@ class JsonDatabase:
             schema_version = 32
             migrated = True
 
-        metadata["schema_version"] = 32
-        metadata["database_version"] = "0.32.0"
+        if schema_version < 33:
+            database_data["events"] = normalize_world_events(
+                database_data.get("events", [])
+            )
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+            database_data["locations"] = [
+                normalize_location_record(location)
+                for location in database_data.get("locations", [])
+                if isinstance(location, dict)
+            ]
+            synchronize_location_extinction_records(
+                database_data,
+                create_legacy_events=True,
+            )
+            synchronize_school_campus_locations(database_data)
+            database_data["locations"] = [
+                normalize_location_record(location)
+                for location in database_data.get("locations", [])
+                if isinstance(location, dict)
+            ]
+            schema_version = 33
+            migrated = True
+
+        metadata["schema_version"] = 33
+        metadata["database_version"] = "0.33.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -1618,6 +1669,15 @@ class JsonDatabase:
                             "stored structure."
                         )
 
+                if collection_name == "locations":
+                    normalized_location = normalize_location_record(record)
+
+                    if record != normalized_location:
+                        raise ValueError(
+                            "Locations must use their canonical stored "
+                            "structure."
+                        )
+
         organizations = database_data["organizations"]
         organization_ids = {
             str(organization.get("record_id", "") or "")
@@ -1637,6 +1697,43 @@ class JsonDatabase:
                 )
                 or ""
             )
+            campus_location_id = str(
+                organization.get("campus_location_id", "") or ""
+            ).strip()
+
+            if (
+                organization.get("organization_type") == "School"
+                and organization.get("location_id")
+                and not campus_location_id
+            ):
+                raise ValueError(
+                    "Every school organization must have a campus location."
+                )
+
+            if campus_location_id:
+                campus = next(
+                    (
+                        location
+                        for location in database_data["locations"]
+                        if str(
+                            location.get("record_id", "") or ""
+                        ).strip()
+                        == campus_location_id
+                    ),
+                    None,
+                )
+
+                if campus is None:
+                    raise ValueError(
+                        "Every school campus location must exist."
+                    )
+
+                if str(
+                    campus.get("campus_organization_id", "") or ""
+                ).strip() != organization_id:
+                    raise ValueError(
+                        "Every school campus must link back to its organization."
+                    )
 
             if parent_id and parent_id not in organization_ids:
                 raise ValueError(

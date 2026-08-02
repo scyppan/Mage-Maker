@@ -2,6 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox, simpledialog, ttk
 
+from mage_maker.core.dates import format_historical_display_date
 from mage_maker.core.wizarding_currency import (
     currency_component_input_is_valid,
 )
@@ -1775,7 +1776,7 @@ class OrganizationPage(tk.Frame):
         location_frame.grid_columnconfigure(0, weight=1)
         location_label = tk.Label(
             location_frame,
-            text="Location",
+            text="Home location",
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
@@ -4297,13 +4298,14 @@ class OrganizationPage(tk.Frame):
         }
 
         for index, event in enumerate(self.organization_events):
-            date_text = (
-                str(event.get("date", "") or "")
+            date_text = format_historical_display_date(
+                event.get("date")
                 or (
-                    str(event["year"])
-                    if event["year"] is not None
-                    else "Date required"
-                )
+                    str(event.get("year"))
+                    if event.get("year") is not None
+                    else ""
+                ),
+                unknown="Date required",
             )
             person_ids = list(event.get("person_ids", []))
             people_count = len(person_ids)

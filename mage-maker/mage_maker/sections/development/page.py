@@ -79,7 +79,6 @@ from mage_maker.sections.development.models import (
     adult_year_calendar_year,
     adult_year_calendar_year_range,
     calendar_year_age_range,
-    calculate_development_start_year,
     calculate_school_start_year,
     development_year_page_title,
     ensure_adult_year_records,
@@ -100,7 +99,6 @@ from mage_maker.sections.development.models import (
     school_year_book_identity,
     suggested_job_start_date,
     total_eminence_points,
-    visible_school_year_count,
 )
 from mage_maker.sections.development.mortality import (
     simulate_mortality_to_database_date,
@@ -124,15 +122,12 @@ from mage_maker.sections.settings.simulation import (
     normalize_database_date,
 )
 from mage_maker.ui.theme import (
-    ADD_GREEN,
-    ADD_GREEN_HOVER,
     BORDER_SOFT,
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
     DELETE_HOVER,
     DELETE_SOFT,
     FIELD_BACKGROUND,
-    FAMILY_GREEN_DARK,
     LIST_HOVER,
     LOCKED_BORDER,
     PRIMARY,
@@ -382,6 +377,7 @@ class DevelopmentView(tk.Frame):
             sticky="e",
             padx=(6, 0),
         )
+        self.advance_adulthood_button.grid_remove()
 
     def build_plan_panel(self):
         panels = tk.Frame(self, bg=SURFACE)
@@ -662,7 +658,7 @@ class DevelopmentView(tk.Frame):
         page_panel = SectionPanel(
             panels,
             "Development years",
-            "Initial values, school advancement, and adult development.",
+            "Initial values and school advancement.",
         )
         self.school_years_panel = page_panel
         page_panel.grid(
@@ -1384,63 +1380,6 @@ class DevelopmentView(tk.Frame):
             side="left",
             padx=(6, 0),
         )
-        initial_eminence_divider = tk.Frame(
-            self.initial_values_panel,
-            bg=BORDER_SOFT,
-            height=1,
-        )
-        initial_eminence_divider.grid(
-            row=6,
-            column=0,
-            columnspan=3,
-            sticky="ew",
-            pady=(6, 0),
-        )
-        initial_eminence_frame = tk.Frame(
-            self.initial_values_panel,
-            bg=SURFACE_MUTED,
-        )
-        initial_eminence_frame.grid(
-            row=7,
-            column=0,
-            columnspan=3,
-            sticky="ew",
-            pady=(5, 0),
-        )
-        initial_eminence_frame.grid_columnconfigure(0, weight=1)
-        initial_eminence_label = tk.Label(
-            initial_eminence_frame,
-            textvariable=self.initial_eminence_summary_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(9, "bold"),
-            anchor="w",
-            justify="left",
-            wraplength=350,
-        )
-        initial_eminence_label.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-        self.initial_eminence_button = SoftButton(
-            initial_eminence_frame,
-            text="Manage eminence",
-            command=self.open_eminence_dialog,
-            background=SURFACE_MUTED,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_DARK,
-            width=118,
-            height=28,
-            font=app_font(8, "bold"),
-        )
-        self.initial_eminence_button.grid(
-            row=0,
-            column=1,
-            padx=(8, 0),
-        )
-
         self.year_detail_panel = tk.Frame(
             self.year_tabs_container,
             bg=SURFACE_MUTED,
@@ -1455,7 +1394,7 @@ class DevelopmentView(tk.Frame):
             sticky="nsew",
         )
         self.year_detail_panel.grid_columnconfigure(1, weight=1)
-        self.year_detail_panel.grid_rowconfigure(6, weight=1)
+        self.year_detail_panel.grid_rowconfigure(5, weight=1)
         year_detail_heading = tk.Label(
             self.year_detail_panel,
             textvariable=self.year_detail_heading_value,
@@ -1747,52 +1686,6 @@ class DevelopmentView(tk.Frame):
             sticky="ne",
             padx=(10, 0),
         )
-        eminence_frame = tk.Frame(
-            self.year_detail_panel,
-            bg=SURFACE_MUTED,
-        )
-        eminence_frame.grid(
-            row=6,
-            column=0,
-            columnspan=2,
-            sticky="new",
-            pady=(8, 0),
-        )
-        eminence_frame.grid_columnconfigure(0, weight=1)
-        eminence_heading = tk.Label(
-            eminence_frame,
-            textvariable=self.eminence_summary_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-            justify="left",
-            wraplength=390,
-        )
-        eminence_heading.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-        self.school_eminence_button = SoftButton(
-            eminence_frame,
-            text="Manage eminence",
-            command=self.open_eminence_dialog,
-            background=SURFACE_MUTED,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_DARK,
-            width=124,
-            height=30,
-            font=app_font(9, "bold"),
-        )
-        self.school_eminence_button.grid(
-            row=0,
-            column=1,
-            sticky="e",
-            padx=(8, 0),
-        )
-
         self.adult_detail_panel = tk.Frame(
             self.year_tabs_container,
             bg=SURFACE_MUTED,
@@ -1807,7 +1700,7 @@ class DevelopmentView(tk.Frame):
             sticky="nsew",
         )
         self.adult_detail_panel.grid_columnconfigure(0, weight=1)
-        self.adult_detail_panel.grid_rowconfigure(4, weight=1)
+        self.adult_detail_panel.grid_rowconfigure(3, weight=1)
         adult_reading_frame = tk.Frame(
             self.adult_detail_panel,
             bg=SURFACE_MUTED,
@@ -1891,57 +1784,13 @@ class DevelopmentView(tk.Frame):
             sticky="ew",
             pady=(10, 9),
         )
-        adult_eminence_frame = tk.Frame(
-            self.adult_detail_panel,
-            bg=SURFACE_MUTED,
-        )
-        adult_eminence_frame.grid(
-            row=2,
-            column=0,
-            sticky="ew",
-        )
-        adult_eminence_frame.grid_columnconfigure(0, weight=1)
-        adult_eminence_heading = tk.Label(
-            adult_eminence_frame,
-            textvariable=self.adult_eminence_summary_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-            justify="left",
-            wraplength=430,
-        )
-        adult_eminence_heading.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-        self.adult_eminence_button = SoftButton(
-            adult_eminence_frame,
-            text="Manage eminence",
-            command=self.open_eminence_dialog,
-            background=SURFACE_MUTED,
-            fill=PRIMARY,
-            hover_fill=PRIMARY_HOVER,
-            foreground=TEXT_DARK,
-            width=116,
-            height=30,
-            font=app_font(9, "bold"),
-        )
-        self.adult_eminence_button.grid(
-            row=0,
-            column=1,
-            sticky="e",
-            padx=(8, 0),
-        )
-
         adult_jobs_divider = tk.Frame(
             self.adult_detail_panel,
             bg=BORDER_SOFT,
             height=1,
         )
         adult_jobs_divider.grid(
-            row=3,
+            row=2,
             column=0,
             sticky="ew",
             pady=(10, 9),
@@ -1951,7 +1800,7 @@ class DevelopmentView(tk.Frame):
             bg=SURFACE_MUTED,
         )
         jobs_frame.grid(
-            row=4,
+            row=3,
             column=0,
             sticky="nsew",
         )
@@ -2650,8 +2499,12 @@ class DevelopmentView(tk.Frame):
             )
             self.school_started = True
             self.academic_years_advanced = 0
-            self.ensure_school_year_record_count(1)
             self.active_development_page_index = 1
+
+        if not getattr(self, "loading", False):
+            self.ensure_school_year_record_count(
+                ACADEMIC_YEARS_TO_ADULTHOOD
+            )
 
         if hasattr(self, "start_year_value"):
             self.update_start_year()
@@ -2669,61 +2522,19 @@ class DevelopmentView(tk.Frame):
         )
 
     def uses_calendar_year_progression(self):
-        school_field = getattr(self, "school_field", None)
-
-        if school_field is None:
-            development_plan = getattr(
-                self,
-                "development_plan",
-                {},
-            )
-            return bool(
-                development_plan.get("calendar_year_progression", False)
-                if isinstance(development_plan, dict)
-                else False
-            )
-
-        return not bool(
-            str(school_field.get_value() or "").strip()
-        )
+        return False
 
     def development_start_year(self):
-        return calculate_development_start_year(
+        return calculate_school_start_year(
             getattr(self, "birth_year", None),
             getattr(self, "birth_month", None),
             getattr(self, "birth_day", None),
-            school_attended=(
-                not DevelopmentView.uses_calendar_year_progression(self)
-            ),
         )
 
     def visible_development_school_years(self):
-        if DevelopmentView.uses_calendar_year_progression(self):
-            return 0
-
-        return visible_school_year_count(
-            getattr(self, "school_started", False),
-            getattr(self, "academic_years_advanced", 0),
-        )
+        return ACADEMIC_YEARS_TO_ADULTHOOD
 
     def visible_development_adult_years(self):
-        adult_year_count = len(
-            normalize_adult_year_records(
-                getattr(self, "adult_year_records", [])
-            )
-        )
-
-        if DevelopmentView.uses_calendar_year_progression(self):
-            return adult_year_count
-
-        if (
-            normalize_academic_years_advanced(
-                getattr(self, "academic_years_advanced", 0)
-            )
-            >= ACADEMIC_YEARS_TO_ADULTHOOD
-        ):
-            return adult_year_count
-
         return 0
 
     def strategy_changed(self, *arguments):
@@ -2821,14 +2632,10 @@ class DevelopmentView(tk.Frame):
 
     def update_start_year(self):
         school_attended = self.school_is_selected()
-        start_year = (
-            calculate_school_start_year(
-                getattr(self, "birth_year", None),
-                getattr(self, "birth_month", None),
-                getattr(self, "birth_day", None),
-            )
-            if school_attended
-            else getattr(self, "birth_year", None)
+        start_year = calculate_school_start_year(
+            getattr(self, "birth_year", None),
+            getattr(self, "birth_month", None),
+            getattr(self, "birth_day", None),
         )
 
         if hasattr(self, "start_year_label"):
@@ -3167,83 +2974,18 @@ class DevelopmentView(tk.Frame):
                 )
                 < page_count - 1
             )
-            self.next_development_page_button.set_text(
-                ">" if has_existing_next_page else "+"
-            )
+            self.next_development_page_button.set_text(">")
             self.next_development_page_button.set_colors(
-                PRIMARY if has_existing_next_page else ADD_GREEN,
-                (
-                    PRIMARY_HOVER
-                    if has_existing_next_page
-                    else ADD_GREEN_HOVER
-                ),
-                (
-                    TEXT_DARK
-                    if has_existing_next_page
-                    else FAMILY_GREEN_DARK
-                ),
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
             )
             self.next_development_page_button.set_enabled(
                 has_existing_next_page
-                or self.can_add_next_development_page()
             )
 
         if hasattr(self, "remove_latest_year_button"):
-            is_latest_year_page = (
-                self.active_development_page_index > 0
-                and self.active_development_page_index
-                == page_count - 1
-            )
-
-            if is_latest_year_page:
-                if (
-                    self.active_development_page_index
-                    <= visible_years
-                ):
-                    remove_text = (
-                        f"Remove Year "
-                        f"{self.active_development_page_index}"
-                    )
-                else:
-                    adult_year = (
-                        self.active_development_page_index
-                        - visible_years
-                    )
-                    calendar_range = adult_year_calendar_year_range(
-                        DevelopmentView.development_start_year(self),
-                        adult_year,
-                    )
-                    calendar_year = (
-                        calendar_range[0]
-                        if calendar_range is not None
-                        else None
-                    )
-                    calendar_end_year = (
-                        calendar_range[1]
-                        if calendar_range is not None
-                        else None
-                    )
-                    page_title = development_year_page_title(
-                        {
-                            "page_type": "adult",
-                            "adult_year": adult_year,
-                            "calendar_year": calendar_year,
-                            "calendar_end_year": calendar_end_year,
-                            "school_attended": school_selected,
-                        }
-                    )
-                    remove_text = (
-                        f"Remove {page_title}"
-                        if calendar_year is not None
-                        else "Remove year"
-                    )
-
-                self.remove_latest_year_button.set_text(
-                    remove_text
-                )
-                self.remove_latest_year_button.grid()
-            else:
-                self.remove_latest_year_button.grid_remove()
+            self.remove_latest_year_button.grid_remove()
 
     def select_year_tab(self, year_number):
         visible_years = DevelopmentView.visible_development_school_years(
@@ -3358,48 +3100,7 @@ class DevelopmentView(tk.Frame):
             "active_development_page_index",
             0,
         )
-
-        if active_page_index < page_count - 1:
-            return True
-
-        visible_years = DevelopmentView.visible_development_school_years(
-            self
-        )
-        death_targets = self.development_targets_at_death()
-
-        if DevelopmentView.uses_calendar_year_progression(self):
-            target_calendar_year = (
-                len(
-                    normalize_adult_year_records(
-                        getattr(self, "adult_year_records", [])
-                    )
-                )
-                + 1
-            )
-            return (
-                death_targets is None
-                or target_calendar_year <= death_targets[1]
-            )
-
-        if visible_years < ACADEMIC_YEARS_TO_ADULTHOOD:
-            target_school_year = visible_years + 1
-            return (
-                death_targets is None
-                or target_school_year <= death_targets[0]
-            )
-
-        target_adult_year = (
-            len(
-                normalize_adult_year_records(
-                    getattr(self, "adult_year_records", [])
-                )
-            )
-            + 1
-        )
-        return (
-            death_targets is None
-            or target_adult_year <= death_targets[1]
-        )
+        return active_page_index < page_count - 1
 
     def render_active_development_page(self):
         if not hasattr(self, "initial_values_panel"):
@@ -3462,12 +3163,7 @@ class DevelopmentView(tk.Frame):
                 )
             )
             self.set_development_page_age(
-                calendar_year_age_range(
-                    calendar_year,
-                    self.birth_year,
-                    self.birth_month,
-                    self.birth_day,
-                )
+                (page_index + 10, page_index + 11)
             )
             self.render_school_year_record()
             return
@@ -3549,46 +3245,7 @@ class DevelopmentView(tk.Frame):
         if self.active_development_page_index < page_count - 1:
             self.active_development_page_index += 1
             self.update_school_progress_controls()
-            return
-
-        if not self.can_add_next_development_page():
-            return
-
-        visible_years = DevelopmentView.visible_development_school_years(
-            self
-        )
-
-        if self.active_development_page_index == 0:
-            self.advance_one_year()
-            return
-
-        if self.active_development_page_index <= visible_years:
-            if visible_years < ACADEMIC_YEARS_TO_ADULTHOOD:
-                self.advance_one_year()
-                return
-
-            if (
-                self.academic_years_advanced
-                < ACADEMIC_YEARS_TO_ADULTHOOD
-            ):
-                self.academic_years_advanced = (
-                    ACADEMIC_YEARS_TO_ADULTHOOD
-                )
-
-                if normalize_adult_year_records(
-                    getattr(self, "adult_year_records", [])
-                ):
-                    self.active_development_page_index = (
-                        visible_years + 1
-                    )
-                    self.update_school_progress_controls()
-                    self.notify_change()
-                    return
-
-            self.add_next_adult_year()
-            return
-
-        self.add_next_adult_year()
+        return
 
     def add_next_adult_year(self):
         if (
@@ -4405,7 +4062,7 @@ class DevelopmentView(tk.Frame):
                     "purchased or read.\n\n"
                     "They can still choose ability, skill, and "
                     "characteristic development, read intentional-study "
-                    "books, and earn eminence.\n\n"
+                    "books.\n\n"
                     "Confirm this school year should be skipped."
                 ),
                 parent=self,
@@ -4973,47 +4630,14 @@ class DevelopmentView(tk.Frame):
         self.notify_change()
 
     def advance_one_year(self):
-        if DevelopmentView.uses_calendar_year_progression(self):
-            self.add_next_adult_year()
-            return
+        page_count = self.development_page_count()
 
-        if (
-            normalize_academic_years_advanced(
-                self.academic_years_advanced
-            )
-            >= ACADEMIC_YEARS_TO_ADULTHOOD
-        ):
-            self.add_next_adult_year()
-            return
+        if self.active_development_page_index >= page_count - 1:
+            return False
 
-        completed_years = normalize_academic_years_advanced(
-            self.academic_years_advanced
-        )
-        current_visible_years = (
-            DevelopmentView.visible_development_school_years(self)
-        )
-        target_visible_years = current_visible_years + 1
-        death_targets = self.development_targets_at_death()
-
-        if (
-            death_targets is not None
-            and target_visible_years > death_targets[0]
-        ):
-            return
-
-        if not bool(getattr(self, "school_started", False)):
-            self.school_started = True
-        elif completed_years < ACADEMIC_YEARS_TO_ADULTHOOD:
-            self.academic_years_advanced = completed_years + 1
-
-        visible_years = DevelopmentView.visible_development_school_years(
-            self
-        )
-        self.ensure_school_year_record_count(visible_years)
-        self.update_school_progress_controls(
-            select_latest=True
-        )
-        self.notify_change()
+        self.active_development_page_index += 1
+        self.update_school_progress_controls()
+        return True
 
     def configured_database_date(self):
         provider = getattr(self, "settings_provider", None)
@@ -5235,103 +4859,17 @@ class DevelopmentView(tk.Frame):
         self.notify_change()
 
     def advance_to_adulthood(self):
-        if not self.school_is_selected():
-            return
-
-        death_targets = self.development_targets_at_death()
-
-        if (
-            death_targets is not None
-            and death_targets[0]
-            < ACADEMIC_YEARS_TO_ADULTHOOD
-        ):
-            return
-
-        self.school_started = True
-        self.academic_years_advanced = (
-            ACADEMIC_YEARS_TO_ADULTHOOD
-        )
         self.ensure_school_year_record_count(
             ACADEMIC_YEARS_TO_ADULTHOOD
         )
-        self.update_school_progress_controls(
-            select_latest=True
+        self.active_development_page_index = (
+            ACADEMIC_YEARS_TO_ADULTHOOD
         )
-        self.notify_change()
+        self.update_school_progress_controls()
+        return True
 
     def remove_latest_school_year(self):
-        page_count = self.development_page_count()
-        active_page_index = getattr(
-            self,
-            "active_development_page_index",
-            page_count - 1,
-        )
-
-        if (
-            active_page_index <= 0
-            or active_page_index != page_count - 1
-        ):
-            return
-
-        adult_year_records = normalize_adult_year_records(
-            getattr(self, "adult_year_records", [])
-        )
-
-        if adult_year_records:
-            self.adult_year_records = ensure_adult_year_records(
-                adult_year_records,
-                len(adult_year_records) - 1,
-            )
-            self.development_plan["adult_years"] = deepcopy(
-                self.adult_year_records
-            )
-            self.ensure_school_year_record_count(
-                0
-                if DevelopmentView.uses_calendar_year_progression(self)
-                else ACADEMIC_YEARS_TO_ADULTHOOD
-            )
-            self.update_school_progress_controls(
-                select_latest=True
-            )
-            self.notify_change()
-            return
-
-        visible_years = DevelopmentView.visible_development_school_years(
-            self
-        )
-
-        if visible_years == 0:
-            return
-
-        remaining_years = visible_years - 1
-
-        if remaining_years == 0:
-            self.school_started = False
-            self.academic_years_advanced = 0
-        else:
-            self.school_started = True
-            self.academic_years_advanced = remaining_years - 1
-
-        self.school_year_records = [
-            record
-            for record in getattr(
-                self,
-                "school_year_records",
-                [],
-            )
-            if record.get("year", 0) <= remaining_years
-        ]
-        self.ensure_school_year_record_count(remaining_years)
-
-        if hasattr(self, "development_plan"):
-            self.development_plan["school_years"] = deepcopy(
-                self.school_year_records
-            )
-
-        self.update_school_progress_controls(
-            select_latest=True
-        )
-        self.notify_change()
+        return False
 
     def focus_selection_changed(self, *arguments):
         if self.loading:

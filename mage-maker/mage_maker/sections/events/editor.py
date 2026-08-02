@@ -94,6 +94,7 @@ class EventAssociationPicker(tk.Frame):
         self.foundation_only = False
         self.include_recent = True
         self.change_command = None
+        self.instruction_text = ""
         self.result_heading_value = tk.StringVar(value="Recently viewed")
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -221,7 +222,17 @@ class EventAssociationPicker(tk.Frame):
             if locked_id not in self.selected_ids:
                 self.selected_ids.append(locked_id)
 
+        if self.single_selection and len(self.selected_ids) > 1:
+            if self.locked_order:
+                self.selected_ids = self.locked_order[:1]
+            else:
+                self.selected_ids = self.selected_ids[-1:]
+
         self.refresh_options()
+
+    def set_instruction(self, instruction=""):
+        self.instruction_text = str(instruction or "").strip()
+        self.refresh_results()
 
     def get_values(self):
         return list(self.selected_ids)
@@ -295,7 +306,13 @@ class EventAssociationPicker(tk.Frame):
             if association_id in options_by_id
         ]
 
-        if (
+        instruction_text = str(
+            getattr(self, "instruction_text", "") or ""
+        ).strip()
+
+        if instruction_text:
+            self.result_heading_value.set(instruction_text)
+        elif (
             self.association_kind == "people"
             and self.locked_ids
             and not self.include_recent
@@ -553,6 +570,8 @@ class EventEditor(tk.Frame):
         self.lock_title = False
         self.lock_date = False
         self.lock_people = False
+        self.description_only = False
+        self.title_and_description_only = False
         self.title_from_location = False
         self.hide_locations = False
         self.feedback_after_id = None
@@ -560,7 +579,10 @@ class EventEditor(tk.Frame):
         self.maximum_year = None
         self.founding_title_locked = False
         self.generated_founding_title = ""
+        self.generated_extinction_title = ""
         self.generated_job_event_title = ""
+        self.saved_editor_values = None
+        self.saving = False
         self.job_event_options = []
         self.job_event_options_by_label = {}
         self.heading_value = tk.StringVar(value="Event details")
@@ -923,7 +945,7 @@ class EventEditor(tk.Frame):
             self.form,
             background=self.background,
             height=4 if self.compact_no_scroll else 1,
-            minimum_height=96 if self.compact_no_scroll else 38,
+            minimum_height=96 if self.compact_no_scroll else 43,
             font=app_font(9),
         )
         self.description_control.grid(
@@ -1111,12 +1133,17 @@ class EventEditor(tk.Frame):
         self.lock_title = False
         self.lock_date = False
         self.lock_people = False
+        self.description_only = False
+        self.title_and_description_only = False
         self.title_from_location = False
         self.founding_title_locked = False
         self.generated_founding_title = ""
+        self.generated_extinction_title = ""
         self.people_picker.include_recent = True
         self.locations_picker.single_selection = False
         self.locations_picker.foundation_only = False
+        if hasattr(self.locations_picker, "set_instruction"):
+            self.locations_picker.set_instruction("")
         self.set_year_bounds()
         self.heading_value.set("Event details")
         self.explanation_value.set(message)
@@ -1145,6 +1172,8 @@ class EventEditor(tk.Frame):
         self.set_controls_enabled(False)
         self.clear_feedback()
         self.canvas.yview_moveto(0)
+        self.saved_editor_values = None
+        self.saving = False
 
     def start_new(
         self,
@@ -1166,13 +1195,18 @@ class EventEditor(tk.Frame):
         self.lock_title = False
         self.lock_date = False
         self.lock_people = False
+        self.description_only = False
+        self.title_and_description_only = False
         self.title_from_location = False
         self.founding_title_locked = False
         self.generated_founding_title = ""
+        self.generated_extinction_title = ""
         self.generated_job_event_title = ""
         self.people_picker.include_recent = True
         self.locations_picker.single_selection = False
         self.locations_picker.foundation_only = False
+        if hasattr(self.locations_picker, "set_instruction"):
+            self.locations_picker.set_instruction("")
         self.set_year_bounds(minimum_year, maximum_year)
         self.heading_value.set("New event")
         self.explanation_value.set(
@@ -1213,6 +1247,7 @@ class EventEditor(tk.Frame):
         self.clear_feedback()
         self.update_period_display()
         self.canvas.yview_moveto(0)
+        self.saved_editor_values = None
 
     def is_new_event(self):
         return self.editor_mode == "new" and not self.read_only
@@ -1222,7 +1257,12 @@ class EventEditor(tk.Frame):
             return False
 
         self.set_controls_enabled(True)
-        self.title_field.control.focus_set()
+
+        if self.description_only:
+            self.description_control.text.focus_set()
+        else:
+            self.title_field.control.focus_set()
+
         return True
 
     def begin_edit(self):
@@ -1239,8 +1279,15 @@ class EventEditor(tk.Frame):
             "Changes saved here update this event everywhere it appears."
         )
         self.set_controls_enabled(True)
-        self.type_picker.set_enabled(not self.lock_type)
-        self.title_field.control.focus_set()
+        self.type_picker.set_enabled(
+            not self.description_only and not self.lock_type
+        )
+
+        if self.description_only:
+            self.description_control.text.focus_set()
+        else:
+            self.title_field.control.focus_set()
+
         return True
 
     def ensure_loaded_event_editable(self):
@@ -1269,6 +1316,8 @@ class EventEditor(tk.Frame):
         single_location=False,
         title_from_location=False,
         display_title=None,
+        description_only=False,
+        title_and_description_only=False,
     ):
         self.event = deepcopy(event) if isinstance(event, dict) else {}
         self.storage_kind = str(storage_kind or "shared")
@@ -1285,11 +1334,26 @@ class EventEditor(tk.Frame):
         )
         self.lock_date = bool(lock_date)
         self.lock_people = bool(lock_people)
+        self.description_only = bool(description_only)
+        self.title_and_description_only = bool(
+            title_and_description_only
+        )
         self.title_from_location = bool(title_from_location)
         self.founding_title_locked = False
         self.generated_founding_title = ""
+        self.generated_extinction_title = ""
         self.people_picker.include_recent = not self.lock_people
-        self.locations_picker.single_selection = bool(single_location)
+        loaded_event_type = str(
+            self.event.get("event_type", "") or ""
+        ).strip()
+        self.locations_picker.single_selection = bool(
+            single_location
+            or loaded_event_type in (
+                "relocated",
+                "founding",
+                "extinction",
+            )
+        )
         self.locations_picker.foundation_only = (
             self.event.get("event_type") == "founding"
         )
@@ -1347,10 +1411,21 @@ class EventEditor(tk.Frame):
                     self.event.get("event_id", ""),
                 ),
             )
-        self.locations_picker.set_values(
-            list(stored_location_ids or ()) + list(location_ids or ()),
+        loaded_location_ids = (
+            list(stored_location_ids or ()) + list(location_ids or ())
+        )
+        loaded_locked_location_ids = (
             list(stored_locked_location_ids or ())
-            + list(locked_location_ids or ()),
+            + list(locked_location_ids or ())
+        )
+
+        if loaded_event_type == "relocated" and loaded_location_ids:
+            loaded_location_ids = loaded_location_ids[-1:]
+            loaded_locked_location_ids = []
+
+        self.locations_picker.set_values(
+            loaded_location_ids,
+            loaded_locked_location_ids,
         )
         organization_id = str(
             self.event.get("organization_id", "") or ""
@@ -1372,6 +1447,7 @@ class EventEditor(tk.Frame):
         self.clear_feedback()
         self.update_period_display()
         self.canvas.yview_moveto(0)
+        self.saved_editor_values = deepcopy(self.values())
 
     def loaded_title(self):
         if self.storage_kind == "shared":
@@ -1614,41 +1690,47 @@ class EventEditor(tk.Frame):
     def set_controls_enabled(self, enabled):
         editable = bool(enabled)
         self.controls_enabled = editable
-        self.type_picker.set_enabled(editable and not self.lock_type)
-        self.title_field.control.set_enabled(
+        field_editable = (
             editable
+            and not self.description_only
+            and not self.title_and_description_only
+        )
+        title_editable = editable and not self.description_only
+        self.type_picker.set_enabled(field_editable and not self.lock_type)
+        self.title_field.control.set_enabled(
+            title_editable
             and not self.lock_title
             and not self.founding_title_locked
         )
         self.year_field.control.set_enabled(
-            editable and not self.lock_date
+            field_editable and not self.lock_date
         )
         self.month_field.control.set_enabled(
-            editable and not self.lock_date
+            field_editable and not self.lock_date
         )
         self.day_field.control.set_enabled(
-            editable and not self.lock_date
+            field_editable and not self.lock_date
         )
         self.description_control.text.configure(
             state="normal" if editable else "disabled"
         )
         self.people_picker.set_enabled(
-            editable and not self.lock_people
+            field_editable and not self.lock_people
         )
         if hasattr(self, "eminence_picker"):
-            self.eminence_picker.set_enabled(editable)
+            self.eminence_picker.set_enabled(field_editable)
 
-        self.locations_picker.set_enabled(editable)
+        self.locations_picker.set_enabled(field_editable)
         if hasattr(self, "organizations_picker"):
             self.organizations_picker.set_enabled(
-                editable
+                field_editable
                 and not bool(self.event.get("organization_event"))
             )
         if hasattr(self, "job_event_picker"):
-            self.job_event_picker.set_enabled(editable)
+            self.job_event_picker.set_enabled(field_editable)
 
             for salary_entry in self.job_salary_entries:
-                salary_entry.set_enabled(editable)
+                salary_entry.set_enabled(field_editable)
 
         self.save_button.set_enabled(editable)
         self.cancel_button.set_enabled(True)
@@ -1662,14 +1744,17 @@ class EventEditor(tk.Frame):
         self.form.after_idle(self.form_resized)
 
     def location_selection_changed(self):
-        if (
-            event_type_from_label(
-                self.event_type_value.get(),
-                "other",
-            )
-            == "founding"
-        ):
+        selected_type = event_type_from_label(
+            self.event_type_value.get(),
+            "other",
+        )
+
+        if selected_type == "founding":
             self.apply_founding_title()
+            return
+
+        if selected_type == "extinction":
+            self.apply_extinction_title()
             return
 
         if not self.title_from_location:
@@ -1712,14 +1797,20 @@ class EventEditor(tk.Frame):
             "other",
         )
         self.locations_picker.single_selection = (
-            selected_type == "founding"
+            selected_type in ("relocated", "founding", "extinction")
         )
         self.locations_picker.foundation_only = (
             selected_type == "founding"
         )
+        if hasattr(self.locations_picker, "set_instruction"):
+            self.locations_picker.set_instruction(
+                "(only pick the destination location)."
+                if selected_type == "relocated"
+                else ""
+            )
 
         if (
-            selected_type == "founding"
+            selected_type in ("relocated", "founding", "extinction")
             and len(self.locations_picker.get_values()) > 1
         ):
             retained_location_ids = (
@@ -1743,6 +1834,10 @@ class EventEditor(tk.Frame):
             self.apply_organization_founding_title()
             return
 
+        if selected_type == "extinction":
+            self.apply_extinction_title()
+            return
+
         if (
             self.generated_founding_title
             and self.title_value.get()
@@ -1752,6 +1847,15 @@ class EventEditor(tk.Frame):
 
         self.generated_founding_title = ""
         self.founding_title_locked = False
+
+        if (
+            self.generated_extinction_title
+            and self.title_value.get()
+            == self.generated_extinction_title
+        ):
+            self.title_value.set("")
+
+        self.generated_extinction_title = ""
 
         if hasattr(self, "title_field"):
             self.title_field.control.set_enabled(
@@ -1858,6 +1962,48 @@ class EventEditor(tk.Frame):
             and not self.lock_title
             and not self.founding_title_locked
         )
+
+    def apply_extinction_title(self):
+        location_ids = list(self.locations_picker.locked_order)
+
+        if not location_ids:
+            location_ids = self.locations_picker.get_values()
+
+        selected_location_id = (
+            str(location_ids[0] or "").strip()
+            if location_ids
+            else ""
+        )
+        selected_location = next(
+            (
+                location
+                for location in self.controller.location_records()
+                if str(location.get("record_id", "") or "").strip()
+                == selected_location_id
+            ),
+            None,
+        )
+        location_name = str(
+            (selected_location or {}).get("name", "") or ""
+        ).strip()
+        generated_title = (
+            f"Extinction of {location_name}"
+            if location_name
+            else ""
+        )
+        current_title = self.title_value.get().strip()
+
+        if (
+            generated_title
+            and (
+                not current_title
+                or current_title == self.generated_extinction_title
+                or current_title == "New event"
+            )
+        ):
+            self.title_value.set(generated_title)
+
+        self.generated_extinction_title = generated_title
 
     def update_period_display(self, *arguments):
         if getattr(self, "adjusting_year", False):
@@ -2091,11 +2237,10 @@ class EventEditor(tk.Frame):
 
         if (
             values["event_type"] == "relocated"
-            and len(values["location_ids"]) != 2
+            and len(values["location_ids"]) != 1
         ):
             self.show_error(
-                "Select exactly two locations for a relocation: "
-                "where the person left and where they went."
+                "Select exactly one destination location for a relocation."
             )
             return False
 
@@ -2105,6 +2250,15 @@ class EventEditor(tk.Frame):
         ):
             self.show_error(
                 "Select exactly one location for a founding event."
+            )
+            return False
+
+        if (
+            values["event_type"] == "extinction"
+            and len(values["location_ids"]) != 1
+        ):
+            self.show_error(
+                "Select exactly one location for an extinction event."
             )
             return False
 
@@ -2123,6 +2277,15 @@ class EventEditor(tk.Frame):
         ):
             self.show_error(
                 "A friendship event needs at least two people."
+            )
+            return False
+
+        if (
+            values["event_type"] == "died"
+            and len(values["person_ids"]) != 1
+        ):
+            self.show_error(
+                "A Death event must belong to exactly one person."
             )
             return False
 
@@ -2149,6 +2312,8 @@ class EventEditor(tk.Frame):
                 )
                 return False
 
+        self.saving = True
+
         try:
             saved = self.save_command(
                 values,
@@ -2158,16 +2323,31 @@ class EventEditor(tk.Frame):
         except (KeyError, TypeError, ValueError) as error:
             self.show_error(str(error))
             return False
+        finally:
+            self.saving = False
 
         if saved is False:
             return False
 
+        self.saved_editor_values = deepcopy(self.values())
         self.show_saved()
         return True
+
+    def has_unsaved_changes(self):
+        if self.read_only or self.editor_mode == "empty":
+            return False
+
+        saved_values = getattr(self, "saved_editor_values", None)
+
+        if saved_values is None:
+            return self.is_new_event()
+
+        return self.values() != saved_values
 
     def cancel(self):
         self.clear_feedback()
         self.editor_mode = "empty"
+        self.saved_editor_values = None
 
         if self.cancel_command is not None:
             self.cancel_command()

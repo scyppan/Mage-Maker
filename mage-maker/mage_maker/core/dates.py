@@ -503,6 +503,63 @@ def format_date_parts(year, month, day, unknown="nd."):
     return formatted
 
 
+MONTH_ABBREVIATIONS = (
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def format_historical_display_date(value, unknown="nd."):
+    date_text = str(value or "").strip()
+
+    if not date_text:
+        return unknown
+
+    negative = date_text.startswith("-")
+    date_body = date_text[1:] if negative else date_text
+    parts = date_body.split("-")
+
+    try:
+        year = int(parts[0])
+    except (IndexError, TypeError, ValueError):
+        return date_text
+
+    if negative:
+        year = -year
+
+    if len(parts) == 1:
+        return str(year)
+
+    try:
+        month = int(parts[1])
+    except (IndexError, TypeError, ValueError):
+        return date_text
+
+    if not 1 <= month <= 12:
+        return date_text
+
+    if len(parts) == 2:
+        return f"{MONTH_ABBREVIATIONS[month]} {year}"
+
+    try:
+        day = int(parts[2])
+    except (IndexError, TypeError, ValueError):
+        return date_text
+
+    return f"{day} {MONTH_ABBREVIATIONS[month]} {year}"
+
+
 def normalize_partial_date(value, label="Date"):
     date_text = str(value or "").strip()
 

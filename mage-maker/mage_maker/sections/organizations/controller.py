@@ -19,6 +19,7 @@ from mage_maker.sections.development.models import (
 from mage_maker.sections.locations.models import (
     ancestor_locations,
     location_paths_by_id,
+    normalize_location_record,
     recent_location_label,
 )
 from mage_maker.sections.events.models import (
@@ -641,6 +642,9 @@ def normalize_organization_record(values):
     normalized["location_id"] = str(
         normalized.get("location_id", "") or ""
     ).strip()
+    normalized["campus_location_id"] = str(
+        normalized.get("campus_location_id", "") or ""
+    ).strip()
     normalized["parent_organization_id"] = str(
         normalized.get("parent_organization_id", "") or ""
     ).strip()
@@ -687,6 +691,202 @@ def normalize_organization_record(values):
 
     normalized["jobs"] = normalize_organization_jobs(job_values)
     return normalized
+
+
+def school_campus_name(organization):
+    organization_name = str(
+        (organization or {}).get("name", "")
+        or "Unnamed school"
+    ).strip()
+    return f"Campus of {organization_name}"
+
+
+def school_campus_foundation_event(organization):
+    normalized = normalize_organization_record(organization)
+    organization_id = str(
+        normalized.get("record_id", "") or ""
+    ).strip()
+    founding_event = normalize_organization_events(
+        normalized.get("events", [])
+    )[0]
+    campus_name = school_campus_name(normalized)
+    return {
+        "event_id": f"school-campus-founding:{organization_id}",
+        "event_type": "founding",
+        "title": f"Founding of {campus_name}",
+        "date": str(founding_event.get("date", "") or ""),
+        "note": f"Campus of {normalized['name']}.",
+    }
+
+
+def synchronize_school_campus_locations(database_data):
+    if not isinstance(database_data, dict):
+        return False
+
+    stored_locations = database_data.get("locations", [])
+    stored_organizations = database_data.get("organizations", [])
+
+    if not isinstance(stored_locations, list) or not isinstance(
+        stored_organizations,
+        list,
+    ):
+        return False
+
+    locations = [
+        deepcopy(location)
+        for location in stored_locations
+        if isinstance(location, dict)
+    ]
+    organizations = [
+        normalize_organization_record(organization)
+        for organization in stored_organizations
+        if isinstance(organization, dict)
+    ]
+    locations_by_id = {
+        str(location.get("record_id", "") or "").strip(): location
+        for location in locations
+        if str(location.get("record_id", "") or "").strip()
+    }
+    changed = False
+
+    for organization in organizations:
+        if organization.get("organization_type") != "School":
+            continue
+
+        organization_id = str(
+            organization.get("record_id", "") or ""
+        ).strip()
+        home_location_id = str(
+            organization.get("location_id", "") or ""
+        ).strip()
+
+        if (
+            not organization_id
+            or not home_location_id
+            or home_location_id not in locations_by_id
+        ):
+            continue
+
+        campus_location_id = str(
+            organization.get("campus_location_id", "") or ""
+        ).strip()
+        campus = (
+            locations_by_id.get(campus_location_id)
+            if campus_location_id != home_location_id
+            else None
+        )
+
+        if campus is None:
+            campus = next(
+                (
+                    location
+                    for location in locations
+                    if str(
+                        location.get("campus_organization_id", "")
+                        or ""
+                    ).strip()
+                    == organization_id
+                ),
+                None,
+            )
+
+        if campus is None:
+            desired_name = school_campus_name(organization)
+            campus = next(
+                (
+                    location
+                    for location in locations
+                    if str(location.get("name", "") or "")
+                    .strip()
+                    .casefold()
+                    == desired_name.casefold()
+                    and str(
+                        location.get("parent_location_id", "") or ""
+                    ).strip()
+                    == home_location_id
+                ),
+                None,
+            )
+
+        if campus is None:
+            campus_location_id = f"school-campus:{organization_id}"
+
+            if campus_location_id in locations_by_id:
+                campus_location_id = str(uuid.uuid4())
+
+            campus = {
+                "record_id": campus_location_id,
+                "name": school_campus_name(organization),
+                "parent_location_id": home_location_id,
+                "campus_organization_id": organization_id,
+                "demographics": "",
+                "notes": "",
+                "extinct": False,
+                "extinction_year": "",
+                "timeline_events": [],
+            }
+            locations.append(campus)
+            locations_by_id[campus_location_id] = campus
+            changed = True
+
+        campus_location_id = str(
+            campus.get("record_id", "") or ""
+        ).strip()
+        generated_event_id = (
+            f"school-campus-founding:{organization_id}"
+        )
+        timeline_events = [
+            deepcopy(event)
+            for event in campus.get("timeline_events", []) or []
+            if isinstance(event, dict)
+            and str(event.get("event_id", "") or "").strip()
+            != generated_event_id
+        ]
+        has_other_foundation = any(
+            str(event.get("event_type", "") or "")
+            in ("founding", "wizarding_community_established")
+            for event in timeline_events
+        )
+
+        if not has_other_foundation:
+            timeline_events.append(
+                school_campus_foundation_event(organization)
+            )
+
+        updated_campus = normalize_location_record(
+            {
+                **campus,
+                "name": school_campus_name(organization),
+                "parent_location_id": home_location_id,
+                "campus_organization_id": organization_id,
+                "timeline_events": timeline_events,
+            }
+        )
+        updated_campus["record_id"] = campus_location_id
+
+        if campus != updated_campus:
+            campus.clear()
+            campus.update(updated_campus)
+            changed = True
+
+        if organization.get("campus_location_id") != campus_location_id:
+            organization["campus_location_id"] = campus_location_id
+            changed = True
+
+    normalized_organizations = [
+        normalize_organization_record(organization)
+        for organization in organizations
+    ]
+
+    if stored_locations != locations:
+        database_data["locations"] = locations
+        changed = True
+
+    if stored_organizations != normalized_organizations:
+        database_data["organizations"] = normalized_organizations
+        changed = True
+
+    return changed
 
 
 def organization_path(record_id, organizations):
@@ -783,7 +983,7 @@ def organization_root_ancestor(record_id, organizations):
     return root
 
 
-def organization_context_label(record_id, organizations):
+def organization_context_label(record_id, organizations, locations=None):
     records = organizations_by_id(organizations)
     selected_id = str(record_id or "").strip()
     organization = records.get(selected_id)
@@ -794,6 +994,20 @@ def organization_context_label(record_id, organizations):
     name = str(
         organization.get("name", "") or "Unnamed organization"
     ).strip()
+    home_location_id = str(
+        organization.get("location_id", "") or ""
+    ).strip()
+
+    if (
+        organization.get("organization_type") == "School"
+        and home_location_id
+        and locations is not None
+    ):
+        return (
+            f"{name} (a school in "
+            f"{recent_location_label(home_location_id, locations)})"
+        )
+
     parent_id = str(
         organization.get("parent_organization_id", "") or ""
     ).strip()
@@ -886,11 +1100,13 @@ class OrganizationController:
         locations_provider,
         schools_provider=None,
         items_provider=None,
+        location_controller=None,
     ):
         self.database = database
         self.locations_provider = locations_provider
         self.schools_provider = schools_provider
         self.items_provider = items_provider
+        self.location_controller = location_controller
         self._storeroom_item_options_cache = None
 
     def list_organizations(self):
@@ -972,6 +1188,7 @@ class OrganizationController:
             organization_events_as_world_events((normalized,)),
         )
         created = self.database.create_record("organizations", normalized)
+        created = self.ensure_school_campus(created)
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -1074,6 +1291,7 @@ class OrganizationController:
             record_id,
             normalized,
         )
+        updated = self.ensure_school_campus(updated)
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -1130,9 +1348,14 @@ class OrganizationController:
         return deleted
 
     def normalize_organization(self, values):
-        return self.apply_school_link(
+        normalized = self.apply_school_link(
             normalize_organization_record(values)
         )
+
+        if normalized.get("organization_type") != "School":
+            normalized["campus_location_id"] = ""
+
+        return normalized
 
     def apply_school_link(self, organization):
         normalized = normalize_organization_record(organization)
@@ -1162,6 +1385,18 @@ class OrganizationController:
 
         if organization_type not in ORGANIZATION_TYPES:
             raise ValueError("Choose one of the available organization types.")
+
+        if organization_type == "School" and not location_id:
+            raise ValueError("Choose the home location for this school.")
+
+        if (
+            organization_type == "School"
+            and location_id
+            == str(values.get("campus_location_id", "") or "").strip()
+        ):
+            raise ValueError(
+                "Choose the school's home region, not its campus location."
+            )
 
         if school_id and self.school_by_id(school_id) is None:
             raise ValueError("The linked school no longer exists.")
@@ -1396,6 +1631,119 @@ class OrganizationController:
 
             if str(organization.get("name", "") or "").strip().casefold() == name.casefold():
                 raise ValueError(f'An organization named "{name}" already exists.')
+
+    def ensure_school_campus(self, organization):
+        normalized = normalize_organization_record(organization)
+
+        if (
+            normalized.get("organization_type") != "School"
+            or self.location_controller is None
+        ):
+            return normalized
+
+        organization_id = str(
+            normalized.get("record_id", "") or ""
+        ).strip()
+        home_location_id = str(
+            normalized.get("location_id", "") or ""
+        ).strip()
+
+        if not organization_id or not home_location_id:
+            return normalized
+
+        campus_location_id = str(
+            normalized.get("campus_location_id", "") or ""
+        ).strip()
+        campus = (
+            self.location_controller.get_location(campus_location_id)
+            if campus_location_id
+            and campus_location_id != home_location_id
+            else None
+        )
+
+        if campus is None:
+            campus = next(
+                (
+                    location
+                    for location in self.location_controller.list_locations()
+                    if str(
+                        location.get("campus_organization_id", "")
+                        or ""
+                    ).strip()
+                    == organization_id
+                ),
+                None,
+            )
+
+        foundation_event = school_campus_foundation_event(normalized)
+        campus_values = {
+            "name": school_campus_name(normalized),
+            "parent_location_id": home_location_id,
+            "campus_organization_id": organization_id,
+            "demographics": "",
+            "notes": "",
+            "extinct": False,
+            "extinction_year": "",
+            "timeline_events": [foundation_event],
+        }
+
+        if campus is None:
+            campus = self.location_controller.create_location(
+                campus_values,
+                save_database=False,
+            )
+        else:
+            existing_events = [
+                deepcopy(event)
+                for event in campus.get("timeline_events", []) or []
+                if isinstance(event, dict)
+                and str(event.get("event_id", "") or "").strip()
+                != foundation_event["event_id"]
+            ]
+            has_other_foundation = any(
+                str(event.get("event_type", "") or "")
+                in ("founding", "wizarding_community_established")
+                for event in existing_events
+            )
+            campus_values = {
+                "name": school_campus_name(normalized),
+                "parent_location_id": home_location_id,
+                "campus_organization_id": organization_id,
+                "demographics": str(
+                    campus.get("demographics", "") or ""
+                ),
+                "notes": str(campus.get("notes", "") or ""),
+                "extinct": bool(campus.get("extinct")),
+                "extinction_year": campus.get(
+                    "extinction_year",
+                    "",
+                ),
+                "timeline_events": (
+                    existing_events
+                    if has_other_foundation
+                    else [*existing_events, foundation_event]
+                ),
+            }
+            campus = self.location_controller.update_location(
+                campus.get("record_id", ""),
+                campus_values,
+                save_database=False,
+            )
+
+        resolved_campus_id = str(
+            campus.get("record_id", "") or ""
+        ).strip()
+
+        if normalized.get("campus_location_id") == resolved_campus_id:
+            return normalized
+
+        normalized["campus_location_id"] = resolved_campus_id
+        updated = self.database.update_record(
+            "organizations",
+            organization_id,
+            normalized,
+        )
+        return normalize_organization_record(updated)
 
     def school_records(self):
         if self.schools_provider is None:

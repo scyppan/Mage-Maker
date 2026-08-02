@@ -1129,7 +1129,14 @@ class PersonForm(tk.Frame):
             page_name = "profile"
 
         if page_name not in self.pages:
-            return
+            return False
+
+        if (
+            self.active_page_name == "timeline"
+            and page_name != "timeline"
+            and not self.timeline.confirm_unsaved_event_changes()
+        ):
+            return False
 
         self.active_page_name = page_name
         self.pages[page_name].tkraise()
@@ -1141,7 +1148,7 @@ class PersonForm(tk.Frame):
                 button.set_colors(BUTTON_SOFT, BUTTON_SOFT_HOVER, TEXT_DARK)
 
         if defer_loading:
-            return
+            return True
 
         if page_name == "profile":
             self.ensure_family_context(draw_graph=False)
@@ -1178,6 +1185,23 @@ class PersonForm(tk.Frame):
 
         if page_name in ("books", "ledger"):
             self.refresh_books_and_ledger()
+
+        return True
+
+    def confirm_unsaved_event_changes(self):
+        if not hasattr(self, "timeline"):
+            return True
+
+        confirmation_command = getattr(
+            self.timeline,
+            "confirm_unsaved_event_changes",
+            None,
+        )
+
+        if not callable(confirmation_command):
+            return True
+
+        return confirmation_command()
 
     def open_school_editor(self):
         non_magical_variable = getattr(

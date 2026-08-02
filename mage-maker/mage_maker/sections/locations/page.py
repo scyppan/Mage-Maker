@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 
+from mage_maker.core.dates import format_historical_display_date
 from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
@@ -45,7 +46,6 @@ from mage_maker.ui.theme import (
 from mage_maker.ui.widgets import (
     CalendarAdoptionNotice,
     LabeledEntry,
-    RoundedEntry,
     RoundedText,
     SoftButton,
 )
@@ -120,7 +120,7 @@ class LocationPage(tk.Frame):
         )
         self.name_value = tk.StringVar()
         self.extinct_value = tk.BooleanVar(value=False)
-        self.extinction_year_value = tk.StringVar()
+        self.extinction_date_value = tk.StringVar()
         self.timeline_type_value = tk.StringVar(
             value="No event selected"
         )
@@ -534,11 +534,11 @@ class LocationPage(tk.Frame):
             sticky="ew",
             pady=(11, 0),
         )
-        extinction_checkbox = tk.Checkbutton(
+        self.extinction_checkbox = tk.Checkbutton(
             extinction_options,
             text="This location is extinct",
             variable=self.extinct_value,
-            command=self.toggle_extinction_fields,
+            command=self.extinction_state_changed,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             activebackground=SURFACE_MUTED,
@@ -549,36 +549,16 @@ class LocationPage(tk.Frame):
             padx=0,
             pady=0,
         )
-        extinction_checkbox.pack(side="left")
-        self.extinction_year_label = tk.Label(
+        self.extinction_checkbox.pack(side="left")
+        self.extinction_date_label = tk.Label(
             extinction_options,
-            text="Year extinct",
+            textvariable=self.extinction_date_value,
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
             anchor="w",
         )
-        self.extinction_year_control = RoundedEntry(
-            extinction_options,
-            textvariable=self.extinction_year_value,
-            background=SURFACE_MUTED,
-            width=170,
-            height=36,
-            font=app_font(10),
-        )
-        self.toggle_extinction_fields()
-        calendar_notice = CalendarAdoptionNotice(
-            identity,
-            background=SURFACE_MUTED,
-            wraplength=620,
-        )
-        calendar_notice.grid(
-            row=3,
-            column=0,
-            columnspan=2,
-            sticky="w",
-            pady=(5, 0),
-        )
+        self.refresh_extinction_display()
 
         narrative = tk.Frame(parent, bg=SURFACE)
         narrative.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
@@ -635,16 +615,89 @@ class LocationPage(tk.Frame):
         )
         facts.pack(fill="x", pady=(4, 0))
 
-    def toggle_extinction_fields(self):
-        if self.extinct_value.get():
-            self.extinction_year_label.pack(
-                side="left",
-                padx=(22, 8),
+    def refresh_extinction_display(self):
+        state_provider = getattr(
+            self.controller,
+            "extinction_state_for_location",
+            None,
+        )
+        state = (
+            state_provider(
+                self.current_location_id
             )
-            self.extinction_year_control.pack(side="left")
+            if self.current_location_id and callable(state_provider)
+            else {
+                "exists": False,
+                "date": "",
+            }
+        )
+        extinct = bool(state.get("exists"))
+        self.extinct_value.set(extinct)
+
+        if extinct:
+            self.extinction_date_value.set(
+                "Extinction date: "
+                + format_historical_display_date(state.get("date"))
+            )
+            self.extinction_date_label.pack(
+                side="left",
+                padx=(22, 0),
+            )
         else:
-            self.extinction_year_label.pack_forget()
-            self.extinction_year_control.pack_forget()
+            self.extinction_date_value.set("")
+            self.extinction_date_label.pack_forget()
+
+        return state
+
+    def extinction_state_changed(self):
+        state = self.controller.extinction_state_for_location(
+            self.current_location_id
+        ) if self.current_location_id else {"exists": False}
+
+        if self.extinct_value.get():
+            if state.get("exists"):
+                self.refresh_extinction_display()
+                return
+
+            if not self.current_location_id:
+                self.extinct_value.set(False)
+                self.status_command(
+                    "Save the location before entering its extinction event."
+                )
+                return
+
+            self.start_extinction_event()
+            return
+
+        if state.get("exists"):
+            self.extinct_value.set(True)
+            messagebox.showinfo(
+                "Extinction is a timeline event",
+                "Edit or remove the Extinction event in Timeline & Events "
+                "to change this location's extinction state.",
+                parent=self,
+            )
+            self.show_location_events()
+            self.selected_timeline_event_id = str(
+                state.get("event_id", "") or ""
+            )
+            self.refresh_timeline()
+            return
+
+        self.refresh_extinction_display()
+
+    def start_extinction_event(self):
+        location = self.controller.get_location(
+            self.current_location_id
+        )
+        location_name = str(
+            (location or {}).get("name", "") or "this location"
+        ).strip()
+        self.show_location_events()
+        self.add_event(
+            event_type="extinction",
+            title=f"Extinction of {location_name}",
+        )
 
     def build_assigned_organizations(self, parent):
         panel = tk.Frame(
@@ -1203,11 +1256,7 @@ class LocationPage(tk.Frame):
             location.get("parent_location_id", "") or ""
         ).strip()
         self.set_parent_location(location.get("parent_location_id", ""))
-        self.extinct_value.set(bool(location.get("extinct")))
-        self.extinction_year_value.set(
-            str(location.get("extinction_year", "") or "")
-        )
-        self.toggle_extinction_fields()
+        self.refresh_extinction_display()
         self.notes_control.text.delete("1.0", "end")
         self.notes_control.text.insert(
             "1.0",
@@ -1308,6 +1357,13 @@ class LocationPage(tk.Frame):
 
     def refresh_timeline(self):
         self.refresh_location_distinctions()
+
+        if (
+            self.draft_event is None
+            and hasattr(self, "extinct_value")
+        ):
+            self.refresh_extinction_display()
+
         self.timeline_list.delete(0, "end")
 
         if not self.current_location_id:
@@ -1349,7 +1405,9 @@ class LocationPage(tk.Frame):
 
                 continue
 
-            date_text = str(event.get("date", "") or "nd.")
+            date_text = format_historical_display_date(
+                event.get("date")
+            )
             source_text = ""
 
             if event.get("propagation_distance", 0):
@@ -1610,8 +1668,8 @@ class LocationPage(tk.Frame):
         self.name_value.set("")
         self.set_parent_location(parent_location_id)
         self.extinct_value.set(False)
-        self.extinction_year_value.set("")
-        self.toggle_extinction_fields()
+        self.extinction_date_value.set("")
+        self.extinction_date_label.pack_forget()
         self.notes_control.text.delete("1.0", "end")
         self.notable_facts_value.set("No notable facts yet.")
         self.refresh_assigned_organizations()
@@ -1644,12 +1702,23 @@ class LocationPage(tk.Frame):
 
     def save_location(self):
         creating_new_location = not bool(self.current_location_id)
+        extinction_state = (
+            self.controller.extinction_state_for_location(
+                self.current_location_id
+            )
+            if self.current_location_id
+            else {"exists": False, "year": None}
+        )
         values = {
             "name": self.name_value.get(),
             "parent_location_id": self.selected_parent_location_id,
             "notes": self.notes_control.text.get("1.0", "end-1c"),
-            "extinct": self.extinct_value.get(),
-            "extinction_year": self.extinction_year_value.get(),
+            "extinct": bool(extinction_state.get("exists")),
+            "extinction_year": (
+                extinction_state.get("year")
+                if extinction_state.get("exists")
+                else ""
+            ),
         }
 
         if not self.current_location_id:
@@ -1731,7 +1800,7 @@ class LocationPage(tk.Frame):
         self.refresh()
         self.status_command(f"Deleted location {location.get('name', 'Unnamed')}")
 
-    def add_event(self):
+    def add_event(self, event_type="other", title="New event"):
         if not self.current_location_id:
             self.status_command(
                 "Save the location before adding an event."
@@ -1744,8 +1813,8 @@ class LocationPage(tk.Frame):
 
         self.draft_event = {
             "event_id": NEW_EVENT_DRAFT_ID,
-            "event_type": "other",
-            "title": "New event",
+            "event_type": str(event_type or "other"),
+            "title": str(title or "New event"),
             "date": "",
             "note": "",
             "event_kind": "global",
@@ -1756,10 +1825,22 @@ class LocationPage(tk.Frame):
         self.selected_timeline_event_id = NEW_EVENT_DRAFT_ID
         self.reset_event_remove_confirmation()
         self.refresh_timeline()
+
+        if hasattr(self.event_editor, "event_type_value"):
+            self.event_editor.event_type_value.set(
+                event_type_label(self.draft_event)
+            )
+
+        if hasattr(self.event_editor, "title_value"):
+            self.event_editor.title_value.set(
+                self.draft_event["title"]
+            )
+
         self.event_editor.ensure_new_event_editable()
 
     def shared_event_saved(self, event):
         self.draft_event = None
+        self.controller.invalidate_caches()
         self.selected_timeline_event_id = str(
             event.get("record_id", "") or ""
         )
@@ -1968,6 +2049,7 @@ class LocationPage(tk.Frame):
             deleted = self.event_controller.delete_event(
                 event.get("record_id", "")
             )
+            self.controller.invalidate_caches()
             removed_title = deleted.get("title", "Event")
 
             if self.events_changed_command is not None:

@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from mage_maker.core.dates import format_historical_display_date
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
     WORLD_LOCATION_LABEL,
@@ -738,7 +739,9 @@ class PeriodsPage(tk.Frame):
         )
 
         for index, event in enumerate(self.period_events):
-            date_text = str(event.get("date", "") or "nd.")
+            date_text = format_historical_display_date(
+                event.get("date")
+            )
             title = str(event.get("title", "") or "Event").strip()
             location_name = str(
                 event.get("origin_location_name", "") or ""

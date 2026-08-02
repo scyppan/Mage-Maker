@@ -28,6 +28,7 @@ EVENT_TYPE_DEFINITIONS = (
         ("location",),
         False,
     ),
+    ("extinction", "Extinction", ("location",), False),
     ("political", "Political", ("location",), False),
     ("conflict", "Conflict", ("location",), False),
     ("discovery", "Discovery", ("location",), False),
@@ -63,6 +64,8 @@ LEGACY_EVENT_TYPE_ALIASES = {
     "started job": "started_job",
     "received a raise": "received_raise",
     "began friendship": "began_friendship",
+    "extinct": "extinction",
+    "extinction": "extinction",
     "relocation": "relocated",
     "wizarding community established": (
         "wizarding_community_established"

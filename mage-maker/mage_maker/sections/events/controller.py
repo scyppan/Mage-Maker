@@ -31,6 +31,7 @@ from mage_maker.sections.locations.models import (
     founding_event_title,
     location_foundation_event_state,
     recent_location_label,
+    synchronize_location_extinction_records,
 )
 from mage_maker.sections.organizations.controller import (
     ORGANIZATION_EVENT_FOUNDING,
@@ -41,6 +42,7 @@ from mage_maker.sections.organizations.controller import (
     organization_event_as_world_event,
     organization_event_from_world_event,
     organization_events_as_world_events,
+    synchronize_school_campus_locations,
 )
 from mage_maker.sections.settings.mage_groups import (
     mage_group_definition,
@@ -85,7 +87,9 @@ class EventController:
         eligible_person_ids = self.eminence_eligible_person_ids()
         return [
             self.with_eligible_eminence(
-                event,
+                normalize_world_event(
+                    self.apply_title_rules(event)
+                ),
                 eligible_person_ids,
             )
             for event in normalize_world_events(
@@ -116,7 +120,11 @@ class EventController:
         )
 
         return (
-            self.with_eligible_eminence(selected_event)
+            self.with_eligible_eminence(
+                normalize_world_event(
+                    self.apply_title_rules(selected_event)
+                )
+            )
             if selected_event is not None
             else None
         )
@@ -146,6 +154,7 @@ class EventController:
             self.database,
             eminence_updates,
         )
+        self.synchronize_location_extinction_state()
         self.remember_associations(created)
         self.database.save()
         return normalize_world_event(created)
@@ -212,6 +221,7 @@ class EventController:
             self.database,
             eminence_updates,
         )
+        self.synchronize_location_extinction_state()
         self.remember_associations(updated)
         self.database.save()
         return normalize_world_event(updated)
@@ -236,8 +246,25 @@ class EventController:
             self.database,
             eminence_updates,
         )
+        self.synchronize_location_extinction_state()
         self.database.save()
         return normalize_world_event(deleted)
+
+    def synchronize_location_extinction_state(self):
+        database_data = getattr(self.database, "data", None)
+
+        if not isinstance(database_data, dict):
+            return False
+
+        changed = synchronize_location_extinction_records(
+            database_data,
+            create_legacy_events=False,
+        )
+
+        if changed and hasattr(self.database, "dirty"):
+            self.database.dirty = True
+
+        return changed
 
     def update_organization_event(self, current, values):
         organization_id = str(
@@ -301,6 +328,11 @@ class EventController:
             organization_id,
             organization,
         )
+        database_data = getattr(self.database, "data", None)
+
+        if isinstance(database_data, dict):
+            synchronize_school_campus_locations(database_data)
+
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -399,9 +431,14 @@ class EventController:
             ).strip()
 
             if organization_name:
-                titled_event["organization_name"] = organization_name
+                organization_label = organization_context_label(
+                    organization_id,
+                    self.database.list_records("organizations"),
+                    self.location_provider(),
+                )
+                titled_event["organization_name"] = organization_label
                 titled_event["title"] = (
-                    f"Founding of {organization_name}"
+                    f"Founding of {organization_label}"
                 )
 
             titled_event["location_ids"] = []
@@ -457,9 +494,11 @@ class EventController:
         prepared["organization_id"] = str(
             organization.get("record_id", "") or ""
         )
-        prepared["organization_name"] = str(
-            organization.get("name", "") or ""
-        ).strip()
+        prepared["organization_name"] = organization_context_label(
+            prepared["organization_id"],
+            self.database.list_records("organizations"),
+            self.location_provider(),
+        )
         prepared["organization_job_id"] = job["record_id"]
         prepared["job_title"] = job["title"]
 
@@ -496,17 +535,21 @@ class EventController:
 
     def organization_job_options(self):
         options = []
+        organizations = self.database.list_records("organizations")
+        locations = self.location_provider()
 
-        for organization in self.database.list_records("organizations"):
+        for organization in organizations:
             if not isinstance(organization, dict):
                 continue
 
             organization_id = str(
                 organization.get("record_id", "") or ""
             ).strip()
-            organization_name = str(
-                organization.get("name", "") or "Unnamed organization"
-            ).strip()
+            organization_name = organization_context_label(
+                organization_id,
+                organizations,
+                locations,
+            )
 
             for job in normalize_organization_jobs(
                 organization.get("jobs", [])
@@ -1079,6 +1122,7 @@ class EventController:
 
     def organization_options(self):
         organizations = self.organization_records()
+        locations = self.location_provider()
         options = [
             {
                 "value": str(
@@ -1087,6 +1131,7 @@ class EventController:
                 "label": organization_context_label(
                     organization.get("record_id", ""),
                     organizations,
+                    locations,
                 ),
             }
             for organization in organizations
@@ -1359,6 +1404,7 @@ class EventController:
             for person in self.people_provider()
         }
         locations = self.location_provider()
+        organizations = self.organization_records()
         location_labels = {
             str(location.get("record_id", "") or ""): recent_location_label(
                 location.get("record_id", ""),
@@ -1376,6 +1422,17 @@ class EventController:
                 location_labels.get(location_id, "Missing location")
                 for location_id in normalized["location_ids"]
             ],
+            "organizations": (
+                [
+                    organization_context_label(
+                        normalized.get("organization_id", ""),
+                        organizations,
+                        locations,
+                    )
+                ]
+                if normalized.get("organization_id")
+                else []
+            ),
         }
 
     def infer_period_name(self, event):
@@ -1415,14 +1472,14 @@ class EventController:
 
     def validate_associations(self, event, current_event=None):
         self.validate_job_event(event, current_event)
+        self.validate_death_event(event, current_event)
 
         if (
             event.get("event_type") == "relocated"
-            and len(event.get("location_ids", [])) != 2
+            and len(event.get("location_ids", [])) != 1
         ):
             raise ValueError(
-                "Select exactly two locations for a relocation: "
-                "where the person left and where they went."
+                "Select exactly one destination location for a relocation."
             )
 
         if (
@@ -1431,6 +1488,14 @@ class EventController:
         ):
             raise ValueError(
                 "Select exactly one location for a founding event."
+            )
+
+        if (
+            event.get("event_type") == "extinction"
+            and len(event.get("location_ids", [])) != 1
+        ):
+            raise ValueError(
+                "Select exactly one location for an extinction event."
             )
 
         if event.get("event_type") == "founding":
@@ -1532,6 +1597,66 @@ class EventController:
             raise ValueError(
                 "The selected organization no longer exists."
             )
+
+    def validate_death_event(self, event, current_event=None):
+        if canonical_event_type(
+            (event or {}).get("event_type")
+        ) != "died":
+            return
+
+        person_ids = list((event or {}).get("person_ids", []) or [])
+
+        if len(person_ids) != 1:
+            raise ValueError(
+                "A Death event must belong to exactly one person."
+            )
+
+        person_id = str(person_ids[0] or "").strip()
+        current_event_id = str(
+            (current_event or {}).get("record_id", "") or ""
+        ).strip()
+        stored_events = (
+            self.database.list_records("events")
+            if self.database is not None
+            else []
+        )
+
+        for stored_event in stored_events:
+            if (
+                str(stored_event.get("record_id", "") or "").strip()
+                == current_event_id
+            ):
+                continue
+
+            if (
+                canonical_event_type(stored_event.get("event_type"))
+                == "died"
+                and person_id in stored_event.get("person_ids", [])
+            ):
+                raise ValueError(
+                    "This person already has a Death event."
+                )
+
+        person = next(
+            (
+                candidate
+                for candidate in self.people_provider()
+                if str(candidate.get("record_id", "") or "").strip()
+                == person_id
+            ),
+            None,
+        )
+
+        if person is None:
+            return
+
+        for timeline_event in person.get("timeline_events", []) or []:
+            if canonical_event_type(
+                (timeline_event or {}).get("event_type")
+            ) == "died":
+                raise ValueError(
+                    "This person already has a Death event."
+                )
 
     def validate_job_event(self, event, current_event=None):
         event_type = canonical_event_type(

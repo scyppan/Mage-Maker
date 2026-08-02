@@ -33,6 +33,7 @@ from mage_maker.sections.family_tree.spouse_relationships import (
 )
 from mage_maker.sections.names.history import empty_name_details, normalize_name_details
 from mage_maker.sections.names.timeline import synchronize_name_change_events
+from mage_maker.sections.events.types import canonical_event_type
 from mage_maker.sections.settings.mage_groups import (
     MAGE_GROUPS_SETTING_KEY,
     default_mage_group_id,
@@ -419,6 +420,37 @@ class PeopleController:
             prospective_person.get("birth_day"),
             "Birth",
         )
+        current_death_signature = (
+            bool(current_person.get("deceased")),
+            current_person.get("death_year"),
+            current_person.get("death_month"),
+            current_person.get("death_day"),
+        )
+        prospective_death_signature = (
+            bool(prospective_person.get("deceased")),
+            prospective_person.get("death_year"),
+            prospective_person.get("death_month"),
+            prospective_person.get("death_day"),
+        )
+
+        if (
+            prospective_death_signature[0]
+            and prospective_death_signature[1] not in (None, "")
+            and prospective_death_signature != current_death_signature
+        ):
+            for shared_event in self.database.list_records("events"):
+                if (
+                    canonical_event_type(
+                        shared_event.get("event_type")
+                    )
+                    == "died"
+                    and record_id in shared_event.get("person_ids", [])
+                ):
+                    raise ValueError(
+                        "This person already has a Death event. Remove it "
+                        "before entering a Profile death date."
+                    )
+
         prospective_person = self.synchronize_life_start_timeline(
             prospective_person,
             starting_location,

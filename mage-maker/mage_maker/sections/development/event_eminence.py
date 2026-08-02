@@ -15,7 +15,6 @@ from mage_maker.sections.development.models import (
     DEVELOPMENT_SKILL_OPTIONS,
     calculate_development_start_year,
     development_year_page_title,
-    development_year_pages,
     new_eminence_record,
     non_magical_development_plan,
     normalize_development_plan,
@@ -64,10 +63,14 @@ def event_eminence_target(person, event):
         return None
 
     stored_plan = person_values.get("development_plan")
-    school_attended = not bool(
-        stored_plan.get("calendar_year_progression", False)
-        if isinstance(stored_plan, dict)
-        else False
+    school_attended = (
+        bool(str(person_values.get("school", "") or "").strip())
+        if "school" in person_values
+        else bool(
+            stored_plan.get("school_started", False)
+            if isinstance(stored_plan, dict)
+            else False
+        )
     )
     academic_start_year = calculate_development_start_year(
         person_values.get("birth_year"),
@@ -83,8 +86,12 @@ def event_eminence_target(person, event):
         normalized_event.get("date", "")
     )
 
-    if school_attended and event_month_text:
-        event_month = int(event_month_text)
+    if school_attended:
+        event_month = (
+            int(event_month_text)
+            if event_month_text
+            else 9
+        )
         event_school_year_start = (
             event_year
             if event_month >= 9
@@ -114,33 +121,17 @@ def event_eminence_target(person, event):
             page["title"] = development_year_page_title(page)
             return page
 
-    pages = development_year_pages(
-        person_values.get("development_plan"),
-        academic_start_year,
-        person_values.get("birth_year"),
-        person_values.get("birth_month"),
-        person_values.get("birth_day"),
-        school_attended=school_attended,
-    )
-    exact_start_matches = [
-        page
-        for page in pages
-        if page.get("calendar_year") == event_year
-    ]
-
-    if exact_start_matches:
-        return deepcopy(exact_start_matches[0])
-
-    ending_year_matches = [
-        page
-        for page in pages
-        if page.get("calendar_end_year") == event_year
-    ]
-
-    if ending_year_matches:
-        return deepcopy(ending_year_matches[-1])
-
-    return None
+    return {
+        "page_key": f"event:{normalized_event['record_id']}",
+        "page_type": "event",
+        "school_year": None,
+        "adult_year": None,
+        "calendar_year": event_year,
+        "calendar_end_year": event_year,
+        "age_range": None,
+        "school_attended": school_attended,
+        "title": str(event_year),
+    }
 
 
 def event_eminence_default_skill(development_plan, target):
@@ -339,6 +330,14 @@ def add_event_eminence_record(development_plan, target, record):
             ),
             None,
         )
+    elif page_type == "event":
+        plan["initial_eminence"] = normalize_eminence_records(
+            [
+                *plan.get("initial_eminence", []),
+                normalized_record,
+            ]
+        )
+        return normalize_development_plan(plan)
     else:
         target_record = None
 

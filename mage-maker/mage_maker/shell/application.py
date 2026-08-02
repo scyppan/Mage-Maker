@@ -120,6 +120,7 @@ class MageMakerApp(tk.Tk):
             self.location_controller.list_locations,
             self.game_database.schools,
             self.game_database.storeroom_items,
+            self.location_controller,
         )
         self.status_value = tk.StringVar(value="Ready")
         self.pages = {}

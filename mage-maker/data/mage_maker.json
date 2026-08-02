@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 31,
-    "database_version": "0.31.0",
-    "last_saved": "2026-08-02T11:04:37.626721+00:00"
+    "schema_version": 33,
+    "database_version": "0.33.0",
+    "last_saved": "2026-08-02T14:28:49.913430+00:00"
   },
   "people": [
     {
@@ -21919,13 +21919,6 @@
                 "description": "",
                 "skill": "Defense",
                 "points": 1
-              },
-              {
-                "record_id": "event-eminence-992533e07f1ec029d34b28f6",
-                "title": "Kills Salazar Slytherin",
-                "description": "",
-                "skill": "Dark Arts",
-                "points": 1
               }
             ]
           }
@@ -24119,7 +24112,7 @@
       "imported_fields": {},
       "record_id": "6cd8d366-28a4-4199-9c5c-ff55362851b2",
       "created_at": "2026-08-01T08:32:48.317910+00:00",
-      "last_updated": "2026-08-02T05:54:52.195307+00:00",
+      "last_updated": "2026-08-02T13:14:10.313362+00:00",
       "does_not_have_children": false
     },
     {
@@ -24412,7 +24405,7 @@
           }
         ]
       },
-      "narrative": "",
+      "narrative": "Salazar's parents were magical. They were from al-Andalus. His father was killed in his sleep, unable to use his primative magic to protect himself. His mother fled with Salazar to the British Isles. This drove him to want to open a magical school to improve magical knowledge and protect mages. But it also fueled his rage.",
       "birth_year": 971,
       "birth_month": null,
       "birth_day": null,
@@ -24426,16 +24419,16 @@
       "can_give_birth": false,
       "famous_person": true,
       "unfinished": true,
-      "biological_mother_id": "",
-      "biological_father_id": "",
-      "biological_mother_status": "unknown",
-      "biological_father_status": "unknown",
+      "biological_mother_id": "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+      "biological_father_id": "bcfff484-a85f-43e0-96e3-e20796e5396f",
+      "biological_mother_status": "person",
+      "biological_father_status": "person",
       "blood_status": "Pureblood",
       "developmental_environment": "",
       "parental_values": {
         "initialized": true,
         "mode": "Same as siblings",
-        "source": "random",
+        "source": "sibling",
         "family_values": {
           "generosity": 2,
           "permissiveness": 4,
@@ -24450,9 +24443,9 @@
         "skill_selection_mode": "automatic",
         "trait_selection_mode": "automatic",
         "skill_bonuses": [
-          "Social",
-          "Dark Arts",
-          "Dark Arts"
+          "Runes",
+          "Runes",
+          "Runes"
         ],
         "traits": []
       },
@@ -24509,12 +24502,29 @@
           "related_person_id": "",
           "related_name_entry_id": "26870357-80f3-4ff7-a15a-f84d70de2a63",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1066-02-02",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": "",
+          "person_ids": [
+            "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+          ],
+          "location_ids": [],
+          "locked_location_ids": [],
+          "organization_id": "",
+          "organization_name": ""
         }
       ],
       "school": "",
       "mage_group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
       "development_plan": {
-        "schema": "One skill",
+        "schema": "Two skill",
         "blood_status_initialized": true,
         "academic_years_advanced": 0,
         "school_started": false,
@@ -24524,7 +24534,8 @@
         "initial_eminence": [],
         "mortality_checked_through_age": null,
         "focused_skills": [
-          "Dark Arts"
+          "Arithmancy",
+          "Runes"
         ],
         "calendar_year_progression": true
       },
@@ -24532,7 +24543,7 @@
       "imported_fields": {},
       "record_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "created_at": "2026-08-01T10:33:54.882512+00:00",
-      "last_updated": "2026-08-01T11:10:06.850318+00:00",
+      "last_updated": "2026-08-02T13:25:46.114259+00:00",
       "does_not_have_children": false
     },
     {
@@ -26149,37 +26160,83 @@
         "entries": []
       },
       "narrative": "",
-      "birth_year": null,
+      "birth_year": 940,
       "birth_month": null,
       "birth_day": null,
-      "deceased": false,
-      "death_year": null,
-      "death_month": null,
-      "death_day": null,
+      "deceased": true,
+      "death_year": 980,
+      "death_month": 11,
+      "death_day": 11,
       "canon": false,
       "player_character": false,
       "non_magical": false,
       "can_give_birth": false,
       "does_not_have_children": false,
       "famous_person": false,
-      "unfinished": false,
+      "unfinished": true,
       "biological_mother_id": "",
       "biological_father_id": "",
       "biological_mother_status": "unknown",
       "biological_father_status": "unknown",
       "blood_status": "Pureblood",
       "developmental_environment": "",
-      "parental_values": null,
-      "initial_bonuses": null,
-      "characteristics": null,
-      "mate_ids": [],
-      "spouse_relationships": [],
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 6,
+          "permissiveness": 5,
+          "wealth": 3
+        },
+        "generosity": 6,
+        "permissiveness": 5,
+        "wealth": 3
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "automatic",
+        "trait_selection_mode": "automatic",
+        "skill_bonuses": [
+          "Astronomy",
+          "Astronomy",
+          "Social"
+        ],
+        "traits": []
+      },
+      "characteristics": {
+        "creativity": 1,
+        "equanimity": 2,
+        "charisma": 3,
+        "attractiveness": 3,
+        "strength": 1,
+        "agility": 1,
+        "intellect": 2,
+        "willpower": 2,
+        "fortitude": 2
+      },
+      "mate_ids": [
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8"
+      ],
+      "spouse_relationships": [
+        {
+          "person_id": "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+          "married": false,
+          "marriage_year": null,
+          "marriage_month": null,
+          "marriage_day": null,
+          "divorced": false,
+          "divorce_year": null,
+          "divorce_month": null,
+          "divorce_day": null
+        }
+      ],
       "timeline_events": [
         {
           "event_id": "life-start:starting-location",
           "event_type": "starting_location",
           "detail": "",
-          "date": "",
+          "date": "0940",
           "note": "",
           "related_person_id": "",
           "automatic_source": "life_start",
@@ -26189,7 +26246,7 @@
           "event_id": "life-start:born",
           "event_type": "born",
           "detail": "",
-          "date": "",
+          "date": "0940",
           "note": "",
           "related_person_id": "",
           "automatic_source": "life_start",
@@ -26199,18 +26256,45 @@
           "event_id": "life-start:birth-name",
           "event_type": "birth_name",
           "detail": "Josu ibn Julen",
-          "date": "",
+          "date": "0940",
           "note": "",
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "had-child:bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+          "note": "Child: Salazar Slytherin",
+          "event_type": "had_child",
+          "detail": "Salazar Slytherin",
+          "date": "0971",
+          "related_person_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+          "automatic_source": "child_assignment",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "Salazar's father is murdered by muggles",
+          "date": "0980-11-11",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": "",
+          "person_ids": [
+            "bcfff484-a85f-43e0-96e3-e20796e5396f"
+          ],
+          "location_ids": [],
+          "locked_location_ids": [],
+          "organization_id": "",
+          "organization_name": ""
         }
       ],
       "school": "",
-      "mage_group_id": "unassigned",
+      "mage_group_id": "e2c6cfba-f7b5-4136-aea7-08a21cc44983",
       "development_plan": {
         "schema": "Ability-focus",
-        "blood_status_initialized": false,
+        "blood_status_initialized": true,
         "academic_years_advanced": 0,
         "school_started": false,
         "school_years": [],
@@ -26218,13 +26302,14 @@
         "adult_years": [],
         "initial_eminence": [],
         "mortality_checked_through_age": null,
-        "focused_ability": "Naturalism"
+        "focused_ability": "Naturalism",
+        "calendar_year_progression": true
       },
-      "notes": "",
+      "notes": "Need to enter the cause of death as murder and some of the context which is recorded in Slytherin's file.",
       "imported_fields": {},
       "record_id": "bcfff484-a85f-43e0-96e3-e20796e5396f",
       "created_at": "2026-08-02T07:54:59.660849+00:00",
-      "last_updated": "2026-08-02T07:54:59.660849+00:00"
+      "last_updated": "2026-08-02T13:29:35.536419+00:00"
     },
     {
       "displayed_name": "Armand Malfoy",
@@ -26413,11 +26498,348 @@
         ],
         "calendar_year_progression": true
       },
-      "notes": "",
+      "notes": "Need marriage, children",
       "imported_fields": {},
       "record_id": "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
       "created_at": "2026-08-02T08:07:06.721121+00:00",
-      "last_updated": "2026-08-02T11:04:37.597332+00:00"
+      "last_updated": "2026-08-02T11:06:45.202278+00:00"
+    },
+    {
+      "displayed_name": "Maia bint Yūsuf",
+      "name_details": {
+        "entries": []
+      },
+      "narrative": "",
+      "birth_year": 940,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": true,
+      "death_year": 1042,
+      "death_month": null,
+      "death_day": null,
+      "canon": false,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": true,
+      "does_not_have_children": false,
+      "famous_person": false,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 7,
+          "permissiveness": 4,
+          "wealth": 3
+        },
+        "generosity": 7,
+        "permissiveness": 4,
+        "wealth": 3
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "automatic",
+        "trait_selection_mode": "automatic",
+        "skill_bonuses": [
+          "Artificing",
+          "Runes",
+          "Runes"
+        ],
+        "traits": []
+      },
+      "characteristics": {
+        "creativity": 1,
+        "equanimity": 2,
+        "charisma": 1,
+        "attractiveness": 2,
+        "strength": 2,
+        "agility": 3,
+        "intellect": 2,
+        "willpower": 2,
+        "fortitude": 2
+      },
+      "mate_ids": [
+        "bcfff484-a85f-43e0-96e3-e20796e5396f"
+      ],
+      "spouse_relationships": [
+        {
+          "person_id": "bcfff484-a85f-43e0-96e3-e20796e5396f",
+          "married": false,
+          "marriage_year": null,
+          "marriage_month": null,
+          "marriage_day": null,
+          "divorced": false,
+          "divorce_year": null,
+          "divorce_month": null,
+          "divorce_day": null
+        }
+      ],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "",
+          "date": "0940",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "0940",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Maia bint Yūsuf",
+          "date": "0940",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "",
+          "automatic_source": "life_start"
+        },
+        {
+          "event_id": "had-child:bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+          "note": "Child: Salazar Slytherin",
+          "event_type": "had_child",
+          "detail": "Salazar Slytherin",
+          "date": "0971",
+          "related_person_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+          "automatic_source": "child_assignment",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1042",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
+        }
+      ],
+      "school": "",
+      "mage_group_id": "e2c6cfba-f7b5-4136-aea7-08a21cc44983",
+      "development_plan": {
+        "schema": "Spell-crafting",
+        "blood_status_initialized": true,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "adult_years": [],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "calendar_year_progression": true
+      },
+      "notes": "Add cause of death",
+      "imported_fields": {},
+      "record_id": "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+      "created_at": "2026-08-02T11:08:25.803021+00:00",
+      "last_updated": "2026-08-02T13:29:35.536626+00:00"
+    },
+    {
+      "displayed_name": "Helga Hufflepuff",
+      "name_details": {
+        "entries": []
+      },
+      "narrative": "",
+      "birth_year": 935,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": false,
+      "death_year": null,
+      "death_month": null,
+      "death_day": null,
+      "canon": false,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": true,
+      "does_not_have_children": false,
+      "famous_person": false,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": null,
+      "initial_bonuses": null,
+      "characteristics": null,
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "Orkney Islands",
+          "date": "0935",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "649ea454-31dd-4569-b9ea-9aba1552b19e"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "0935",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "649ea454-31dd-4569-b9ea-9aba1552b19e"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Helga Hufflepuff",
+          "date": "0935",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "",
+          "automatic_source": "life_start"
+        }
+      ],
+      "school": "",
+      "mage_group_id": "unassigned",
+      "development_plan": {
+        "schema": "One skill",
+        "blood_status_initialized": false,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "adult_years": [],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "focused_skills": [
+          "Alchemy"
+        ]
+      },
+      "notes": "",
+      "imported_fields": {},
+      "record_id": "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+      "created_at": "2026-08-02T14:17:50.564174+00:00",
+      "last_updated": "2026-08-02T14:17:50.564174+00:00"
+    },
+    {
+      "displayed_name": "Rowena Ravenclaw",
+      "name_details": {
+        "entries": []
+      },
+      "narrative": "",
+      "birth_year": 967,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": false,
+      "death_year": null,
+      "death_month": null,
+      "death_day": null,
+      "canon": false,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": true,
+      "does_not_have_children": false,
+      "famous_person": false,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": null,
+      "initial_bonuses": null,
+      "characteristics": null,
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "Wessex",
+          "date": "0967",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "007cba6d-7f7a-4c8e-b46d-0f0f41372631"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "0967",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "007cba6d-7f7a-4c8e-b46d-0f0f41372631"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Rowena Ravenclaw",
+          "date": "0967",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "",
+          "automatic_source": "life_start"
+        }
+      ],
+      "school": "",
+      "mage_group_id": "unassigned",
+      "development_plan": {
+        "schema": "Ability-focus",
+        "blood_status_initialized": false,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "adult_years": [],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "focused_ability": "Power"
+      },
+      "notes": "",
+      "imported_fields": {},
+      "record_id": "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+      "created_at": "2026-08-02T14:19:54.167753+00:00",
+      "last_updated": "2026-08-02T14:19:54.167753+00:00"
     }
   ],
   "locations": [
@@ -26431,7 +26853,8 @@
       "created_at": "2026-07-23T04:00:17.527968+00:00",
       "last_updated": "2026-07-23T09:10:57.509415+00:00",
       "extinct": false,
-      "extinction_year": ""
+      "extinction_year": "",
+      "campus_organization_id": ""
     },
     {
       "name": "London",
@@ -26443,7 +26866,8 @@
       "created_at": "2026-07-23T04:00:17.528033+00:00",
       "last_updated": "2026-07-23T04:57:20.328691+00:00",
       "extinct": false,
-      "extinction_year": ""
+      "extinction_year": "",
+      "campus_organization_id": ""
     },
     {
       "name": "Wessex",
@@ -26455,7 +26879,8 @@
       "created_at": "2026-07-23T04:00:17.528059+00:00",
       "last_updated": "2026-07-23T09:10:29.963197+00:00",
       "extinct": false,
-      "extinction_year": ""
+      "extinction_year": "",
+      "campus_organization_id": ""
     },
     {
       "name": "Amazonia",
@@ -26467,7 +26892,8 @@
       "timeline_events": [],
       "record_id": "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
       "created_at": "2026-07-23T04:45:05.642791+00:00",
-      "last_updated": "2026-07-24T04:08:26.365381+00:00"
+      "last_updated": "2026-07-24T04:08:26.365381+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Anatolia and the Caucasus",
@@ -26479,7 +26905,8 @@
       "timeline_events": [],
       "record_id": "e05e5b3e-920c-481b-a83e-74653bf0041d",
       "created_at": "2026-07-23T04:45:30.920973+00:00",
-      "last_updated": "2026-07-23T04:45:44.117277+00:00"
+      "last_updated": "2026-07-23T04:45:44.117277+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Antarctica & Sth Ocean Lands",
@@ -26491,7 +26918,8 @@
       "timeline_events": [],
       "record_id": "c313fe65-a0f6-48d1-8cbc-930afd40e7a1",
       "created_at": "2026-07-23T04:46:01.330074+00:00",
-      "last_updated": "2026-07-23T04:46:21.353775+00:00"
+      "last_updated": "2026-07-23T04:46:21.353775+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Australasia",
@@ -26503,7 +26931,8 @@
       "timeline_events": [],
       "record_id": "2aaea415-1b04-4746-acfe-9e506dfa0821",
       "created_at": "2026-07-23T04:46:41.789080+00:00",
-      "last_updated": "2026-07-23T04:46:41.789080+00:00"
+      "last_updated": "2026-07-23T04:46:41.789080+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "British Isles",
@@ -26515,7 +26944,8 @@
       "timeline_events": [],
       "record_id": "96103198-d236-4041-92af-7fb8580ae909",
       "created_at": "2026-07-23T04:46:56.306646+00:00",
-      "last_updated": "2026-07-23T04:46:56.306646+00:00"
+      "last_updated": "2026-07-23T04:46:56.306646+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Caribbean and the Guianas",
@@ -26527,7 +26957,8 @@
       "timeline_events": [],
       "record_id": "08274fd3-f173-42a1-af64-d9dee8b2e954",
       "created_at": "2026-07-23T04:47:09.859391+00:00",
-      "last_updated": "2026-07-23T04:47:09.859391+00:00"
+      "last_updated": "2026-07-23T04:47:09.859391+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Central and East Asia",
@@ -26539,7 +26970,8 @@
       "timeline_events": [],
       "record_id": "9cd62c58-683b-4a71-b688-8a2e8f767f0a",
       "created_at": "2026-07-23T04:47:16.069439+00:00",
-      "last_updated": "2026-07-23T04:47:19.910753+00:00"
+      "last_updated": "2026-07-23T04:47:19.910753+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "East Africa",
@@ -26551,7 +26983,8 @@
       "timeline_events": [],
       "record_id": "4472b7a0-b560-4f03-9c4b-e17c6fc6298f",
       "created_at": "2026-07-23T04:47:25.441378+00:00",
-      "last_updated": "2026-07-23T04:47:29.856186+00:00"
+      "last_updated": "2026-07-23T04:47:29.856186+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Eastern Europe & North Asia",
@@ -26563,7 +26996,8 @@
       "timeline_events": [],
       "record_id": "12e87d6e-0570-483c-a53d-abb744981705",
       "created_at": "2026-07-23T04:47:48.904683+00:00",
-      "last_updated": "2026-07-23T04:47:48.904683+00:00"
+      "last_updated": "2026-07-23T04:47:48.904683+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Himilayas",
@@ -26575,7 +27009,8 @@
       "timeline_events": [],
       "record_id": "c7490d17-4237-4605-8d21-5e35daf7d3cd",
       "created_at": "2026-07-23T04:48:03.932778+00:00",
-      "last_updated": "2026-07-23T04:48:03.932778+00:00"
+      "last_updated": "2026-07-23T04:48:03.932778+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Japan",
@@ -26587,7 +27022,8 @@
       "timeline_events": [],
       "record_id": "6c2cbcd9-1f55-4145-a16b-48527adfec42",
       "created_at": "2026-07-23T04:48:19.841348+00:00",
-      "last_updated": "2026-07-23T04:48:19.841348+00:00"
+      "last_updated": "2026-07-23T04:48:19.841348+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Korea",
@@ -26599,7 +27035,8 @@
       "timeline_events": [],
       "record_id": "b3efff04-47c9-4f7f-bb3e-c43d623845c9",
       "created_at": "2026-07-23T04:48:26.500777+00:00",
-      "last_updated": "2026-07-23T04:48:26.500777+00:00"
+      "last_updated": "2026-07-23T04:48:26.500777+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Malay Archipelago",
@@ -26611,7 +27048,8 @@
       "timeline_events": [],
       "record_id": "2429b538-2277-47bd-a4a7-10d5c4313295",
       "created_at": "2026-07-23T04:48:36.963196+00:00",
-      "last_updated": "2026-07-23T04:48:36.963196+00:00"
+      "last_updated": "2026-07-23T04:48:36.963196+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Medioamericana",
@@ -26623,7 +27061,8 @@
       "timeline_events": [],
       "record_id": "0cea734a-7a05-4327-9c8c-30fbb79aa497",
       "created_at": "2026-07-23T04:48:46.327796+00:00",
-      "last_updated": "2026-07-23T04:48:46.327796+00:00"
+      "last_updated": "2026-07-23T04:48:46.327796+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Mediterranean",
@@ -26635,7 +27074,8 @@
       "timeline_events": [],
       "record_id": "f490692b-7d19-4399-8f19-d1a48ca1bf27",
       "created_at": "2026-07-23T04:48:55.089499+00:00",
-      "last_updated": "2026-07-23T04:48:55.089499+00:00"
+      "last_updated": "2026-07-23T04:48:55.089499+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Mexico",
@@ -26647,7 +27087,8 @@
       "timeline_events": [],
       "record_id": "b140ddd1-77e2-4387-9a6d-d773c6b1fbb1",
       "created_at": "2026-07-23T04:49:04.112859+00:00",
-      "last_updated": "2026-07-23T04:49:04.112859+00:00"
+      "last_updated": "2026-07-23T04:49:04.112859+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "West Asia & North Africa",
@@ -26659,7 +27100,8 @@
       "timeline_events": [],
       "record_id": "b8db052f-3f7d-4a18-84bf-b82297d37553",
       "created_at": "2026-07-23T04:51:27.689527+00:00",
-      "last_updated": "2026-07-23T04:51:42.936849+00:00"
+      "last_updated": "2026-07-23T04:51:42.936849+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "North America & Greenland",
@@ -26671,7 +27113,8 @@
       "timeline_events": [],
       "record_id": "75038204-dd2e-41ce-83fb-c1ca009f0120",
       "created_at": "2026-07-23T04:52:02.562681+00:00",
-      "last_updated": "2026-07-23T04:52:14.230565+00:00"
+      "last_updated": "2026-07-23T04:52:14.230565+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Nordic Lands and the Baltics",
@@ -26683,7 +27126,8 @@
       "timeline_events": [],
       "record_id": "89f1088e-0d18-4490-9bb9-f16622473e9a",
       "created_at": "2026-07-23T04:52:34.025761+00:00",
-      "last_updated": "2026-07-23T04:52:34.025761+00:00"
+      "last_updated": "2026-07-23T04:52:34.025761+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Oceania",
@@ -26695,7 +27139,8 @@
       "timeline_events": [],
       "record_id": "274823c0-acc2-4303-b637-789e5e4201ca",
       "created_at": "2026-07-23T04:52:59.193089+00:00",
-      "last_updated": "2026-07-23T04:52:59.193089+00:00"
+      "last_updated": "2026-07-23T04:52:59.193089+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Patagonia",
@@ -26707,7 +27152,8 @@
       "timeline_events": [],
       "record_id": "f86be06c-3619-4451-8ffa-7b07fc9bb729",
       "created_at": "2026-07-23T04:53:10.142507+00:00",
-      "last_updated": "2026-07-23T04:53:10.142507+00:00"
+      "last_updated": "2026-07-23T04:53:10.142507+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "South and Southeast Asia",
@@ -26719,7 +27165,8 @@
       "timeline_events": [],
       "record_id": "f67161b0-26f6-42f1-a38a-f8eff63764a5",
       "created_at": "2026-07-23T04:53:20.800608+00:00",
-      "last_updated": "2026-07-23T04:53:20.800608+00:00"
+      "last_updated": "2026-07-23T04:53:20.800608+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Southern Africa",
@@ -26731,7 +27178,8 @@
       "timeline_events": [],
       "record_id": "466b6a13-2064-49ec-865e-d4cad092bf70",
       "created_at": "2026-07-23T04:53:28.951417+00:00",
-      "last_updated": "2026-07-23T04:53:28.951417+00:00"
+      "last_updated": "2026-07-23T04:53:28.951417+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "West Africa",
@@ -26743,7 +27191,8 @@
       "timeline_events": [],
       "record_id": "3892e5ff-64ff-4e48-9a24-236c4c0ffb62",
       "created_at": "2026-07-23T04:53:37.391791+00:00",
-      "last_updated": "2026-07-23T04:53:37.391791+00:00"
+      "last_updated": "2026-07-23T04:53:37.391791+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Western Europe",
@@ -26755,7 +27204,8 @@
       "timeline_events": [],
       "record_id": "cce73c77-b94d-47a5-b386-66387b3dcd8d",
       "created_at": "2026-07-23T04:53:45.736334+00:00",
-      "last_updated": "2026-07-23T04:53:45.736334+00:00"
+      "last_updated": "2026-07-23T04:53:45.736334+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Western South America",
@@ -26767,7 +27217,8 @@
       "timeline_events": [],
       "record_id": "a9f4af34-8d43-4b22-a38a-3ce8786e219c",
       "created_at": "2026-07-23T04:53:57.791832+00:00",
-      "last_updated": "2026-07-23T04:53:57.791832+00:00"
+      "last_updated": "2026-07-23T04:53:57.791832+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "England",
@@ -26779,7 +27230,8 @@
       "timeline_events": [],
       "record_id": "fd02c4e8-9159-48c6-8143-d329cb7af046",
       "created_at": "2026-07-23T04:54:28.974899+00:00",
-      "last_updated": "2026-07-23T04:54:28.974899+00:00"
+      "last_updated": "2026-07-23T04:54:28.974899+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Wales",
@@ -26791,7 +27243,8 @@
       "timeline_events": [],
       "record_id": "6f9fe3a8-2965-4562-bb9a-8dbd2b9b47a7",
       "created_at": "2026-07-23T04:54:32.023401+00:00",
-      "last_updated": "2026-07-23T04:54:32.023401+00:00"
+      "last_updated": "2026-07-23T04:54:32.023401+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Scotland",
@@ -26803,7 +27256,8 @@
       "timeline_events": [],
       "record_id": "d3ba12b1-afe7-443b-a75b-31de101048c6",
       "created_at": "2026-07-23T04:54:36.187623+00:00",
-      "last_updated": "2026-07-23T04:54:36.187623+00:00"
+      "last_updated": "2026-07-23T04:54:36.187623+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Northern Ireland",
@@ -26815,7 +27269,8 @@
       "timeline_events": [],
       "record_id": "44ac45e5-e027-4505-ac14-01df65bbc2a7",
       "created_at": "2026-07-23T04:54:42.076171+00:00",
-      "last_updated": "2026-07-23T04:54:42.076171+00:00"
+      "last_updated": "2026-07-23T04:54:42.076171+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Ireland",
@@ -26827,7 +27282,8 @@
       "timeline_events": [],
       "record_id": "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
       "created_at": "2026-07-23T04:54:46.905076+00:00",
-      "last_updated": "2026-07-23T04:54:46.905076+00:00"
+      "last_updated": "2026-07-23T04:54:46.905076+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "North of England",
@@ -26839,7 +27295,8 @@
       "timeline_events": [],
       "record_id": "6a1ad229-4cd5-4a5f-8240-ca1da38abb7e",
       "created_at": "2026-07-23T04:56:04.465814+00:00",
-      "last_updated": "2026-07-23T04:56:04.465814+00:00"
+      "last_updated": "2026-07-23T04:56:04.465814+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "South of England",
@@ -26851,7 +27308,8 @@
       "timeline_events": [],
       "record_id": "57d0dfb7-c6ac-4f6d-baa8-4a0eb0ff89f1",
       "created_at": "2026-07-23T04:56:12.362727+00:00",
-      "last_updated": "2026-07-23T04:56:12.362727+00:00"
+      "last_updated": "2026-07-23T04:56:12.362727+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Midlands",
@@ -26863,7 +27321,8 @@
       "timeline_events": [],
       "record_id": "da9f9f1e-2244-44b9-94de-28d679b0cd40",
       "created_at": "2026-07-23T04:56:27.198544+00:00",
-      "last_updated": "2026-07-23T04:56:27.198544+00:00"
+      "last_updated": "2026-07-23T04:56:27.198544+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Mungret",
@@ -26875,7 +27334,8 @@
       "extinction_year": "",
       "record_id": "6d806b4b-6308-428f-a332-7581faed8cfc",
       "created_at": "2026-07-23T10:42:43.871649+00:00",
-      "last_updated": "2026-07-23T11:50:12.193166+00:00"
+      "last_updated": "2026-07-23T11:50:12.193166+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Cashel",
@@ -26887,7 +27347,8 @@
       "timeline_events": [],
       "record_id": "26fd04fa-d073-4f05-a170-d171e93ce06c",
       "created_at": "2026-07-24T05:28:04.154246+00:00",
-      "last_updated": "2026-07-24T05:58:03.613097+00:00"
+      "last_updated": "2026-07-24T05:58:03.613097+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Cork",
@@ -26899,7 +27360,8 @@
       "timeline_events": [],
       "record_id": "0300c4fa-288e-4ceb-80b4-b92228694602",
       "created_at": "2026-07-24T06:24:30.851656+00:00",
-      "last_updated": "2026-07-24T06:24:30.851656+00:00"
+      "last_updated": "2026-07-24T06:24:30.851656+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "East Anglia",
@@ -26911,7 +27373,8 @@
       "timeline_events": [],
       "record_id": "d4d5d8d1-604d-4f02-83c0-b7a8d7a7b73a",
       "created_at": "2026-07-31T13:52:01.176648+00:00",
-      "last_updated": "2026-07-31T13:52:01.176648+00:00"
+      "last_updated": "2026-07-31T13:52:01.176648+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Azkeban",
@@ -26923,7 +27386,8 @@
       "timeline_events": [],
       "record_id": "fc7f56ad-8d4a-426e-933f-156384f10423",
       "created_at": "2026-07-31T14:12:07.404803+00:00",
-      "last_updated": "2026-07-31T14:15:30.354939+00:00"
+      "last_updated": "2026-07-31T14:15:30.354939+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Cyprus",
@@ -26935,7 +27399,8 @@
       "timeline_events": [],
       "record_id": "b20a71ed-95e2-465a-a035-9ad734d67bf6",
       "created_at": "2026-08-01T02:33:16.819705+00:00",
-      "last_updated": "2026-08-01T02:33:16.819705+00:00"
+      "last_updated": "2026-08-01T02:33:16.819705+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Scottish Highlands",
@@ -26947,7 +27412,8 @@
       "timeline_events": [],
       "record_id": "23b54b30-b742-4e20-a224-915ca732fd61",
       "created_at": "2026-08-01T08:18:50.771991+00:00",
-      "last_updated": "2026-08-01T08:18:50.771991+00:00"
+      "last_updated": "2026-08-01T08:18:50.771991+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Germany",
@@ -26959,7 +27425,8 @@
       "timeline_events": [],
       "record_id": "d51a30e1-25ce-4c79-afc8-49c2d3ee0745",
       "created_at": "2026-08-01T08:32:39.017723+00:00",
-      "last_updated": "2026-08-01T08:32:39.017723+00:00"
+      "last_updated": "2026-08-01T08:32:39.017723+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Saxony",
@@ -26971,7 +27438,8 @@
       "timeline_events": [],
       "record_id": "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8",
       "created_at": "2026-08-01T08:34:56.001060+00:00",
-      "last_updated": "2026-08-01T08:35:16.287221+00:00"
+      "last_updated": "2026-08-01T08:35:16.287221+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "West Country",
@@ -26983,7 +27451,8 @@
       "timeline_events": [],
       "record_id": "f31e3a15-e52c-4cdc-ac14-249bb323bde1",
       "created_at": "2026-08-01T09:15:25.557266+00:00",
-      "last_updated": "2026-08-01T09:15:25.557266+00:00"
+      "last_updated": "2026-08-01T09:15:25.557266+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Godric's Hollow",
@@ -26995,7 +27464,8 @@
       "timeline_events": [],
       "record_id": "0bbf3d43-ea85-4af7-bc48-b42219f656e8",
       "created_at": "2026-08-01T09:15:41.279379+00:00",
-      "last_updated": "2026-08-01T09:15:41.279379+00:00"
+      "last_updated": "2026-08-01T09:15:41.279379+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Hogshire",
@@ -27007,7 +27477,8 @@
       "timeline_events": [],
       "record_id": "de9bca8f-8fea-4db4-a040-131af6804693",
       "created_at": "2026-08-01T09:21:27.066842+00:00",
-      "last_updated": "2026-08-01T09:21:27.066842+00:00"
+      "last_updated": "2026-08-01T09:21:27.066842+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Hogsmeade Valley",
@@ -27019,7 +27490,8 @@
       "timeline_events": [],
       "record_id": "38b8b79b-0785-4213-826e-0e65998d3b41",
       "created_at": "2026-08-01T09:22:30.645745+00:00",
-      "last_updated": "2026-08-01T09:22:30.645745+00:00"
+      "last_updated": "2026-08-01T09:22:30.645745+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Dark Forest",
@@ -27031,7 +27503,8 @@
       "timeline_events": [],
       "record_id": "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4",
       "created_at": "2026-08-01T09:22:37.833542+00:00",
-      "last_updated": "2026-08-01T09:22:37.833542+00:00"
+      "last_updated": "2026-08-01T09:22:37.833542+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Hogwarts",
@@ -27043,7 +27516,8 @@
       "timeline_events": [],
       "record_id": "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
       "created_at": "2026-08-01T09:34:09.007984+00:00",
-      "last_updated": "2026-08-01T09:34:09.007984+00:00"
+      "last_updated": "2026-08-01T09:34:09.007984+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Umayyad Caliphate",
@@ -27052,10 +27526,19 @@
       "notes": "",
       "extinct": true,
       "extinction_year": 1031,
-      "timeline_events": [],
+      "timeline_events": [
+        {
+          "event_id": "location-extinction:f6dacd04-90b6-4949-af1e-1bf0e69d62fb",
+          "event_type": "extinction",
+          "title": "Extinction of Umayyad Caliphate",
+          "date": "1031",
+          "note": ""
+        }
+      ],
       "record_id": "f6dacd04-90b6-4949-af1e-1bf0e69d62fb",
       "created_at": "2026-08-01T10:33:33.128804+00:00",
-      "last_updated": "2026-08-01T10:34:31.087896+00:00"
+      "last_updated": "2026-08-01T10:34:31.087896+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "al-Andalus",
@@ -27064,10 +27547,19 @@
       "notes": "",
       "extinct": true,
       "extinction_year": 1493,
-      "timeline_events": [],
+      "timeline_events": [
+        {
+          "event_id": "location-extinction:1df35516-b69f-45df-ac06-b52616e5ed41",
+          "event_type": "extinction",
+          "title": "Extinction of al-Andalus",
+          "date": "1493",
+          "note": ""
+        }
+      ],
       "record_id": "1df35516-b69f-45df-ac06-b52616e5ed41",
       "created_at": "2026-08-01T10:33:49.461507+00:00",
-      "last_updated": "2026-08-01T10:35:04.344216+00:00"
+      "last_updated": "2026-08-01T10:35:04.344216+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Hogsmeade Village",
@@ -27079,7 +27571,8 @@
       "timeline_events": [],
       "record_id": "26b19885-3ce3-4df3-8b4b-3dded23625f2",
       "created_at": "2026-08-01T10:44:05.790124+00:00",
-      "last_updated": "2026-08-01T10:44:05.790124+00:00"
+      "last_updated": "2026-08-01T10:44:05.790124+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Inverness",
@@ -27091,7 +27584,8 @@
       "timeline_events": [],
       "record_id": "66b781c8-1a17-43d5-8e03-3fe184d5df8c",
       "created_at": "2026-08-01T10:47:51.186150+00:00",
-      "last_updated": "2026-08-01T10:47:51.186150+00:00"
+      "last_updated": "2026-08-01T10:47:51.186150+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Fort William",
@@ -27103,7 +27597,8 @@
       "timeline_events": [],
       "record_id": "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f",
       "created_at": "2026-08-01T10:48:57.189139+00:00",
-      "last_updated": "2026-08-01T10:48:57.189139+00:00"
+      "last_updated": "2026-08-01T10:48:57.189139+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Loch Ness",
@@ -27115,7 +27610,8 @@
       "timeline_events": [],
       "record_id": "a1bdfa5d-ed43-4775-a505-42e43d0a006e",
       "created_at": "2026-08-01T10:49:45.786064+00:00",
-      "last_updated": "2026-08-01T10:49:45.786064+00:00"
+      "last_updated": "2026-08-01T10:49:45.786064+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Cairngorms",
@@ -27127,7 +27623,8 @@
       "timeline_events": [],
       "record_id": "66a30d33-afe8-4134-9c98-b120e07cf519",
       "created_at": "2026-08-01T10:50:08.436743+00:00",
-      "last_updated": "2026-08-01T10:50:38.851012+00:00"
+      "last_updated": "2026-08-01T10:50:38.851012+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Northumbria",
@@ -27139,7 +27636,8 @@
       "timeline_events": [],
       "record_id": "ca7c093c-47cf-40bc-aa9c-075035b823ab",
       "created_at": "2026-08-01T11:06:28.592102+00:00",
-      "last_updated": "2026-08-01T11:06:28.592102+00:00"
+      "last_updated": "2026-08-01T11:06:28.592102+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "France",
@@ -27151,7 +27649,8 @@
       "timeline_events": [],
       "record_id": "9ee79863-002a-49ba-b726-9c3a9704d391",
       "created_at": "2026-08-02T05:24:15.412926+00:00",
-      "last_updated": "2026-08-02T05:24:15.412926+00:00"
+      "last_updated": "2026-08-02T05:24:15.412926+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Normandy",
@@ -27163,7 +27662,8 @@
       "timeline_events": [],
       "record_id": "c2cc8919-1108-47c9-b3be-9423eea86c1a",
       "created_at": "2026-08-02T05:24:46.363882+00:00",
-      "last_updated": "2026-08-02T05:24:46.363882+00:00"
+      "last_updated": "2026-08-02T05:24:46.363882+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Sussex",
@@ -27175,7 +27675,8 @@
       "timeline_events": [],
       "record_id": "5bc80b00-51ab-4463-a11c-379c8de449c7",
       "created_at": "2026-08-02T05:39:34.390377+00:00",
-      "last_updated": "2026-08-02T05:39:34.390377+00:00"
+      "last_updated": "2026-08-02T05:39:34.390377+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Paris",
@@ -27187,7 +27688,8 @@
       "timeline_events": [],
       "record_id": "8ca999ab-62a2-40c4-ba41-cfdcb3bca870",
       "created_at": "2026-08-02T08:26:09.611338+00:00",
-      "last_updated": "2026-08-02T08:26:09.611338+00:00"
+      "last_updated": "2026-08-02T08:26:09.611338+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Aachen",
@@ -27199,7 +27701,8 @@
       "timeline_events": [],
       "record_id": "f02e9fc5-b286-4197-b08b-de69383a67e4",
       "created_at": "2026-08-02T08:28:20.648771+00:00",
-      "last_updated": "2026-08-02T08:28:20.648771+00:00"
+      "last_updated": "2026-08-02T08:28:20.648771+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Holy Roman Empire",
@@ -27208,10 +27711,19 @@
       "notes": "",
       "extinct": true,
       "extinction_year": 1806,
-      "timeline_events": [],
+      "timeline_events": [
+        {
+          "event_id": "location-extinction:45e5a2df-7b87-4424-8d81-d10ab034d139",
+          "event_type": "extinction",
+          "title": "Extinction of Holy Roman Empire",
+          "date": "1806",
+          "note": ""
+        }
+      ],
       "record_id": "45e5a2df-7b87-4424-8d81-d10ab034d139",
       "created_at": "2026-08-02T08:28:28.923043+00:00",
-      "last_updated": "2026-08-02T08:30:43.426927+00:00"
+      "last_updated": "2026-08-02T08:30:43.426927+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Arabian Peninsula",
@@ -27223,7 +27735,8 @@
       "timeline_events": [],
       "record_id": "d0faae51-593b-440f-95f9-8e3b8b252353",
       "created_at": "2026-08-02T08:39:49.468483+00:00",
-      "last_updated": "2026-08-02T08:39:49.468483+00:00"
+      "last_updated": "2026-08-02T08:39:49.468483+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "The Empty Quarter",
@@ -27235,7 +27748,8 @@
       "timeline_events": [],
       "record_id": "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
       "created_at": "2026-08-02T08:40:12.928675+00:00",
-      "last_updated": "2026-08-02T08:40:47.313774+00:00"
+      "last_updated": "2026-08-02T08:40:47.313774+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Egypt",
@@ -27247,7 +27761,8 @@
       "timeline_events": [],
       "record_id": "e2f7a85b-83ff-4c25-a779-d05da445a37b",
       "created_at": "2026-08-02T08:47:31.140038+00:00",
-      "last_updated": "2026-08-02T08:47:31.140038+00:00"
+      "last_updated": "2026-08-02T08:47:31.140038+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Honshu",
@@ -27259,7 +27774,8 @@
       "timeline_events": [],
       "record_id": "2fccf06f-c60f-440c-a1f3-7e99ba48bbeb",
       "created_at": "2026-08-02T08:58:46.910237+00:00",
-      "last_updated": "2026-08-02T08:58:46.910237+00:00"
+      "last_updated": "2026-08-02T08:58:46.910237+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Hokkaido",
@@ -27271,7 +27787,8 @@
       "timeline_events": [],
       "record_id": "670b762f-6aa6-4e21-8c7a-e187ac2e886f",
       "created_at": "2026-08-02T08:59:02.604260+00:00",
-      "last_updated": "2026-08-02T08:59:02.604260+00:00"
+      "last_updated": "2026-08-02T08:59:02.604260+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Kyushu",
@@ -27283,7 +27800,8 @@
       "timeline_events": [],
       "record_id": "529792ba-6505-4ce6-88ac-5328afb89550",
       "created_at": "2026-08-02T08:59:10.931138+00:00",
-      "last_updated": "2026-08-02T08:59:10.931138+00:00"
+      "last_updated": "2026-08-02T08:59:10.931138+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Shikoku",
@@ -27295,7 +27813,8 @@
       "timeline_events": [],
       "record_id": "ed3b86ce-2a46-48aa-a180-362163be17f7",
       "created_at": "2026-08-02T08:59:18.205358+00:00",
-      "last_updated": "2026-08-02T08:59:18.205358+00:00"
+      "last_updated": "2026-08-02T08:59:18.205358+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Volcano Islands",
@@ -27307,7 +27826,8 @@
       "timeline_events": [],
       "record_id": "6c9d0119-d23a-4b36-8369-7363c59ca944",
       "created_at": "2026-08-02T08:59:44.419021+00:00",
-      "last_updated": "2026-08-02T08:59:44.419021+00:00"
+      "last_updated": "2026-08-02T08:59:44.419021+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Minami Iwo Jima",
@@ -27319,7 +27839,8 @@
       "timeline_events": [],
       "record_id": "f6c823f8-7f67-49a3-98de-84331105deed",
       "created_at": "2026-08-02T09:00:07.533830+00:00",
-      "last_updated": "2026-08-02T09:00:07.533830+00:00"
+      "last_updated": "2026-08-02T09:00:07.533830+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "French Polynesia",
@@ -27331,7 +27852,8 @@
       "timeline_events": [],
       "record_id": "57108b0b-3ae0-4f8f-9d02-627e6649dd52",
       "created_at": "2026-08-02T09:01:48.828790+00:00",
-      "last_updated": "2026-08-02T09:01:48.828790+00:00"
+      "last_updated": "2026-08-02T09:01:48.828790+00:00",
+      "campus_organization_id": ""
     },
     {
       "name": "Matureivaveo",
@@ -27343,7 +27865,53 @@
       "timeline_events": [],
       "record_id": "77f07ff9-955c-4f2d-a2d5-761141b5b5dd",
       "created_at": "2026-08-02T09:02:02.367584+00:00",
-      "last_updated": "2026-08-02T09:02:02.367584+00:00"
+      "last_updated": "2026-08-02T09:02:02.367584+00:00",
+      "campus_organization_id": ""
+    },
+    {
+      "record_id": "school-campus:395b69b4-6931-48a7-a6b5-9ee49251ef28",
+      "name": "Campus of Crucethu",
+      "parent_location_id": "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
+      "campus_organization_id": "395b69b4-6931-48a7-a6b5-9ee49251ef28",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [
+        {
+          "event_id": "school-campus-founding:395b69b4-6931-48a7-a6b5-9ee49251ef28",
+          "event_type": "founding",
+          "title": "Founding of Campus of Crucethu",
+          "date": "1065-04-09",
+          "note": "Campus of Crucethu."
+        }
+      ]
+    },
+    {
+      "name": "Diagon Alley",
+      "parent_location_id": "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "campus_organization_id": "",
+      "record_id": "bc89bd68-989e-42ec-a5b2-e7da7fbce321",
+      "created_at": "2026-08-02T13:59:27.743931+00:00",
+      "last_updated": "2026-08-02T13:59:27.743931+00:00"
+    },
+    {
+      "name": "Orkney Islands",
+      "parent_location_id": "d3ba12b1-afe7-443b-a75b-31de101048c6",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "campus_organization_id": "",
+      "record_id": "649ea454-31dd-4569-b9ea-9aba1552b19e",
+      "created_at": "2026-08-02T14:17:18.331916+00:00",
+      "last_updated": "2026-08-02T14:17:18.331916+00:00"
     }
   ],
   "organizations": [
@@ -27378,7 +27946,14 @@
         {
           "record_id": "b2244d8c-c721-48d9-adeb-ad4f16844197",
           "title": "Minister for Magic",
-          "opened_year": 1707
+          "opened_date": "1707",
+          "opened_year": 1707,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         }
       ],
       "record_id": "1acd0edc-2421-4061-9108-7eb6f7984f64",
@@ -27395,7 +27970,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Division of Central Administration",
@@ -27408,7 +27984,14 @@
         {
           "record_id": "d0302297-3777-40c1-a7ef-34cf746170f0",
           "title": "Minister for Magic",
-          "opened_year": 1707
+          "opened_date": "1707",
+          "opened_year": 1707,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         }
       ],
       "events": [
@@ -27439,7 +28022,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Division of International Engagement",
@@ -27479,7 +28063,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Department of International Magical Cooperation",
@@ -27519,7 +28104,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Division of Law and Justice",
@@ -27557,7 +28143,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Department of Magical Law Enforcement",
@@ -27586,7 +28173,14 @@
         {
           "record_id": "79c7febb-df26-45f4-a2a1-29a15d0fbde7",
           "title": "Head of the Office",
-          "opened_year": 1707
+          "opened_date": "1707",
+          "opened_year": 1707,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         }
       ],
       "record_id": "d1797649-531d-4b8b-bd84-4056f8a8e5c1",
@@ -27603,7 +28197,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Wizengamot",
@@ -27641,7 +28236,14 @@
         {
           "record_id": "00e4cd28-ac41-4938-9029-5edf31026585",
           "title": "Chief Warlock",
-          "opened_year": 1539
+          "opened_date": "1539",
+          "opened_year": 1539,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         }
       ],
       "record_id": "1c1cd35f-13ee-4cdf-a7af-57202b2dd7da",
@@ -27658,7 +28260,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Division of Research",
@@ -27696,7 +28299,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Department of Mysteries",
@@ -27756,7 +28360,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Division of Domestic Affairs",
@@ -27794,7 +28399,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Division for the Regulation of the Use of Magic",
@@ -27832,7 +28438,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Investigations Department",
@@ -27870,7 +28477,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Hit Wizards Squad",
@@ -27908,7 +28516,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Auror's Office",
@@ -27937,87 +28546,206 @@
         {
           "record_id": "e0ea9f33-d867-4f0b-a186-a8d4c208086e",
           "title": "Head of the Office of the Aurors",
-          "opened_year": 1737
+          "opened_date": "1737",
+          "opened_year": 1737,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "51cf1142-9a1a-4cf5-acd2-c820ecfa5ab1",
           "title": "Chief Assistant",
-          "opened_year": 1737
+          "opened_date": "1737",
+          "opened_year": 1737,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "d6da6d2e-e037-46c9-b45e-044a253c6146",
           "title": "Deputy Chief Assistant",
-          "opened_year": 1810
+          "opened_date": "1810",
+          "opened_year": 1810,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "223f1f30-aec3-4290-bde2-973dbf884aee",
           "title": "Senior Auror",
-          "opened_year": 1737
+          "opened_date": "1737",
+          "opened_year": 1737,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "78ad61c6-828c-4fb0-bc39-f025b2a1c057",
           "title": "Senior Auror",
-          "opened_year": 1749
+          "opened_date": "1749",
+          "opened_year": 1749,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "cc81aee1-4dcc-4251-b4a2-545480f9f387",
           "title": "Auror",
-          "opened_year": 1737
+          "opened_date": "1737",
+          "opened_year": 1737,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "f4cbc8c1-69c6-4100-81de-916dd5b5da4d",
           "title": "Auror",
-          "opened_year": 1737
+          "opened_date": "1737",
+          "opened_year": 1737,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "d72c9feb-efd5-421f-bb9f-810ccc25dc23",
           "title": "Auror",
-          "opened_year": 1737
+          "opened_date": "1737",
+          "opened_year": 1737,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "f1ee50ac-bcc6-465c-a87d-26fdebb53479",
           "title": "Auror",
-          "opened_year": 1741
+          "opened_date": "1741",
+          "opened_year": 1741,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "c92df7d1-7a46-4a39-8637-3a96b8a4812b",
           "title": "Auror",
-          "opened_year": 1742
+          "opened_date": "1742",
+          "opened_year": 1742,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "a3461eb9-3d7d-454d-8221-7ab602b2d24a",
           "title": "Auror",
-          "opened_year": 1750
+          "opened_date": "1750",
+          "opened_year": 1750,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "18009523-8d4a-4856-bd72-9a4a50c645d3",
           "title": "Auror",
-          "opened_year": 1921
+          "opened_date": "1921",
+          "opened_year": 1921,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "835a43f7-e36c-45c1-a647-72b599975e1c",
           "title": "Auror",
-          "opened_year": 1935
+          "opened_date": "1935",
+          "opened_year": 1935,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "8cc36517-0fa8-488a-a755-57391def639d",
           "title": "Auror",
-          "opened_year": 1971
+          "opened_date": "1971",
+          "opened_year": 1971,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "92c64ada-0316-439b-b9fc-041d892bfe27",
           "title": "Auror",
-          "opened_year": 1996
+          "opened_date": "1996",
+          "opened_year": 1996,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "15200d0e-f8dc-4592-b66a-c611674143cb",
           "title": "Senior Clerk",
-          "opened_year": 1799
+          "opened_date": "1799",
+          "opened_year": 1799,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         },
         {
           "record_id": "c5f9d994-65cf-4998-b47e-d51be16c3bde",
           "title": "Clerk",
-          "opened_year": 1924
+          "opened_date": "1924",
+          "opened_year": 1924,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
         }
       ],
       "record_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
@@ -28034,7 +28762,8 @@
       "extinction_date": "",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "Hogwarts",
@@ -28074,7 +28803,8 @@
       "last_updated": "2026-08-01T08:26:12.767363+00:00",
       "famous_organization": false,
       "has_storeroom": false,
-      "storeroom_inventory": []
+      "storeroom_inventory": [],
+      "campus_location_id": ""
     },
     {
       "name": "British Wizards Council",
@@ -28113,72 +28843,164 @@
         {
           "record_id": "bc434e19-547d-4431-a8cc-91e5bc9b6e01",
           "title": "Léodwita",
-          "opened_year": 1065
+          "opened_date": "1065",
+          "opened_year": 1065,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "8e173800-c5c9-43af-9eea-bd8e84c611e5",
           "title": "Heahwita",
-          "opened_year": 1065
+          "opened_date": "1065",
+          "opened_year": 1065,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "e28e51c1-9a6c-47f2-8743-25f686afd1c7",
           "title": "Heahwita",
-          "opened_year": 1181
+          "opened_date": "1181",
+          "opened_year": 1181,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "454e0bc0-55df-4179-a8db-2899aae3e416",
           "title": "Wita",
-          "opened_year": 1065
+          "opened_date": "1065",
+          "opened_year": 1065,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "9e16bbd7-438a-4c18-b91c-fd5682910a2f",
           "title": "Wita",
-          "opened_year": 1065
+          "opened_date": "1065",
+          "opened_year": 1065,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "6966cf67-a5f5-484f-a19a-e8014c00095e",
           "title": "Wita",
-          "opened_year": 1065
+          "opened_date": "1065",
+          "opened_year": 1065,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "ebd750b6-e612-43d6-b870-4b1b7f136d4b",
           "title": "Wita",
-          "opened_year": 1170
+          "opened_date": "1170",
+          "opened_year": 1170,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "ef1031aa-9da6-41ef-b521-b358d00206c8",
           "title": "Wita",
-          "opened_year": 1171
+          "opened_date": "1171",
+          "opened_year": 1171,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "bde824df-7801-4a0e-9c34-925cfe24d856",
           "title": "Wita",
-          "opened_year": 1215
+          "opened_date": "1215",
+          "opened_year": 1215,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "df44a950-b1a9-4d80-bad3-530f70b02484",
           "title": "Wita",
-          "opened_year": 1215
+          "opened_date": "1215",
+          "opened_year": 1215,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "a0b58187-7465-4a53-b43f-39a28e932575",
           "title": "Bocere",
-          "opened_year": 1096
+          "opened_date": "1096",
+          "opened_year": 1096,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "d52c833f-b564-4853-897f-93999bf06d0c",
           "title": "Bocere",
-          "opened_year": 1309
+          "opened_date": "1309",
+          "opened_year": 1309,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         },
         {
           "record_id": "ff1ee0ab-7569-449f-87d6-2aeff4be46d6",
           "title": "Bocere",
-          "opened_year": 1413
+          "opened_date": "1413",
+          "opened_year": 1413,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
         }
       ],
       "record_id": "7b65e3c9-05e0-480c-b672-ccba403671fb",
       "created_at": "2026-08-02T06:54:23.586876+00:00",
-      "last_updated": "2026-08-02T07:51:02.935111+00:00"
+      "last_updated": "2026-08-02T07:51:02.935111+00:00",
+      "campus_location_id": ""
     },
     {
       "name": "Crucethu",
@@ -28216,7 +29038,8 @@
       "jobs": [],
       "record_id": "395b69b4-6931-48a7-a6b5-9ee49251ef28",
       "created_at": "2026-08-02T08:41:05.456808+00:00",
-      "last_updated": "2026-08-02T08:44:06.372276+00:00"
+      "last_updated": "2026-08-02T08:44:06.372276+00:00",
+      "campus_location_id": "school-campus:395b69b4-6931-48a7-a6b5-9ee49251ef28"
     }
   ],
   "events": [
@@ -28233,7 +29056,9 @@
       "created_at": "2026-07-24T04:12:43.832814+00:00",
       "last_updated": "2026-07-24T04:12:43.832814+00:00",
       "eminence_person_ids": [],
-      "eminence_skills": {}
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "founding",
@@ -28252,7 +29077,9 @@
       "created_at": "2026-07-24T05:57:01.593090+00:00",
       "last_updated": "2026-07-24T05:58:09.794967+00:00",
       "eminence_person_ids": [],
-      "eminence_skills": {}
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "other",
@@ -28269,7 +29096,9 @@
       "last_updated": "2026-07-23T11:40:02.541008+00:00",
       "eminence_person_ids": [],
       "locked_location_ids": [],
-      "eminence_skills": {}
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "other",
@@ -28286,7 +29115,9 @@
       "last_updated": "2026-07-23T11:41:18.455518+00:00",
       "eminence_person_ids": [],
       "locked_location_ids": [],
-      "eminence_skills": {}
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "founding",
@@ -28303,7 +29134,9 @@
       "last_updated": "2026-07-23T11:50:56.194090+00:00",
       "eminence_person_ids": [],
       "locked_location_ids": [],
-      "eminence_skills": {}
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "other",
@@ -28320,7 +29153,9 @@
       "last_updated": "2026-07-23T11:55:46.897862+00:00",
       "eminence_person_ids": [],
       "locked_location_ids": [],
-      "eminence_skills": {}
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "founding",
@@ -28339,7 +29174,118 @@
       ],
       "record_id": "b49150ef-eaf9-4e1a-bbc4-a56f109e89e5",
       "created_at": "2026-08-02T08:30:20.903265+00:00",
-      "last_updated": "2026-08-02T08:32:18.708283+00:00"
+      "last_updated": "2026-08-02T08:32:18.708283+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Maia teaches Salazar basic spells",
+      "date": "974",
+      "description": "At a very young age, Maia begins teaching Salazar very basic spells.",
+      "person_ids": [
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "995b49c5-e589-4455-80d0-6ee99b9430d9",
+      "created_at": "2026-08-02T12:57:10.927967+00:00",
+      "last_updated": "2026-08-02T12:58:53.823749+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Maia teaches Salazar basic spellcrafting",
+      "date": "975",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Runes"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "c8814f24-b2f0-476d-8ebc-e09dbb4542e3",
+      "created_at": "2026-08-02T13:04:11.167737+00:00",
+      "last_updated": "2026-08-02T13:04:11.167737+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Salazar's father is murdered by muggles",
+      "date": "980-11-11",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "bcfff484-a85f-43e0-96e3-e20796e5396f"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "3818737c-30da-4fe9-a17f-9ee90e39da9e",
+      "created_at": "2026-08-02T13:15:17.241896+00:00",
+      "last_updated": "2026-08-02T13:16:16.839026+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Salazar and Mother flee to England",
+      "date": "980-11-12",
+      "description": "Upon arriving in England, both lived primarily as muggles and had no interaction with the wizarding world. Maia refused to ever use magic again and discontinued training Salazar.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "d9b3054f-2c1a-4362-b3f9-ee04277b4f42",
+      "created_at": "2026-08-02T13:15:39.960120+00:00",
+      "last_updated": "2026-08-02T13:49:02.298960+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Discrimination toward Muggles grows",
+      "date": "981",
+      "description": "As he grieved his father, his hatred of the muggles who killed his father grew.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "c03704a7-0874-4e73-84f2-048923c7d502",
+      "created_at": "2026-08-02T13:21:58.377795+00:00",
+      "last_updated": "2026-08-02T13:25:56.038766+00:00"
     },
     {
       "event_type": "custom",
@@ -28363,7 +29309,9 @@
       "locked_location_ids": [],
       "record_id": "671f1a67-031c-4433-989e-2c2edd7b28a8",
       "created_at": "2026-08-02T08:21:21.128991+00:00",
-      "last_updated": "2026-08-02T08:21:32.929584+00:00"
+      "last_updated": "2026-08-02T08:21:32.929584+00:00",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -28385,7 +29333,9 @@
       "locked_location_ids": [],
       "record_id": "bc51ce4c-8e33-4bb7-a8e3-a82f4dbf100f",
       "created_at": "2026-08-02T08:22:29.028321+00:00",
-      "last_updated": "2026-08-02T08:24:13.917742+00:00"
+      "last_updated": "2026-08-02T08:24:13.917742+00:00",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -28406,7 +29356,9 @@
       "locked_location_ids": [],
       "record_id": "53d8feaa-3154-4f0c-89c3-00d24f3a855e",
       "created_at": "2026-08-02T08:23:20.653193+00:00",
-      "last_updated": "2026-08-02T08:24:45.621446+00:00"
+      "last_updated": "2026-08-02T08:24:45.621446+00:00",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -28429,7 +29381,9 @@
       "locked_location_ids": [],
       "record_id": "8a7ebb7d-dba8-4625-9f66-622142129ef3",
       "created_at": "2026-08-02T08:26:15.852782+00:00",
-      "last_updated": "2026-08-02T08:26:15.852782+00:00"
+      "last_updated": "2026-08-02T08:26:15.852782+00:00",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -28452,543 +29406,9 @@
       "locked_location_ids": [],
       "record_id": "8af4aa26-0c76-4740-92c1-edf156991603",
       "created_at": "2026-08-02T08:28:39.618658+00:00",
-      "last_updated": "2026-08-02T08:28:39.618658+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Expelled from Hogwarts",
-      "date": "1060",
-      "description": "After a minor incident with other students, Slytherin amplified evidence to paint Emeric as dangerous and untrustworthy. Slytherin assured he would be expelled. Emeric was furious at Slytherin for his sabotage of his future, bitter at the other staff for failing to protect him, and became angry at all magical folk, launching his mission to seek power, his drive to kill wizards, and his search for the elder wand.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "336591a5-7fe1-4444-a893-a060558bc426",
-      "created_at": "2026-08-01T09:09:15.460294+00:00",
-      "last_updated": "2026-08-01T09:18:24.958051+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Seeks knowledge",
-      "date": "1061-01",
-      "description": "Emeric begins to search libraries, shops, powerful magical outcasts, and mytical places to learn more about dark magic fueling his rage and growing his skill.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "d3ba12b1-afe7-443b-a75b-31de101048c6",
-        "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
-        "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8"
-      ],
-      "locked_location_ids": [],
-      "record_id": "2bc715e2-8451-468e-80ef-b406a6382a82",
-      "created_at": "2026-08-01T09:11:23.404499+00:00",
-      "last_updated": "2026-08-01T09:19:15.871362+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Discovers first Elder Wand Clue",
-      "date": "1061-02",
-      "description": "Emeric comes across a loose reference to an individual with a highly powerful wand.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "f31e3a15-e52c-4cdc-ac14-249bb323bde1"
-      ],
-      "locked_location_ids": [],
-      "record_id": "c43430f9-ea79-4989-9db4-fca7e31c856c",
-      "created_at": "2026-08-01T09:13:38.389036+00:00",
-      "last_updated": "2026-08-01T09:16:15.812082+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Mastery of Grimoires",
-      "date": "1061-10",
-      "description": "Emeric collects and practices many spells found in grimoires that aid his self-study. This is also useful because he discovers many rare spells that many established wizards were unprepared to defend against.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8",
-        "d3ba12b1-afe7-443b-a75b-31de101048c6",
-        "fd02c4e8-9159-48c6-8143-d329cb7af046",
-        "ec397fa8-dfa3-4278-b78f-c3d96b4066fe"
-      ],
-      "locked_location_ids": [],
-      "record_id": "2eb51aef-4deb-4e68-be36-d8e95e96afa9",
-      "created_at": "2026-08-01T09:19:07.483890+00:00",
-      "last_updated": "2026-08-01T09:19:07.483890+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Moves to the Dark Forest",
-      "date": "1062-01",
-      "description": "Emeric relocates and secretly builds a hut in the Dark Forest outside of Hogwarts.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [],
-      "period_names": [],
-      "location_ids": [
-        "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4"
-      ],
-      "locked_location_ids": [],
-      "record_id": "1b46be9f-cdac-44be-8d76-2143513a2504",
-      "created_at": "2026-08-01T09:22:46.692246+00:00",
-      "last_updated": "2026-08-01T09:22:46.692246+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Creates a secret passage into Hogwarts",
-      "date": "1062-02",
-      "description": "Emeric builds a secret passageway into the fourth floor of Hogwarts so that he can gain easy access to the Library to secretly study their texts.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
-      ],
-      "locked_location_ids": [],
-      "record_id": "44cd6ed2-7957-4b5c-84cc-b6eec661aa12",
-      "created_at": "2026-08-01T09:24:35.125649+00:00",
-      "last_updated": "2026-08-01T09:34:33.833242+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Masters more dark texts",
-      "date": "1062-04",
-      "description": "",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "7feef0b2-5fce-453a-b570-3b65d89f43f7",
-      "created_at": "2026-08-01T09:40:05.605976+00:00",
-      "last_updated": "2026-08-01T09:43:10.986074+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Constructs the room of requirement",
-      "date": "1063-05",
-      "description": "Having learned special approaches to construction, he builds the room for multifarious purposes and uses it throughout the rest of his time alive.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
-      ],
-      "locked_location_ids": [],
-      "record_id": "0309fcfa-831a-4525-ace3-1884942ee196",
-      "created_at": "2026-08-01T09:45:35.741420+00:00",
-      "last_updated": "2026-08-01T09:48:19.038947+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Discovers 2nd Elder Wand Clue",
-      "date": "1063-06",
-      "description": "He learns of a possessor of the wand who died, but not through murder and he suspects they may still have the wand.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "04f5eb8a-0b52-487c-8c7e-9848aee7b8e9",
-      "created_at": "2026-08-01T10:19:14.748920+00:00",
-      "last_updated": "2026-08-01T10:19:14.748920+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Finds the Elder Wand",
-      "date": "1063-12",
-      "description": "He discovers the wand was buried with a former possessor and he takes possession and attunement of it using dark magic.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "77e763bc-ff7b-4e95-aa6a-d4106365995c",
-      "created_at": "2026-08-01T10:22:21.436303+00:00",
-      "last_updated": "2026-08-01T10:22:21.436303+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "died",
-      "title": "Emeric Kills Salazar Slytherin",
-      "date": "1064-02-02",
-      "description": "This ignites in Egbert the Egregious a striving for vengence. Most of the public was unaware that Egbert killed Slytherin.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "6f16f9db-6a8b-4070-82a4-55ea6d144654",
-      "created_at": "2026-08-01T10:40:45.947074+00:00",
-      "last_updated": "2026-08-02T07:56:23.558703+00:00",
-      "eminence_skills": {
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
-      }
-    },
-    {
-      "event_type": "custom",
-      "title": "Ambushes and kills 3 wizards in Hogsmeade",
-      "date": "1064-04-20",
-      "description": "",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "26b19885-3ce3-4df3-8b4b-3dded23625f2"
-      ],
-      "locked_location_ids": [],
-      "record_id": "6ea00264-cd87-4666-95c8-996f435eea0b",
-      "created_at": "2026-08-01T10:44:13.804727+00:00",
-      "last_updated": "2026-08-01T10:44:13.804727+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Kills many muggles in Inverness",
-      "date": "1064-06",
-      "description": "",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "66b781c8-1a17-43d5-8e03-3fe184d5df8c"
-      ],
-      "locked_location_ids": [],
-      "record_id": "ef97abf5-1465-4e79-8418-9b7dc797b5d0",
-      "created_at": "2026-08-01T10:47:57.741040+00:00",
-      "last_updated": "2026-08-01T10:50:59.548676+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Kills more muggles in Ft William",
-      "date": "1064-11",
-      "description": "",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f"
-      ],
-      "locked_location_ids": [],
-      "record_id": "30517fab-5319-42d9-aec5-889b32892f1d",
-      "created_at": "2026-08-01T10:52:05.939329+00:00",
-      "last_updated": "2026-08-01T10:52:05.939329+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Infultrates Hogwarts and kills multiple staff",
-      "date": "1065-03",
-      "description": "",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "341834b6-1494-4efb-83df-f70b780d4413",
-      "created_at": "2026-08-01T10:53:33.198136+00:00",
-      "last_updated": "2026-08-01T10:54:59.487132+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Travel to London",
-      "date": "1066-01-02",
-      "description": "He is in London when Emeric the Evil kills 25 mages and reports this information back to William of Normandy",
-      "person_ids": [
-        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
-      ],
-      "eminence_person_ids": [
-        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
-      ],
-      "eminence_skills": {
-        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
-      },
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "4d80a20d-cbee-4bc8-9dfa-44db2d32eb73",
-      "created_at": "2026-08-02T08:17:19.638680+00:00",
-      "last_updated": "2026-08-02T10:59:59.445035+00:00",
+      "last_updated": "2026-08-02T08:28:39.618658+00:00",
       "organization_id": "",
       "organization_name": ""
-    },
-    {
-      "event_type": "custom",
-      "title": "Travels to London and kills many",
-      "date": "1066-01-03",
-      "description": "He murders many many muggles and 25 wizards in London over the course of a month.",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "eminence_person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
-      ],
-      "locked_location_ids": [],
-      "record_id": "b359b89b-e38f-481e-a927-d951665ffd05",
-      "created_at": "2026-08-01T10:56:21.486762+00:00",
-      "last_updated": "2026-08-02T11:00:40.361257+00:00",
-      "eminence_skills": {
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
-      },
-      "organization_id": "",
-      "organization_name": ""
-    },
-    {
-      "event_type": "died",
-      "title": "Egbert kills Emeric",
-      "date": "1066-04-12",
-      "description": "",
-      "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "a04ba8f5-c7bc-4459-b8cc-16c2f896b645",
-      "created_at": "2026-08-01T10:58:49.683467+00:00",
-      "last_updated": "2026-08-02T05:46:20.093762+00:00",
-      "eminence_skills": {
-        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
-      }
-    },
-    {
-      "event_type": "custom",
-      "title": "Killing spree",
-      "date": "1066-05",
-      "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
-      "person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_skills": {
-        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
-      },
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "b054e551-6e71-4f82-bee4-59789647ed60",
-      "created_at": "2026-08-02T05:16:24.182311+00:00",
-      "last_updated": "2026-08-02T05:16:24.182311+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Begins assembling an invasion",
-      "date": "1066-06",
-      "description": "Begins assembling a fleet and army to invade England. Learning of the weakened position of the wizards in England and Scotland, He siezes the opportunity to amass an invasion force.",
-      "person_ids": [
-        "0164a838-659c-40f7-b201-ff20fef4679d"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [
-        "c2cc8919-1108-47c9-b3be-9423eea86c1a"
-      ],
-      "locked_location_ids": [],
-      "record_id": "1d09f653-76eb-4790-9d1f-875e94fb1b7f",
-      "created_at": "2026-08-02T05:32:04.854987+00:00",
-      "last_updated": "2026-08-02T05:32:04.854987+00:00"
-    },
-    {
-      "event_type": "died",
-      "title": "Accidental death",
-      "date": "1066-06-12",
-      "description": "Egbert accidentally kills himself attempting to make a horcrux.",
-      "person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "24138fdb-a54a-4592-b7a4-e654ff9e6941",
-      "created_at": "2026-08-02T05:17:03.046153+00:00",
-      "last_updated": "2026-08-02T05:46:26.972574+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Begins the Norman Invasion",
-      "date": "1066-09-28",
-      "description": "",
-      "person_ids": [
-        "0164a838-659c-40f7-b201-ff20fef4679d"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [
-        "5bc80b00-51ab-4463-a11c-379c8de449c7"
-      ],
-      "locked_location_ids": [],
-      "record_id": "2153d744-3d18-417e-8584-69ebde57cf10",
-      "created_at": "2026-08-02T05:40:15.457511+00:00",
-      "last_updated": "2026-08-02T05:40:22.235003+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Crowned King",
-      "date": "1066-12-25",
-      "description": "Becomes King of England and is known as William I, King of England.",
-      "person_ids": [
-        "0164a838-659c-40f7-b201-ff20fef4679d"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "93281b5f-1409-43ef-ba7e-2825ccfbddda",
-      "created_at": "2026-08-02T05:41:03.937794+00:00",
-      "last_updated": "2026-08-02T05:42:04.158604+00:00"
-    },
-    {
-      "event_type": "founding",
-      "title": "Founding of Azkeban",
-      "date": "1455",
-      "description": "",
-      "person_ids": [
-        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
-      ],
-      "eminence_person_ids": [
-        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
-      ],
-      "locked_location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
-      ],
-      "record_id": "ea1f8927-a69d-418d-b5c6-139384f1efbd",
-      "created_at": "2026-08-01T02:28:05.635164+00:00",
-      "last_updated": "2026-08-01T02:28:05.635164+00:00",
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "custom",
-      "title": "Converts Azkeban into a prison",
-      "date": "1723",
-      "description": "Damocles converts Azkeban into a prision and introduces Dementors as guards.",
-      "person_ids": [
-        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
-      ],
-      "locked_location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
-      ],
-      "record_id": "4ad19233-ad81-4486-aa41-d3951f8e3759",
-      "created_at": "2026-07-31T14:12:14.553558+00:00",
-      "last_updated": "2026-08-01T07:47:58.854079+00:00",
-      "eminence_person_ids": [
-        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
-      ],
-      "eminence_skills": {}
-    },
-    {
-      "event_type": "other",
-      "title": "Quidditch World Cup Hosted in Britain",
-      "date": "1805",
-      "description": "Artemisia Lufkin successfully lobbied to bring the event to Britain",
-      "person_ids": [
-        "f812561f-6caa-4c1e-a5dc-6764288ed90a"
-      ],
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "d1ac256b-4e2d-4e5c-8835-1b765e38c4dc",
-      "created_at": "2026-07-31T13:43:03.671812+00:00",
-      "last_updated": "2026-07-31T13:43:03.671812+00:00",
-      "eminence_person_ids": [],
-      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -29014,31 +29434,6 @@
       "record_id": "27cc7d38-2849-40dc-a4ae-8a392c4561f2",
       "created_at": "2026-08-02T08:37:08.966532+00:00",
       "last_updated": "2026-08-02T08:48:29.425317+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Travels to the new Crucethu school",
-      "date": "1065-06-30",
-      "description": "Prior to the school's grand opening, Malfoy visits the founders and tours the campus.",
-      "person_ids": [
-        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
-      ],
-      "eminence_person_ids": [
-        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
-      ],
-      "eminence_skills": {
-        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
-      },
-      "period_names": [],
-      "location_ids": [
-        "00000deb-7be6-42e8-a8d2-0d23dff11c0b"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "ccf62814-2ad6-43f3-9585-484eae059f99",
-      "created_at": "2026-08-02T08:39:10.327317+00:00",
-      "last_updated": "2026-08-02T08:45:24.118295+00:00"
     },
     {
       "event_type": "custom",
@@ -29115,6 +29510,27 @@
     },
     {
       "event_type": "custom",
+      "title": "Expelled from Hogwarts",
+      "date": "1060",
+      "description": "After a minor incident with other students, Slytherin amplified evidence to paint Emeric as dangerous and untrustworthy. Slytherin assured he would be expelled. Emeric was furious at Slytherin for his sabotage of his future, bitter at the other staff for failing to protect him, and became angry at all magical folk, launching his mission to seek power, his drive to kill wizards, and his search for the elder wand.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "336591a5-7fe1-4444-a893-a060558bc426",
+      "created_at": "2026-08-01T09:09:15.460294+00:00",
+      "last_updated": "2026-08-01T09:18:24.958051+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
       "title": "Travels to Matureivaveo",
       "date": "1061",
       "description": "",
@@ -29137,6 +29553,279 @@
       "record_id": "bc00a037-c2e0-4904-a469-374630367d5f",
       "created_at": "2026-08-02T09:02:13.755983+00:00",
       "last_updated": "2026-08-02T09:02:20.417861+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Seeks knowledge",
+      "date": "1061-01",
+      "description": "Emeric begins to search libraries, shops, powerful magical outcasts, and mytical places to learn more about dark magic fueling his rage and growing his skill.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "d3ba12b1-afe7-443b-a75b-31de101048c6",
+        "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
+        "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8"
+      ],
+      "locked_location_ids": [],
+      "record_id": "2bc715e2-8451-468e-80ef-b406a6382a82",
+      "created_at": "2026-08-01T09:11:23.404499+00:00",
+      "last_updated": "2026-08-01T09:19:15.871362+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Discovers first Elder Wand Clue",
+      "date": "1061-02",
+      "description": "Emeric comes across a loose reference to an individual with a highly powerful wand.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "f31e3a15-e52c-4cdc-ac14-249bb323bde1"
+      ],
+      "locked_location_ids": [],
+      "record_id": "c43430f9-ea79-4989-9db4-fca7e31c856c",
+      "created_at": "2026-08-01T09:13:38.389036+00:00",
+      "last_updated": "2026-08-01T09:16:15.812082+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Mastery of Grimoires",
+      "date": "1061-10",
+      "description": "Emeric collects and practices many spells found in grimoires that aid his self-study. This is also useful because he discovers many rare spells that many established wizards were unprepared to defend against.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8",
+        "d3ba12b1-afe7-443b-a75b-31de101048c6",
+        "fd02c4e8-9159-48c6-8143-d329cb7af046",
+        "ec397fa8-dfa3-4278-b78f-c3d96b4066fe"
+      ],
+      "locked_location_ids": [],
+      "record_id": "2eb51aef-4deb-4e68-be36-d8e95e96afa9",
+      "created_at": "2026-08-01T09:19:07.483890+00:00",
+      "last_updated": "2026-08-01T09:19:07.483890+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Moves to the Dark Forest",
+      "date": "1062-01",
+      "description": "Emeric relocates and secretly builds a hut in the Dark Forest outside of Hogwarts.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [],
+      "period_names": [],
+      "location_ids": [
+        "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4"
+      ],
+      "locked_location_ids": [],
+      "record_id": "1b46be9f-cdac-44be-8d76-2143513a2504",
+      "created_at": "2026-08-01T09:22:46.692246+00:00",
+      "last_updated": "2026-08-01T09:22:46.692246+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Creates a secret passage into Hogwarts",
+      "date": "1062-02",
+      "description": "Emeric builds a secret passageway into the fourth floor of Hogwarts so that he can gain easy access to the Library to secretly study their texts.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "record_id": "44cd6ed2-7957-4b5c-84cc-b6eec661aa12",
+      "created_at": "2026-08-01T09:24:35.125649+00:00",
+      "last_updated": "2026-08-01T09:34:33.833242+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Masters more dark texts",
+      "date": "1062-04",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "7feef0b2-5fce-453a-b570-3b65d89f43f7",
+      "created_at": "2026-08-01T09:40:05.605976+00:00",
+      "last_updated": "2026-08-01T09:43:10.986074+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Constructs the room of requirement",
+      "date": "1063-05",
+      "description": "Having learned special approaches to construction, he builds the room for multifarious purposes and uses it throughout the rest of his time alive.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "record_id": "0309fcfa-831a-4525-ace3-1884942ee196",
+      "created_at": "2026-08-01T09:45:35.741420+00:00",
+      "last_updated": "2026-08-01T09:48:19.038947+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Discovers 2nd Elder Wand Clue",
+      "date": "1063-06",
+      "description": "He learns of a possessor of the wand who died, but not through murder and he suspects they may still have the wand.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "04f5eb8a-0b52-487c-8c7e-9848aee7b8e9",
+      "created_at": "2026-08-01T10:19:14.748920+00:00",
+      "last_updated": "2026-08-01T10:19:14.748920+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Finds the Elder Wand",
+      "date": "1063-12",
+      "description": "He discovers the wand was buried with a former possessor and he takes possession and attunement of it using dark magic.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "77e763bc-ff7b-4e95-aa6a-d4106365995c",
+      "created_at": "2026-08-01T10:22:21.436303+00:00",
+      "last_updated": "2026-08-01T10:22:21.436303+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Ambushes and kills 3 wizards in Hogsmeade",
+      "date": "1064-04-20",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "26b19885-3ce3-4df3-8b4b-3dded23625f2"
+      ],
+      "locked_location_ids": [],
+      "record_id": "6ea00264-cd87-4666-95c8-996f435eea0b",
+      "created_at": "2026-08-01T10:44:13.804727+00:00",
+      "last_updated": "2026-08-01T10:44:13.804727+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Kills many muggles in Inverness",
+      "date": "1064-06",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "66b781c8-1a17-43d5-8e03-3fe184d5df8c"
+      ],
+      "locked_location_ids": [],
+      "record_id": "ef97abf5-1465-4e79-8418-9b7dc797b5d0",
+      "created_at": "2026-08-01T10:47:57.741040+00:00",
+      "last_updated": "2026-08-01T10:50:59.548676+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Kills more muggles in Ft William",
+      "date": "1064-11",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f"
+      ],
+      "locked_location_ids": [],
+      "record_id": "30517fab-5319-42d9-aec5-889b32892f1d",
+      "created_at": "2026-08-01T10:52:05.939329+00:00",
+      "last_updated": "2026-08-01T10:52:05.939329+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -29165,6 +29854,100 @@
     },
     {
       "event_type": "custom",
+      "title": "Infultrates Hogwarts and kills multiple staff",
+      "date": "1065-03",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "341834b6-1494-4efb-83df-f70b780d4413",
+      "created_at": "2026-08-01T10:53:33.198136+00:00",
+      "last_updated": "2026-08-01T10:54:59.487132+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to the new Crucethu school",
+      "date": "1065-06-30",
+      "description": "Prior to the school's grand opening, Malfoy visits the founders and tours the campus.",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
+      },
+      "period_names": [],
+      "location_ids": [
+        "00000deb-7be6-42e8-a8d2-0d23dff11c0b"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "ccf62814-2ad6-43f3-9585-484eae059f99",
+      "created_at": "2026-08-02T08:39:10.327317+00:00",
+      "last_updated": "2026-08-02T08:45:24.118295+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travel to London",
+      "date": "1066-01-02",
+      "description": "He is in London when Emeric the Evil kills 25 mages and reports this information back to William of Normandy",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "4d80a20d-cbee-4bc8-9dfa-44db2d32eb73",
+      "created_at": "2026-08-02T08:17:19.638680+00:00",
+      "last_updated": "2026-08-02T10:59:59.445035+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to London and kills many",
+      "date": "1066-01-03",
+      "description": "He murders many many muggles and 25 wizards in London over the course of a month.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "record_id": "b359b89b-e38f-481e-a927-d951665ffd05",
+      "created_at": "2026-08-01T10:56:21.486762+00:00",
+      "last_updated": "2026-08-02T11:00:40.361257+00:00",
+      "eminence_skills": {
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
+      },
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
       "title": "Learns of many slain by Emeric",
       "date": "1066-01-09",
       "description": "Malfoy is on the ground in London when Emeric's killing spree ensues. While he never physically interacts with Emeric himself, he is in culture at the time of this travesty.",
@@ -29183,6 +29966,78 @@
       "record_id": "c7691490-fefa-467e-9dfe-75a5156fe583",
       "created_at": "2026-08-02T10:59:30.923701+00:00",
       "last_updated": "2026-08-02T11:01:47.170965+00:00"
+    },
+    {
+      "event_type": "died",
+      "title": "Emeric Kills Salazar Slytherin",
+      "date": "1066-02-02",
+      "description": "This ignites in Egbert the Egregious a striving for vengence. Most of the public was unaware that Egbert killed Slytherin.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "6f16f9db-6a8b-4070-82a4-55ea6d144654",
+      "created_at": "2026-08-01T10:40:45.947074+00:00",
+      "last_updated": "2026-08-02T13:14:10.310759+00:00",
+      "eminence_skills": {
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
+      },
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "died",
+      "title": "Egbert kills Emeric",
+      "date": "1066-04-12",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "a04ba8f5-c7bc-4459-b8cc-16c2f896b645",
+      "created_at": "2026-08-01T10:58:49.683467+00:00",
+      "last_updated": "2026-08-02T05:46:20.093762+00:00",
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
+      },
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Killing spree",
+      "date": "1066-05",
+      "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "b054e551-6e71-4f82-bee4-59789647ed60",
+      "created_at": "2026-08-02T05:16:24.182311+00:00",
+      "last_updated": "2026-08-02T05:16:24.182311+00:00",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -29207,21 +30062,471 @@
       "record_id": "a9a470fa-683d-4944-b8a8-076e6858f6c4",
       "created_at": "2026-08-02T11:03:30.102245+00:00",
       "last_updated": "2026-08-02T11:03:30.102245+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins assembling an invasion",
+      "date": "1066-06",
+      "description": "Begins assembling a fleet and army to invade England. Learning of the weakened position of the wizards in England and Scotland, He siezes the opportunity to amass an invasion force.",
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+      ],
+      "locked_location_ids": [],
+      "record_id": "1d09f653-76eb-4790-9d1f-875e94fb1b7f",
+      "created_at": "2026-08-02T05:32:04.854987+00:00",
+      "last_updated": "2026-08-02T05:32:04.854987+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "died",
+      "title": "Accidental death",
+      "date": "1066-06-12",
+      "description": "Egbert accidentally kills himself attempting to make a horcrux.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "24138fdb-a54a-4592-b7a4-e654ff9e6941",
+      "created_at": "2026-08-02T05:17:03.046153+00:00",
+      "last_updated": "2026-08-02T05:46:26.972574+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins the Norman Invasion",
+      "date": "1066-09-28",
+      "description": "",
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "5bc80b00-51ab-4463-a11c-379c8de449c7"
+      ],
+      "locked_location_ids": [],
+      "record_id": "2153d744-3d18-417e-8584-69ebde57cf10",
+      "created_at": "2026-08-02T05:40:15.457511+00:00",
+      "last_updated": "2026-08-02T05:40:22.235003+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Crowned King",
+      "date": "1066-12-25",
+      "description": "Becomes King of England and is known as William I, King of England.",
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "93281b5f-1409-43ef-ba7e-2825ccfbddda",
+      "created_at": "2026-08-02T05:41:03.937794+00:00",
+      "last_updated": "2026-08-02T05:42:04.158604+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "founding",
+      "title": "Founding of Azkeban",
+      "date": "1455",
+      "description": "",
+      "person_ids": [
+        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+      ],
+      "eminence_person_ids": [
+        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "locked_location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "record_id": "ea1f8927-a69d-418d-b5c6-139384f1efbd",
+      "created_at": "2026-08-01T02:28:05.635164+00:00",
+      "last_updated": "2026-08-01T02:28:05.635164+00:00",
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Converts Azkeban into a prison",
+      "date": "1723",
+      "description": "Damocles converts Azkeban into a prision and introduces Dementors as guards.",
+      "person_ids": [
+        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "locked_location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "record_id": "4ad19233-ad81-4486-aa41-d3951f8e3759",
+      "created_at": "2026-07-31T14:12:14.553558+00:00",
+      "last_updated": "2026-08-01T07:47:58.854079+00:00",
+      "eminence_person_ids": [
+        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
+      ],
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "other",
+      "title": "Quidditch World Cup Hosted in Britain",
+      "date": "1805",
+      "description": "Artemisia Lufkin successfully lobbied to bring the event to Britain",
+      "person_ids": [
+        "f812561f-6caa-4c1e-a5dc-6764288ed90a"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "d1ac256b-4e2d-4e5c-8835-1b765e38c4dc",
+      "created_at": "2026-07-31T13:43:03.671812+00:00",
+      "last_updated": "2026-07-31T13:43:03.671812+00:00",
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Realizes he is a parsletongue",
+      "date": "983-02",
+      "description": "When exploring in nature, he discovers he has the ability to commune with snakes.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Creatures"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "0733fe4e-6c52-4d6e-869b-4fec9e086806",
+      "created_at": "2026-08-02T13:37:54.868242+00:00",
+      "last_updated": "2026-08-02T13:40:35.422711+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Isolates from other children in his area.",
+      "date": "983-07",
+      "description": "Salazar realizes he cannot fit in with other children his age and isolates himself. He uses his ability to manipulate snakes to scare and torment children who bother him.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "cc66b461-8734-4e5b-87f6-a28aec158414",
+      "created_at": "2026-08-02T13:40:27.911430+00:00",
+      "last_updated": "2026-08-02T13:40:58.018125+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins inventing dark magic & defensive spells",
+      "date": "983-08",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Runes"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "2fa76f97-2122-4d68-a277-c8007a152660",
+      "created_at": "2026-08-02T13:41:57.715340+00:00",
+      "last_updated": "2026-08-02T13:43:47.131414+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Invents more defensive spells",
+      "date": "984",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "6644ca75-b65b-4986-aeeb-2b5a3a6444d7",
+      "created_at": "2026-08-02T13:43:41.480556+00:00",
+      "last_updated": "2026-08-02T14:00:28.533260+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Discovers Diagon Alley",
+      "date": "985-02-02",
+      "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Arithmancy",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "f4105b94-f811-4a9f-bbc4-b9bcc9fd13b6",
+      "created_at": "2026-08-02T13:46:34.890923+00:00",
+      "last_updated": "2026-08-02T14:26:46.071996+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Spends months spying on Diagon Alley Ent",
+      "date": "985-07-13",
+      "description": "Through patient spying, he learns the identities of many magical individuals.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "36b35241-787a-4cfe-8f40-ad56ef84a247",
+      "created_at": "2026-08-02T13:52:09.303286+00:00",
+      "last_updated": "2026-08-02T14:25:11.382696+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Salazar sneaks into Diagon Alley",
+      "date": "985-08-16",
+      "description": "Through a combination of concealment charms, arithmancy, and perception, Slytherin discerns how to enter Diagon Alley and sneaks inside. Salazar's mother did not want him to interact with wizarding folk. However, he sneaks into Diagon Alley anyway. Gryffindor notices him do this and immediately recognizes his talents. The magical commuinity welcomes Salazar, but he remains wary of others.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "19f60ebb-b0f4-41d7-9f48-695c20009089",
+      "created_at": "2026-08-02T14:05:35.316383+00:00",
+      "last_updated": "2026-08-02T14:24:59.540190+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar trade knowledge",
+      "date": "986-05",
+      "description": "Against his mother's wishes, Salazar spends the majority of the summer of 986 studying with Godric. They aren't exactly friends, but they teach one another what they know. Salazar, having now invented many spells and having harnessed his parseltongue and arithmancy skills, had much to teach Gryffindor about the magical world. Godric had a more foundational grasp of concepts that Salazar had not yet encountered.\n\nGodric spent the summer in London exclusively to be close to Salazar for the purposes of their mutual study.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "ef68c120-8a30-4eb3-92b3-7ed7f701e1db",
+      "created_at": "2026-08-02T14:09:39.777104+00:00",
+      "last_updated": "2026-08-02T14:24:48.651956+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar study together",
+      "date": "987-06",
+      "description": "Godric and Slytherin spend another summer studying together, inventing spells and documenting magical concepts. They aren't exactly friends, they just recognize the value the other brings. Godric remains quite skeptical of slytherin's moral compass and his intentions.\n\nGodric spends an entire summer living in London to study with Salazar",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "1d419615-d4b8-4506-8a7f-72716f28a10b",
+      "created_at": "2026-08-02T14:11:29.910692+00:00",
+      "last_updated": "2026-08-02T14:26:33.433288+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar study together",
+      "date": "988",
+      "description": "Throughout the entire year, Godric and Salazar regularly study together, continuing to harness their skills.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "e65d806b-a0aa-4083-ba59-ccbfa4ae830f",
+      "created_at": "2026-08-02T14:12:49.987487+00:00",
+      "last_updated": "2026-08-02T14:27:08.036006+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar study intensely",
+      "date": "989-01",
+      "description": "Throughout the first part of the year, Godric and Salazar study nearly daily together and rapidly improve their skills.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "f1918dd6-08a1-4d43-a26a-8e187547f33d",
+      "created_at": "2026-08-02T14:14:02.777952+00:00",
+      "last_updated": "2026-08-02T14:27:20.722263+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar agree to open a school",
+      "date": "989-03",
+      "description": "Godric and Salazar come to an agreement to open a school together and begin to seek additional support.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "6cf4844e-f0f6-4c3e-a5ef-d84a63923ca0",
+      "created_at": "2026-08-02T14:15:19.853007+00:00",
+      "last_updated": "2026-08-02T14:15:19.853007+00:00"
     }
   ],
   "_recent_people": [
+    "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+    "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+    "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+    "bcfff484-a85f-43e0-96e3-e20796e5396f",
+    "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+    "fd2e3f62-3530-4fe5-a618-da26accca07f",
+    "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
     "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
     "0164a838-659c-40f7-b201-ff20fef4679d",
     "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
-    "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-    "731751aa-a668-4887-840f-c8e5d624c655",
-    "bf8fda89-3eaa-4603-832d-498431b15447",
-    "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
-    "a42cd75f-b0d3-4771-8530-c9568102bedf",
-    "f812561f-6caa-4c1e-a5dc-6764288ed90a",
-    "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+    "731751aa-a668-4887-840f-c8e5d624c655"
   ],
   "_recent_locations": [
     "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
@@ -29239,11 +30544,14 @@
   ],
   "_recent_event_associations": {
     "person_ids": [
+      "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+      "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+      "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+      "bcfff484-a85f-43e0-96e3-e20796e5396f",
+      "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+      "731751aa-a668-4887-840f-c8e5d624c655",
       "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
       "0164a838-659c-40f7-b201-ff20fef4679d",
-      "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-      "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-      "731751aa-a668-4887-840f-c8e5d624c655",
       "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
       "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9",
       "f812561f-6caa-4c1e-a5dc-6764288ed90a",
@@ -29251,6 +30559,7 @@
     ],
     "location_ids": [
       "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
+      "bc89bd68-989e-42ec-a5b2-e7da7fbce321",
       "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
       "77f07ff9-955c-4f2d-a2d5-761141b5b5dd",
       "f6c823f8-7f67-49a3-98de-84331105deed",
@@ -29260,8 +30569,7 @@
       "1df35516-b69f-45df-ac06-b52616e5ed41",
       "45e5a2df-7b87-4424-8d81-d10ab034d139",
       "f02e9fc5-b286-4197-b08b-de69383a67e4",
-      "8ca999ab-62a2-40c4-ba41-cfdcb3bca870",
-      "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+      "8ca999ab-62a2-40c4-ba41-cfdcb3bca870"
     ]
   },
   "_application_settings": {
