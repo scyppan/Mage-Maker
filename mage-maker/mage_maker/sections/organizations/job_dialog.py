@@ -1,9 +1,5 @@
 import tkinter as tk
 from tkinter import messagebox
-
-from mage_maker.core.wizarding_currency import (
-    currency_component_input_is_valid,
-)
 from mage_maker.sections.organizations.controller import (
     new_organization_job,
     normalize_organization_job,
@@ -41,30 +37,12 @@ class OrganizationJobDialog(tk.Toplevel):
             if isinstance(existing_job, dict)
             else None
         )
-        existing_salary = (
-            self.existing_job["salary"]
-            if self.existing_job is not None
-            else {
-                "galleons": 0,
-                "sickles": 0,
-                "knuts": 0,
-            }
-        )
         self.title_value = tk.StringVar(
             value=(
                 self.existing_job["title"]
                 if self.existing_job is not None
                 else ""
             )
-        )
-        self.salary_galleons_value = tk.StringVar(
-            value=str(existing_salary["galleons"])
-        )
-        self.salary_sickles_value = tk.StringVar(
-            value=str(existing_salary["sickles"])
-        )
-        self.salary_knuts_value = tk.StringVar(
-            value=str(existing_salary["knuts"])
         )
         self.opened_year_value = tk.StringVar(
             value=(
@@ -83,8 +61,8 @@ class OrganizationJobDialog(tk.Toplevel):
             else "Add organization job"
         )
         self.configure(bg=APP_BACKGROUND)
-        self.geometry("640x455")
-        self.minsize(580, 420)
+        self.geometry("640x365")
+        self.minsize(580, 340)
         self.transient(parent.winfo_toplevel())
         self.protocol("WM_DELETE_WINDOW", self.close_dialog)
         self.grid_rowconfigure(1, weight=1)
@@ -147,70 +125,6 @@ class OrganizationJobDialog(tk.Toplevel):
             pady=(5, 14),
         )
 
-        salary_label = tk.Label(
-            body,
-            text="Monthly salary",
-            bg=SURFACE,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        salary_label.grid(row=2, column=0, sticky="ew")
-        salary_frame = tk.Frame(body, bg=SURFACE)
-        salary_frame.grid(
-            row=3,
-            column=0,
-            sticky="ew",
-            pady=(5, 14),
-        )
-        salary_frame.grid_columnconfigure((0, 1, 2), weight=1)
-
-        for column, label_text, value, maximum in (
-            (0, "Galleons", self.salary_galleons_value, ""),
-            (1, "Sickles", self.salary_sickles_value, "16"),
-            (2, "Knuts", self.salary_knuts_value, "28"),
-        ):
-            currency_frame = tk.Frame(salary_frame, bg=SURFACE)
-            currency_frame.grid(
-                row=0,
-                column=column,
-                sticky="ew",
-                padx=(0, 7) if column < 2 else (0, 0),
-            )
-            currency_frame.grid_columnconfigure(0, weight=1)
-            currency_label = tk.Label(
-                currency_frame,
-                text=label_text,
-                bg=SURFACE,
-                fg=TEXT_MUTED,
-                font=app_font(8, "bold"),
-                anchor="w",
-            )
-            currency_label.grid(row=0, column=0, sticky="ew")
-            currency_entry = RoundedEntry(
-                currency_frame,
-                textvariable=value,
-                background=SURFACE,
-                width=150,
-                height=38,
-                font=app_font(10),
-                justify="center",
-            )
-            currency_entry.grid(
-                row=1,
-                column=0,
-                sticky="ew",
-                pady=(4, 0),
-            )
-            currency_entry.entry.configure(
-                validate="key",
-                validatecommand=(
-                    self.register(currency_component_input_is_valid),
-                    "%P",
-                    maximum,
-                ),
-            )
-
         opened_year_label = tk.Label(
             body,
             text="Position opened",
@@ -219,7 +133,7 @@ class OrganizationJobDialog(tk.Toplevel):
             font=app_font(9, "bold"),
             anchor="w",
         )
-        opened_year_label.grid(row=4, column=0, sticky="ew")
+        opened_year_label.grid(row=2, column=0, sticky="ew")
         opened_year_entry = RoundedEntry(
             body,
             textvariable=self.opened_year_value,
@@ -230,7 +144,7 @@ class OrganizationJobDialog(tk.Toplevel):
             justify="center",
         )
         opened_year_entry.grid(
-            row=5,
+            row=3,
             column=0,
             sticky="w",
             pady=(5, 0),
@@ -241,7 +155,7 @@ class OrganizationJobDialog(tk.Toplevel):
             wraplength=500,
         )
         calendar_notice.grid(
-            row=6,
+            row=4,
             column=0,
             sticky="w",
             pady=(6, 0),
@@ -285,7 +199,7 @@ class OrganizationJobDialog(tk.Toplevel):
     def position_upper_right(self):
         owner = self.master.winfo_toplevel()
         dialog_width = max(580, self.winfo_width())
-        dialog_height = max(420, self.winfo_height())
+        dialog_height = max(340, self.winfo_height())
         owner_left = owner.winfo_rootx()
         owner_top = owner.winfo_rooty()
         owner_width = max(owner.winfo_width(), dialog_width + 48)
@@ -304,11 +218,6 @@ class OrganizationJobDialog(tk.Toplevel):
         try:
             job = new_organization_job(
                 self.title_value.get(),
-                {
-                    "galleons": self.salary_galleons_value.get(),
-                    "sickles": self.salary_sickles_value.get(),
-                    "knuts": self.salary_knuts_value.get(),
-                },
                 self.opened_year_value.get(),
             )
 

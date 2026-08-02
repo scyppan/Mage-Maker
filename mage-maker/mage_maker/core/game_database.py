@@ -3,6 +3,20 @@ from copy import deepcopy
 from pathlib import Path
 
 
+STOREROOM_ITEM_COLLECTIONS = (
+    ("wands", "Wands"),
+    ("holdable_items", "Holdable items"),
+    ("accessories", "Accessories"),
+    ("general_items", "General items"),
+    ("creatures", "Creatures"),
+    ("plants", "Plants"),
+    ("potions", "Potions"),
+    ("preparations", "Preparations"),
+    ("foods_and_drinks", "Food and drink"),
+    ("books", "Books"),
+)
+
+
 class GameDatabaseError(ValueError):
     pass
 
@@ -96,6 +110,32 @@ class GameDatabase:
             for school in self.schools()
             if str(school.get("name", "") or "").strip()
         ]
+
+    def storeroom_items(self):
+        items = []
+
+        for collection_name, category_label in (
+            STOREROOM_ITEM_COLLECTIONS
+        ):
+            for record in self.collection(collection_name):
+                record_id = str(
+                    record.get("record_id", "") or ""
+                ).strip()
+                name = str(record.get("name", "") or "").strip()
+
+                if not record_id or not name:
+                    continue
+
+                items.append(
+                    {
+                        "collection": collection_name,
+                        "record_id": record_id,
+                        "name": name,
+                        "category": category_label,
+                    }
+                )
+
+        return items
 
     def collection_counts(self):
         return {

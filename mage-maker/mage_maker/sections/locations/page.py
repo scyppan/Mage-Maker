@@ -115,6 +115,9 @@ class LocationPage(tk.Frame):
         self.content = None
         self.editor_heading_value = tk.StringVar(value="Location details")
         self.parent_path_value = tk.StringVar(value=WORLD_LOCATION_LABEL)
+        self.notable_facts_value = tk.StringVar(
+            value="No notable facts yet."
+        )
         self.name_value = tk.StringVar()
         self.extinct_value = tk.BooleanVar(value=False)
         self.extinction_year_value = tk.StringVar()
@@ -271,6 +274,7 @@ class LocationPage(tk.Frame):
             sticky="nsew",
         )
         self.location_details_page.grid_columnconfigure(0, weight=1)
+        self.location_details_page.grid_rowconfigure(1, weight=1)
         self.build_location_fields(self.location_details_page)
 
         self.location_events_page = tk.Frame(
@@ -427,6 +431,8 @@ class LocationPage(tk.Frame):
         return True
 
     def build_location_fields(self, parent):
+        parent.grid_rowconfigure(1, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
         identity = tk.Frame(parent, bg=SURFACE_MUTED, padx=14, pady=10)
         identity.grid(row=0, column=0, sticky="ew")
         identity.grid_columnconfigure(0, weight=3)
@@ -575,29 +581,11 @@ class LocationPage(tk.Frame):
         )
 
         narrative = tk.Frame(parent, bg=SURFACE)
-        narrative.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        narrative.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
+        narrative.grid_rowconfigure(0, weight=1)
         narrative.grid_columnconfigure(0, weight=1)
-        narrative.grid_columnconfigure(1, weight=1)
-        demographics_frame = tk.Frame(narrative, bg=SURFACE)
-        demographics_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
-        demographics_label = tk.Label(
-            demographics_frame,
-            text="Broad demographics",
-            bg=SURFACE,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-        )
-        demographics_label.pack(fill="x", pady=(0, 5))
-        self.demographics_control = RoundedText(
-            demographics_frame,
-            background=SURFACE,
-            height=2,
-            minimum_height=52,
-        )
-        self.demographics_control.pack(fill="both", expand=True)
         notes_frame = tk.Frame(narrative, bg=SURFACE)
-        notes_frame.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
+        notes_frame.grid(row=0, column=0, sticky="nsew")
         notes_label = tk.Label(
             notes_frame,
             text="Location notes",
@@ -610,10 +598,42 @@ class LocationPage(tk.Frame):
         self.notes_control = RoundedText(
             notes_frame,
             background=SURFACE,
-            height=2,
-            minimum_height=52,
+            height=8,
+            minimum_height=180,
         )
         self.notes_control.pack(fill="both", expand=True)
+        facts_frame = tk.Frame(
+            parent,
+            bg=SURFACE_MUTED,
+            padx=14,
+            pady=10,
+        )
+        facts_frame.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(10, 0),
+        )
+        facts_heading = tk.Label(
+            facts_frame,
+            text="Notable facts",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
+        )
+        facts_heading.pack(fill="x")
+        facts = tk.Label(
+            facts_frame,
+            textvariable=self.notable_facts_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+            wraplength=760,
+        )
+        facts.pack(fill="x", pady=(4, 0))
 
     def toggle_extinction_fields(self):
         if self.extinct_value.get():
@@ -726,6 +746,26 @@ class LocationPage(tk.Frame):
                     else name
                 ),
             )
+
+    def refresh_location_distinctions(self):
+        if not hasattr(self, "notable_facts_value"):
+            return
+
+        if (
+            not self.current_location_id
+            or not hasattr(self.controller, "location_distinctions")
+        ):
+            self.notable_facts_value.set("No notable facts yet.")
+            return
+
+        distinctions = self.controller.location_distinctions(
+            self.current_location_id
+        )
+        self.notable_facts_value.set(
+            "\n".join(distinctions)
+            if distinctions
+            else "No notable facts yet."
+        )
 
     def open_selected_organization(self, event=None):
         if self.navigate_organization_command is None:
@@ -928,12 +968,12 @@ class LocationPage(tk.Frame):
         self.timeline_workspace.grid_rowconfigure(0, weight=1)
         self.timeline_workspace.grid_columnconfigure(
             0,
-            weight=5,
+            weight=4,
             uniform="location_events",
         )
         self.timeline_workspace.grid_columnconfigure(
             1,
-            weight=4,
+            weight=5,
             uniform="location_events",
         )
         self.timeline_list_panel = tk.Frame(
@@ -1001,12 +1041,12 @@ class LocationPage(tk.Frame):
 
         self.timeline_workspace.grid_columnconfigure(
             0,
-            weight=5,
+            weight=4,
             uniform="location_events",
         )
         self.timeline_workspace.grid_columnconfigure(
             1,
-            weight=4,
+            weight=5,
             uniform="location_events",
         )
         self.timeline_list_panel.grid(
@@ -1167,11 +1207,6 @@ class LocationPage(tk.Frame):
             str(location.get("extinction_year", "") or "")
         )
         self.toggle_extinction_fields()
-        self.demographics_control.text.delete("1.0", "end")
-        self.demographics_control.text.insert(
-            "1.0",
-            str(location.get("demographics", "") or ""),
-        )
         self.notes_control.text.delete("1.0", "end")
         self.notes_control.text.insert(
             "1.0",
@@ -1179,6 +1214,7 @@ class LocationPage(tk.Frame):
         )
         self.save_location_button.set_enabled(True)
         self.timeline_add_button.set_enabled(True)
+        self.refresh_location_distinctions()
         self.refresh_assigned_organizations()
         self.refresh_timeline()
         self.status_command(f"Loaded location {location.get('name', 'Unnamed')}")
@@ -1270,6 +1306,7 @@ class LocationPage(tk.Frame):
         return True
 
     def refresh_timeline(self):
+        self.refresh_location_distinctions()
         self.timeline_list.delete(0, "end")
 
         if not self.current_location_id:
@@ -1566,27 +1603,23 @@ class LocationPage(tk.Frame):
     def clear_form(self, parent_location_id="", creating=False):
         self.current_location_id = None
         self.draft_event = None
-        self.creating_location = bool(creating)
+        self.creating_location = True
         self.loaded_parent_location_id = ""
-        self.editor_heading_value.set(
-            "New location"
-            if self.creating_location
-            else "Select a location"
-        )
+        self.editor_heading_value.set("New location")
         self.name_value.set("")
         self.set_parent_location(parent_location_id)
         self.extinct_value.set(False)
         self.extinction_year_value.set("")
         self.toggle_extinction_fields()
-        self.demographics_control.text.delete("1.0", "end")
         self.notes_control.text.delete("1.0", "end")
+        self.notable_facts_value.set("No notable facts yet.")
         self.refresh_assigned_organizations()
         self.timeline_list.delete(0, "end")
         self.visible_events = []
         self.selected_timeline_event_id = ""
         self.reset_event_remove_confirmation()
         self.update_timeline_details()
-        self.save_location_button.set_enabled(self.creating_location)
+        self.save_location_button.set_enabled(True)
         self.timeline_add_button.set_enabled(False)
 
     def create_location(self):
@@ -1613,11 +1646,13 @@ class LocationPage(tk.Frame):
         values = {
             "name": self.name_value.get(),
             "parent_location_id": self.selected_parent_location_id,
-            "demographics": self.demographics_control.text.get("1.0", "end-1c"),
             "notes": self.notes_control.text.get("1.0", "end-1c"),
             "extinct": self.extinct_value.get(),
             "extinction_year": self.extinction_year_value.get(),
         }
+
+        if not self.current_location_id:
+            values["demographics"] = ""
 
         parent_changed = bool(
             self.current_location_id

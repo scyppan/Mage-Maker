@@ -283,9 +283,18 @@ class FamilyTreeView(tk.Frame):
             self.people,
             self.current_person,
         )
+        self.update_add_child_control()
 
         if redraw:
             self.redraw_graph()
+
+    def update_add_child_control(self):
+        self.add_child_button.set_enabled(
+            bool(self.current_person.get("record_id"))
+            and not bool(
+                self.current_person.get("does_not_have_children")
+            )
+        )
 
     def resize_graph(self, event=None):
         self.redraw_graph()
@@ -998,6 +1007,12 @@ class FamilyTreeView(tk.Frame):
         if selected_parent is None:
             raise ValueError("The selected parent no longer exists.")
 
+        if bool(selected_parent.get("does_not_have_children")):
+            raise ValueError(
+                "The selected person is marked Does not have children "
+                "and cannot be added as a parent."
+            )
+
         allowed_magic_states = allowed_parent_magic_states(
             self.current_person,
             self.people,
@@ -1230,6 +1245,17 @@ class FamilyTreeView(tk.Frame):
         if not current_id:
             return
 
+        if bool(self.current_person.get("does_not_have_children")):
+            messagebox.showinfo(
+                "Cannot add child",
+                (
+                    "This person is marked Does not have children. "
+                    "Uncheck that classification before adding a child."
+                ),
+                parent=self,
+            )
+            return
+
         ancestors = set(self.relationship_map.ancestors_of(current_id))
         candidates = [
             person
@@ -1241,6 +1267,11 @@ class FamilyTreeView(tk.Frame):
             self.relationship_map.person(mate_id)
             for mate_id in self.relationship_map.mates_of(current_id)
             if self.relationship_map.person(mate_id) is not None
+            and not bool(
+                self.relationship_map.person(mate_id).get(
+                    "does_not_have_children"
+                )
+            )
         ]
         AddChildDialog(
             self,
@@ -1340,6 +1371,13 @@ class FamilyTreeView(tk.Frame):
         new_child_profile=None,
     ):
         current_id = str(self.current_person.get("record_id", "") or "")
+
+        if bool(self.current_person.get("does_not_have_children")):
+            raise ValueError(
+                "This person is marked Does not have children and cannot "
+                "be added as a parent."
+            )
+
         current_can_give_birth = bool(self.current_person.get("can_give_birth"))
         current_parent_field = (
             "biological_mother_id"
@@ -1375,6 +1413,12 @@ class FamilyTreeView(tk.Frame):
             ):
                 raise ValueError(
                     "The child's other parent must have the opposite Can give birth assignment."
+                )
+
+            if bool(other_parent.get("does_not_have_children")):
+                raise ValueError(
+                    "The child's other parent is marked Does not have "
+                    "children and cannot be added as a parent."
                 )
 
             relationship_values[other_parent_field] = other_parent_id

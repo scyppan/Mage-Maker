@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\launcher.py", line 16, in run_application
+    application = resolved_app_class()
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\shell\application.py", line 93, in __init__
+    self.database.load()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 89, in load
+    self.validate_database(loaded_data)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 1290, in validate_database
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: Organizations must use their canonical stored structure.

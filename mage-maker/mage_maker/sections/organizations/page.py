@@ -2,19 +2,24 @@ import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox, simpledialog, ttk
 
-from mage_maker.core.wizarding_currency import format_monthly_salary
+from mage_maker.core.wizarding_currency import (
+    currency_component_input_is_valid,
+)
 from mage_maker.sections.development.organization_dialogs import (
     OrganizationLocationSelectionDialog,
     OrganizationSelectionDialog,
 )
+from mage_maker.sections.events.models import split_world_event_date
 
 from mage_maker.sections.organizations.controller import (
     ORGANIZATION_EVENT_FOUNDING,
     ORGANIZATION_TYPES,
     SHOP_STOCK_CATEGORIES,
+    normalize_organization_extinction_date,
     normalize_organization_jobs,
     normalize_organization_events,
     normalize_shop_inventory,
+    normalize_storeroom_inventory,
     organization_context_label,
     organization_id_is_in_scope,
     organization_ids_in_scope,
@@ -304,6 +309,634 @@ class OrganizationSchoolSelectionDialog(tk.Toplevel):
         return "break"
 
 
+class VacantJobFillDialog(tk.Toplevel):
+    def __init__(
+        self,
+        parent,
+        people,
+        organization,
+        organization_job,
+        vacancy,
+        save_command,
+    ):
+        super().__init__(parent)
+        self.people = [
+            deepcopy(person)
+            for person in people or []
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        ]
+        self.organization = deepcopy(organization)
+        self.organization_job = deepcopy(organization_job)
+        self.vacancy = deepcopy(vacancy)
+        self.save_command = save_command
+        self.visible_people = []
+        self.search_value = tk.StringVar()
+        self.results_value = tk.StringVar()
+        self.salary_galleons_value = tk.StringVar(value="0")
+        self.salary_sickles_value = tk.StringVar(value="0")
+        self.salary_knuts_value = tk.StringVar(value="0")
+        self.start_year_value = tk.StringVar(
+            value=str(vacancy.get("start_year", "") or "")
+        )
+        self.start_month_value = tk.StringVar(
+            value=str(vacancy.get("start_month", "") or "")
+        )
+        self.start_day_value = tk.StringVar(
+            value=str(vacancy.get("start_day", "") or "")
+        )
+        self.end_year_value = tk.StringVar(
+            value=str(vacancy.get("end_year", "") or "")
+        )
+        self.end_month_value = tk.StringVar(
+            value=str(vacancy.get("end_month", "") or "")
+        )
+        self.end_day_value = tk.StringVar(
+            value=str(vacancy.get("end_day", "") or "")
+        )
+        self.title("Fill vacant position")
+        self.geometry("760x700")
+        self.minsize(680, 620)
+        self.configure(bg=APP_BACKGROUND)
+        self.transient(parent.winfo_toplevel())
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_dialog()
+        self.search_value.trace_add("write", self.refresh_people)
+        self.refresh_people()
+        self.grab_set()
+        self.after_idle(self.search_entry.entry.focus_set)
+
+    def build_dialog(self):
+        header = tk.Frame(self, bg=PRIMARY_DARK, height=58)
+        header.grid(row=0, column=0, sticky="ew")
+        header.grid_propagate(False)
+        heading = tk.Label(
+            header,
+            text="Fill vacant position",
+            bg=PRIMARY_DARK,
+            fg=TEXT_LIGHT,
+            font=app_font(15, "bold"),
+            anchor="w",
+            padx=18,
+        )
+        heading.pack(fill="both", expand=True)
+        body = tk.Frame(self, bg=SURFACE, padx=20, pady=18)
+        body.grid(row=1, column=0, sticky="nsew")
+        body.grid_rowconfigure(3, weight=1)
+        body.grid_columnconfigure(0, weight=1)
+        organization_name = str(
+            self.organization.get("name", "")
+            or "Unnamed organization"
+        ).strip()
+        job_title = str(
+            self.organization_job.get("title", "")
+            or "Unnamed position"
+        ).strip()
+        position_label = tk.Label(
+            body,
+            text=f"{job_title} at {organization_name}",
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(11, "bold"),
+            anchor="w",
+        )
+        position_label.grid(row=0, column=0, sticky="ew")
+        self.search_entry = RoundedEntry(
+            body,
+            textvariable=self.search_value,
+            background=SURFACE,
+            height=36,
+            font=app_font(10),
+        )
+        self.search_entry.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(10, 0),
+        )
+        results_label = tk.Label(
+            body,
+            textvariable=self.results_value,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        results_label.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(8, 4),
+        )
+        list_frame = tk.Frame(
+            body,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(row=3, column=0, sticky="nsew")
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.people_list = tk.Listbox(
+            list_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            highlightthickness=0,
+            borderwidth=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+            height=8,
+        )
+        self.people_list.grid(row=0, column=0, sticky="nsew")
+        self.people_list.bind(
+            "<<ListboxSelect>>",
+            self.person_selected,
+        )
+        scrollbar = tk.Scrollbar(
+            list_frame,
+            command=self.people_list.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.people_list.configure(yscrollcommand=scrollbar.set)
+        salary_frame = tk.Frame(body, bg=SURFACE)
+        salary_frame.grid(
+            row=4,
+            column=0,
+            sticky="ew",
+            pady=(12, 0),
+        )
+        salary_frame.grid_columnconfigure((0, 1, 2), weight=1)
+
+        for column, label_text, value, maximum in (
+            (0, "Monthly salary · Galleons", self.salary_galleons_value, ""),
+            (1, "Sickles", self.salary_sickles_value, "16"),
+            (2, "Knuts", self.salary_knuts_value, "28"),
+        ):
+            salary_block = tk.Frame(salary_frame, bg=SURFACE)
+            salary_block.grid(
+                row=0,
+                column=column,
+                sticky="ew",
+                padx=(0, 8) if column < 2 else 0,
+            )
+            salary_block.grid_columnconfigure(0, weight=1)
+            salary_label = tk.Label(
+                salary_block,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(8, "bold"),
+                anchor="w",
+            )
+            salary_label.grid(row=0, column=0, sticky="ew")
+            salary_entry = RoundedEntry(
+                salary_block,
+                textvariable=value,
+                background=SURFACE,
+                height=34,
+                font=app_font(9),
+                justify="center",
+            )
+            salary_entry.grid(
+                row=1,
+                column=0,
+                sticky="ew",
+                pady=(3, 0),
+            )
+            salary_entry.entry.configure(
+                validate="key",
+                validatecommand=(
+                    self.register(currency_component_input_is_valid),
+                    "%P",
+                    maximum,
+                ),
+            )
+
+        dates_frame = tk.Frame(body, bg=SURFACE)
+        dates_frame.grid(
+            row=5,
+            column=0,
+            sticky="ew",
+            pady=(12, 0),
+        )
+        dates_frame.grid_columnconfigure((0, 1), weight=1)
+        self.build_date_fields(
+            dates_frame,
+            0,
+            "Start date",
+            self.start_year_value,
+            self.start_month_value,
+            self.start_day_value,
+        )
+        self.build_date_fields(
+            dates_frame,
+            1,
+            "End date",
+            self.end_year_value,
+            self.end_month_value,
+            self.end_day_value,
+        )
+        calendar_notice = CalendarAdoptionNotice(
+            body,
+            background=SURFACE,
+            wraplength=680,
+        )
+        calendar_notice.grid(
+            row=6,
+            column=0,
+            sticky="w",
+            pady=(7, 0),
+        )
+        footer = tk.Frame(self, bg=APP_BACKGROUND)
+        footer.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            padx=18,
+            pady=(0, 16),
+        )
+        footer.grid_columnconfigure(0, weight=1)
+        cancel_button = SoftButton(
+            footer,
+            text="Cancel",
+            command=self.close_dialog,
+            background=APP_BACKGROUND,
+            width=88,
+            height=36,
+        )
+        cancel_button.grid(row=0, column=1, padx=(0, 7))
+        self.fill_button = SoftButton(
+            footer,
+            text="Fill position",
+            command=self.fill_position,
+            background=APP_BACKGROUND,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=118,
+            height=36,
+        )
+        self.fill_button.grid(row=0, column=2)
+        self.fill_button.set_enabled(False)
+
+    def build_date_fields(
+        self,
+        parent,
+        column,
+        heading,
+        year_value,
+        month_value,
+        day_value,
+    ):
+        date_panel = tk.Frame(parent, bg=SURFACE)
+        date_panel.grid(
+            row=0,
+            column=column,
+            sticky="ew",
+            padx=(0, 8) if column == 0 else (8, 0),
+        )
+        date_panel.grid_columnconfigure((0, 1, 2), weight=1)
+        date_heading = tk.Label(
+            date_panel,
+            text=heading,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        date_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+
+        for field_column, label_text, value in (
+            (0, "Year", year_value),
+            (1, "Month", month_value),
+            (2, "Day", day_value),
+        ):
+            field = tk.Frame(date_panel, bg=SURFACE)
+            field.grid(
+                row=1,
+                column=field_column,
+                sticky="ew",
+                padx=(0, 5) if field_column < 2 else 0,
+                pady=(4, 0),
+            )
+            field.grid_columnconfigure(0, weight=1)
+            label = tk.Label(
+                field,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(7, "bold"),
+                anchor="w",
+            )
+            label.grid(row=0, column=0, sticky="ew")
+            entry = RoundedEntry(
+                field,
+                textvariable=value,
+                background=SURFACE,
+                height=32,
+                font=app_font(9),
+                justify="center",
+            )
+            entry.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+
+    def refresh_people(self, *arguments):
+        query = self.search_value.get().strip().casefold()
+        self.visible_people = sorted(
+            [
+                person
+                for person in self.people
+                if query
+                in str(
+                    person.get("displayed_name", "") or ""
+                ).casefold()
+            ],
+            key=self.person_sort_key,
+        )
+        self.people_list.delete(0, "end")
+
+        for index, person in enumerate(self.visible_people):
+            self.people_list.insert(
+                "end",
+                str(
+                    person.get("displayed_name", "")
+                    or "Unnamed magician"
+                ),
+            )
+            self.people_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+        self.results_value.set(
+            f"People ({len(self.visible_people)})"
+        )
+        self.person_selected()
+
+    def person_sort_key(self, person):
+        return str(
+            person.get("displayed_name", "") or ""
+        ).casefold()
+
+    def selected_person(self):
+        selected = self.people_list.curselection()
+
+        if not selected or selected[0] >= len(self.visible_people):
+            return None
+
+        return self.visible_people[int(selected[0])]
+
+    def person_selected(self, event=None):
+        self.fill_button.set_enabled(
+            self.selected_person() is not None
+        )
+
+    def fill_position(self):
+        person = self.selected_person()
+
+        if person is None:
+            return
+
+        saved = self.save_command(
+            person,
+            {
+                "galleons": self.salary_galleons_value.get(),
+                "sickles": self.salary_sickles_value.get(),
+                "knuts": self.salary_knuts_value.get(),
+            },
+            {
+                "year": self.start_year_value.get(),
+                "month": self.start_month_value.get(),
+                "day": self.start_day_value.get(),
+            },
+            {
+                "year": self.end_year_value.get(),
+                "month": self.end_month_value.get(),
+                "day": self.end_day_value.get(),
+            },
+        )
+
+        if saved is not False:
+            self.destroy()
+
+    def close_dialog(self, event=None):
+        self.destroy()
+        return "break"
+
+
+class StoreroomItemSelectionDialog(tk.Toplevel):
+    def __init__(
+        self,
+        parent,
+        items,
+        selected_identities,
+        save_command,
+    ):
+        super().__init__(parent)
+        self.items = [
+            deepcopy(item)
+            for item in items or []
+            if isinstance(item, dict)
+        ]
+        self.selected_identities = {
+            tuple(identity)
+            for identity in selected_identities or ()
+        }
+        self.save_command = save_command
+        self.visible_items = []
+        self.search_value = tk.StringVar()
+        self.results_value = tk.StringVar()
+        self.title("Add storeroom item")
+        self.geometry("760x620")
+        self.minsize(600, 480)
+        self.configure(bg=APP_BACKGROUND)
+        self.transient(parent.winfo_toplevel())
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.build_dialog()
+        self.search_value.trace_add("write", self.refresh_results)
+        self.refresh_results()
+        self.grab_set()
+        self.after_idle(self.search_control.focus_set)
+
+    def build_dialog(self):
+        header = tk.Frame(self, bg=PRIMARY_DARK, height=58)
+        header.grid(row=0, column=0, sticky="ew")
+        header.grid_propagate(False)
+        heading = tk.Label(
+            header,
+            text="Add storeroom item",
+            bg=PRIMARY_DARK,
+            fg=TEXT_LIGHT,
+            font=app_font(15, "bold"),
+            anchor="w",
+            padx=18,
+        )
+        heading.pack(fill="both", expand=True)
+        body = tk.Frame(self, bg=SURFACE, padx=20, pady=18)
+        body.grid(row=1, column=0, sticky="nsew")
+        body.grid_rowconfigure(3, weight=1)
+        body.grid_columnconfigure(0, weight=1)
+        explanation = tk.Label(
+            body,
+            text=(
+                "Link an existing item to this storeroom. Storeroom items "
+                "do not have a price."
+            ),
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+            wraplength=680,
+        )
+        explanation.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        self.search_control = RoundedEntry(
+            body,
+            textvariable=self.search_value,
+            background=SURFACE,
+            height=38,
+            font=app_font(10),
+        )
+        self.search_control.grid(row=1, column=0, sticky="ew")
+        results_label = tk.Label(
+            body,
+            textvariable=self.results_value,
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        results_label.grid(row=2, column=0, sticky="ew", pady=(10, 5))
+        list_frame = tk.Frame(
+            body,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(row=3, column=0, sticky="nsew")
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.item_list = tk.Listbox(
+            list_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.item_list.grid(row=0, column=0, sticky="nsew")
+        self.item_list.bind("<Double-Button-1>", self.use_selected_item)
+        scrollbar = tk.Scrollbar(
+            list_frame,
+            command=self.item_list.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.item_list.configure(yscrollcommand=scrollbar.set)
+        footer = tk.Frame(self, bg=APP_BACKGROUND)
+        footer.grid(
+            row=2,
+            column=0,
+            sticky="e",
+            padx=18,
+            pady=(0, 16),
+        )
+        cancel_button = SoftButton(
+            footer,
+            text="Cancel",
+            command=self.close_dialog,
+            background=APP_BACKGROUND,
+            width=88,
+            height=36,
+        )
+        cancel_button.pack(side="left", padx=(0, 7))
+        self.add_button = SoftButton(
+            footer,
+            text="Add item",
+            command=self.use_selected_item,
+            background=APP_BACKGROUND,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=104,
+            height=36,
+        )
+        self.add_button.pack(side="left")
+
+    def item_search_text(self, item):
+        return " ".join(
+            str(item.get(field_name, "") or "").strip()
+            for field_name in ("name", "category", "collection")
+        ).casefold()
+
+    def refresh_results(self, *arguments):
+        query_terms = [
+            term
+            for term in self.search_value.get().casefold().split()
+            if term
+        ]
+        self.visible_items = [
+            item
+            for item in self.items
+            if (
+                (item.get("collection"), item.get("record_id"))
+                not in self.selected_identities
+                and all(
+                    term in self.item_search_text(item)
+                    for term in query_terms
+                )
+            )
+        ]
+        self.item_list.delete(0, "end")
+
+        for index, item in enumerate(self.visible_items):
+            self.item_list.insert("end", item.get("label", "Unnamed item"))
+            self.item_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+        self.results_value.set(f"Available items ({len(self.visible_items)})")
+        self.add_button.set_enabled(bool(self.visible_items))
+
+    def use_selected_item(self, event=None):
+        selected = self.item_list.curselection()
+
+        if not selected:
+            return
+
+        self.save_command(deepcopy(self.visible_items[int(selected[0])]))
+        self.destroy()
+
+    def close_dialog(self, event=None):
+        self.destroy()
+        return "break"
+
+
 class OrganizationPage(tk.Frame):
     def __init__(
         self,
@@ -313,6 +946,7 @@ class OrganizationPage(tk.Frame):
         event_controller=None,
         events_changed_command=None,
         scope_change_command=None,
+        auto_refresh=True,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
@@ -324,6 +958,7 @@ class OrganizationPage(tk.Frame):
         self.organizations = []
         self.organization_id_by_line = {}
         self.organizations_by_id = {}
+        self.location_labels_by_id = {}
         self.organization_lock_id = ""
         self.suppress_tree_selection = False
         self.hovered_tree_id = ""
@@ -335,6 +970,7 @@ class OrganizationPage(tk.Frame):
         self.selected_parent_organization_id = ""
         self.selected_school_id = ""
         self.active_editor_page = "details"
+        self.hydrated_editor_pages = set()
         self.organization_events = normalize_organization_events([])
         self.organization_jobs = normalize_organization_jobs([])
         self.visible_job_timeline = []
@@ -351,8 +987,13 @@ class OrganizationPage(tk.Frame):
         self.school_value = tk.StringVar(value="Choose a school")
         self.has_shop_value = tk.BooleanVar(value=False)
         self.shop_inventory = normalize_shop_inventory({})
+        self.famous_organization_value = tk.BooleanVar(value=False)
+        self.has_storeroom_value = tk.BooleanVar(value=False)
+        self.storeroom_inventory = normalize_storeroom_inventory([])
         self.extinct_value = tk.BooleanVar(value=False)
-        self.extinction_date_value = tk.StringVar()
+        self.extinction_year_value = tk.StringVar()
+        self.extinction_month_value = tk.StringVar()
+        self.extinction_day_value = tk.StringVar()
         self.search_value = tk.StringVar()
         self.type_filter_value = tk.StringVar(value="All types")
         self.school_filter_value = tk.StringVar(value="All school links")
@@ -373,10 +1014,15 @@ class OrganizationPage(tk.Frame):
             "write",
             self.form_value_changed,
         )
-        self.extinction_date_value.trace_add(
-            "write",
-            self.form_value_changed,
-        )
+        for extinction_date_value in (
+            self.extinction_year_value,
+            self.extinction_month_value,
+            self.extinction_day_value,
+        ):
+            extinction_date_value.trace_add(
+                "write",
+                self.form_value_changed,
+            )
         self.overview_control.text.bind(
             "<<Modified>>",
             self.narrative_changed,
@@ -394,7 +1040,9 @@ class OrganizationPage(tk.Frame):
             self.filter_changed,
         )
         self.form_updates_paused = False
-        self.refresh()
+
+        if auto_refresh:
+            self.refresh()
 
     def form_value_changed(self, *arguments):
         self.mark_form_dirty()
@@ -974,6 +1622,15 @@ class OrganizationPage(tk.Frame):
             height=34,
             font=app_font(9, "bold"),
         )
+        self.storeroom_page_button = SoftButton(
+            page_navigation,
+            text="Storeroom",
+            command=self.show_storeroom_page,
+            background=SURFACE,
+            width=104,
+            height=34,
+            font=app_font(9, "bold"),
+        )
         page_container = tk.Frame(parent, bg=SURFACE)
         page_container.grid(
             row=1,
@@ -1027,12 +1684,25 @@ class OrganizationPage(tk.Frame):
         )
         self.shop_page.grid_columnconfigure(0, weight=1)
         self.shop_page.grid_rowconfigure(1, weight=1)
+        self.storeroom_page = tk.Frame(
+            page_container,
+            bg=SURFACE,
+        )
+        self.storeroom_page.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+        )
+        self.storeroom_page.grid_columnconfigure(0, weight=1)
+        self.storeroom_page.grid_rowconfigure(1, weight=1)
         self.build_details_editor(self.details_page)
         self.build_children_editor(self.children_page)
         self.build_jobs(self.jobs_page)
         self.build_shop(self.shop_page)
+        self.build_storeroom(self.storeroom_page)
         self.show_editor_page("details")
         self.update_shop_page_visibility()
+        self.update_storeroom_page_visibility()
 
     def build_details_editor(self, parent):
         explanation = tk.Label(
@@ -1276,7 +1946,7 @@ class OrganizationPage(tk.Frame):
             sticky="ew",
             pady=(12, 0),
         )
-        flags_frame.grid_columnconfigure(2, weight=1)
+        flags_frame.grid_columnconfigure(4, weight=1)
         self.has_shop_checkbox = tk.Checkbutton(
             flags_frame,
             text="Has a shop",
@@ -1298,6 +1968,48 @@ class OrganizationPage(tk.Frame):
             sticky="w",
             padx=(0, 20),
         )
+        self.has_storeroom_checkbox = tk.Checkbutton(
+            flags_frame,
+            text="Has a storeroom",
+            variable=self.has_storeroom_value,
+            command=self.storeroom_state_changed,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            padx=0,
+            pady=0,
+        )
+        self.has_storeroom_checkbox.grid(
+            row=0,
+            column=1,
+            sticky="w",
+            padx=(0, 20),
+        )
+        self.famous_organization_checkbox = tk.Checkbutton(
+            flags_frame,
+            text="Famous organization",
+            variable=self.famous_organization_value,
+            command=self.mark_form_dirty,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            padx=0,
+            pady=0,
+        )
+        self.famous_organization_checkbox.grid(
+            row=0,
+            column=2,
+            sticky="w",
+            padx=(0, 20),
+        )
         self.extinct_checkbox = tk.Checkbutton(
             flags_frame,
             text="Extinct",
@@ -1315,7 +2027,7 @@ class OrganizationPage(tk.Frame):
         )
         self.extinct_checkbox.grid(
             row=0,
-            column=1,
+            column=3,
             sticky="w",
             padx=(0, 20),
         )
@@ -1324,45 +2036,75 @@ class OrganizationPage(tk.Frame):
             bg=SURFACE,
         )
         self.extinction_date_frame.grid(
-            row=0,
-            column=2,
-            sticky="e",
+            row=1,
+            column=0,
+            columnspan=4,
+            sticky="ew",
+            pady=(8, 0),
         )
-        extinction_date_label = tk.Label(
+        self.extinction_date_frame.grid_columnconfigure(
+            (0, 1, 2),
+            weight=1,
+            uniform="organization_extinction_date",
+        )
+        extinction_date_heading = tk.Label(
             self.extinction_date_frame,
             text="Extinction date",
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(8, "bold"),
-            anchor="e",
+            anchor="w",
         )
-        extinction_date_label.grid(
+        extinction_date_heading.grid(
             row=0,
             column=0,
-            sticky="e",
-            padx=(0, 8),
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 5),
         )
-        self.extinction_date_control = RoundedEntry(
+        self.extinction_year_field = LabeledEntry(
             self.extinction_date_frame,
-            textvariable=self.extinction_date_value,
+            "Year",
+            self.extinction_year_value,
             background=SURFACE,
-            width=168,
-            height=36,
-            font=app_font(9),
-            justify="center",
         )
-        self.extinction_date_control.grid(
-            row=0,
+        self.extinction_year_field.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=(0, 5),
+        )
+        self.extinction_month_field = LabeledEntry(
+            self.extinction_date_frame,
+            "Month",
+            self.extinction_month_value,
+            background=SURFACE,
+        )
+        self.extinction_month_field.grid(
+            row=1,
             column=1,
-            sticky="e",
+            sticky="ew",
+            padx=5,
+        )
+        self.extinction_day_field = LabeledEntry(
+            self.extinction_date_frame,
+            "Day",
+            self.extinction_day_value,
+            background=SURFACE,
+        )
+        self.extinction_day_field.grid(
+            row=1,
+            column=2,
+            sticky="ew",
+            padx=(5, 0),
         )
         calendar_notice = CalendarAdoptionNotice(
-            flags_frame,
+            self.extinction_date_frame,
             background=SURFACE,
             wraplength=620,
         )
         calendar_notice.grid(
-            row=1,
+            row=2,
             column=0,
             columnspan=3,
             sticky="w",
@@ -1598,6 +2340,30 @@ class OrganizationPage(tk.Frame):
         )
 
     def show_editor_page(self, page_name):
+        if page_name == "storeroom" and self.has_storeroom_value.get():
+            self.active_editor_page = "storeroom"
+            self.hydrate_editor_page("storeroom")
+            self.storeroom_page.tkraise()
+            self.storeroom_page_button.set_colors(
+                PRIMARY,
+                PRIMARY_HOVER,
+                TEXT_DARK,
+            )
+
+            for page_button in (
+                self.details_page_button,
+                self.children_page_button,
+                self.jobs_page_button,
+                self.shop_page_button,
+            ):
+                page_button.set_colors(
+                    BUTTON_SOFT,
+                    BUTTON_SOFT_HOVER,
+                    TEXT_DARK,
+                )
+
+            return
+
         if page_name == "shop" and self.has_shop_value.get():
             self.active_editor_page = "shop"
             self.shop_page.tkraise()
@@ -1621,10 +2387,16 @@ class OrganizationPage(tk.Frame):
                 BUTTON_SOFT_HOVER,
                 TEXT_DARK,
             )
+            self.storeroom_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
             return
 
         if page_name == "jobs":
             self.active_editor_page = "jobs"
+            self.hydrate_editor_page("jobs")
             self.jobs_page.tkraise()
             self.jobs_page_button.set_colors(
                 PRIMARY,
@@ -1646,11 +2418,16 @@ class OrganizationPage(tk.Frame):
                 BUTTON_SOFT_HOVER,
                 TEXT_DARK,
             )
-            self.refresh_job_list()
+            self.storeroom_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
             return
 
         if page_name == "children":
             self.active_editor_page = "children"
+            self.hydrate_editor_page("children")
             self.children_page.tkraise()
             self.children_page_button.set_colors(
                 PRIMARY,
@@ -1672,10 +2449,15 @@ class OrganizationPage(tk.Frame):
                 BUTTON_SOFT_HOVER,
                 TEXT_DARK,
             )
-            self.refresh_children_list()
+            self.storeroom_page_button.set_colors(
+                BUTTON_SOFT,
+                BUTTON_SOFT_HOVER,
+                TEXT_DARK,
+            )
             return
 
         self.active_editor_page = "details"
+        self.hydrated_editor_pages.add("details")
         self.details_page.tkraise()
         self.details_page_button.set_colors(
             PRIMARY,
@@ -1697,6 +2479,26 @@ class OrganizationPage(tk.Frame):
             BUTTON_SOFT_HOVER,
             TEXT_DARK,
         )
+        self.storeroom_page_button.set_colors(
+            BUTTON_SOFT,
+            BUTTON_SOFT_HOVER,
+            TEXT_DARK,
+        )
+
+    def hydrate_editor_page(self, page_name):
+        normalized_page_name = str(page_name or "").strip().casefold()
+
+        if normalized_page_name in self.hydrated_editor_pages:
+            return
+
+        if normalized_page_name == "children":
+            self.refresh_children_list()
+        elif normalized_page_name == "jobs":
+            self.refresh_job_list()
+        elif normalized_page_name == "storeroom":
+            self.refresh_storeroom_list()
+
+        self.hydrated_editor_pages.add(normalized_page_name)
 
     def show_details_page(self):
         self.show_editor_page("details")
@@ -1709,6 +2511,9 @@ class OrganizationPage(tk.Frame):
 
     def show_shop_page(self):
         self.show_editor_page("shop")
+
+    def show_storeroom_page(self):
+        self.show_editor_page("storeroom")
 
     def shop_state_changed(self):
         self.update_shop_page_visibility()
@@ -1730,6 +2535,27 @@ class OrganizationPage(tk.Frame):
             self.show_details_page()
 
         self.shop_page_button.pack_forget()
+
+    def storeroom_state_changed(self):
+        self.update_storeroom_page_visibility()
+        self.mark_form_dirty()
+
+    def update_storeroom_page_visibility(self):
+        if not hasattr(self, "storeroom_page_button"):
+            return
+
+        if self.has_storeroom_value.get():
+            if not self.storeroom_page_button.winfo_manager():
+                self.storeroom_page_button.pack(
+                    side="left",
+                    padx=(6, 0),
+                )
+            return
+
+        if self.active_editor_page == "storeroom":
+            self.show_details_page()
+
+        self.storeroom_page_button.pack_forget()
 
     def extinction_state_changed(self):
         self.update_extinction_date_visibility()
@@ -1796,7 +2622,8 @@ class OrganizationPage(tk.Frame):
             parent,
             text=(
                 "Positions belong to this organization. Each position records "
-                "when it opened and whether it is currently filled."
+                "when it opened and whether it is currently filled. Click a "
+                "Vacant range to fill the position."
             ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -1947,6 +2774,10 @@ class OrganizationPage(tk.Frame):
         self.job_timeline_list.configure(
             yscrollcommand=timeline_scrollbar.set
         )
+        self.job_timeline_list.bind(
+            "<ButtonRelease-1>",
+            self.job_timeline_clicked,
+        )
         job_actions = tk.Frame(
             jobs_frame,
             bg=SURFACE,
@@ -2071,6 +2902,144 @@ class OrganizationPage(tk.Frame):
             )
             placeholder.pack(fill="both", expand=True, pady=(8, 0))
 
+    def build_storeroom(self, parent):
+        explanation = tk.Label(
+            parent,
+            text=(
+                "Items stored here are linked from the game database and "
+                "do not have a price."
+            ),
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(10),
+            justify="left",
+            anchor="w",
+            wraplength=760,
+            padx=14,
+            pady=12,
+        )
+        explanation.grid(row=0, column=0, sticky="ew")
+        list_frame = tk.Frame(
+            parent,
+            bg=FIELD_BACKGROUND,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+        )
+        list_frame.grid(
+            row=1,
+            column=0,
+            sticky="nsew",
+            pady=(14, 0),
+        )
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        self.storeroom_list = tk.Listbox(
+            list_frame,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            font=app_font(10),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.storeroom_list.grid(row=0, column=0, sticky="nsew")
+        scrollbar = tk.Scrollbar(
+            list_frame,
+            command=self.storeroom_list.yview,
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.storeroom_list.configure(yscrollcommand=scrollbar.set)
+        actions = tk.Frame(parent, bg=SURFACE)
+        actions.grid(row=2, column=0, sticky="w", pady=(10, 0))
+        add_button = SoftButton(
+            actions,
+            text="Add item",
+            command=self.add_storeroom_item,
+            background=SURFACE,
+            fill=PRIMARY,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=92,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        add_button.pack(side="left")
+        remove_button = SoftButton(
+            actions,
+            text="Remove",
+            command=self.remove_storeroom_item,
+            background=SURFACE,
+            width=82,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        remove_button.pack(side="left", padx=(6, 0))
+
+    def refresh_storeroom_list(self):
+        if not hasattr(self, "storeroom_list"):
+            return
+
+        self.storeroom_inventory = normalize_storeroom_inventory(
+            getattr(self, "storeroom_inventory", [])
+        )
+        self.storeroom_list.delete(0, "end")
+
+        for index, reference in enumerate(self.storeroom_inventory):
+            self.storeroom_list.insert(
+                "end",
+                self.controller.storeroom_item_label(reference),
+            )
+            self.storeroom_list.itemconfigure(
+                index,
+                background=(
+                    FIELD_BACKGROUND
+                    if index % 2 == 0
+                    else LIST_ALTERNATE
+                ),
+            )
+
+    def add_storeroom_item(self):
+        selected_identities = {
+            (reference["collection"], reference["record_id"])
+            for reference in self.storeroom_inventory
+        }
+        StoreroomItemSelectionDialog(
+            self,
+            self.controller.storeroom_item_options(),
+            selected_identities,
+            self.storeroom_item_selected,
+        )
+
+    def storeroom_item_selected(self, item):
+        reference = {
+            "collection": item.get("collection", ""),
+            "record_id": item.get("record_id", ""),
+        }
+        self.storeroom_inventory = normalize_storeroom_inventory(
+            [*self.storeroom_inventory, reference]
+        )
+        self.refresh_storeroom_list()
+        self.mark_form_dirty()
+
+    def remove_storeroom_item(self):
+        selected = self.storeroom_list.curselection()
+
+        if not selected:
+            return
+
+        selected_index = int(selected[0])
+        self.storeroom_inventory = [
+            reference
+            for index, reference in enumerate(self.storeroom_inventory)
+            if index != selected_index
+        ]
+        self.refresh_storeroom_list()
+        self.mark_form_dirty()
+
     def refresh(
         self,
         selected_organization_id=None,
@@ -2087,6 +3056,13 @@ class OrganizationPage(tk.Frame):
             for organization in self.all_organizations
             if str(organization.get("record_id", "") or "").strip()
         }
+        self.location_labels_by_id = {
+            str(option.get("record_id", "") or "").strip(): str(
+                option.get("label", "") or "Unknown location"
+            ).strip()
+            for option in self.controller.location_options()
+            if str(option.get("record_id", "") or "").strip()
+        }
 
         if self.organization_lock_id not in self.organizations_by_id:
             self.organization_lock_id = ""
@@ -2097,6 +3073,7 @@ class OrganizationPage(tk.Frame):
             self.year_filter_value,
             self.location_filter_id,
             self.school_filter_key(),
+            organizations=self.all_organizations,
         )
         self.update_filter_summary()
         matching_ids = {
@@ -2358,7 +3335,7 @@ class OrganizationPage(tk.Frame):
         name = str(
             organization.get("name", "") or "Unnamed organization"
         ).strip()
-        location_label = self.controller.location_label(
+        location_label = self.cached_location_label(
             organization.get("location_id", "")
         )
         self.organization_tree.insert(
@@ -2538,15 +3515,21 @@ class OrganizationPage(tk.Frame):
         self,
         organization_id="",
         notify=True,
+        refresh_page=True,
     ):
         requested_id = str(organization_id or "").strip()
 
-        if requested_id not in self.organizations_by_id:
+        if (
+            self.organizations_by_id
+            and requested_id not in self.organizations_by_id
+        ):
             requested_id = ""
 
         previous_lock_id = self.organization_lock_id
         self.organization_lock_id = requested_id
-        self.refresh(self.current_organization_id)
+
+        if refresh_page:
+            self.refresh(self.current_organization_id)
 
         if requested_id:
             organization = self.organizations_by_id.get(
@@ -2671,9 +3654,18 @@ class OrganizationPage(tk.Frame):
             selected_location_id or ""
         ).strip()
         self.location_value.set(
-            self.controller.location_label(
-                self.selected_location_id
-            )
+            self.cached_location_label(self.selected_location_id)
+        )
+
+    def cached_location_label(self, location_id):
+        selected_id = str(location_id or "").strip()
+
+        if not selected_id:
+            return "No location selected"
+
+        return self.location_labels_by_id.get(
+            selected_id,
+            "Unknown location",
         )
 
     def refresh_school_link(self, selected_school_id=None):
@@ -2896,11 +3888,26 @@ class OrganizationPage(tk.Frame):
         self.shop_inventory = normalize_shop_inventory(
             organization.get("shop_inventory", {})
         )
-        self.extinct_value.set(bool(organization.get("extinct")))
-        self.extinction_date_value.set(
-            str(organization.get("extinction_date", "") or "")
+        self.famous_organization_value.set(
+            bool(organization.get("famous_organization"))
         )
+        self.has_storeroom_value.set(
+            bool(organization.get("has_storeroom"))
+        )
+        self.storeroom_inventory = normalize_storeroom_inventory(
+            organization.get("storeroom_inventory", [])
+        )
+        self.extinct_value.set(bool(organization.get("extinct")))
+        extinction_year, extinction_month, extinction_day = (
+            split_world_event_date(
+                organization.get("extinction_date", "")
+            )
+        )
+        self.extinction_year_value.set(extinction_year)
+        self.extinction_month_value.set(extinction_month)
+        self.extinction_day_value.set(extinction_day)
         self.update_shop_page_visibility()
+        self.update_storeroom_page_visibility()
         self.update_extinction_date_visibility()
         self.link_school_value.set(
             bool(str(organization.get("school_id", "") or "").strip())
@@ -2926,11 +3933,11 @@ class OrganizationPage(tk.Frame):
         self.organization_jobs = normalize_organization_jobs(
             organization.get("jobs", [])
         )
+        self.hydrated_editor_pages = {"details"}
         self.overview_control.text.edit_modified(False)
         self.notes_control.text.edit_modified(False)
         self.refresh_event_list()
-        self.refresh_job_list()
-        self.refresh_children_list()
+        self.hydrate_editor_page(self.active_editor_page)
         self.form_updates_paused = False
         self.form_dirty = False
         self.set_editor_state(True, False)
@@ -2947,9 +3954,15 @@ class OrganizationPage(tk.Frame):
         self.type_value.set(ORGANIZATION_TYPES[0])
         self.has_shop_value.set(False)
         self.shop_inventory = normalize_shop_inventory({})
+        self.famous_organization_value.set(False)
+        self.has_storeroom_value.set(False)
+        self.storeroom_inventory = normalize_storeroom_inventory([])
         self.extinct_value.set(False)
-        self.extinction_date_value.set("")
+        self.extinction_year_value.set("")
+        self.extinction_month_value.set("")
+        self.extinction_day_value.set("")
         self.update_shop_page_visibility()
+        self.update_storeroom_page_visibility()
         self.update_extinction_date_visibility()
         self.link_school_value.set(False)
         self.refresh_school_link("")
@@ -2959,11 +3972,11 @@ class OrganizationPage(tk.Frame):
         self.notes_control.text.delete("1.0", "end")
         self.organization_events = normalize_organization_events([])
         self.organization_jobs = normalize_organization_jobs([])
+        self.hydrated_editor_pages = {"details"}
         self.overview_control.text.edit_modified(False)
         self.notes_control.text.edit_modified(False)
         self.refresh_event_list()
-        self.refresh_job_list()
-        self.refresh_children_list()
+        self.hydrate_editor_page(self.active_editor_page)
         self.form_updates_paused = False
         self.form_dirty = False
         self.set_editor_state(False, False)
@@ -3030,6 +4043,40 @@ class OrganizationPage(tk.Frame):
         )
         self.status_command("Organization changes reverted")
 
+    def extinction_date_from_form(self):
+        extinct_value = getattr(self, "extinct_value", None)
+
+        if extinct_value is None or not extinct_value.get():
+            return ""
+
+        year_value = getattr(self, "extinction_year_value", None)
+        month_value = getattr(self, "extinction_month_value", None)
+        day_value = getattr(self, "extinction_day_value", None)
+        year = year_value.get().strip() if year_value is not None else ""
+        month = month_value.get().strip() if month_value is not None else ""
+        day = day_value.get().strip() if day_value is not None else ""
+
+        if not year and (month or day):
+            raise ValueError(
+                "Extinction date month and day require a year."
+            )
+
+        if day and not month:
+            raise ValueError("Extinction date day requires a month.")
+
+        extinction_date = year
+
+        if month:
+            extinction_date += f"-{month}"
+
+        if day:
+            extinction_date += f"-{day}"
+
+        return normalize_organization_extinction_date(
+            extinction_date,
+            True,
+        )
+
     def save_organization(self):
         if (
             self.link_school_value.get()
@@ -3039,12 +4086,30 @@ class OrganizationPage(tk.Frame):
             self.refresh_school_link("")
 
         has_shop_value = getattr(self, "has_shop_value", None)
-        extinct_value = getattr(self, "extinct_value", None)
-        extinction_date_value = getattr(
+        has_storeroom_value = getattr(
             self,
-            "extinction_date_value",
+            "has_storeroom_value",
             None,
         )
+        famous_organization_value = getattr(
+            self,
+            "famous_organization_value",
+            None,
+        )
+        extinct_value = getattr(self, "extinct_value", None)
+
+        try:
+            extinction_date = OrganizationPage.extinction_date_from_form(
+                self
+            )
+        except ValueError as error:
+            messagebox.showerror(
+                "Cannot save organization",
+                str(error),
+                parent=self,
+            )
+            return False
+
         values = {
             "name": self.name_value.get(),
             "organization_type": self.type_value.get(),
@@ -3063,16 +4128,27 @@ class OrganizationPage(tk.Frame):
                 "shop_inventory",
                 normalize_shop_inventory({}),
             ),
+            "famous_organization": (
+                bool(famous_organization_value.get())
+                if famous_organization_value is not None
+                else False
+            ),
+            "has_storeroom": (
+                bool(has_storeroom_value.get())
+                if has_storeroom_value is not None
+                else False
+            ),
+            "storeroom_inventory": getattr(
+                self,
+                "storeroom_inventory",
+                normalize_storeroom_inventory([]),
+            ),
             "extinct": (
                 bool(extinct_value.get())
                 if extinct_value is not None
                 else False
             ),
-            "extinction_date": (
-                extinction_date_value.get()
-                if extinction_date_value is not None
-                else ""
-            ),
+            "extinction_date": extinction_date,
             "overview": self.overview_control.text.get("1.0", "end-1c"),
             "notes": self.notes_control.text.get("1.0", "end-1c"),
             "events": self.organization_events,
@@ -3204,10 +4280,13 @@ class OrganizationPage(tk.Frame):
         }
 
         for index, event in enumerate(self.organization_events):
-            year_text = (
-                str(event["year"])
-                if event["year"] is not None
-                else "Year required"
+            date_text = (
+                str(event.get("date", "") or "")
+                or (
+                    str(event["year"])
+                    if event["year"] is not None
+                    else "Date required"
+                )
             )
             person_ids = list(event.get("person_ids", []))
             people_count = len(person_ids)
@@ -3226,7 +4305,7 @@ class OrganizationPage(tk.Frame):
                 people_text = ""
             self.event_list.insert(
                 "end",
-                f"{year_text} — {event['title']}{people_text}",
+                f"{date_text} — {event['title']}{people_text}",
             )
             self.event_list.itemconfigure(
                 index,
@@ -3367,7 +4446,6 @@ class OrganizationPage(tk.Frame):
                 "end",
                 (
                     f"{organization_job['title']} · "
-                    f"{format_monthly_salary(organization_job['salary'])} · "
                     f"opened {organization_job['opened_year']} · "
                     f"{status}"
                 ),
@@ -3428,7 +4506,7 @@ class OrganizationPage(tk.Frame):
             )
         )
         self.job_timeline_value.set(
-            f"{selected_job['title']} · year-by-year timeline"
+            f"{selected_job['title']} · timeline"
         )
 
         if not self.visible_job_timeline:
@@ -3453,6 +4531,138 @@ class OrganizationPage(tk.Frame):
                     else LIST_ALTERNATE
                 ),
             )
+
+    def job_timeline_clicked(self, event=None):
+        if not getattr(self, "visible_job_timeline", []):
+            return
+
+        selected = self.job_timeline_list.curselection()
+        selected_index = (
+            int(selected[0])
+            if selected
+            else (
+                int(self.job_timeline_list.nearest(event.y))
+                if event is not None
+                else -1
+            )
+        )
+
+        if not 0 <= selected_index < len(self.visible_job_timeline):
+            return
+
+        timeline_entry = self.visible_job_timeline[selected_index]
+
+        if not timeline_entry.get("vacant"):
+            return
+
+        selected_job_index = self.selected_job_index()
+
+        if selected_job_index is None or self.event_controller is None:
+            return
+
+        organization = self.organizations_by_id.get(
+            str(self.current_organization_id or "")
+        )
+
+        if organization is None:
+            return
+
+        VacantJobFillDialog(
+            self,
+            self.event_controller.people_provider(),
+            organization,
+            self.organization_jobs[selected_job_index],
+            timeline_entry,
+            self.save_vacant_job,
+        )
+
+    def vacant_job_date_text(self, date_values):
+        year = str(date_values.get("year", "") or "").strip()
+        month = str(date_values.get("month", "") or "").strip()
+        day = str(date_values.get("day", "") or "").strip()
+        date_text = year
+
+        if month:
+            date_text += f"-{month}"
+
+        if day:
+            date_text += f"-{day}"
+
+        return date_text
+
+    def save_vacant_job(
+        self,
+        person,
+        salary,
+        start_date,
+        end_date,
+    ):
+        selected_job_index = self.selected_job_index()
+
+        if selected_job_index is None:
+            return False
+
+        organization = self.organizations_by_id.get(
+            str(self.current_organization_id or "")
+        )
+
+        if organization is None:
+            return False
+
+        organization_job = self.organization_jobs[
+            selected_job_index
+        ]
+        organization_name = str(
+            organization.get("name", "")
+            or "Unnamed organization"
+        ).strip()
+        title = (
+            f"{organization_job['title']} at {organization_name}"
+        )
+
+        try:
+            saved_event = self.event_controller.create_event(
+                {
+                    "event_type": "started_job",
+                    "title": title,
+                    "date": self.vacant_job_date_text(start_date),
+                    "description": "",
+                    "person_ids": [person["record_id"]],
+                    "eminence_person_ids": [],
+                    "eminence_skills": {},
+                    "period_names": [],
+                    "location_ids": [],
+                    "locked_location_ids": [],
+                    "organization_id": organization["record_id"],
+                    "organization_name": organization_name,
+                    "organization_job_id": organization_job[
+                        "record_id"
+                    ],
+                    "job_title": organization_job["title"],
+                    "job_end_date": self.vacant_job_date_text(
+                        end_date
+                    ),
+                    "salary": salary,
+                }
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            messagebox.showerror(
+                "Cannot fill position",
+                str(error),
+                parent=self,
+            )
+            return False
+
+        self.refresh_job_timeline()
+        self.status_command(
+            f"Filled {organization_job['title']} with "
+            f"{person.get('displayed_name', 'Unnamed magician')}"
+        )
+
+        if self.events_changed_command is not None:
+            self.events_changed_command()
+
+        return saved_event
 
     def add_job(self):
         founding_year = self.organization_events[0]["year"]

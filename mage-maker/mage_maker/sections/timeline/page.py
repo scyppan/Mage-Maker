@@ -1,6 +1,7 @@
 import tkinter as tk
 from copy import deepcopy
 
+from mage_maker.core.wizarding_currency import format_monthly_salary
 from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
@@ -42,7 +43,8 @@ EVENT_COLORS = {
     "died": "#EBCFD6",
     "started_school": "#D9E3F1",
     "opened_business": "#E8D9C4",
-    "got_job": "#D8E3EC",
+    "started_job": "#D8E3EC",
+    "received_raise": "#D5EAD9",
     "work_change": "#DDD9EC",
     "relocated": "#EFE3C7",
     "name_change": "#DDD2EA",
@@ -54,6 +56,61 @@ LIFE_START_PRIORITIES = {
     "born": 1,
     "birth_name": 2,
 }
+MONTH_ABBREVIATIONS = (
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def format_timeline_date(value):
+    date_text = str(value or "").strip()
+
+    if not date_text:
+        return "nd."
+
+    negative = date_text.startswith("-")
+    body = date_text[1:] if negative else date_text
+    parts = body.split("-")
+
+    try:
+        year = int(parts[0])
+    except (IndexError, TypeError, ValueError):
+        return date_text
+
+    if negative:
+        year = -year
+
+    if len(parts) == 1:
+        return str(year)
+
+    try:
+        month = int(parts[1])
+    except (IndexError, TypeError, ValueError):
+        return date_text
+
+    if not 1 <= month <= 12:
+        return date_text
+
+    if len(parts) == 2:
+        return f"{MONTH_ABBREVIATIONS[month]} {year}"
+
+    try:
+        day = int(parts[2])
+    except (IndexError, TypeError, ValueError):
+        return date_text
+
+    return f"{day} {MONTH_ABBREVIATIONS[month]} {year}"
 
 
 class TimelineView(tk.Frame):
@@ -449,7 +506,7 @@ class TimelineView(tk.Frame):
             if event.get("_draft_event"):
                 self.listbox.insert("end", "New event (unsaved)")
             else:
-                event_date = str(event.get("date") or "nd.")
+                event_date = format_timeline_date(event.get("date"))
                 self.listbox.insert(
                     "end",
                     f"{event_date}: {self.event_summary_text(event)}",
@@ -483,10 +540,21 @@ class TimelineView(tk.Frame):
             return "New event (unsaved)"
 
         if event.get("_stored_event"):
-            return (
+            summary = (
                 f"{event_type_label(event)} · "
                 f"{event.get('title', 'Event')}"
             )
+
+            if (
+                event.get("event_type")
+                in ("started_job", "received_raise")
+                and event.get("salary") is not None
+            ):
+                summary += (
+                    f" · {format_monthly_salary(event['salary'])}"
+                )
+
+            return summary
 
         return timeline_event_summary(event)
 
@@ -881,6 +949,22 @@ class TimelineView(tk.Frame):
                 "person_ids": values["person_ids"],
                 "location_ids": values["location_ids"],
                 "locked_location_ids": values["locked_location_ids"],
+                "organization_id": values.get("organization_id", ""),
+                "organization_name": values.get(
+                    "organization_name",
+                    "",
+                ),
+                "organization_job_id": values.get(
+                    "organization_job_id",
+                    "",
+                ),
+                "job_title": values.get("job_title", ""),
+                "job_assignment_id": values.get(
+                    "job_assignment_id",
+                    "",
+                ),
+                "job_end_date": values.get("job_end_date", ""),
+                "salary": values.get("salary"),
             }
         )
         return self.save_event(timeline_event)

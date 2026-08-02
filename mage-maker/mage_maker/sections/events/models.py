@@ -2,6 +2,7 @@ import re
 import uuid
 from copy import deepcopy
 
+from mage_maker.core.wizarding_currency import normalize_monthly_salary
 from mage_maker.sections.events.types import (
     EVENT_LABEL_TYPES,
     EVENT_TYPE_LABELS,
@@ -20,6 +21,62 @@ WORLD_EVENT_LABEL_TYPES = EVENT_LABEL_TYPES
 WORLD_EVENT_DATE_PATTERN = re.compile(
     r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
+JOB_EVENT_TYPES = frozenset(("started_job", "received_raise"))
+JOB_EVENT_ONLY_FIELDS = (
+    "organization_job_id",
+    "job_title",
+    "job_assignment_id",
+    "job_end_date",
+    "salary",
+)
+
+
+def normalize_job_event_metadata(event):
+    normalized = deepcopy(event) if isinstance(event, dict) else {}
+    event_type = canonical_event_type(
+        normalized.get("event_type")
+    )
+
+    if event_type not in JOB_EVENT_TYPES:
+        for field_name in JOB_EVENT_ONLY_FIELDS:
+            normalized.pop(field_name, None)
+
+        return normalized
+
+    normalized["organization_id"] = str(
+        normalized.get("organization_id", "") or ""
+    ).strip()
+    normalized["organization_name"] = str(
+        normalized.get("organization_name", "") or ""
+    ).strip()
+    normalized["organization_job_id"] = str(
+        normalized.get("organization_job_id", "") or ""
+    ).strip()
+    normalized["job_title"] = str(
+        normalized.get("job_title", "") or ""
+    ).strip()
+    normalized["job_assignment_id"] = str(
+        normalized.get("job_assignment_id", "") or ""
+    ).strip()
+    salary_value = normalized.get("salary")
+    normalized["salary"] = (
+        None
+        if salary_value in (None, "")
+        else normalize_monthly_salary(salary_value)
+    )
+    job_end_date = str(
+        normalized.get("job_end_date", "") or ""
+    ).strip()
+    normalized["job_end_date"] = (
+        normalize_world_event_date(job_end_date)
+        if job_end_date
+        else ""
+    )
+
+    if event_type == "received_raise":
+        normalized["job_end_date"] = ""
+
+    return normalized
 
 
 def normalize_world_event(event):
@@ -33,6 +90,7 @@ def normalize_world_event(event):
     normalized["event_type"] = canonical_event_type(
         normalized.get("event_type") or "other"
     )
+    normalized = normalize_job_event_metadata(normalized)
     normalized["title"] = " ".join(
         str(normalized.get("title", "") or "").strip().split()
     )
@@ -53,6 +111,10 @@ def normalize_world_event(event):
         for person_id in requested_eminence_person_ids
         if person_id in normalized["person_ids"]
     ]
+    normalized["eminence_skills"] = normalize_eminence_skill_values(
+        normalized.get("eminence_skills"),
+        normalized["eminence_person_ids"],
+    )
     normalized["period_names"] = normalize_association_values(
         normalized.get("period_names")
     )
@@ -119,6 +181,34 @@ def normalize_association_values(values):
 
         used_values.add(normalized)
         normalized_values.append(normalized)
+
+    return normalized_values
+
+
+def normalize_eminence_skill_values(values, earned_person_ids=()):
+    if values in (None, ""):
+        candidate_values = {}
+    elif isinstance(values, dict):
+        candidate_values = values
+    else:
+        raise TypeError("Event Eminence skills must be an object.")
+
+    earned_ids = {
+        str(person_id or "").strip()
+        for person_id in earned_person_ids or ()
+        if str(person_id or "").strip()
+    }
+    normalized_values = {}
+
+    for person_id, skill in candidate_values.items():
+        normalized_person_id = str(person_id or "").strip()
+        normalized_skill = str(skill or "").strip()
+
+        if (
+            normalized_person_id in earned_ids
+            and normalized_skill
+        ):
+            normalized_values[normalized_person_id] = normalized_skill
 
     return normalized_values
 

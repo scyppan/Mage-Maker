@@ -14,7 +14,6 @@ from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
 )
 from mage_maker.sections.locations.models import (
-    location_path,
     recent_location_label,
 )
 from mage_maker.shell.person_list import (
@@ -2027,43 +2026,29 @@ class PlaceholderLocationDialog(tk.Toplevel):
         self.saved_command = saved_command
         self.allow_world_parent = bool(allow_world_parent)
         self.place_value = tk.StringVar()
-        self.parent_options = []
-
-        if self.allow_world_parent:
-            self.parent_options.append(
-                {
-                    "value": "",
-                    "label": "The World",
-                }
-            )
-
-        self.parent_options.extend(
-            {
-                "value": str(
-                    location.get("record_id", "") or ""
-                ).strip(),
-                "label": location_path(
-                    location.get("record_id", ""),
-                    self.locations,
-                ),
-            }
-            for location in self.locations
-            if str(location.get("record_id", "") or "").strip()
-        )
         selected_parent_id = str(
             selected_parent_location_id or ""
         ).strip()
-        selected_parent_label = next(
-            (
-                option["label"]
-                for option in self.parent_options
-                if option["value"] == selected_parent_id
-            ),
-            (
-                self.parent_options[0]["label"]
-                if self.parent_options
+        available_ids = [
+            str(location.get("record_id", "") or "").strip()
+            for location in self.locations
+            if str(location.get("record_id", "") or "").strip()
+        ]
+
+        if selected_parent_id not in available_ids:
+            selected_parent_id = (
+                (available_ids[0] if available_ids else "")
+                if not self.allow_world_parent
                 else ""
-            ),
+            )
+
+        selected_parent_label = (
+            recent_location_label(
+                selected_parent_id,
+                self.locations,
+            )
+            if selected_parent_id
+            else "The World"
         )
         self.parent_value = tk.StringVar(
             value=selected_parent_label
@@ -2218,7 +2203,7 @@ class PlaceholderLocationDialog(tk.Toplevel):
     def parent_location_selected(self, location_id):
         self.selected_parent_id = str(location_id or "").strip()
         self.parent_value.set(
-            location_path(
+            recent_location_label(
                 self.selected_parent_id,
                 self.locations,
             )

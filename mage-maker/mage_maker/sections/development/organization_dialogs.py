@@ -2,10 +2,6 @@ import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox
 
-from mage_maker.core.wizarding_currency import (
-    currency_component_input_is_valid,
-    format_monthly_salary,
-)
 from mage_maker.sections.events.models import world_event_year
 from mage_maker.sections.organizations.controller import (
     ORGANIZATION_EVENT_FOUNDING,
@@ -688,9 +684,6 @@ class OrganizationSelectionDialog(tk.Toplevel):
             searchable_values.extend(
                 (
                     organization_job.get("title"),
-                    format_monthly_salary(
-                        organization_job.get("salary")
-                    ),
                     organization_job.get("opened_year"),
                 )
             )
@@ -957,10 +950,9 @@ class QuickOrganizationDialog(tk.Toplevel):
         self.name_value = tk.StringVar()
         self.type_value = tk.StringVar(value=ORGANIZATION_TYPES[0])
         self.founding_year_value = tk.StringVar()
+        self.founding_month_value = tk.StringVar()
+        self.founding_day_value = tk.StringVar()
         self.job_title_value = tk.StringVar()
-        self.job_salary_galleons_value = tk.StringVar()
-        self.job_salary_sickles_value = tk.StringVar()
-        self.job_salary_knuts_value = tk.StringVar()
         self.job_opened_year_value = tk.StringVar()
         self.location_search_value = tk.StringVar()
         self.location_results_value = tk.StringVar()
@@ -1047,22 +1039,40 @@ class QuickOrganizationDialog(tk.Toplevel):
             padx=(7, 0),
             pady=(5, 13),
         )
-        founding_label = tk.Label(
-            body,
-            text="Founding year",
-            bg=SURFACE,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        founding_label.grid(
+        founding_date_frame = tk.Frame(body, bg=SURFACE)
+        founding_date_frame.grid(
             row=2,
             column=0,
             columnspan=2,
             sticky="ew",
+            pady=(0, 13),
         )
-        founding_entry = RoundedEntry(
-            body,
+        founding_date_frame.grid_columnconfigure(
+            (0, 1, 2),
+            weight=1,
+            uniform="quick_organization_founding_date",
+        )
+
+        for column, label_text in enumerate(
+            ("Founding year", "Month", "Day")
+        ):
+            founding_date_label = tk.Label(
+                founding_date_frame,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(9, "bold"),
+                anchor="w",
+            )
+            founding_date_label.grid(
+                row=0,
+                column=column,
+                sticky="ew",
+                padx=(0, 7) if column < 2 else 0,
+            )
+
+        founding_year_entry = RoundedEntry(
+            founding_date_frame,
             textvariable=self.founding_year_value,
             background=SURFACE,
             width=150,
@@ -1070,11 +1080,43 @@ class QuickOrganizationDialog(tk.Toplevel):
             font=app_font(10),
             justify="center",
         )
-        founding_entry.grid(
-            row=3,
+        founding_year_entry.grid(
+            row=1,
             column=0,
-            sticky="w",
-            pady=(5, 13),
+            sticky="ew",
+            padx=(0, 7),
+            pady=(5, 0),
+        )
+        founding_month_entry = RoundedEntry(
+            founding_date_frame,
+            textvariable=self.founding_month_value,
+            background=SURFACE,
+            width=100,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        founding_month_entry.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            padx=(0, 7),
+            pady=(5, 0),
+        )
+        founding_day_entry = RoundedEntry(
+            founding_date_frame,
+            textvariable=self.founding_day_value,
+            background=SURFACE,
+            width=100,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        founding_day_entry.grid(
+            row=1,
+            column=2,
+            sticky="ew",
+            pady=(5, 0),
         )
         job_title_label = tk.Label(
             body,
@@ -1090,15 +1132,15 @@ class QuickOrganizationDialog(tk.Toplevel):
             sticky="ew",
             padx=(0, 7),
         )
-        job_salary_label = tk.Label(
+        job_opened_year_label = tk.Label(
             body,
-            text="Monthly salary",
+            text="Position opened",
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
             anchor="w",
         )
-        job_salary_label.grid(
+        job_opened_year_label.grid(
             row=4,
             column=1,
             sticky="ew",
@@ -1119,75 +1161,6 @@ class QuickOrganizationDialog(tk.Toplevel):
             padx=(0, 7),
             pady=(5, 13),
         )
-        job_salary_frame = tk.Frame(body, bg=SURFACE)
-        job_salary_frame.grid(
-            row=5,
-            column=1,
-            sticky="ew",
-            padx=(7, 0),
-            pady=(5, 13),
-        )
-        job_salary_frame.grid_columnconfigure((0, 1, 2), weight=1)
-
-        for column, label_text, value, maximum in (
-            (0, "Galleons", self.job_salary_galleons_value, ""),
-            (1, "Sickles", self.job_salary_sickles_value, "16"),
-            (2, "Knuts", self.job_salary_knuts_value, "28"),
-        ):
-            currency_frame = tk.Frame(job_salary_frame, bg=SURFACE)
-            currency_frame.grid(
-                row=0,
-                column=column,
-                sticky="ew",
-                padx=(0, 5) if column < 2 else (0, 0),
-            )
-            currency_frame.grid_columnconfigure(0, weight=1)
-            currency_label = tk.Label(
-                currency_frame,
-                text=label_text,
-                bg=SURFACE,
-                fg=TEXT_MUTED,
-                font=app_font(7, "bold"),
-                anchor="w",
-            )
-            currency_label.grid(row=0, column=0, sticky="ew")
-            currency_entry = RoundedEntry(
-                currency_frame,
-                textvariable=value,
-                background=SURFACE,
-                width=70,
-                height=38,
-                font=app_font(9),
-                justify="center",
-            )
-            currency_entry.grid(
-                row=1,
-                column=0,
-                sticky="ew",
-                pady=(3, 0),
-            )
-            currency_entry.entry.configure(
-                validate="key",
-                validatecommand=(
-                    self.register(currency_component_input_is_valid),
-                    "%P",
-                    maximum,
-                ),
-            )
-        job_opened_year_label = tk.Label(
-            body,
-            text="Position opened",
-            bg=SURFACE,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        job_opened_year_label.grid(
-            row=6,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-        )
         job_opened_year_entry = RoundedEntry(
             body,
             textvariable=self.job_opened_year_value,
@@ -1198,9 +1171,10 @@ class QuickOrganizationDialog(tk.Toplevel):
             justify="center",
         )
         job_opened_year_entry.grid(
-            row=7,
-            column=0,
-            sticky="w",
+            row=5,
+            column=1,
+            sticky="ew",
+            padx=(7, 0),
             pady=(5, 13),
         )
         calendar_notice = CalendarAdoptionNotice(
@@ -1403,27 +1377,46 @@ class QuickOrganizationDialog(tk.Toplevel):
             )
             return
 
+        founding_month_value = getattr(
+            self,
+            "founding_month_value",
+            None,
+        )
+        founding_day_value = getattr(
+            self,
+            "founding_day_value",
+            None,
+        )
+        founding_month = (
+            founding_month_value.get().strip()
+            if founding_month_value is not None
+            else ""
+        )
+        founding_day = (
+            founding_day_value.get().strip()
+            if founding_day_value is not None
+            else ""
+        )
+
+        if founding_day and not founding_month:
+            messagebox.showerror(
+                "Cannot create organization",
+                "The founding day requires a month.",
+                parent=self,
+            )
+            return
+
         try:
             job_title = self.job_title_value.get().strip()
-            job_salary = {
-                "galleons": self.job_salary_galleons_value.get(),
-                "sickles": self.job_salary_sickles_value.get(),
-                "knuts": self.job_salary_knuts_value.get(),
-            }
-            has_job_salary = any(
-                str(value or "").strip()
-                for value in job_salary.values()
-            )
             job_opened_year = (
                 self.job_opened_year_value.get().strip()
             )
             organization_jobs = []
 
-            if job_title or has_job_salary or job_opened_year:
+            if job_title or job_opened_year:
                 organization_jobs.append(
                     new_organization_job(
                         job_title,
-                        job_salary,
                         job_opened_year or founding_year,
                     )
                 )
@@ -1447,6 +1440,8 @@ class QuickOrganizationDialog(tk.Toplevel):
                             "event_type": ORGANIZATION_EVENT_FOUNDING,
                             "title": "Founding",
                             "year": founding_year,
+                            "month": founding_month,
+                            "day": founding_day,
                             "description": "",
                         }
                     ],

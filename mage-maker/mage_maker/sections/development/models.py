@@ -1205,13 +1205,6 @@ def normalize_development_plan(value, default_schema=None):
         plan.get("adult_years", [])
     )
 
-    if (
-        plan["academic_years_advanced"]
-        < ACADEMIC_YEARS_TO_ADULTHOOD
-        and not calendar_year_progression
-    ):
-        plan["adult_years"] = []
-
     plan.pop("age", None)
 
     required_skill_count = development_skill_count(schema)
@@ -1267,6 +1260,64 @@ def normalize_development_plan(value, default_schema=None):
         plan.pop(legacy_field, None)
 
     return plan
+
+
+def development_job_assignments(value):
+    plan = normalize_development_plan(
+        value,
+        default_schema="Scattershot",
+    )
+    assignments = []
+    seen_record_ids = set()
+
+    for adult_year in plan.get("adult_years", []):
+        for assignment in normalize_job_records(
+            adult_year.get("jobs", [])
+        ):
+            record_id = assignment["record_id"]
+
+            if record_id in seen_record_ids:
+                continue
+
+            seen_record_ids.add(record_id)
+            assignments.append(assignment)
+
+    return normalize_job_records(assignments)
+
+
+def non_magical_development_plan(value, job_assignments=None):
+    assignments = (
+        development_job_assignments(value)
+        if job_assignments is None
+        else normalize_job_records(job_assignments)
+    )
+    adult_years = []
+
+    if assignments:
+        adult_years.append(
+            {
+                "adult_year": 1,
+                "reading_characteristic": "",
+                "reading_rolls": [],
+                "books": [],
+                "eminence": [],
+                "jobs": assignments,
+            }
+        )
+
+    return normalize_development_plan(
+        {
+            "schema": "Scattershot",
+            "blood_status_initialized": False,
+            "academic_years_advanced": 0,
+            "school_started": False,
+            "school_years": [],
+            "ledger_entries": [],
+            "initial_eminence": [],
+            "adult_years": adult_years,
+            "mortality_checked_through_age": None,
+        }
+    )
 
 
 def normalize_development_assignment_policy(value):
@@ -1745,7 +1796,17 @@ def development_year_pages(
         page["title"] = development_year_page_title(page)
         pages.append(page)
 
-    for adult_year_record in plan.get("adult_years", []):
+    visible_adult_year_records = (
+        plan.get("adult_years", [])
+        if (
+            bool(plan.get("calendar_year_progression"))
+            or plan.get("academic_years_advanced", 0)
+            >= ACADEMIC_YEARS_TO_ADULTHOOD
+        )
+        else []
+    )
+
+    for adult_year_record in visible_adult_year_records:
         adult_year = adult_year_record["adult_year"]
         calendar_year_range = adult_year_calendar_year_range(
             academic_start_year,

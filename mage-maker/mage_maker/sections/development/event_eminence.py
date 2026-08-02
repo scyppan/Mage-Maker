@@ -1,20 +1,33 @@
 import hashlib
+import random
 from copy import deepcopy
 
+from mage_maker.core.dates import (
+    historical_year_after,
+    historical_year_distance,
+    historical_year_shift,
+)
 from mage_maker.sections.development.initial_bonuses import (
     preferred_development_skills,
 )
 from mage_maker.sections.development.models import (
+    ACADEMIC_YEARS_TO_ADULTHOOD,
     DEVELOPMENT_SKILL_OPTIONS,
     calculate_development_start_year,
+    development_year_page_title,
     development_year_pages,
     new_eminence_record,
+    non_magical_development_plan,
     normalize_development_plan,
     normalize_eminence_record,
     normalize_eminence_records,
 )
+from mage_maker.sections.development.school_years import (
+    random_school_year_record,
+)
 from mage_maker.sections.events.models import (
     normalize_world_event,
+    split_world_event_date,
     world_event_year,
 )
 
@@ -40,6 +53,10 @@ def event_eminence_record_is_linked(record):
 
 def event_eminence_target(person, event):
     person_values = person if isinstance(person, dict) else {}
+
+    if bool(person_values.get("non_magical")):
+        return None
+
     normalized_event = normalize_world_event(event)
     event_year = world_event_year(normalized_event.get("date"))
 
@@ -61,6 +78,41 @@ def event_eminence_target(person, event):
 
     if academic_start_year is None:
         return None
+
+    _, event_month_text, _ = split_world_event_date(
+        normalized_event.get("date", "")
+    )
+
+    if school_attended and event_month_text:
+        event_month = int(event_month_text)
+        event_school_year_start = (
+            event_year
+            if event_month >= 9
+            else historical_year_shift(event_year, -1)
+        )
+        school_year = (
+            historical_year_distance(
+                academic_start_year,
+                event_school_year_start,
+            )
+            + 1
+        )
+
+        if 1 <= school_year <= ACADEMIC_YEARS_TO_ADULTHOOD:
+            page = {
+                "page_key": f"school:{school_year}",
+                "page_type": "school",
+                "school_year": school_year,
+                "adult_year": None,
+                "calendar_year": event_school_year_start,
+                "calendar_end_year": historical_year_after(
+                    event_school_year_start
+                ),
+                "age_range": None,
+                "school_attended": True,
+            }
+            page["title"] = development_year_page_title(page)
+            return page
 
     pages = development_year_pages(
         person_values.get("development_plan"),
@@ -122,6 +174,32 @@ def event_eminence_default_skill(development_plan, target):
             return school_year_record["skills"][0]
 
     return DEVELOPMENT_SKILL_OPTIONS[0]
+
+
+def suggested_event_eminence_skill(
+    development_plan,
+    person_id,
+    event_identity="",
+):
+    plan = normalize_development_plan(
+        development_plan,
+        default_schema="Scattershot",
+    )
+    candidates = preferred_development_skills(plan)
+
+    if not candidates:
+        candidates = list(DEVELOPMENT_SKILL_OPTIONS)
+
+    identity = (
+        f"{str(person_id or '').strip()}|"
+        f"{str(event_identity or '').strip()}|"
+        f"{plan.get('schema', 'Scattershot')}"
+    )
+    selected_index = int(
+        hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16],
+        16,
+    ) % len(candidates)
+    return candidates[selected_index]
 
 
 def remove_event_eminence_record(development_plan, record_id):
@@ -204,6 +282,45 @@ def add_event_eminence_record(development_plan, target, record):
 
     if page_type == "school":
         school_year = int(target.get("school_year"))
+        plan.pop("calendar_year_progression", None)
+        plan["school_started"] = True
+        plan["academic_years_advanced"] = max(
+            int(plan.get("academic_years_advanced", 0)),
+            school_year - 1,
+        )
+        plan = normalize_development_plan(
+            plan,
+            default_schema="Scattershot",
+        )
+        school_years_by_number = {
+            int(year_record.get("year")): year_record
+            for year_record in plan.get("school_years", [])
+        }
+
+        for year_number in range(1, school_year + 1):
+            if year_number in school_years_by_number:
+                continue
+
+            seed_text = (
+                f"{normalized_record.get('record_id', '')}|"
+                f"school-year-{year_number}"
+            )
+            seed = int(
+                hashlib.sha256(seed_text.encode("utf-8")).hexdigest()[:16],
+                16,
+            )
+            school_years_by_number[year_number] = (
+                random_school_year_record(
+                    year_number,
+                    plan,
+                    randomizer=random.Random(seed),
+                )
+            )
+
+        plan["school_years"] = [
+            school_years_by_number[year_number]
+            for year_number in sorted(school_years_by_number)
+        ]
         target_record = next(
             (
                 year_record
@@ -249,16 +366,31 @@ def event_eminence_record(
         normalized_event["record_id"],
         person_id,
     )
+    selected_skill = str(
+        normalized_event.get("eminence_skills", {}).get(
+            person_id,
+            "",
+        )
+        or ""
+    ).strip()
+
+    if selected_skill not in DEVELOPMENT_SKILL_OPTIONS:
+        selected_skill = ""
 
     if existing_record is not None:
         retained_record = normalize_eminence_record(existing_record)
         retained_record["record_id"] = record_id
+
+        if selected_skill:
+            retained_record["skill"] = selected_skill
+
         return normalize_eminence_record(retained_record)
 
     record = new_eminence_record(
         normalized_event["title"],
         normalized_event.get("description", ""),
-        event_eminence_default_skill(
+        selected_skill
+        or event_eminence_default_skill(
             person.get("development_plan"),
             target,
         ),
@@ -342,6 +474,14 @@ def prepare_event_eminence_updates(
             )
             person["development_plan"] = plan
 
+            if bool(person.get("non_magical")):
+                person["development_plan"] = (
+                    non_magical_development_plan(
+                        person.get("development_plan")
+                    )
+                )
+                continue
+
             if (
                 current_event is None
                 or person_id not in current_person_ids
@@ -368,13 +508,25 @@ def prepare_event_eminence_updates(
 
     for person_id, person in working_people.items():
         original_person = people_by_id[person_id]
-        normalized_plan = normalize_development_plan(
-            person.get("development_plan"),
-            default_schema="Scattershot",
+        normalized_plan = (
+            non_magical_development_plan(
+                person.get("development_plan")
+            )
+            if person.get("non_magical")
+            else normalize_development_plan(
+                person.get("development_plan"),
+                default_schema="Scattershot",
+            )
         )
-        original_plan = normalize_development_plan(
-            original_person.get("development_plan"),
-            default_schema="Scattershot",
+        original_plan = (
+            non_magical_development_plan(
+                original_person.get("development_plan")
+            )
+            if original_person.get("non_magical")
+            else normalize_development_plan(
+                original_person.get("development_plan"),
+                default_schema="Scattershot",
+            )
         )
 
         if normalized_plan != original_plan:
@@ -395,6 +547,12 @@ def apply_event_eminence_updates(database, updates):
 
 def reconcile_person_event_eminence(person, events):
     person_values = deepcopy(person) if isinstance(person, dict) else {}
+
+    if bool(person_values.get("non_magical")):
+        return non_magical_development_plan(
+            person_values.get("development_plan")
+        )
+
     person_id = str(
         person_values.get("record_id", "") or ""
     ).strip()

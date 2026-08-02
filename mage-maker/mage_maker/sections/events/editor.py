@@ -1,6 +1,9 @@
 import tkinter as tk
 from copy import deepcopy
 
+from mage_maker.core.wizarding_currency import (
+    currency_component_input_is_valid,
+)
 from mage_maker.sections.events.types import (
     EVENT_TYPE_LABELS,
     event_type_from_label,
@@ -30,6 +33,7 @@ from mage_maker.ui.theme import (
 from mage_maker.ui.widgets import (
     CalendarAdoptionNotice,
     LabeledEntry,
+    RoundedEntry,
     RoundedSelect,
     RoundedText,
     SoftButton,
@@ -503,6 +507,9 @@ class EventEditor(tk.Frame):
         self.maximum_year = None
         self.founding_title_locked = False
         self.generated_founding_title = ""
+        self.generated_job_event_title = ""
+        self.job_event_options = []
+        self.job_event_options_by_label = {}
         self.heading_value = tk.StringVar(value="Event details")
         self.explanation_value = tk.StringVar(
             value="Select an event or add a new one."
@@ -514,6 +521,10 @@ class EventEditor(tk.Frame):
         self.day_value = tk.StringVar()
         self.period_value = tk.StringVar(value="Period: determined by year")
         self.feedback_value = tk.StringVar()
+        self.job_event_value = tk.StringVar()
+        self.salary_galleons_value = tk.StringVar(value="0")
+        self.salary_sickles_value = tk.StringVar(value="0")
+        self.salary_knuts_value = tk.StringVar(value="0")
         self.adjusting_year = False
         self.year_value.trace_add("write", self.update_period_display)
         self.month_value.trace_add("write", self.update_period_display)
@@ -524,7 +535,7 @@ class EventEditor(tk.Frame):
         self.build_scrollable_form()
 
         if self.context == "location":
-            self.people_picker.listbox.configure(height=3)
+            self.people_picker.listbox.configure(height=6)
             self.locations_picker.listbox.configure(height=3)
             self.scrollbar.grid_remove()
             self.scrollbar_visible = False
@@ -532,6 +543,10 @@ class EventEditor(tk.Frame):
         self.event_type_value.trace_add(
             "write",
             self.event_type_changed,
+        )
+        self.job_event_value.trace_add(
+            "write",
+            self.job_event_selection_changed,
         )
         self.clear()
 
@@ -700,12 +715,128 @@ class EventEditor(tk.Frame):
             sticky="w",
             pady=(3, 0),
         )
+        self.job_event_panel = tk.Frame(
+            self.form,
+            bg=self.background,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            padx=6,
+            pady=5,
+        )
+        self.job_event_panel.grid(
+            row=3,
+            column=0,
+            columnspan=form_columnspan,
+            sticky="ew",
+            pady=(3, 0),
+        )
+        self.job_event_panel.grid_columnconfigure(0, weight=2)
+        self.job_event_panel.grid_columnconfigure(
+            (1, 2, 3),
+            weight=1,
+        )
+        job_label = tk.Label(
+            self.job_event_panel,
+            text="Organization job",
+            bg=self.background,
+            fg=TEXT_DARK,
+            font=app_font(8, "bold"),
+            anchor="w",
+        )
+        job_label.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=(0, 4),
+        )
+        self.job_event_picker = RoundedSelect(
+            self.job_event_panel,
+            textvariable=self.job_event_value,
+            values=[],
+            background=self.background,
+            height=28,
+            font=app_font(8),
+        )
+        self.job_event_picker.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=(0, 4),
+        )
+        self.job_salary_label = tk.Label(
+            self.job_event_panel,
+            text="Starting monthly salary",
+            bg=self.background,
+            fg=TEXT_DARK,
+            font=app_font(8, "bold"),
+            anchor="w",
+        )
+        self.job_salary_label.grid(
+            row=0,
+            column=1,
+            columnspan=3,
+            sticky="ew",
+            padx=(4, 0),
+        )
+        self.job_salary_entries = []
+
+        for column, label_text, value, maximum in (
+            (1, "Galleons", self.salary_galleons_value, ""),
+            (2, "Sickles", self.salary_sickles_value, "16"),
+            (3, "Knuts", self.salary_knuts_value, "28"),
+        ):
+            salary_block = tk.Frame(
+                self.job_event_panel,
+                bg=self.background,
+            )
+            salary_block.grid(
+                row=1,
+                column=column,
+                sticky="ew",
+                padx=(4, 0),
+            )
+            salary_block.grid_columnconfigure(0, weight=1)
+            salary_label = tk.Label(
+                salary_block,
+                text=label_text,
+                bg=self.background,
+                fg=TEXT_MUTED,
+                font=app_font(7, "bold"),
+                anchor="w",
+            )
+            salary_label.grid(row=0, column=0, sticky="ew")
+            salary_entry = RoundedEntry(
+                salary_block,
+                textvariable=value,
+                background=self.background,
+                width=92,
+                height=28,
+                font=app_font(8),
+                justify="center",
+            )
+            salary_entry.grid(
+                row=1,
+                column=0,
+                sticky="ew",
+                pady=(2, 0),
+            )
+            salary_entry.entry.configure(
+                validate="key",
+                validatecommand=(
+                    self.register(currency_component_input_is_valid),
+                    "%P",
+                    maximum,
+                ),
+            )
+            self.job_salary_entries.append(salary_entry)
+
+        self.job_event_panel.grid_remove()
         description_heading = tk.Frame(
             self.form,
             bg=self.background,
         )
         description_heading.grid(
-            row=3,
+            row=4,
             column=0,
             columnspan=form_columnspan,
             sticky="ew",
@@ -733,12 +864,12 @@ class EventEditor(tk.Frame):
         self.description_control = RoundedText(
             self.form,
             background=self.background,
-            height=1,
-            minimum_height=38,
+            height=4 if self.compact_no_scroll else 1,
+            minimum_height=96 if self.compact_no_scroll else 38,
             font=app_font(9),
         )
         self.description_control.grid(
-            row=4,
+            row=5,
             column=0,
             sticky="nsew" if self.compact_no_scroll else "ew",
             padx=(0, 4) if self.compact_no_scroll else 0,
@@ -749,14 +880,14 @@ class EventEditor(tk.Frame):
         )
         if self.compact_no_scroll:
             self.association_panel.grid(
-                row=4,
+                row=5,
                 column=1,
                 sticky="nsew",
                 padx=(4, 0),
             )
         else:
             self.association_panel.grid(
-                row=5,
+                row=6,
                 column=0,
                 sticky="ew",
                 pady=(2, 0),
@@ -802,7 +933,7 @@ class EventEditor(tk.Frame):
             self.background,
         )
         self.eminence_picker.grid(
-            row=6,
+            row=7,
             column=0,
             columnspan=form_columnspan,
             sticky="ew",
@@ -810,7 +941,7 @@ class EventEditor(tk.Frame):
         )
         footer = tk.Frame(self.form, bg=self.background)
         footer.grid(
-            row=7,
+            row=8,
             column=0,
             columnspan=form_columnspan,
             sticky="ew",
@@ -923,12 +1054,18 @@ class EventEditor(tk.Frame):
         self.year_value.set("")
         self.month_value.set("")
         self.day_value.set("")
+        if hasattr(self, "job_event_value"):
+            self.job_event_value.set("")
+            self.salary_galleons_value.set("0")
+            self.salary_sickles_value.set("0")
+            self.salary_knuts_value.set("0")
+            self.job_event_panel.grid_remove()
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
         self.people_picker.set_values(())
 
         if hasattr(self, "eminence_picker"):
-            self.eminence_picker.set_values((), ())
+            self.eminence_picker.set_values((), (), {}, "")
 
         self.locations_picker.set_values(())
         self.show_locations(True)
@@ -959,6 +1096,7 @@ class EventEditor(tk.Frame):
         self.title_from_location = False
         self.founding_title_locked = False
         self.generated_founding_title = ""
+        self.generated_job_event_title = ""
         self.people_picker.include_recent = True
         self.locations_picker.single_selection = False
         self.set_year_bounds(minimum_year, maximum_year)
@@ -970,6 +1108,11 @@ class EventEditor(tk.Frame):
         self.year_value.set("")
         self.month_value.set("")
         self.day_value.set("")
+        if hasattr(self, "job_event_value"):
+            self.job_event_value.set("")
+            self.salary_galleons_value.set("0")
+            self.salary_sickles_value.set("0")
+            self.salary_knuts_value.set("0")
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
         self.configure_type_options()
@@ -982,6 +1125,8 @@ class EventEditor(tk.Frame):
             self.eminence_picker.set_values(
                 self.people_picker.get_values(),
                 (),
+                {},
+                NEW_EVENT_DRAFT_ID,
             )
         self.locations_picker.set_values(
             default_location_ids,
@@ -1092,6 +1237,8 @@ class EventEditor(tk.Frame):
         self.year_value.set(year)
         self.month_value.set(month)
         self.day_value.set(day)
+        self.load_job_event_values()
+        self.update_job_event_panel()
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
         self.description_control.text.insert(
@@ -1112,6 +1259,11 @@ class EventEditor(tk.Frame):
             self.eminence_picker.set_values(
                 self.people_picker.get_values(),
                 self.event.get("eminence_person_ids", []),
+                self.event.get("eminence_skills", {}),
+                self.event.get(
+                    "record_id",
+                    self.event.get("event_id", ""),
+                ),
             )
         self.locations_picker.set_values(
             list(stored_location_ids or ()) + list(location_ids or ()),
@@ -1139,6 +1291,139 @@ class EventEditor(tk.Frame):
             return str(self.event.get("description", "") or "")
 
         return str(self.event.get("note", "") or "")
+
+    def refresh_job_event_options(self):
+        if not hasattr(self, "job_event_picker"):
+            return
+
+        option_provider = getattr(
+            self.controller,
+            "organization_job_options",
+            None,
+        )
+        self.job_event_options = (
+            list(option_provider())
+            if callable(option_provider)
+            else []
+        )
+        self.job_event_options_by_label = {
+            str(option.get("label", "") or ""): option
+            for option in self.job_event_options
+            if str(option.get("label", "") or "").strip()
+        }
+        self.job_event_picker.set_values(
+            list(self.job_event_options_by_label)
+        )
+
+    def selected_job_event_option(self):
+        if not hasattr(self, "job_event_value"):
+            return None
+
+        return self.job_event_options_by_label.get(
+            self.job_event_value.get(),
+        )
+
+    def load_job_event_values(self):
+        if not hasattr(self, "job_event_value"):
+            return
+
+        self.refresh_job_event_options()
+        organization_id = str(
+            self.event.get("organization_id", "") or ""
+        ).strip()
+        organization_job_id = str(
+            self.event.get("organization_job_id", "") or ""
+        ).strip()
+        selected_label = ""
+
+        for option in self.job_event_options:
+            if (
+                str(option.get("organization_id", "") or "")
+                == organization_id
+                and str(
+                    option.get("organization_job_id", "") or ""
+                )
+                == organization_job_id
+            ):
+                selected_label = str(
+                    option.get("label", "") or ""
+                )
+                break
+
+        self.job_event_value.set(selected_label)
+        salary = self.event.get("salary")
+
+        if isinstance(salary, dict):
+            self.salary_galleons_value.set(
+                str(salary.get("galleons", 0) or 0)
+            )
+            self.salary_sickles_value.set(
+                str(salary.get("sickles", 0) or 0)
+            )
+            self.salary_knuts_value.set(
+                str(salary.get("knuts", 0) or 0)
+            )
+        else:
+            self.salary_galleons_value.set("0")
+            self.salary_sickles_value.set("0")
+            self.salary_knuts_value.set("0")
+
+    def job_event_selection_changed(self, *arguments):
+        option = self.selected_job_event_option()
+
+        if option is None:
+            return
+
+        generated_title = str(
+            option.get("event_title", option.get("label", ""))
+            or ""
+        ).strip()
+        current_title = self.title_value.get().strip()
+
+        if (
+            generated_title
+            and (
+                not current_title
+                or current_title == self.generated_job_event_title
+            )
+        ):
+            self.title_value.set(generated_title)
+
+        self.generated_job_event_title = generated_title
+
+    def update_job_event_panel(self):
+        if not hasattr(self, "job_event_panel"):
+            return
+
+        event_type = event_type_from_label(
+            self.event_type_value.get(),
+            "other",
+        )
+        is_job_event = event_type in (
+            "started_job",
+            "received_raise",
+        )
+
+        if not is_job_event:
+            self.job_event_panel.grid_remove()
+            self.form.after_idle(self.form_resized)
+            return
+
+        self.refresh_job_event_options()
+        self.job_salary_label.configure(
+            text=(
+                "New monthly salary"
+                if event_type == "received_raise"
+                else "Starting monthly salary"
+            )
+        )
+        self.job_event_panel.grid()
+        self.job_event_picker.set_enabled(self.controls_enabled)
+
+        for salary_entry in self.job_salary_entries:
+            salary_entry.set_enabled(self.controls_enabled)
+
+        self.form.after_idle(self.form_resized)
 
     def configure_type_options(self):
         options = event_type_options(
@@ -1238,6 +1523,12 @@ class EventEditor(tk.Frame):
             self.eminence_picker.set_enabled(editable)
 
         self.locations_picker.set_enabled(editable)
+        if hasattr(self, "job_event_picker"):
+            self.job_event_picker.set_enabled(editable)
+
+            for salary_entry in self.job_salary_entries:
+                salary_entry.set_enabled(editable)
+
         self.save_button.set_enabled(editable)
         self.cancel_button.set_enabled(True)
 
@@ -1284,6 +1575,8 @@ class EventEditor(tk.Frame):
             return
 
     def event_type_changed(self, *arguments):
+        self.update_job_event_panel()
+
         if (
             event_type_from_label(
                 self.event_type_value.get(),
@@ -1448,11 +1741,13 @@ class EventEditor(tk.Frame):
     def values(self):
         selected_locations = self.locations_picker.get_values()
         locked_locations = list(self.locations_picker.locked_order)
+        event_type = event_type_from_label(
+            self.event_type_value.get(),
+            "other",
+        )
+        job_option = self.selected_job_event_option()
         return {
-            "event_type": event_type_from_label(
-                self.event_type_value.get(),
-                "other",
-            ),
+            "event_type": event_type,
             "title": self.title_value.get(),
             "date": self.date_value(),
             "description": self.description_control.text.get(
@@ -1465,11 +1760,54 @@ class EventEditor(tk.Frame):
                 if hasattr(self, "eminence_picker")
                 else self.event.get("eminence_person_ids", [])
             ),
+            "eminence_skills": (
+                self.eminence_picker.get_skill_values()
+                if hasattr(self, "eminence_picker")
+                else self.event.get("eminence_skills", {})
+            ),
             "period_names": [],
             "location_ids": list(
                 dict.fromkeys(selected_locations + locked_locations)
             ),
             "locked_location_ids": locked_locations,
+            "organization_id": (
+                str(job_option.get("organization_id", "") or "")
+                if job_option is not None
+                else ""
+            ),
+            "organization_name": (
+                str(job_option.get("organization_name", "") or "")
+                if job_option is not None
+                else ""
+            ),
+            "organization_job_id": (
+                str(
+                    job_option.get("organization_job_id", "")
+                    or ""
+                )
+                if job_option is not None
+                else ""
+            ),
+            "job_title": (
+                str(job_option.get("job_title", "") or "")
+                if job_option is not None
+                else ""
+            ),
+            "job_assignment_id": str(
+                self.event.get("job_assignment_id", "") or ""
+            ),
+            "job_end_date": str(
+                self.event.get("job_end_date", "") or ""
+            ),
+            "salary": (
+                {
+                    "galleons": self.salary_galleons_value.get(),
+                    "sickles": self.salary_sickles_value.get(),
+                    "knuts": self.salary_knuts_value.get(),
+                }
+                if event_type in ("started_job", "received_raise")
+                else None
+            ),
         }
 
     def save(self):
@@ -1482,6 +1820,17 @@ class EventEditor(tk.Frame):
         if self.storage_kind == "shared" and not values["date"]:
             self.show_error("Enter the year when this event happened.")
             return False
+
+        if values["event_type"] in ("started_job", "received_raise"):
+            if not values["organization_job_id"]:
+                self.show_error("Choose the organization job.")
+                return False
+
+            if len(values["person_ids"]) != 1:
+                self.show_error(
+                    "A job event must belong to exactly one person."
+                )
+                return False
 
         if (
             values["event_type"] == "relocated"

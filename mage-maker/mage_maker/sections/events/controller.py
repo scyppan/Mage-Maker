@@ -1,12 +1,24 @@
 from copy import deepcopy
 
+from mage_maker.sections.development.models import (
+    ensure_adult_year_records,
+    job_assignment_active_on,
+    job_date_tuple,
+    new_job_record,
+    normalize_development_plan,
+    normalize_job_record,
+    normalize_job_records,
+    require_job_position_available,
+)
 from mage_maker.sections.development.event_eminence import (
     apply_event_eminence_updates,
     prepare_event_eminence_updates,
+    suggested_event_eminence_skill,
 )
 from mage_maker.sections.events.models import (
     normalize_world_event,
     normalize_world_events,
+    split_world_event_date,
     world_event_sort_key,
     world_event_year,
 )
@@ -21,6 +33,7 @@ from mage_maker.sections.locations.models import (
 )
 from mage_maker.sections.organizations.controller import (
     ORGANIZATION_EVENT_FOUNDING,
+    normalize_organization_jobs,
     normalize_organization_events,
     organization_event_as_world_event,
     organization_event_from_world_event,
@@ -66,20 +79,29 @@ class EventController:
         organization_events = organization_events_as_world_events(
             self.database.list_records("organizations")
         )
-        return normalize_world_events(
-            [*titled_events, *organization_events]
-        )
+        eligible_person_ids = self.eminence_eligible_person_ids()
+        return [
+            self.with_eligible_eminence(
+                event,
+                eligible_person_ids,
+            )
+            for event in normalize_world_events(
+                [*titled_events, *organization_events]
+            )
+        ]
 
     def get_event(self, record_id):
         event = self.database.read_record("events", record_id)
 
         if event is not None:
-            return normalize_world_event(
-                self.apply_title_rules(event)
+            return self.with_eligible_eminence(
+                normalize_world_event(
+                    self.apply_title_rules(event)
+                )
             )
 
         selected_id = str(record_id or "").strip()
-        return next(
+        selected_event = next(
             (
                 event
                 for event in organization_events_as_world_events(
@@ -90,9 +112,20 @@ class EventController:
             None,
         )
 
+        return (
+            self.with_eligible_eminence(selected_event)
+            if selected_event is not None
+            else None
+        )
+
     def create_event(self, values):
-        normalized = normalize_world_event(
-            self.apply_title_rules(values)
+        prepared = normalize_world_event(
+            self.apply_event_rules(values)
+        )
+        normalized = self.with_eligible_eminence(
+            normalize_world_event(
+                self.apply_event_rules(prepared)
+            )
         )
         self.validate_associations(normalized)
         eminence_updates = prepare_event_eminence_updates(
@@ -101,6 +134,7 @@ class EventController:
             (normalized,),
         )
         created = self.database.create_record("events", normalized)
+        self.synchronize_started_job_assignments((), (created,))
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -118,10 +152,12 @@ class EventController:
         prospective = deepcopy(current)
         prospective.update(deepcopy(values))
         prospective["record_id"] = record_id
-        normalized = normalize_world_event(
-            self.apply_title_rules(prospective)
+        normalized = self.with_eligible_eminence(
+            normalize_world_event(
+                self.apply_event_rules(prospective, current)
+            )
         )
-        self.validate_associations(normalized)
+        self.validate_associations(normalized, current)
 
         if current.get("organization_event"):
             return self.update_organization_event(
@@ -138,6 +174,10 @@ class EventController:
             "events",
             record_id,
             normalized,
+        )
+        self.synchronize_started_job_assignments(
+            (current,),
+            (updated,),
         )
         apply_event_eminence_updates(
             self.database,
@@ -162,6 +202,7 @@ class EventController:
             (),
         )
         deleted = self.database.delete_record("events", record_id)
+        self.synchronize_started_job_assignments((current,), ())
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -344,6 +385,363 @@ class EventController:
 
         return titled_event
 
+    def apply_event_rules(self, event, current_event=None):
+        prepared = self.apply_title_rules(event)
+        event_type = canonical_event_type(
+            prepared.get("event_type")
+        )
+
+        if event_type not in ("started_job", "received_raise"):
+            return prepared
+
+        organization_job = self.job_event_organization_job(prepared)
+
+        if organization_job is None:
+            return prepared
+
+        organization = organization_job["organization"]
+        job = organization_job["job"]
+        prepared["organization_id"] = str(
+            organization.get("record_id", "") or ""
+        )
+        prepared["organization_name"] = str(
+            organization.get("name", "") or ""
+        ).strip()
+        prepared["organization_job_id"] = job["record_id"]
+        prepared["job_title"] = job["title"]
+
+        if not str(prepared.get("title", "") or "").strip():
+            prepared["title"] = (
+                f"{job['title']} at {prepared['organization_name']}"
+            )
+
+        if event_type == "started_job":
+            record_id = str(
+                prepared.get("record_id", "")
+                or (current_event or {}).get("record_id", "")
+                or ""
+            ).strip()
+            existing_assignment = self.matching_started_job_assignment(
+                prepared,
+            )
+            prepared["job_assignment_id"] = (
+                existing_assignment["record_id"]
+                if existing_assignment is not None
+                else self.started_job_assignment_id(record_id)
+            )
+        else:
+            active_assignment = self.active_assignment_for_job_event(
+                prepared
+            )
+            prepared["job_assignment_id"] = (
+                active_assignment["record_id"]
+                if active_assignment is not None
+                else ""
+            )
+
+        return prepared
+
+    def organization_job_options(self):
+        options = []
+
+        for organization in self.database.list_records("organizations"):
+            if not isinstance(organization, dict):
+                continue
+
+            organization_id = str(
+                organization.get("record_id", "") or ""
+            ).strip()
+            organization_name = str(
+                organization.get("name", "") or "Unnamed organization"
+            ).strip()
+
+            for job in normalize_organization_jobs(
+                organization.get("jobs", [])
+            ):
+                options.append(
+                    {
+                        "value": job["record_id"],
+                        "label": f"{organization_name} — {job['title']}",
+                        "event_title": (
+                            f"{job['title']} at {organization_name}"
+                        ),
+                        "organization_id": organization_id,
+                        "organization_name": organization_name,
+                        "organization_job_id": job["record_id"],
+                        "job_title": job["title"],
+                        "job": deepcopy(job),
+                        "organization": deepcopy(organization),
+                    }
+                )
+
+        options.sort(key=self.association_option_sort_key)
+        return options
+
+    def job_event_organization_job(self, event):
+        organization_id = str(
+            (event or {}).get("organization_id", "") or ""
+        ).strip()
+        organization_job_id = str(
+            (event or {}).get("organization_job_id", "") or ""
+        ).strip()
+
+        for option in self.organization_job_options():
+            if (
+                option["organization_id"] == organization_id
+                and option["organization_job_id"]
+                == organization_job_id
+            ):
+                return option
+
+        return None
+
+    def all_job_assignments(self):
+        assignments = []
+
+        for person in self.people_provider():
+            if not isinstance(person, dict):
+                continue
+
+            development_plan = person.get("development_plan")
+
+            if not isinstance(development_plan, dict):
+                continue
+
+            for adult_year in development_plan.get("adult_years", []):
+                if not isinstance(adult_year, dict):
+                    continue
+
+                assignments.extend(
+                    normalize_job_records(
+                        adult_year.get("jobs", [])
+                    )
+                )
+
+        return normalize_job_records(assignments)
+
+    def person_job_assignments(self, person_id):
+        selected_person_id = str(person_id or "").strip()
+        person = next(
+            (
+                candidate
+                for candidate in self.people_provider()
+                if isinstance(candidate, dict)
+                and str(candidate.get("record_id", "") or "").strip()
+                == selected_person_id
+            ),
+            None,
+        )
+
+        if person is None:
+            return []
+
+        assignments = []
+        plan = person.get("development_plan")
+
+        if not isinstance(plan, dict):
+            return []
+
+        for adult_year in plan.get("adult_years", []):
+            if isinstance(adult_year, dict):
+                assignments.extend(
+                    normalize_job_records(
+                        adult_year.get("jobs", [])
+                    )
+                )
+
+        return normalize_job_records(assignments)
+
+    def started_job_assignment_id(self, event_id):
+        normalized_event_id = str(event_id or "").strip()
+
+        if not normalized_event_id:
+            return ""
+
+        return f"event-job:{normalized_event_id}"
+
+    def matching_started_job_assignment(self, event):
+        person_ids = list((event or {}).get("person_ids", []) or [])
+
+        if len(person_ids) != 1:
+            return None
+
+        year, month, day = split_world_event_date(
+            (event or {}).get("date", "")
+        )
+
+        if not year:
+            return None
+
+        requested_start = job_date_tuple(year, month, day)
+
+        for assignment in self.person_job_assignments(person_ids[0]):
+            if (
+                assignment["organization_id"]
+                != str((event or {}).get("organization_id", "") or "")
+                or assignment["organization_job_id"]
+                != str(
+                    (event or {}).get("organization_job_id", "") or ""
+                )
+            ):
+                continue
+
+            assignment_start = job_date_tuple(
+                assignment["start_year"],
+                assignment["start_month"],
+                assignment["start_day"],
+            )
+
+            if assignment_start == requested_start:
+                return assignment
+
+        return None
+
+    def active_assignment_for_job_event(self, event):
+        person_ids = list((event or {}).get("person_ids", []) or [])
+
+        if len(person_ids) != 1:
+            return None
+
+        year, month, day = split_world_event_date(
+            (event or {}).get("date", "")
+        )
+
+        if not year:
+            return None
+
+        selected_job_id = str(
+            (event or {}).get("organization_job_id", "") or ""
+        ).strip()
+
+        for assignment in self.person_job_assignments(person_ids[0]):
+            if (
+                assignment["organization_job_id"] == selected_job_id
+                and job_assignment_active_on(
+                    assignment,
+                    year,
+                    month or 1,
+                    day or 1,
+                )
+            ):
+                return assignment
+
+        return None
+
+    def started_job_assignment(self, event):
+        normalized_event = normalize_world_event(event)
+        year, month, day = split_world_event_date(
+            normalized_event["date"]
+        )
+        end_year, end_month, end_day = split_world_event_date(
+            normalized_event.get("job_end_date", "")
+        )
+        assignment = new_job_record(
+            normalized_event["organization_id"],
+            normalized_event["organization_name"],
+            normalized_event["job_title"],
+            normalized_event["salary"],
+            year,
+            month,
+            day,
+            end_year or None,
+            end_month or None,
+            end_day or None,
+            normalized_event["organization_job_id"],
+        )
+        assignment["record_id"] = (
+            normalized_event.get("job_assignment_id")
+            or self.started_job_assignment_id(
+                normalized_event["record_id"]
+            )
+        )
+        return normalize_job_record(assignment)
+
+    def synchronize_started_job_assignments(
+        self,
+        previous_events,
+        updated_events,
+    ):
+        previous_started = [
+            normalize_world_event(event)
+            for event in previous_events or ()
+            if canonical_event_type(
+                (event or {}).get("event_type")
+            )
+            == "started_job"
+        ]
+        updated_started = [
+            normalize_world_event(event)
+            for event in updated_events or ()
+            if canonical_event_type(
+                (event or {}).get("event_type")
+            )
+            == "started_job"
+        ]
+        affected_person_ids = {
+            person_id
+            for event in (*previous_started, *updated_started)
+            for person_id in event.get("person_ids", [])
+        }
+
+        for person_id in affected_person_ids:
+            person = self.database.read_person(person_id)
+
+            if person is None:
+                continue
+
+            plan = normalize_development_plan(
+                person.get("development_plan"),
+                default_schema="Scattershot",
+            )
+            adult_years = ensure_adult_year_records(
+                plan.get("adult_years", []),
+                1,
+            )
+            removed_assignment_ids = {
+                str(event.get("job_assignment_id", "") or "")
+                or self.started_job_assignment_id(
+                    event.get("record_id", "")
+                )
+                for event in previous_started
+                if person_id in event.get("person_ids", [])
+            }
+
+            for adult_year in adult_years:
+                adult_year["jobs"] = [
+                    assignment
+                    for assignment in normalize_job_records(
+                        adult_year.get("jobs", [])
+                    )
+                    if assignment["record_id"]
+                    not in removed_assignment_ids
+                ]
+
+            for event in updated_started:
+                if person_id not in event.get("person_ids", []):
+                    continue
+
+                assignment = self.started_job_assignment(event)
+
+                for adult_year in adult_years:
+                    adult_year["jobs"] = [
+                        stored_assignment
+                        for stored_assignment in normalize_job_records(
+                            adult_year.get("jobs", [])
+                        )
+                        if stored_assignment["record_id"]
+                        != assignment["record_id"]
+                    ]
+
+                adult_years[0]["jobs"] = normalize_job_records(
+                    [*adult_years[0].get("jobs", []), assignment]
+                )
+
+            plan["adult_years"] = adult_years
+            self.database.update_person(
+                person_id,
+                {"development_plan": plan},
+            )
+
     def events_for_period(self, period_name, start_year, end_year):
         normalized_start = int(start_year)
         normalized_end = int(end_year)
@@ -433,6 +831,72 @@ class EventController:
         ]
         options.sort(key=self.association_option_sort_key)
         return options
+
+    def person_can_earn_eminence(self, person_id):
+        selected_person_id = str(person_id or "").strip()
+
+        return selected_person_id in self.eminence_eligible_person_ids()
+
+    def eminence_eligible_person_ids(self):
+        return {
+            str(person.get("record_id", "") or "").strip()
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+            and not bool(person.get("non_magical"))
+        }
+
+    def with_eligible_eminence(
+        self,
+        event,
+        eligible_person_ids=None,
+    ):
+        normalized = normalize_world_event(event)
+        eligible_ids = (
+            self.eminence_eligible_person_ids()
+            if eligible_person_ids is None
+            else set(eligible_person_ids)
+        )
+        awarded_person_ids = [
+            person_id
+            for person_id in normalized.get(
+                "eminence_person_ids",
+                [],
+            )
+            if person_id in eligible_ids
+        ]
+        normalized["eminence_person_ids"] = awarded_person_ids
+        normalized["eminence_skills"] = {
+            person_id: skill
+            for person_id, skill in normalized.get(
+                "eminence_skills",
+                {},
+            ).items()
+            if person_id in awarded_person_ids
+        }
+        return normalized
+
+    def suggest_event_eminence_skill(
+        self,
+        person_id,
+        event_identity="",
+    ):
+        selected_person_id = str(person_id or "").strip()
+        person = next(
+            (
+                candidate
+                for candidate in self.people_provider()
+                if isinstance(candidate, dict)
+                and str(candidate.get("record_id", "") or "").strip()
+                == selected_person_id
+            ),
+            {},
+        )
+        return suggested_event_eminence_skill(
+            person.get("development_plan"),
+            selected_person_id,
+            event_identity,
+        )
 
     def mage_groups(self):
         if self.mage_groups_provider is not None:
@@ -796,7 +1260,9 @@ class EventController:
 
         return matching_names
 
-    def validate_associations(self, event):
+    def validate_associations(self, event, current_event=None):
+        self.validate_job_event(event, current_event)
+
         if (
             event.get("event_type") == "relocated"
             and len(event.get("location_ids", [])) != 2
@@ -856,6 +1322,54 @@ class EventController:
             raise ValueError(
                 "One or more selected locations no longer exist."
             )
+
+    def validate_job_event(self, event, current_event=None):
+        event_type = canonical_event_type(
+            (event or {}).get("event_type")
+        )
+
+        if event_type not in ("started_job", "received_raise"):
+            return
+
+        person_ids = list((event or {}).get("person_ids", []) or [])
+
+        if len(person_ids) != 1:
+            raise ValueError(
+                "A job event must belong to exactly one person."
+            )
+
+        if self.job_event_organization_job(event) is None:
+            raise ValueError("Choose an existing organization job.")
+
+        if (event or {}).get("salary") is None:
+            raise ValueError("Enter the monthly salary for this job event.")
+
+        if event_type == "received_raise":
+            if self.active_assignment_for_job_event(event) is None:
+                raise ValueError(
+                    "The selected person is not holding this job on the "
+                    "event date."
+                )
+
+            return
+
+        assignment = self.started_job_assignment(event)
+        selected_job = self.job_event_organization_job(event)["job"]
+        ignored_assignment_id = str(
+            (event or {}).get("job_assignment_id", "") or ""
+        ).strip()
+
+        if not ignored_assignment_id and current_event is not None:
+            ignored_assignment_id = str(
+                current_event.get("job_assignment_id", "") or ""
+            ).strip()
+
+        require_job_position_available(
+            selected_job,
+            assignment,
+            self.all_job_assignments(),
+            ignored_assignment_id,
+        )
 
 
 WorldEventController = EventController

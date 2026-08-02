@@ -184,6 +184,9 @@ class FamilyRelationshipMap:
             if record_id in excluded_ids:
                 continue
 
+            if bool(person.get("does_not_have_children")):
+                continue
+
             if bool(person.get("can_give_birth")) != required_birth_capability:
                 continue
 
@@ -238,6 +241,9 @@ class FamilyRelationshipMap:
             if record_id in excluded_ids:
                 continue
 
+            if bool(person.get("does_not_have_children")):
+                continue
+
             if bool(person.get("can_give_birth")) != required_birth_capability:
                 continue
 
@@ -276,6 +282,14 @@ class FamilyRelationshipMap:
         other_parent_id = str(other_parent_id or "")
         parent_ids = self.unique_ids((focus_id, other_parent_id))
         excluded_ids = set(parent_ids)
+
+        for parent_id in parent_ids:
+            parent = self.person(parent_id)
+
+            if parent is not None and bool(
+                parent.get("does_not_have_children")
+            ):
+                return []
 
         for parent_id in parent_ids:
             excluded_ids.update(self.ancestors_of(parent_id))

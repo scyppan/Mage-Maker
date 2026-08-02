@@ -300,6 +300,45 @@ def next_historical_date(year, month, day):
     return historical_year_after(normalized_year), 1, 1
 
 
+def previous_historical_date(year, month, day):
+    normalized_year, normalized_month, normalized_day = (
+        normalize_historical_date_parts(
+            year,
+            month,
+            day,
+            required_year=True,
+        )
+    )
+
+    if (
+        normalized_year == GREGORIAN_REFORM_YEAR
+        and normalized_month == GREGORIAN_REFORM_MONTH
+        and normalized_day == GREGORIAN_FIRST_DAY
+    ):
+        return (
+            GREGORIAN_REFORM_YEAR,
+            GREGORIAN_REFORM_MONTH,
+            GREGORIAN_LAST_JULIAN_DAY,
+        )
+
+    if normalized_day > 1:
+        return normalized_year, normalized_month, normalized_day - 1
+
+    if normalized_month > 1:
+        previous_month = normalized_month - 1
+        return (
+            normalized_year,
+            previous_month,
+            historical_days_in_month(
+                normalized_year,
+                previous_month,
+            ),
+        )
+
+    previous_year = historical_year_shift(normalized_year, -1)
+    return previous_year, 12, 31
+
+
 def normalize_date_parts(year, month, day, label="Date"):
     values = []
 

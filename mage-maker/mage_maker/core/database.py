@@ -6,11 +6,11 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mage_maker.core.wizarding_currency import monthly_salary_identity
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
     calculate_school_start_year,
     migrated_development_plan,
+    non_magical_development_plan,
     normalize_development_assignment_policy,
     normalize_development_plan,
     normalize_job_records,
@@ -100,6 +100,133 @@ class JsonDatabase:
 
         return changed
 
+    def normalize_person_access_rules(self, database_data):
+        people = [
+            person
+            for person in database_data.get("people", [])
+            if isinstance(person, dict)
+        ]
+        parent_ids = {
+            str(parent_id or "").strip()
+            for child in people
+            for parent_id in (
+                child.get("biological_mother_id"),
+                child.get("biological_father_id"),
+            )
+            if str(parent_id or "").strip()
+        }
+        non_magical_ids = {
+            str(person.get("record_id", "") or "").strip()
+            for person in people
+            if bool(person.get("non_magical"))
+            and str(person.get("record_id", "") or "").strip()
+        }
+        changed = False
+
+        for person in people:
+            person_id = str(
+                person.get("record_id", "") or ""
+            ).strip()
+            childlessness = bool(
+                person.get("does_not_have_children", False)
+            )
+
+            if person_id in parent_ids:
+                childlessness = False
+
+            if person.get("does_not_have_children") is not childlessness:
+                person["does_not_have_children"] = childlessness
+                changed = True
+
+            if not bool(person.get("non_magical")):
+                continue
+
+            cleaned_plan = non_magical_development_plan(
+                person.get("development_plan")
+            )
+
+            if person.get("development_plan") != cleaned_plan:
+                person["development_plan"] = cleaned_plan
+                changed = True
+
+            if str(person.get("school", "") or ""):
+                person["school"] = ""
+                changed = True
+
+        normalized_events = []
+
+        for event in database_data.get("events", []):
+            if not isinstance(event, dict):
+                continue
+
+            normalized_event = normalize_world_events([event])[0]
+            earned_ids = [
+                person_id
+                for person_id in normalized_event.get(
+                    "eminence_person_ids",
+                    [],
+                )
+                if person_id not in non_magical_ids
+            ]
+            normalized_event["eminence_person_ids"] = earned_ids
+            normalized_event["eminence_skills"] = {
+                person_id: skill
+                for person_id, skill in normalized_event.get(
+                    "eminence_skills",
+                    {},
+                ).items()
+                if person_id in earned_ids
+            }
+            normalized_events.append(normalized_event)
+
+        if database_data.get("events", []) != normalized_events:
+            database_data["events"] = normalized_events
+            changed = True
+
+        normalized_organizations = []
+
+        for organization in database_data.get("organizations", []):
+            if not isinstance(organization, dict):
+                continue
+
+            normalized_organization = normalize_organization_record(
+                organization
+            )
+
+            for event in normalized_organization.get("events", []):
+                earned_ids = [
+                    person_id
+                    for person_id in event.get(
+                        "eminence_person_ids",
+                        [],
+                    )
+                    if person_id not in non_magical_ids
+                ]
+                event["eminence_person_ids"] = earned_ids
+                event["eminence_skills"] = {
+                    person_id: skill
+                    for person_id, skill in event.get(
+                        "eminence_skills",
+                        {},
+                    ).items()
+                    if person_id in earned_ids
+                }
+
+            normalized_organizations.append(
+                normalize_organization_record(
+                    normalized_organization
+                )
+            )
+
+        if (
+            database_data.get("organizations", [])
+            != normalized_organizations
+        ):
+            database_data["organizations"] = normalized_organizations
+            changed = True
+
+        return changed
+
     def migrate_database(self, database_data):
         if not isinstance(database_data, dict):
             return False
@@ -111,8 +238,45 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version >= 29:
+        if not isinstance(schema_version, int) or schema_version > 31:
             return False
+
+        if schema_version == 31:
+            stored_events = database_data.get("events", [])
+            stored_organizations = database_data.get("organizations", [])
+            normalized_events = normalize_world_events(stored_events)
+            normalized_organizations = [
+                normalize_organization_record(organization)
+                for organization in stored_organizations
+            ]
+            people_changed = False
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                normalized_timeline = normalize_timeline_events(
+                    person.get("timeline_events", [])
+                )
+
+                if person.get("timeline_events", []) != normalized_timeline:
+                    person["timeline_events"] = normalized_timeline
+                    people_changed = True
+
+            migrated = (
+                stored_events != normalized_events
+                or stored_organizations != normalized_organizations
+                or people_changed
+            )
+
+            if migrated:
+                database_data["events"] = normalized_events
+                database_data["organizations"] = normalized_organizations
+
+            return (
+                self.normalize_person_access_rules(database_data)
+                or migrated
+            )
 
         migrated = False
 
@@ -851,12 +1015,6 @@ class JsonDatabase:
                                 )
                                 if organization_job["title"].casefold()
                                 == assignment["title"].casefold()
-                                and monthly_salary_identity(
-                                    organization_job["salary"]
-                                )
-                                == monthly_salary_identity(
-                                    assignment["salary"]
-                                )
                                 and organization_job[
                                     "opened_year"
                                 ]
@@ -875,7 +1033,6 @@ class JsonDatabase:
                                             ]
                                         ),
                                         "title": assignment["title"],
-                                        "salary": assignment["salary"],
                                         "opened_year": assignment[
                                             "start_year"
                                         ],
@@ -1047,8 +1204,100 @@ class JsonDatabase:
             schema_version = 29
             migrated = True
 
-        metadata["schema_version"] = 29
-        metadata["database_version"] = "0.29.0"
+        if schema_version < 30:
+            self.normalize_person_access_rules(database_data)
+            schema_version = 30
+            migrated = True
+
+        if schema_version < 31:
+            legacy_job_salaries = {}
+
+            for organization in database_data.get(
+                "organizations",
+                [],
+            ):
+                if not isinstance(organization, dict):
+                    continue
+
+                for organization_job in organization.get("jobs", []):
+                    if not isinstance(organization_job, dict):
+                        continue
+
+                    organization_job_id = str(
+                        organization_job.get("record_id", "") or ""
+                    ).strip()
+                    salary = organization_job.get("salary")
+
+                    if organization_job_id and salary not in (None, ""):
+                        legacy_job_salaries[organization_job_id] = deepcopy(
+                            salary
+                        )
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                development_plan = person.get("development_plan")
+
+                if not isinstance(development_plan, dict):
+                    continue
+
+                for adult_year in development_plan.get(
+                    "adult_years",
+                    [],
+                ):
+                    if not isinstance(adult_year, dict):
+                        continue
+
+                    for assignment in adult_year.get("jobs", []):
+                        if not isinstance(assignment, dict):
+                            continue
+
+                        organization_job_id = str(
+                            assignment.get(
+                                "organization_job_id",
+                                "",
+                            )
+                            or ""
+                        ).strip()
+
+                        if (
+                            assignment.get("salary") in (None, "")
+                            and organization_job_id in legacy_job_salaries
+                        ):
+                            assignment["salary"] = deepcopy(
+                                legacy_job_salaries[organization_job_id]
+                            )
+
+            database_data["events"] = normalize_world_events(
+                database_data.get("events", [])
+            )
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+
+            for person in database_data.get("people", []):
+                if not isinstance(person, dict):
+                    continue
+
+                person["timeline_events"] = normalize_timeline_events(
+                    person.get("timeline_events", [])
+                )
+                person["development_plan"] = normalize_development_plan(
+                    person.get("development_plan"),
+                    default_schema="Scattershot",
+                )
+
+            schema_version = 31
+            migrated = True
+
+        metadata["schema_version"] = 31
+        metadata["database_version"] = "0.31.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -1113,6 +1362,13 @@ class JsonDatabase:
         mage_groups = normalize_mage_groups(
             settings[MAGE_GROUPS_SETTING_KEY]
         )
+        non_magical_person_ids = {
+            str(person.get("record_id", "") or "").strip()
+            for person in database_data["people"]
+            if isinstance(person, dict)
+            and bool(person.get("non_magical"))
+            and str(person.get("record_id", "") or "").strip()
+        }
         seen_ids = set()
         seen_displayed_names = set()
 
@@ -1145,6 +1401,29 @@ class JsonDatabase:
             if not isinstance(person.get("unfinished"), bool):
                 raise TypeError(
                     "Every person's unfinished flag must be true or false."
+                )
+
+            if not isinstance(
+                person.get("does_not_have_children"),
+                bool,
+            ):
+                raise TypeError(
+                    "Every person's Does not have children flag must be "
+                    "true or false."
+                )
+
+            if person.get("does_not_have_children") and any(
+                record_id
+                in (
+                    str(child.get("biological_mother_id", "") or ""),
+                    str(child.get("biological_father_id", "") or ""),
+                )
+                for child in database_data["people"]
+                if isinstance(child, dict)
+            ):
+                raise ValueError(
+                    "A person marked Does not have children cannot be "
+                    "linked as a parent."
                 )
 
             require_mage_group_id(
@@ -1255,7 +1534,25 @@ class JsonDatabase:
                     "mate_ids must match the spouse relationship identifiers."
                 )
 
-            normalize_development_plan(person.get("development_plan"))
+            normalized_plan = normalize_development_plan(
+                person.get("development_plan")
+            )
+
+            if person.get("non_magical"):
+                if str(person.get("school", "") or ""):
+                    raise ValueError(
+                        "A non-magical person cannot attend a wizarding "
+                        "school."
+                    )
+
+                if normalized_plan != non_magical_development_plan(
+                    normalized_plan
+                ):
+                    raise ValueError(
+                        "A non-magical person's Development record may "
+                        "contain jobs only."
+                    )
+
             normalize_timeline_events(person.get("timeline_events", []))
 
         for collection_name in ("locations", "organizations", "events"):
@@ -1352,6 +1649,16 @@ class JsonDatabase:
                         "must exist."
                     )
 
+                if non_magical_person_ids.intersection(
+                    organization_event.get(
+                        "eminence_person_ids",
+                        [],
+                    )
+                ):
+                    raise ValueError(
+                        "Non-magical people cannot earn Eminence."
+                    )
+
             for organization_job in normalize_organization_jobs(
                 organization.get("jobs", [])
             ):
@@ -1411,7 +1718,15 @@ class JsonDatabase:
                 assignment["record_id"],
             )
 
-        normalize_world_events(database_data["events"])
+        world_events = normalize_world_events(database_data["events"])
+
+        for event in world_events:
+            if non_magical_person_ids.intersection(
+                event.get("eminence_person_ids", [])
+            ):
+                raise ValueError(
+                    "Non-magical people cannot earn Eminence."
+                )
 
     def list_people(self):
         return deepcopy(self.data["people"])
@@ -1430,9 +1745,15 @@ class JsonDatabase:
         person = deepcopy(values)
         person.setdefault("record_id", str(uuid.uuid4()))
         person.setdefault("unfinished", False)
+        person.setdefault("does_not_have_children", False)
 
         if not isinstance(person["unfinished"], bool):
             raise TypeError("A person's unfinished flag must be true or false.")
+
+        if not isinstance(person["does_not_have_children"], bool):
+            raise TypeError(
+                "A person's Does not have children flag must be true or false."
+            )
 
         settings = self.data.get("_application_settings", {})
         assignment_policy = (
@@ -1440,11 +1761,19 @@ class JsonDatabase:
             if isinstance(settings, dict)
             else None
         )
-        person["development_plan"] = migrated_development_plan(
-            person.get("development_plan"),
-            assignment_policy,
-            person["record_id"],
-        )
+        if person.get("non_magical"):
+            person["school"] = ""
+            person["development_plan"] = (
+                non_magical_development_plan(
+                    person.get("development_plan")
+                )
+            )
+        else:
+            person["development_plan"] = migrated_development_plan(
+                person.get("development_plan"),
+                assignment_policy,
+                person["record_id"],
+            )
         mage_groups = normalize_mage_groups(
             settings.get(MAGE_GROUPS_SETTING_KEY)
             if isinstance(settings, dict)
@@ -1514,11 +1843,33 @@ class JsonDatabase:
 
             prospective_person = deepcopy(person)
             prospective_person.update(deepcopy(values))
-            prospective_person["development_plan"] = (
-                normalize_development_plan(
-                    prospective_person.get("development_plan")
-                )
+            prospective_person.setdefault(
+                "does_not_have_children",
+                False,
             )
+
+            if not isinstance(
+                prospective_person["does_not_have_children"],
+                bool,
+            ):
+                raise TypeError(
+                    "A person's Does not have children flag must be true "
+                    "or false."
+                )
+
+            if prospective_person.get("non_magical"):
+                prospective_person["school"] = ""
+                prospective_person["development_plan"] = (
+                    non_magical_development_plan(
+                        prospective_person.get("development_plan")
+                    )
+                )
+            else:
+                prospective_person["development_plan"] = (
+                    normalize_development_plan(
+                        prospective_person.get("development_plan")
+                    )
+                )
             settings = self.data.get("_application_settings", {})
             mage_groups = normalize_mage_groups(
                 settings.get(MAGE_GROUPS_SETTING_KEY)
@@ -1568,6 +1919,10 @@ class JsonDatabase:
                 excluded_record_id=record_id,
             )
             person.update(deepcopy(values))
+            person["school"] = prospective_person.get("school", "")
+            person["does_not_have_children"] = prospective_person[
+                "does_not_have_children"
+            ]
             person["development_plan"] = deepcopy(
                 prospective_person["development_plan"]
             )
@@ -1662,6 +2017,18 @@ class JsonDatabase:
                     )
                     if person_id != record_id
                 ]
+                event["eminence_skills"] = {
+                    person_id: skill
+                    for person_id, skill in (
+                        event.get("eminence_skills", {})
+                        if isinstance(
+                            event.get("eminence_skills", {}),
+                            dict,
+                        )
+                        else {}
+                    ).items()
+                    if person_id != record_id
+                }
 
                 retained_events.append(event)
 
@@ -1695,6 +2062,24 @@ class JsonDatabase:
                                     )
                                     if person_id != record_id
                                 ],
+                                "eminence_skills": {
+                                    person_id: skill
+                                    for person_id, skill in (
+                                        organization_event.get(
+                                            "eminence_skills",
+                                            {},
+                                        )
+                                        if isinstance(
+                                            organization_event.get(
+                                                "eminence_skills",
+                                                {},
+                                            ),
+                                            dict,
+                                        )
+                                        else {}
+                                    ).items()
+                                    if person_id != record_id
+                                },
                             }
                             for organization_event in (
                                 normalize_organization_events(

@@ -1,6 +1,7 @@
 import tkinter as tk
 from copy import deepcopy
 from functools import partial
+from tkinter import messagebox
 
 from mage_maker.core.dates import (
     format_date_parts,
@@ -13,6 +14,7 @@ from mage_maker.sections.development.characteristics import (
 from mage_maker.sections.development.models import (
     calculate_development_start_year,
     development_year_pages,
+    non_magical_development_plan,
     normalize_development_plan,
     school_progress_text,
 )
@@ -33,6 +35,7 @@ from mage_maker.sections.profile.famous_connections import (
     FamousConnectionsView,
 )
 from mage_maker.sections.profile.books import BooksView
+from mage_maker.sections.profile.jobs import NonMagicalJobsView
 from mage_maker.sections.relationships.page import RelationshipsView
 from mage_maker.sections.ledger.page import LedgerView
 from mage_maker.sections.settings.mage_groups import (
@@ -41,6 +44,9 @@ from mage_maker.sections.settings.mage_groups import (
     normalize_mage_groups,
 )
 from mage_maker.sections.timeline.page import TimelineView
+from mage_maker.sections.timeline.events import (
+    synchronize_profile_timeline_events,
+)
 from mage_maker.sections.timeline.locations import (
     born_long_distance_parent_ids,
     ensure_life_start_events,
@@ -75,6 +81,7 @@ class PersonForm(tk.Frame):
         ("player_character", "Player character"),
         ("non_magical", "Non-magical"),
         ("can_give_birth", "Can give birth"),
+        ("does_not_have_children", "Does not have children"),
         ("famous_person", "This is a famous person"),
         ("unfinished", "Mark as unfinished"),
     )
@@ -157,9 +164,11 @@ class PersonForm(tk.Frame):
         )
         self.build_relationships_page()
         self.build_timeline_page(navigate_command)
+        self.build_jobs_page()
         self.build_development_page()
         self.build_books_page()
         self.build_ledger_page()
+        self.update_person_navigation()
         self.show_page("profile")
 
     def build_navigation(self):
@@ -171,6 +180,7 @@ class PersonForm(tk.Frame):
             ("family_tree", "Family Tree", 108),
             ("relationships", "Relationships", 116),
             ("timeline", "Timeline", 90),
+            ("jobs", "Jobs", 76),
             ("development", "Development", 112),
             ("books", "Books", 76),
             ("ledger", "Ledger", 78),
@@ -303,7 +313,7 @@ class PersonForm(tk.Frame):
             anchor="w",
         )
         school_value.pack(side="left")
-        change_school_button = SoftButton(
+        self.change_school_button = SoftButton(
             school_value_controls,
             text="Change school",
             command=self.open_school_editor,
@@ -311,7 +321,7 @@ class PersonForm(tk.Frame):
             width=116,
             height=36,
         )
-        change_school_button.pack(
+        self.change_school_button.pack(
             side="left",
             padx=(8, 0),
         )
@@ -650,7 +660,7 @@ class PersonForm(tk.Frame):
             wraplength=500,
         )
         imported_label.grid(
-            row=4,
+            row=5,
             column=0,
             columnspan=2,
             sticky="ew",
@@ -754,6 +764,19 @@ class PersonForm(tk.Frame):
         self.school_field = page.school_field
         self.pages["development"] = page
 
+    def build_jobs_page(self):
+        page = NonMagicalJobsView(
+            self.content,
+            self.jobs_changed,
+            self.people_provider,
+            self.organization_provider,
+            self.organization_create_command,
+            self.organization_location_provider,
+        )
+        page.grid(row=0, column=0, sticky="nsew")
+        self.jobs = page
+        self.pages["jobs"] = page
+
     def build_books_page(self):
         page = BooksView(
             self.content,
@@ -829,22 +852,29 @@ class PersonForm(tk.Frame):
     ):
         for index, (field_name, label_text) in enumerate(fields):
             variable = tk.BooleanVar(value=False)
-            variable.trace_add("write", self.variable_changed)
+
+            if field_name != "non_magical":
+                variable.trace_add("write", self.variable_changed)
+
             self.variables[field_name] = variable
-            checkbutton = tk.Checkbutton(
-                parent,
-                text=label_text,
-                variable=variable,
-                bg=background,
-                fg=TEXT_DARK,
-                activebackground=background,
-                activeforeground=TEXT_DARK,
-                selectcolor=FIELD_BACKGROUND,
-                font=app_font(10),
-                anchor="w",
-                borderwidth=0,
-                highlightthickness=0,
-            )
+            checkbutton_values = {
+                "text": label_text,
+                "variable": variable,
+                "bg": background,
+                "fg": TEXT_DARK,
+                "activebackground": background,
+                "activeforeground": TEXT_DARK,
+                "selectcolor": FIELD_BACKGROUND,
+                "font": app_font(10),
+                "anchor": "w",
+                "borderwidth": 0,
+                "highlightthickness": 0,
+            }
+
+            if field_name == "non_magical":
+                checkbutton_values["command"] = self.non_magical_changed
+
+            checkbutton = tk.Checkbutton(parent, **checkbutton_values)
             checkbutton.grid(
                 row=start_row + (index // column_count),
                 column=index % column_count,
@@ -854,7 +884,10 @@ class PersonForm(tk.Frame):
             )
             self.boolean_widgets[field_name] = checkbutton
 
-            if field_name == "can_give_birth":
+            if field_name in (
+                "can_give_birth",
+                "does_not_have_children",
+            ):
                 self.tooltips[field_name] = HoverTooltip(checkbutton)
 
     def section_is_current(self, section_name):
@@ -864,6 +897,42 @@ class PersonForm(tk.Frame):
         )
 
     def current_development_values(self):
+        non_magical_variable = getattr(
+            self,
+            "variables",
+            {},
+        ).get("non_magical")
+
+        if (
+            non_magical_variable is not None
+            and non_magical_variable.get()
+        ):
+            person = self.person_snapshot
+            development_plan = (
+                self.jobs.get_development_plan()
+                if self.section_is_current("jobs")
+                else non_magical_development_plan(
+                    person.get("development_plan")
+                )
+            )
+            return {
+                "school": "",
+                "blood_status": person.get("blood_status"),
+                "developmental_environment": person.get(
+                    "developmental_environment"
+                ),
+                "parental_values": deepcopy(
+                    person.get("parental_values")
+                ),
+                "initial_bonuses": deepcopy(
+                    person.get("initial_bonuses")
+                ),
+                "characteristics": deepcopy(
+                    person.get("characteristics")
+                ),
+                "development_plan": development_plan,
+            }
+
         if self.section_is_current("development"):
             return self.development.get_values()
 
@@ -986,6 +1055,7 @@ class PersonForm(tk.Frame):
     def ensure_development_loaded(self):
         if (
             not getattr(self, "current_record_id", None)
+            or self.variables["non_magical"].get()
             or self.section_is_current("development")
         ):
             return
@@ -994,6 +1064,17 @@ class PersonForm(tk.Frame):
         self.loaded_section_record_ids[
             "development"
         ] = self.current_record_id
+
+    def ensure_jobs_loaded(self):
+        if (
+            not getattr(self, "current_record_id", None)
+            or not self.variables["non_magical"].get()
+            or self.section_is_current("jobs")
+        ):
+            return
+
+        self.jobs.set_person(self.person_for_deferred_load())
+        self.loaded_section_record_ids["jobs"] = self.current_record_id
 
     def ensure_timeline_loaded(self):
         if (
@@ -1005,10 +1086,14 @@ class PersonForm(tk.Frame):
         timeline_person = self.person_for_deferred_load()
         timeline_person["name_details"] = deepcopy(self.name_details)
         timeline_person["timeline_events"] = self.current_timeline_events()
+        synchronized_events = synchronize_name_change_events(
+            self.name_details,
+            ensure_life_start_events(timeline_person),
+        )
         self.timeline.set_events(
-            synchronize_name_change_events(
-                self.name_details,
-                ensure_life_start_events(timeline_person),
+            synchronize_profile_timeline_events(
+                timeline_person,
+                synchronized_events,
             )
         )
         self.linked_events_snapshot = (
@@ -1022,6 +1107,16 @@ class PersonForm(tk.Frame):
         self.loaded_section_record_ids["timeline"] = self.current_record_id
 
     def show_page(self, page_name, defer_loading=False):
+        if self.variables["non_magical"].get() and page_name in (
+            "development",
+            "books",
+            "ledger",
+        ):
+            page_name = "jobs"
+
+        if not self.variables["non_magical"].get() and page_name == "jobs":
+            page_name = "profile"
+
         if page_name not in self.pages:
             return
 
@@ -1040,6 +1135,7 @@ class PersonForm(tk.Frame):
         if page_name == "profile":
             self.ensure_family_context(draw_graph=False)
             self.update_can_give_birth_control()
+            self.update_does_not_have_children_control()
             self.update_famous_connections()
 
         if page_name == "family_tree":
@@ -1047,6 +1143,9 @@ class PersonForm(tk.Frame):
 
         if page_name == "timeline":
             self.ensure_timeline_loaded()
+
+        if page_name == "jobs":
+            self.ensure_jobs_loaded()
 
         if page_name == "development":
             self.ensure_development_loaded()
@@ -1067,10 +1166,26 @@ class PersonForm(tk.Frame):
             self.refresh_books_and_ledger()
 
     def open_school_editor(self):
+        non_magical_variable = getattr(
+            self,
+            "variables",
+            {},
+        ).get("non_magical")
+
+        if (
+            non_magical_variable is not None
+            and non_magical_variable.get()
+        ):
+            return
+
         self.ensure_development_loaded()
         self.development.focus_school()
 
     def update_school_summary(self):
+        if self.variables["non_magical"].get():
+            self.update_school_summary_from_person(self.person_snapshot)
+            return
+
         if not self.section_is_current("development"):
             self.update_school_summary_from_person(self.person_snapshot)
             return
@@ -1087,6 +1202,19 @@ class PersonForm(tk.Frame):
 
     def update_school_summary_from_person(self, person):
         person_values = person if isinstance(person, dict) else {}
+
+        if bool(person_values.get("non_magical")) or (
+            hasattr(self, "variables")
+            and "non_magical" in self.variables
+            and self.variables["non_magical"].get()
+        ):
+            self.school_summary_value.set("none")
+            self.school_year_summary_value.set(
+                "Not applicable · non-magical"
+            )
+            self.total_eminence_summary_value.set("Not eligible")
+            return
+
         plan = (
             person_values.get("development_plan")
             if isinstance(person_values.get("development_plan"), dict)
@@ -1130,6 +1258,9 @@ class PersonForm(tk.Frame):
         if not hasattr(self, "books") or not hasattr(self, "ledger"):
             return
 
+        if self.variables["non_magical"].get():
+            return
+
         plan = self.current_development_plan()
         development_values = self.current_development_values()
         school_attended = bool(
@@ -1166,6 +1297,18 @@ class PersonForm(tk.Frame):
         page_type,
         page_number,
     ):
+        non_magical_variable = getattr(
+            self,
+            "variables",
+            {},
+        ).get("non_magical")
+
+        if (
+            non_magical_variable is not None
+            and non_magical_variable.get()
+        ):
+            return
+
         self.show_page("development")
         self.development.show_development_record(
             page_type,
@@ -1487,6 +1630,8 @@ class PersonForm(tk.Frame):
                 variable.set("" if value is None else str(value))
 
         self.refresh_mage_groups(person_values.get("mage_group_id"))
+        if hasattr(self, "navigation_buttons"):
+            self.update_person_navigation()
         self.update_school_summary_from_person(person_values)
         self.update_death_date_visibility()
         self.update_death_overview()
@@ -1524,12 +1669,24 @@ class PersonForm(tk.Frame):
             "can_give_birth"
         )
         can_give_birth_tooltip = self.tooltips.get("can_give_birth")
+        childlessness_control = self.boolean_widgets.get(
+            "does_not_have_children"
+        )
+        childlessness_tooltip = self.tooltips.get(
+            "does_not_have_children"
+        )
 
         if can_give_birth_control is not None:
             can_give_birth_control.configure(state="disabled")
 
         if can_give_birth_tooltip is not None:
             can_give_birth_tooltip.set_text("Loading family links.")
+
+        if childlessness_control is not None:
+            childlessness_control.configure(state="disabled")
+
+        if childlessness_tooltip is not None:
+            childlessness_tooltip.set_text("Loading family links.")
 
         self.show_page(self.active_page_name, defer_loading=True)
         self.loading = False
@@ -1550,6 +1707,9 @@ class PersonForm(tk.Frame):
             "death_day": self.variables["death_day"].get(),
             "non_magical": self.variables["non_magical"].get(),
             "can_give_birth": self.variables["can_give_birth"].get(),
+            "does_not_have_children": self.variables[
+                "does_not_have_children"
+            ].get(),
             "famous_person": self.variables["famous_person"].get(),
             "unfinished": self.variables["unfinished"].get(),
             "mage_group_id": self.selected_mage_group_id(),
@@ -1592,12 +1752,18 @@ class PersonForm(tk.Frame):
         return values
 
     def specialty_school_is_blank(self):
+        if self.variables["non_magical"].get():
+            return False
+
         if not self.section_is_current("development"):
             return False
 
         return self.school_field.specialty_is_blank()
 
     def initial_values_complete(self):
+        if self.variables["non_magical"].get():
+            return True
+
         if self.section_is_current("development"):
             return self.development.initial_values_complete()
 
@@ -1611,6 +1777,7 @@ class PersonForm(tk.Frame):
             self.development.set_parentage(relationship_values)
 
         self.update_can_give_birth_control()
+        self.update_does_not_have_children_control()
         self.update_famous_connections()
 
         if not self.loading:
@@ -1630,7 +1797,22 @@ class PersonForm(tk.Frame):
         if not self.loading:
             self.change_command()
 
+    def jobs_changed(self):
+        if not self.variables["non_magical"].get():
+            return
+
+        self.person_snapshot["school"] = ""
+        self.person_snapshot["development_plan"] = (
+            self.jobs.get_development_plan()
+        )
+
+        if not self.loading:
+            self.change_command()
+
     def apply_development_mortality(self, mortality_values):
+        if self.variables["non_magical"].get():
+            return
+
         if not isinstance(mortality_values, dict):
             return
 
@@ -1653,6 +1835,9 @@ class PersonForm(tk.Frame):
         self.update_death_overview()
 
     def ledger_changed(self, entries):
+        if self.variables["non_magical"].get():
+            return
+
         if self.section_is_current("development"):
             self.development.set_ledger_entries(entries)
             return
@@ -1722,6 +1907,17 @@ class PersonForm(tk.Frame):
             self.timeline.set_linked_events(
                 self.linked_events_snapshot
             )
+
+        if self.variables["non_magical"].get():
+            self.person_snapshot["development_plan"] = (
+                non_magical_development_plan(
+                    self.person_snapshot.get("development_plan")
+                )
+            )
+            self.update_school_summary_from_person(
+                self.person_snapshot
+            )
+            return
 
         if self.section_is_current("development") and (
             self.development.reconcile_linked_event_eminence(
@@ -1908,6 +2104,187 @@ class PersonForm(tk.Frame):
             "This setting becomes locked once the person is linked as a mate or "
             "as a birthing or non-birthing parent."
         )
+
+    def update_does_not_have_children_control(self):
+        checkbutton = self.boolean_widgets.get(
+            "does_not_have_children"
+        )
+        tooltip = self.tooltips.get("does_not_have_children")
+
+        if checkbutton is None or tooltip is None:
+            return
+
+        record_id = str(self.current_record_id or "")
+
+        if not record_id:
+            checkbutton.configure(state="disabled")
+            tooltip.set_text(
+                "Select a person before changing this setting."
+            )
+            return
+
+        if not self.section_is_current("family_tree"):
+            checkbutton.configure(state="disabled")
+            tooltip.set_text("Loading family links.")
+            return
+
+        relationship_map = self.family_tree.relationship_map
+        child_ids = relationship_map.children_of(record_id)
+
+        if child_ids:
+            child_names = []
+
+            for child_id in child_ids:
+                child = relationship_map.person(child_id)
+                child_names.append(
+                    str(child.get("displayed_name", "Unnamed"))
+                    if child
+                    else "Unnamed"
+                )
+
+            visible_names = ", ".join(child_names[:3])
+
+            if len(child_names) > 3:
+                visible_names += f", and {len(child_names) - 3} more"
+
+            checkbutton.configure(state="disabled")
+            tooltip.set_text(
+                "Does not have children cannot be checked because this "
+                f"person is already a parent of {visible_names}. Remove "
+                "those parent links first."
+            )
+            return
+
+        checkbutton.configure(state="normal")
+        tooltip.set_text(
+            "When checked, this person is excluded from every parent "
+            "selection and cannot add a child."
+        )
+
+    def update_person_navigation(self):
+        if not hasattr(self, "navigation_buttons"):
+            return
+
+        is_non_magical = bool(
+            self.variables.get("non_magical")
+            and self.variables["non_magical"].get()
+        )
+        restricted_pages = ("development", "books", "ledger")
+
+        if is_non_magical:
+            for page_name in restricted_pages:
+                self.navigation_buttons[page_name].pack_forget()
+
+            jobs_button = self.navigation_buttons["jobs"]
+
+            if not jobs_button.winfo_manager():
+                jobs_button.pack(side="left", padx=(0, 6))
+
+            if self.active_page_name in restricted_pages:
+                self.active_page_name = "profile"
+        else:
+            self.navigation_buttons["jobs"].pack_forget()
+
+            for page_name in restricted_pages:
+                button = self.navigation_buttons[page_name]
+
+                if not button.winfo_manager():
+                    button.pack(side="left", padx=(0, 6))
+
+            if self.active_page_name == "jobs":
+                self.active_page_name = "profile"
+
+        if hasattr(self, "change_school_button"):
+            self.change_school_button.set_enabled(not is_non_magical)
+
+    def non_magical_changed(self):
+        if self.loading:
+            return
+
+        is_non_magical = self.variables["non_magical"].get()
+
+        if is_non_magical:
+            confirmed = messagebox.askyesno(
+                "Mark as non-magical?",
+                (
+                    "Non-magical people do not have Development years, "
+                    "cannot earn Eminence, do not read wizarding books, and "
+                    "do not have a Ledger.\n\n"
+                    "All existing Development-year, Eminence, wizarding reading, "
+                    "and Ledger data will be permanently erased. Existing "
+                    "jobs, events, relationships, and children will remain.\n\n"
+                    "Continue?"
+                ),
+                parent=self,
+                icon="warning",
+                default="no",
+            )
+
+            if not confirmed:
+                self.loading = True
+                self.variables["non_magical"].set(False)
+                self.loading = False
+                self.update_person_navigation()
+                return
+
+            development_values = (
+                self.development.get_values()
+                if self.section_is_current("development")
+                else {
+                    "blood_status": self.person_snapshot.get(
+                        "blood_status"
+                    ),
+                    "developmental_environment": self.person_snapshot.get(
+                        "developmental_environment"
+                    ),
+                    "parental_values": deepcopy(
+                        self.person_snapshot.get("parental_values")
+                    ),
+                    "initial_bonuses": deepcopy(
+                        self.person_snapshot.get("initial_bonuses")
+                    ),
+                    "characteristics": deepcopy(
+                        self.person_snapshot.get("characteristics")
+                    ),
+                    "development_plan": deepcopy(
+                        self.person_snapshot.get("development_plan")
+                    ),
+                }
+            )
+            self.person_snapshot.update(
+                {
+                    "non_magical": True,
+                    "school": "",
+                    "blood_status": development_values.get(
+                        "blood_status"
+                    ),
+                    "developmental_environment": development_values.get(
+                        "developmental_environment"
+                    ),
+                    "parental_values": deepcopy(
+                        development_values.get("parental_values")
+                    ),
+                    "initial_bonuses": deepcopy(
+                        development_values.get("initial_bonuses")
+                    ),
+                    "characteristics": deepcopy(
+                        development_values.get("characteristics")
+                    ),
+                    "development_plan": non_magical_development_plan(
+                        development_values.get("development_plan")
+                    ),
+                }
+            )
+            self.loaded_section_record_ids.pop("development", None)
+            self.loaded_section_record_ids.pop("jobs", None)
+        else:
+            self.person_snapshot["non_magical"] = False
+            self.loaded_section_record_ids.pop("development", None)
+
+        self.loaded_section_record_ids.pop("family_tree", None)
+        self.update_person_navigation()
+        self.update_school_summary_from_person(self.person_snapshot)
+        self.change_command()
 
     def variable_changed(self, *arguments):
         if self.loading:

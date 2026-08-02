@@ -76,6 +76,7 @@ class PeopleList(tk.Frame):
         self.people = []
         self.periods = []
         self.periods_by_name = {}
+        self.period_names_by_filter_label = {}
         self.period_filter_options = [FILTER_SHOW_ALL]
         self.visible_record_ids = []
         self.labels_by_id = {}
@@ -234,7 +235,7 @@ class PeopleList(tk.Frame):
         period_filter.grid_columnconfigure(1, weight=1)
         period_filter_label = tk.Label(
             period_filter,
-            text="Alive during period",
+            text="Alive in",
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
@@ -454,9 +455,16 @@ class PeopleList(tk.Frame):
             period["name"]: period
             for period in self.periods
         }
+        self.period_names_by_filter_label = {
+            self.period_filter_label(period["name"]): period["name"]
+            for period in self.periods
+        }
         self.period_filter_options = [
             FILTER_SHOW_ALL,
-            *[period["name"] for period in self.periods],
+            *[
+                self.period_filter_label(period["name"])
+                for period in self.periods
+            ],
         ]
 
         if (
@@ -537,11 +545,11 @@ class PeopleList(tk.Frame):
             font=app_font(10),
         )
 
-        for period_name in self.period_filter_options:
+        for period_label in self.period_filter_options:
             period_menu.add_radiobutton(
-                label=self.period_filter_label(period_name),
+                label=period_label,
                 variable=self.period_filter_value,
-                value=period_name,
+                value=period_label,
             )
 
         sort_menu = tk.Menu(
@@ -799,6 +807,11 @@ class PeopleList(tk.Frame):
         if selected_period_name == FILTER_SHOW_ALL:
             return True
 
+        selected_period_name = getattr(
+            self,
+            "period_names_by_filter_label",
+            {},
+        ).get(selected_period_name, selected_period_name)
         period = getattr(self, "periods_by_name", {}).get(
             selected_period_name
         )

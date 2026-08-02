@@ -12,6 +12,7 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
+from mage_maker.sections.events.models import split_world_event_date
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     PRIMARY,
@@ -60,14 +61,16 @@ class OrganizationEventDialog(tk.Toplevel):
                 else ""
             )
         )
-        self.year_value = tk.StringVar(
-            value=(
-                ""
-                if not normalized_event
-                or normalized_event["year"] is None
-                else str(normalized_event["year"])
-            )
+        event_year, event_month, event_day = split_world_event_date(
+            normalized_event.get("date", "")
+            if normalized_event
+            else ""
         )
+        self.year_value = tk.StringVar(
+            value=event_year
+        )
+        self.month_value = tk.StringVar(value=event_month)
+        self.day_value = tk.StringVar(value=event_day)
         self.selected_person_ids = list(
             normalized_event.get("person_ids", [])
             if normalized_event
@@ -77,6 +80,11 @@ class OrganizationEventDialog(tk.Toplevel):
             normalized_event.get("eminence_person_ids", [])
             if normalized_event
             else []
+        )
+        self.selected_eminence_skills = dict(
+            normalized_event.get("eminence_skills", {})
+            if normalized_event
+            else {}
         )
         self.title(
             "Founding event"
@@ -150,35 +158,79 @@ class OrganizationEventDialog(tk.Toplevel):
             state="disabled" if self.is_founding else "normal"
         )
 
-        year_label = tk.Label(
-            body,
-            text="Year",
-            bg=SURFACE,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        year_label.grid(
+        date_frame = tk.Frame(body, bg=SURFACE)
+        date_frame.grid(
             row=0,
             column=1,
-            sticky="ew",
+            rowspan=2,
+            sticky="e",
             padx=(14, 0),
+            pady=(0, 12),
         )
+        date_frame.grid_columnconfigure((0, 1, 2), weight=1)
+
+        for column, label_text in enumerate(("Year", "Month", "Day")):
+            date_label = tk.Label(
+                date_frame,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(9, "bold"),
+                anchor="w",
+            )
+            date_label.grid(
+                row=0,
+                column=column,
+                sticky="ew",
+                padx=(0, 5) if column < 2 else 0,
+            )
+
         self.year_entry = RoundedEntry(
-            body,
+            date_frame,
             textvariable=self.year_value,
             background=SURFACE,
-            width=130,
+            width=92,
             height=38,
             font=app_font(10),
             justify="center",
         )
         self.year_entry.grid(
             row=1,
+            column=0,
+            sticky="ew",
+            padx=(0, 5),
+            pady=(5, 0),
+        )
+        self.month_entry = RoundedEntry(
+            date_frame,
+            textvariable=self.month_value,
+            background=SURFACE,
+            width=64,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        self.month_entry.grid(
+            row=1,
             column=1,
-            sticky="e",
-            padx=(14, 0),
-            pady=(5, 12),
+            sticky="ew",
+            padx=(0, 5),
+            pady=(5, 0),
+        )
+        self.day_entry = RoundedEntry(
+            date_frame,
+            textvariable=self.day_value,
+            background=SURFACE,
+            width=64,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        self.day_entry.grid(
+            row=1,
+            column=2,
+            sticky="ew",
+            pady=(5, 0),
         )
         calendar_notice = CalendarAdoptionNotice(
             body,
@@ -310,6 +362,12 @@ class OrganizationEventDialog(tk.Toplevel):
         self.eminence_picker.set_values(
             self.selected_person_ids,
             self.selected_eminence_person_ids,
+            self.selected_eminence_skills,
+            (
+                self.event.get("record_id", "")
+                if self.event
+                else "new-organization-event"
+            ),
         )
 
         footer = tk.Frame(self, bg=APP_BACKGROUND)
@@ -440,6 +498,8 @@ class OrganizationEventDialog(tk.Toplevel):
 
     def save_event(self):
         year_text = self.year_value.get().strip()
+        month_text = self.month_value.get().strip()
+        day_text = self.day_value.get().strip()
 
         if not year_text:
             messagebox.showerror(
@@ -459,6 +519,14 @@ class OrganizationEventDialog(tk.Toplevel):
             )
             return
 
+        if day_text and not month_text:
+            messagebox.showerror(
+                "Invalid date",
+                "The event day requires a month.",
+                parent=self,
+            )
+            return
+
         description = self.description_control.text.get(
             "1.0",
             "end-1c",
@@ -469,11 +537,17 @@ class OrganizationEventDialog(tk.Toplevel):
                 record = normalize_organization_event(
                     {
                         **self.event,
+                        "date": "",
                         "year": year,
+                        "month": month_text,
+                        "day": day_text,
                         "description": description,
                         "person_ids": self.selected_person_ids,
                         "eminence_person_ids": (
                             self.eminence_picker.get_values()
+                        ),
+                        "eminence_skills": (
+                            self.eminence_picker.get_skill_values()
                         ),
                     }
                 )
@@ -484,6 +558,9 @@ class OrganizationEventDialog(tk.Toplevel):
                     description,
                     self.selected_person_ids,
                     self.eminence_picker.get_values(),
+                    self.eminence_picker.get_skill_values(),
+                    month=month_text,
+                    day=day_text,
                 )
 
                 if self.event is not None:

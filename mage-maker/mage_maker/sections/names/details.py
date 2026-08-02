@@ -518,8 +518,8 @@ class NameEntryDialog(tk.Toplevel):
         }
 
         self.title(title)
-        self.geometry("650x560")
-        self.minsize(560, 540)
+        self.geometry("650x620")
+        self.minsize(560, 600)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent)
         self.grab_set()
@@ -573,8 +573,9 @@ class NameEntryDialog(tk.Toplevel):
             values=NAME_TYPES,
             state="readonly",
             font=app_font(11),
+            width=28,
         )
-        self.name_type_field.grid(row=1, column=0, sticky="ew", ipady=7)
+        self.name_type_field.grid(row=1, column=0, sticky="w", ipady=7)
         self.name_type_field.bind(
             "<<ComboboxSelected>>",
             self.apply_name_type_rules,

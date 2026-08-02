@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 29,
-    "database_version": "0.29.0",
-    "last_saved": "2026-08-01T10:45:06.089800+00:00"
+    "schema_version": 31,
+    "database_version": "0.31.0",
+    "last_saved": "2026-08-02T08:33:59.904386+00:00"
   },
   "people": [
     {
@@ -135,7 +135,8 @@
         "willpower": 3,
         "fortitude": 3
       },
-      "unfinished": true
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Maeve",
@@ -306,7 +307,8 @@
         "willpower": 2,
         "fortitude": 1
       },
-      "unfinished": true
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Alvand of London",
@@ -419,7 +421,8 @@
         "willpower": 1,
         "fortitude": 3
       },
-      "unfinished": true
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Cyneburga Gryffindor",
@@ -535,7 +538,8 @@
         "willpower": 1,
         "fortitude": 2
       },
-      "unfinished": true
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Fingal the Fearless",
@@ -669,7 +673,8 @@
         "willpower": 1,
         "fortitude": 4
       },
-      "unfinished": true
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Harry Potter",
@@ -4699,7 +4704,8 @@
       "record_id": "da621804-0d7d-4af5-8cd1-54e535323c8b",
       "created_at": "2026-07-30T23:37:18.287779+00:00",
       "last_updated": "2026-07-31T12:59:22.255476+00:00",
-      "unfinished": false
+      "unfinished": false,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Ulick Gamp",
@@ -4792,6 +4798,28 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1662-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1747",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -8974,6 +9002,13 @@
                 "description": "",
                 "skill": "Social",
                 "points": 1
+              },
+              {
+                "record_id": "event-eminence-882474d7a88cffb580a7324c",
+                "title": "Founding",
+                "description": "",
+                "skill": "Social",
+                "points": 1
               }
             ],
             "jobs": [
@@ -9007,12 +9042,13 @@
         ],
         "blood_status_initialized": true
       },
-      "notes": "",
+      "notes": "Still need to clean up his timeline",
       "imported_fields": {},
       "record_id": "bf8fda89-3eaa-4603-832d-498431b15447",
       "created_at": "2026-07-31T09:13:34.992296+00:00",
-      "last_updated": "2026-07-31T13:21:27.056746+00:00",
-      "unfinished": false
+      "last_updated": "2026-08-02T07:53:44.077610+00:00",
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Artemisia Lufkin",
@@ -12914,8 +12950,9 @@
       "imported_fields": {},
       "record_id": "f812561f-6caa-4c1e-a5dc-6764288ed90a",
       "created_at": "2026-07-31T10:14:16.827952+00:00",
-      "last_updated": "2026-07-31T13:41:58.386683+00:00",
-      "unfinished": false
+      "last_updated": "2026-08-02T06:49:42.323018+00:00",
+      "unfinished": true,
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Eldritch Diggory",
@@ -12935,7 +12972,7 @@
       "non_magical": false,
       "can_give_birth": false,
       "famous_person": true,
-      "unfinished": false,
+      "unfinished": true,
       "biological_mother_id": "",
       "biological_father_id": "",
       "biological_mother_status": "unknown",
@@ -17232,7 +17269,8 @@
       "imported_fields": {},
       "record_id": "a42cd75f-b0d3-4771-8530-c9568102bedf",
       "created_at": "2026-07-31T12:16:24.566690+00:00",
-      "last_updated": "2026-07-31T13:34:02.511503+00:00"
+      "last_updated": "2026-08-02T06:49:54.428498+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Damocles Rowle",
@@ -17252,7 +17290,7 @@
       "non_magical": false,
       "can_give_birth": false,
       "famous_person": true,
-      "unfinished": false,
+      "unfinished": true,
       "biological_mother_id": "",
       "biological_father_id": "",
       "biological_mother_status": "unknown",
@@ -20896,7 +20934,8 @@
       "imported_fields": {},
       "record_id": "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
       "created_at": "2026-07-31T13:52:11.452634+00:00",
-      "last_updated": "2026-08-01T07:47:58.857551+00:00"
+      "last_updated": "2026-08-02T06:50:04.553127+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Ekrizdis",
@@ -21186,12 +21225,21 @@
       "imported_fields": {},
       "record_id": "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9",
       "created_at": "2026-08-01T02:27:53.282010+00:00",
-      "last_updated": "2026-08-01T08:02:19.571557+00:00"
+      "last_updated": "2026-08-01T08:02:19.571557+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Emeric the Evil",
       "name_details": {
-        "entries": []
+        "entries": [
+          {
+            "name_type": "birth name",
+            "name_entry": "Emmerich von der Heide",
+            "date": "1046",
+            "note": "",
+            "entry_id": "3a2ad783-da43-4d76-b497-b69bd5d9bb6a"
+          }
+        ]
       },
       "narrative": "Emeric the Evil is born in Saxony to wealthy and loving muggle parents. They realize his magical gift and realize he needs support in developing it. They learn of Hogwarts and arrange to ensure he can attend the school. \n\nSlytherin hated him because of his muggleborn status. So after a minor incident with other students, Slytherin amplified evidence to paint Emeric as dangerous and untrustworthy. Slytherin assured he would be expelled. Emeric was furious at Slytherin for his sabotage of his future, bitter at the other staff for failing to protect him, and became angry at all magical folk, launching his mission to seek power, his drive to kill wizards, and his search for the elder wand.",
       "birth_year": 1046,
@@ -21206,7 +21254,7 @@
       "non_magical": false,
       "can_give_birth": false,
       "famous_person": true,
-      "unfinished": true,
+      "unfinished": false,
       "biological_mother_id": "",
       "biological_father_id": "",
       "biological_mother_status": "unknown",
@@ -21285,11 +21333,11 @@
         {
           "event_id": "life-start:birth-name",
           "event_type": "birth_name",
-          "detail": "Emeric the Evil",
+          "detail": "Emmerich von der Heide",
           "date": "1046",
           "note": "",
           "related_person_id": "",
-          "related_name_entry_id": "",
+          "related_name_entry_id": "3a2ad783-da43-4d76-b497-b69bd5d9bb6a",
           "automatic_source": "life_start"
         }
       ],
@@ -21640,6 +21688,20 @@
                 "description": "After a minor incident with other students, Slytherin amplified evidence to paint Emeric as dangerous and untrustworthy. Slytherin assured he would be expelled. Emeric was furious at Slytherin for his sabotage of his future, bitter at the other staff for failing to protect him, and became angry at all magical folk, launching his mission to seek power, his drive to kill wizards, and his search for the elder wand.",
                 "skill": "Dark Arts",
                 "points": 1
+              },
+              {
+                "record_id": "event-eminence-9afd37b986ceb84c41512030",
+                "title": "Seeks knowledge",
+                "description": "Emeric begins to search libraries, shops, powerful magical outcasts, and mytical places to learn more about dark magic fueling his rage and growing his skill.",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-83d46632f4f3f513024537ce",
+                "title": "Discovers first Elder Wand Clue",
+                "description": "Emeric comes across a loose reference to an individual with a highly powerful wand.",
+                "skill": "Dark Arts",
+                "points": 1
               }
             ]
           },
@@ -21668,23 +21730,23 @@
             ],
             "eminence": [
               {
-                "record_id": "event-eminence-9afd37b986ceb84c41512030",
-                "title": "Seeks knowledge",
-                "description": "Emeric begins to search libraries, shops, powerful magical outcasts, and mytical places to learn more about dark magic fueling his rage and growing his skill.",
-                "skill": "Dark Arts",
-                "points": 1
-              },
-              {
-                "record_id": "event-eminence-83d46632f4f3f513024537ce",
-                "title": "Discovers first Elder Wand Clue",
-                "description": "Emeric comes across a loose reference to an individual with a highly powerful wand.",
-                "skill": "Dark Arts",
-                "points": 1
-              },
-              {
                 "record_id": "event-eminence-c3c69290dfff15b8344cb601",
                 "title": "Mastery of Grimoires",
                 "description": "Emeric collects and practices many spells found in grimoires that aid his self-study. This is also useful because he discovers many rare spells that many established wizards were unprepared to defend against.",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-9e0f41f53f2c8c03908d664b",
+                "title": "Creates a secret passage into Hogwarts",
+                "description": "Emeric builds a secret passageway into the fourth floor of Hogwarts so that he can gain easy access to the Library to secretly study their texts.",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-4e874616a8ad9745e2fb09de",
+                "title": "Masters more dark texts",
+                "description": "",
                 "skill": "Dark Arts",
                 "points": 1
               }
@@ -21715,16 +21777,16 @@
             ],
             "eminence": [
               {
-                "record_id": "event-eminence-9e0f41f53f2c8c03908d664b",
-                "title": "Creates a secret passage into Hogwarts",
-                "description": "Emeric builds a secret passageway into the fourth floor of Hogwarts so that he can gain easy access to the Library to secretly study their texts.",
+                "record_id": "event-eminence-c49e4f790133eec3a39a6016",
+                "title": "Constructs the room of requirement",
+                "description": "Having learned special approaches to construction, he builds the room for multifarious purposes and uses it throughout the rest of his time alive.",
                 "skill": "Dark Arts",
                 "points": 1
               },
               {
-                "record_id": "event-eminence-4e874616a8ad9745e2fb09de",
-                "title": "Masters more dark texts",
-                "description": "",
+                "record_id": "event-eminence-09e1a72cdd8461d4b47ceffd",
+                "title": "Discovers 2nd Elder Wand Clue",
+                "description": "He learns of a possessor of the wand who died, but not through murder and he suspects they may still have the wand.",
                 "skill": "Dark Arts",
                 "points": 1
               }
@@ -21831,20 +21893,6 @@
             ],
             "eminence": [
               {
-                "record_id": "event-eminence-c49e4f790133eec3a39a6016",
-                "title": "Constructs the room of requirement",
-                "description": "Having learned special approaches to construction, he builds the room for multifarious purposes and uses it throughout the rest of his time alive.",
-                "skill": "Dark Arts",
-                "points": 1
-              },
-              {
-                "record_id": "event-eminence-09e1a72cdd8461d4b47ceffd",
-                "title": "Discovers 2nd Elder Wand Clue",
-                "description": "He learns of a possessor of the wand who died, but not through murder and he suspects they may still have the wand.",
-                "skill": "Dark Arts",
-                "points": 1
-              },
-              {
                 "record_id": "event-eminence-12c906f7c8962655f15cb251",
                 "title": "Finds the Elder Wand",
                 "description": "He discovers the wand was buried with a former possessor and he takes possession and attunement of it using dark magic.",
@@ -21852,17 +21900,31 @@
                 "points": 1
               },
               {
-                "record_id": "event-eminence-992533e07f1ec029d34b28f6",
-                "title": "Kills Salazar Slytherin",
+                "record_id": "event-eminence-5c14c9cd4b02182d3aff3d1e",
+                "title": "Ambushes and kills 3 wizards in Hogsmeade",
                 "description": "",
                 "skill": "Dark Arts",
                 "points": 1
               },
               {
-                "record_id": "event-eminence-5c14c9cd4b02182d3aff3d1e",
-                "title": "Ambushes and kills 3 wizards in Hogsmeade",
+                "record_id": "event-eminence-ff09247d561364bf55f31f94",
+                "title": "Kills many muggles in Inverness",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-c729d9ac65481b51f9e240e7",
+                "title": "Kills more muggles in Ft William",
                 "description": "",
                 "skill": "Defense",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-992533e07f1ec029d34b28f6",
+                "title": "Kills Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
                 "points": 1
               }
             ]
@@ -24057,7 +24119,8 @@
       "imported_fields": {},
       "record_id": "6cd8d366-28a4-4199-9c5c-ff55362851b2",
       "created_at": "2026-08-01T08:32:48.317910+00:00",
-      "last_updated": "2026-08-01T10:45:06.062598+00:00"
+      "last_updated": "2026-08-02T05:54:52.195307+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Antioch Peverell",
@@ -24148,7 +24211,8 @@
       "imported_fields": {},
       "record_id": "fd2e3f62-3530-4fe5-a618-da26accca07f",
       "created_at": "2026-08-01T09:54:26.488978+00:00",
-      "last_updated": "2026-08-01T09:54:26.488978+00:00"
+      "last_updated": "2026-08-01T09:54:26.488978+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Cadmus Peverell",
@@ -24240,7 +24304,8 @@
       "imported_fields": {},
       "record_id": "a94e7b2e-2faa-49e3-83ef-cdc136502f54",
       "created_at": "2026-08-01T10:15:32.203858+00:00",
-      "last_updated": "2026-08-01T10:15:32.203858+00:00"
+      "last_updated": "2026-08-01T10:15:32.203858+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Ignotus Peverell",
@@ -24331,7 +24396,8 @@
       "imported_fields": {},
       "record_id": "765c03a4-9624-4cd0-9695-419cf59c043a",
       "created_at": "2026-08-01T10:15:53.034410+00:00",
-      "last_updated": "2026-08-01T10:15:53.034410+00:00"
+      "last_updated": "2026-08-01T10:15:53.034410+00:00",
+      "does_not_have_children": false
     },
     {
       "displayed_name": "Salazar Slytherin",
@@ -24350,10 +24416,10 @@
       "birth_year": 971,
       "birth_month": null,
       "birth_day": null,
-      "deceased": false,
-      "death_year": null,
-      "death_month": null,
-      "death_day": null,
+      "deceased": true,
+      "death_year": 1066,
+      "death_month": 2,
+      "death_day": 2,
       "canon": true,
       "player_character": false,
       "non_magical": false,
@@ -24466,7 +24532,1867 @@
       "imported_fields": {},
       "record_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "created_at": "2026-08-01T10:33:54.882512+00:00",
-      "last_updated": "2026-08-01T10:38:49.307563+00:00"
+      "last_updated": "2026-08-01T11:10:06.850318+00:00",
+      "does_not_have_children": false
+    },
+    {
+      "displayed_name": "Egbert the Egregious",
+      "name_details": {
+        "entries": [
+          {
+            "name_type": "birth name",
+            "name_entry": "Ecgberht Wynstaning of Northumbria",
+            "date": "1051-10-15",
+            "note": "",
+            "entry_id": "db34af23-a8e7-4ae8-9102-8ab258e6e7c9"
+          }
+        ]
+      },
+      "narrative": "Slytherin personally tutored Egbert for years eventually making him powerful enough to kill Emeric. Ultimately, Egbert loved Salazar Slytherin and sought to avenge his death. \n\nWhile tutored by Slytherin, Egbert adopted many of Slytherin's most vile mentalities which fueled his later violence.",
+      "birth_year": 1051,
+      "birth_month": 10,
+      "birth_day": 15,
+      "deceased": true,
+      "death_year": 1066,
+      "death_month": 6,
+      "death_day": 12,
+      "canon": true,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": false,
+      "famous_person": true,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 4,
+          "permissiveness": 5,
+          "wealth": 8
+        },
+        "generosity": 4,
+        "permissiveness": 5,
+        "wealth": 8
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "automatic",
+        "trait_selection_mode": "automatic",
+        "skill_bonuses": [
+          "Dark Arts",
+          "Dark Arts",
+          "Dark Arts"
+        ],
+        "traits": []
+      },
+      "characteristics": {
+        "creativity": 3,
+        "equanimity": 1,
+        "charisma": 4,
+        "attractiveness": 1,
+        "strength": 1,
+        "agility": 1,
+        "intellect": 4,
+        "willpower": 1,
+        "fortitude": 1
+      },
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "Northumbria",
+          "date": "1051-10-15",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "ca7c093c-47cf-40bc-aa9c-075035b823ab"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "1051-10-15",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "ca7c093c-47cf-40bc-aa9c-075035b823ab"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Ecgberht Wynstaning of Northumbria",
+          "date": "1051-10-15",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "db34af23-a8e7-4ae8-9102-8ab258e6e7c9",
+          "automatic_source": "life_start"
+        }
+      ],
+      "school": "Hogwarts",
+      "mage_group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
+      "development_plan": {
+        "schema": "One skill",
+        "blood_status_initialized": true,
+        "academic_years_advanced": 2,
+        "school_started": true,
+        "school_years": [
+          {
+            "year": 1,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Dark Arts"
+            ],
+            "characteristic": "fortitude",
+            "assigned_books": [
+              {
+                "record_id": "book_1355",
+                "name": "Magical Drafts and Potions",
+                "author": "Arsenius Jigger"
+              },
+              {
+                "record_id": "book_21042",
+                "name": "Goshawk's Guide to Herbology",
+                "author": ""
+              },
+              {
+                "record_id": "book_1324",
+                "name": "A History of Magic",
+                "author": "Esa Mills"
+              },
+              {
+                "record_id": "book_1301",
+                "name": "Standard Book of Spells Grade 1",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1358",
+                "name": "A Beginner's Guide to Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1255",
+                "name": "Dark Forces: A Guide to Self-Protection",
+                "author": "Quentin Trimble"
+              },
+              {
+                "record_id": "book_1238",
+                "name": "Introduction to Astronomy",
+                "author": "Luellen Skyward"
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_29080",
+                "name": "Reading the Signs",
+                "author": ""
+              },
+              {
+                "record_id": "book_19597",
+                "name": "Defensive Magic: Complex Techniques and Theory",
+                "author": ""
+              }
+            ],
+            "eminence": [
+              {
+                "record_id": "596286bb-d939-4580-bc3b-f69a398069b9",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "f08ff8c0-98e9-4df1-998f-a7d3e819e51e",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              }
+            ]
+          },
+          {
+            "year": 2,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Dark Arts"
+            ],
+            "characteristic": "equanimity",
+            "assigned_books": [
+              {
+                "record_id": "book_1355",
+                "name": "Magical Drafts and Potions",
+                "author": "Arsenius Jigger"
+              },
+              {
+                "record_id": "book_1324",
+                "name": "A History of Magic",
+                "author": "Esa Mills"
+              },
+              {
+                "record_id": "book_1302",
+                "name": "Standard Book of Spells Grade 2",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1358",
+                "name": "A Beginner's Guide to Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1255",
+                "name": "Dark Forces: A Guide to Self-Protection",
+                "author": "Quentin Trimble"
+              },
+              {
+                "record_id": "book_21042",
+                "name": "Goshawk's Guide to Herbology",
+                "author": ""
+              },
+              {
+                "record_id": "book_1238",
+                "name": "Introduction to Astronomy",
+                "author": "Luellen Skyward"
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_23398",
+                "name": "Death Eaters Notes",
+                "author": ""
+              },
+              {
+                "record_id": "book_19666",
+                "name": "Chaos and Darkness",
+                "author": ""
+              }
+            ],
+            "eminence": [
+              {
+                "record_id": "0acfe83b-baeb-46a4-a03c-77bce18cd9b9",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "b3ffa1e5-878e-4420-9f1c-46522d84f16a",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "fc6e301d-ea02-48bd-99d5-812f68f93105",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              }
+            ]
+          },
+          {
+            "year": 3,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Erudition",
+            "skills": [
+              "Dark Arts",
+              "Divination"
+            ],
+            "characteristic": "fortitude",
+            "assigned_books": [
+              {
+                "record_id": "book_1263",
+                "name": "A Beginner's Guide to Palmistry",
+                "author": "Kamil Pradinski"
+              },
+              {
+                "record_id": "book_1266",
+                "name": "Broken Balls: When Fortunes Turn Foul",
+                "author": "Idris Douglas"
+              },
+              {
+                "record_id": "book_21025",
+                "name": "The Developing Potioneer",
+                "author": ""
+              },
+              {
+                "record_id": "book_21057",
+                "name": "Magicka Antiquita",
+                "author": ""
+              },
+              {
+                "record_id": "book_1269",
+                "name": "A Holistic Approach to Terot",
+                "author": "Belle Wynne"
+              },
+              {
+                "record_id": "book_1303",
+                "name": "Standard Book of Spells Grade 3",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1360",
+                "name": "Intermediate Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1257",
+                "name": "Essential Defense Against the Dark Arts",
+                "author": "Arsenius Jigger"
+              },
+              {
+                "record_id": "book_19714",
+                "name": "Arithmancy: The Art of Magical Awareness",
+                "author": ""
+              },
+              {
+                "record_id": "book_1349",
+                "name": "Home Life and Social Habits of British Muggles",
+                "author": "Anayah Briggs"
+              },
+              {
+                "record_id": "book_1229",
+                "name": "Ancient Runes Made Easy",
+                "author": "Alexander Flanagan"
+              },
+              {
+                "record_id": "book_1280",
+                "name": "Unfogging the Future",
+                "author": "Cassandra Vablatsky"
+              },
+              {
+                "record_id": "book_1347",
+                "name": "Monster Book of Monsters",
+                "author": "Snorre Vinter"
+              },
+              {
+                "record_id": "book_1238",
+                "name": "Introduction to Astronomy",
+                "author": "Luellen Skyward"
+              },
+              {
+                "record_id": "book_21042",
+                "name": "Goshawk's Guide to Herbology",
+                "author": ""
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_19655",
+                "name": "Vices and Villainy",
+                "author": ""
+              },
+              {
+                "record_id": "book_19659",
+                "name": "Vicious Magic",
+                "author": ""
+              }
+            ],
+            "eminence": [
+              {
+                "record_id": "65e3e38a-67a8-45e0-8314-f79da5cead1a",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "052425d0-3bb2-4ccf-8cb1-1ffa4d7d3324",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "14879260-cc69-4dc7-9ec7-9bd154a7a6ff",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "3e234206-4298-4668-b7e3-abd286229e1c",
+                "title": "Private tutoring from Salazar Slytherin",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-24463189597840bc61559f5c",
+                "title": "Killing spree",
+                "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-a1db7e14c70eea84802db2b4",
+                "title": "Egbert kills Emeric",
+                "description": "",
+                "skill": "Dark Arts",
+                "points": 1
+              }
+            ]
+          }
+        ],
+        "ledger_entries": [
+          {
+            "entry_id": "starting-allowance",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 1,
+            "item": "starting allowance",
+            "amount_sickles": 544,
+            "kind": "earned",
+            "note": "Wealth × generosity Galleons",
+            "automatic_source": "starting_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:4b35d3af282cb17b71c4",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 22,
+            "item": "Dark Forces: A Guide to Self-Protection",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1255",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:6bb20f155b76eca46b4b",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 23,
+            "item": "A Beginner's Guide to Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1358",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:dd429f94db77d9d35032",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 23,
+            "item": "A History of Magic",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1324",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:547e273133e1ab739ceb",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 24,
+            "item": "Goshawk's Guide to Herbology",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21042",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:ad192866219e2d6357f8",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 26,
+            "item": "Introduction to Astronomy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1238",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:cf23848edbcb69267db8",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 26,
+            "item": "Standard Book of Spells Grade 1",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1301",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:1:8de17fd4c0efce7d01de",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 7,
+            "day": 31,
+            "item": "Magical Drafts and Potions",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1355",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:8",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:9",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:10",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:11",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:12",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1063,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:1",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:2",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:3",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:4",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:5",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:6",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:7",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:547e273133e1ab739ceb",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 21,
+            "item": "Goshawk's Guide to Herbology",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21042",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:6eaf37999aa43834f368",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 21,
+            "item": "Standard Book of Spells Grade 2",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1302",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:6bb20f155b76eca46b4b",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 24,
+            "item": "A Beginner's Guide to Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1358",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:dd429f94db77d9d35032",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 29,
+            "item": "A History of Magic",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1324",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:ad192866219e2d6357f8",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 29,
+            "item": "Introduction to Astronomy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1238",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:8de17fd4c0efce7d01de",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 30,
+            "item": "Magical Drafts and Potions",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1355",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:2:4b35d3af282cb17b71c4",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 7,
+            "day": 31,
+            "item": "Dark Forces: A Guide to Self-Protection",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1255",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:8",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:9",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:10",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:11",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:12",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1064,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:1",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:2",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:3",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:4",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:5",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:6",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:7",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:a77f04c9a2df20d3670a",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 20,
+            "item": "Magicka Antiquita",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21057",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:db260947644f0d97c683",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 20,
+            "item": "Unfogging the Future",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1280",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:9d92b9efdedf791a3579",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 21,
+            "item": "Ancient Runes Made Easy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1229",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:79973809b95eef011c63",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 21,
+            "item": "Standard Book of Spells Grade 3",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1303",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:48cb89a508e8d14a534a",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 23,
+            "item": "Intermediate Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1360",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:cac632abd2100b86606d",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 24,
+            "item": "Essential Defense Against the Dark Arts",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1257",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:ad192866219e2d6357f8",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 25,
+            "item": "Introduction to Astronomy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1238",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:87acb1171e30678c930b",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 26,
+            "item": "A Beginner's Guide to Palmistry",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1263",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:808335ce33f0a766873b",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 26,
+            "item": "Arithmancy: The Art of Magical Awareness",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_19714",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:31cbc1e72fd5ee700e14",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 26,
+            "item": "Monster Book of Monsters",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1347",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:bfc26102d50627a2567a",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 28,
+            "item": "A Holistic Approach to Terot",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1269",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:547e273133e1ab739ceb",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 28,
+            "item": "Goshawk's Guide to Herbology",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21042",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:cb0c988c6a23bccf0f73",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 29,
+            "item": "Broken Balls: When Fortunes Turn Foul",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1266",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:e59b0da7b8c6f75e04fb",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 29,
+            "item": "The Developing Potioneer",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21025",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:3:47c9ecbfe0418c2ff558",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 7,
+            "day": 30,
+            "item": "Home Life and Social Habits of British Muggles",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1349",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:8",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:9",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:10",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:11",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:12",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1065,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:1",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:2",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:3",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:4",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:5",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:6",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          }
+        ],
+        "adult_years": [],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "focused_skills": [
+          "Dark Arts"
+        ]
+      },
+      "notes": "",
+      "imported_fields": {},
+      "record_id": "731751aa-a668-4887-840f-c8e5d624c655",
+      "created_at": "2026-08-01T11:07:25.165541+00:00",
+      "last_updated": "2026-08-02T05:46:20.095062+00:00",
+      "does_not_have_children": false
+    },
+    {
+      "displayed_name": "William the Conqeuror",
+      "name_details": {
+        "entries": [
+          {
+            "name_type": "birth name",
+            "name_entry": "William the Bastard",
+            "date": "1027",
+            "note": "",
+            "entry_id": "4c225b54-9d76-48ef-ae28-b5cb5162539c"
+          },
+          {
+            "name_type": "sobriquet",
+            "name_entry": "William the Conqueror",
+            "date": "1066",
+            "note": "",
+            "entry_id": "ea6af088-e910-4a87-95d7-05d68bdb2bd5"
+          },
+          {
+            "name_type": "name change",
+            "name_entry": "William II, Duke of Normandy",
+            "date": "1035",
+            "note": "",
+            "entry_id": "ca378932-984f-4961-a6fa-a90d510a33ae"
+          },
+          {
+            "name_type": "name change",
+            "name_entry": "William I, King of England",
+            "date": "1066-12-25",
+            "note": "",
+            "entry_id": "4c0cf54a-18a4-4f48-ac4e-fd1a4df0ec49"
+          }
+        ]
+      },
+      "narrative": "",
+      "birth_year": 1027,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": true,
+      "death_year": 1087,
+      "death_month": 9,
+      "death_day": 9,
+      "canon": true,
+      "player_character": false,
+      "non_magical": true,
+      "can_give_birth": false,
+      "famous_person": true,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 8,
+          "permissiveness": 6,
+          "wealth": 6
+        },
+        "generosity": 8,
+        "permissiveness": 6,
+        "wealth": 6
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "automatic",
+        "trait_selection_mode": "automatic",
+        "skill_bonuses": [
+          "Perception",
+          "Social",
+          "Social"
+        ],
+        "traits": []
+      },
+      "characteristics": {
+        "creativity": 2,
+        "equanimity": 1,
+        "charisma": 2,
+        "attractiveness": 1,
+        "strength": 3,
+        "agility": 1,
+        "intellect": 1,
+        "willpower": 1,
+        "fortitude": 5
+      },
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "Normandy",
+          "date": "1027",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "1027",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "William the Bastard",
+          "date": "1027",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "4c225b54-9d76-48ef-ae28-b5cb5162539c",
+          "automatic_source": "life_start"
+        },
+        {
+          "event_id": "name-change:ca378932-984f-4961-a6fa-a90d510a33ae",
+          "event_type": "name_change",
+          "detail": "William II, Duke of Normandy",
+          "date": "1035",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "ca378932-984f-4961-a6fa-a90d510a33ae",
+          "automatic_source": "name_change"
+        },
+        {
+          "event_id": "name-change:ea6af088-e910-4a87-95d7-05d68bdb2bd5",
+          "event_type": "name_change",
+          "detail": "William the Conqueror",
+          "date": "1066",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "ea6af088-e910-4a87-95d7-05d68bdb2bd5",
+          "automatic_source": "name_change"
+        },
+        {
+          "event_id": "name-change:4c0cf54a-18a4-4f48-ac4e-fd1a4df0ec49",
+          "event_type": "name_change",
+          "detail": "William I, King of England",
+          "date": "1066-12-25",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "4c0cf54a-18a4-4f48-ac4e-fd1a4df0ec49",
+          "automatic_source": "name_change"
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1087-09-09",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
+        }
+      ],
+      "school": "",
+      "mage_group_id": "e2ce8e4b-d0a6-431c-af47-21e7e275b9d7",
+      "development_plan": {
+        "schema": "Scattershot",
+        "blood_status_initialized": false,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "initial_eminence": [],
+        "adult_years": [],
+        "mortality_checked_through_age": null
+      },
+      "notes": "",
+      "imported_fields": {},
+      "record_id": "0164a838-659c-40f7-b201-ff20fef4679d",
+      "created_at": "2026-08-02T05:25:42.684092+00:00",
+      "last_updated": "2026-08-02T07:56:52.107795+00:00",
+      "does_not_have_children": false
+    },
+    {
+      "displayed_name": "Josu ibn Julen",
+      "name_details": {
+        "entries": []
+      },
+      "narrative": "",
+      "birth_year": null,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": false,
+      "death_year": null,
+      "death_month": null,
+      "death_day": null,
+      "canon": false,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": false,
+      "does_not_have_children": false,
+      "famous_person": false,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": null,
+      "initial_bonuses": null,
+      "characteristics": null,
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "",
+          "date": "",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Josu ibn Julen",
+          "date": "",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "",
+          "automatic_source": "life_start"
+        }
+      ],
+      "school": "",
+      "mage_group_id": "unassigned",
+      "development_plan": {
+        "schema": "Ability-focus",
+        "blood_status_initialized": false,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "adult_years": [],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "focused_ability": "Naturalism"
+      },
+      "notes": "",
+      "imported_fields": {},
+      "record_id": "bcfff484-a85f-43e0-96e3-e20796e5396f",
+      "created_at": "2026-08-02T07:54:59.660849+00:00",
+      "last_updated": "2026-08-02T07:54:59.660849+00:00"
+    },
+    {
+      "displayed_name": "Armand Malfoy",
+      "name_details": {
+        "entries": []
+      },
+      "narrative": "",
+      "birth_year": 1027,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": false,
+      "death_year": null,
+      "death_month": null,
+      "death_day": null,
+      "canon": true,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": false,
+      "does_not_have_children": false,
+      "famous_person": false,
+      "unfinished": true,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Halfblood",
+      "developmental_environment": "Magical",
+      "parental_values": {
+        "initialized": true,
+        "mode": "Same as siblings",
+        "source": "random",
+        "family_values": {
+          "generosity": 10,
+          "permissiveness": 3,
+          "wealth": 4
+        },
+        "generosity": 10,
+        "permissiveness": 3,
+        "wealth": 4
+      },
+      "initial_bonuses": {
+        "initialized": true,
+        "skill_selection_mode": "manual",
+        "trait_selection_mode": "automatic",
+        "skill_bonuses": [
+          "Perception",
+          "Social"
+        ],
+        "traits": []
+      },
+      "characteristics": {
+        "creativity": 3,
+        "equanimity": 1,
+        "charisma": 1,
+        "attractiveness": 1,
+        "strength": 2,
+        "agility": 2,
+        "intellect": 2,
+        "willpower": 4,
+        "fortitude": 1
+      },
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "Normandy",
+          "date": "1027",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "1027",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Armand Malfoy",
+          "date": "1027",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "",
+          "automatic_source": "life_start"
+        }
+      ],
+      "school": "",
+      "mage_group_id": "d5105caf-d1b3-4ff2-acc4-e5b669f8e147",
+      "development_plan": {
+        "schema": "Two skill",
+        "blood_status_initialized": true,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "adult_years": [
+          {
+            "adult_year": 1,
+            "reading_characteristic": "willpower",
+            "reading_rolls": [
+              5,
+              7,
+              9,
+              3
+            ],
+            "reading_total": 24,
+            "book_limit": 3,
+            "books": [
+              {
+                "record_id": "book_28798",
+                "name": "Eguzkilore Gifts and Basajaun Offerings",
+                "author": ""
+              },
+              {
+                "record_id": "book_28115",
+                "name": "Clandestine Winter Rites",
+                "author": ""
+              },
+              {
+                "record_id": "book_27465",
+                "name": "Aurora Infusions: Introductory Alchemical Practices",
+                "author": ""
+              }
+            ],
+            "eminence": [
+              {
+                "record_id": "event-eminence-5a7dab2892bb17c41c45508f",
+                "title": "Armand and William become friends",
+                "description": "Armand and Malfoy become childhood friends.",
+                "skill": "Social",
+                "points": 1
+              }
+            ],
+            "jobs": []
+          }
+        ],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "focused_skills": [
+          "Perception",
+          "Social"
+        ],
+        "calendar_year_progression": true
+      },
+      "notes": "",
+      "imported_fields": {},
+      "record_id": "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+      "created_at": "2026-08-02T08:07:06.721121+00:00",
+      "last_updated": "2026-08-02T08:21:32.929778+00:00"
     }
   ],
   "locations": [
@@ -25129,6 +27055,138 @@
       "record_id": "26b19885-3ce3-4df3-8b4b-3dded23625f2",
       "created_at": "2026-08-01T10:44:05.790124+00:00",
       "last_updated": "2026-08-01T10:44:05.790124+00:00"
+    },
+    {
+      "name": "Inverness",
+      "parent_location_id": "23b54b30-b742-4e20-a224-915ca732fd61",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "66b781c8-1a17-43d5-8e03-3fe184d5df8c",
+      "created_at": "2026-08-01T10:47:51.186150+00:00",
+      "last_updated": "2026-08-01T10:47:51.186150+00:00"
+    },
+    {
+      "name": "Fort William",
+      "parent_location_id": "23b54b30-b742-4e20-a224-915ca732fd61",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f",
+      "created_at": "2026-08-01T10:48:57.189139+00:00",
+      "last_updated": "2026-08-01T10:48:57.189139+00:00"
+    },
+    {
+      "name": "Loch Ness",
+      "parent_location_id": "23b54b30-b742-4e20-a224-915ca732fd61",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "a1bdfa5d-ed43-4775-a505-42e43d0a006e",
+      "created_at": "2026-08-01T10:49:45.786064+00:00",
+      "last_updated": "2026-08-01T10:49:45.786064+00:00"
+    },
+    {
+      "name": "Cairngorms",
+      "parent_location_id": "23b54b30-b742-4e20-a224-915ca732fd61",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "66a30d33-afe8-4134-9c98-b120e07cf519",
+      "created_at": "2026-08-01T10:50:08.436743+00:00",
+      "last_updated": "2026-08-01T10:50:38.851012+00:00"
+    },
+    {
+      "name": "Northumbria",
+      "parent_location_id": "6a1ad229-4cd5-4a5f-8240-ca1da38abb7e",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "ca7c093c-47cf-40bc-aa9c-075035b823ab",
+      "created_at": "2026-08-01T11:06:28.592102+00:00",
+      "last_updated": "2026-08-01T11:06:28.592102+00:00"
+    },
+    {
+      "name": "France",
+      "parent_location_id": "cce73c77-b94d-47a5-b386-66387b3dcd8d",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "9ee79863-002a-49ba-b726-9c3a9704d391",
+      "created_at": "2026-08-02T05:24:15.412926+00:00",
+      "last_updated": "2026-08-02T05:24:15.412926+00:00"
+    },
+    {
+      "name": "Normandy",
+      "parent_location_id": "9ee79863-002a-49ba-b726-9c3a9704d391",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "c2cc8919-1108-47c9-b3be-9423eea86c1a",
+      "created_at": "2026-08-02T05:24:46.363882+00:00",
+      "last_updated": "2026-08-02T05:24:46.363882+00:00"
+    },
+    {
+      "name": "Sussex",
+      "parent_location_id": "57d0dfb7-c6ac-4f6d-baa8-4a0eb0ff89f1",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "5bc80b00-51ab-4463-a11c-379c8de449c7",
+      "created_at": "2026-08-02T05:39:34.390377+00:00",
+      "last_updated": "2026-08-02T05:39:34.390377+00:00"
+    },
+    {
+      "name": "Paris",
+      "parent_location_id": "9ee79863-002a-49ba-b726-9c3a9704d391",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "8ca999ab-62a2-40c4-ba41-cfdcb3bca870",
+      "created_at": "2026-08-02T08:26:09.611338+00:00",
+      "last_updated": "2026-08-02T08:26:09.611338+00:00"
+    },
+    {
+      "name": "Aachen",
+      "parent_location_id": "d51a30e1-25ce-4c79-afc8-49c2d3ee0745",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [],
+      "record_id": "f02e9fc5-b286-4197-b08b-de69383a67e4",
+      "created_at": "2026-08-02T08:28:20.648771+00:00",
+      "last_updated": "2026-08-02T08:28:20.648771+00:00"
+    },
+    {
+      "name": "Holy Roman Empire",
+      "parent_location_id": "cce73c77-b94d-47a5-b386-66387b3dcd8d",
+      "demographics": "",
+      "notes": "",
+      "extinct": true,
+      "extinction_year": 1806,
+      "timeline_events": [],
+      "record_id": "45e5a2df-7b87-4424-8d81-d10ab034d139",
+      "created_at": "2026-08-02T08:28:28.923043+00:00",
+      "last_updated": "2026-08-02T08:30:43.426927+00:00"
     }
   ],
   "organizations": [
@@ -25145,30 +27203,30 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1707-01-01",
           "year": 1707,
           "description": "",
           "person_ids": [
             "bf8fda89-3eaa-4603-832d-498431b15447"
           ],
-          "eminence_person_ids": []
+          "eminence_person_ids": [
+            "bf8fda89-3eaa-4603-832d-498431b15447"
+          ],
+          "eminence_skills": {
+            "bf8fda89-3eaa-4603-832d-498431b15447": "Social"
+          }
         }
       ],
       "jobs": [
         {
           "record_id": "b2244d8c-c721-48d9-adeb-ad4f16844197",
           "title": "Minister for Magic",
-          "salary": {
-            "galleons": 2000,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1707
         }
       ],
       "record_id": "1acd0edc-2421-4061-9108-7eb6f7984f64",
       "created_at": "2026-07-31T09:33:06.929464+00:00",
-      "last_updated": "2026-07-31T10:27:52.073708+00:00",
+      "last_updated": "2026-08-02T08:33:59.883725+00:00",
       "has_shop": false,
       "shop_inventory": {
         "always_in_stock": [],
@@ -25177,7 +27235,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Division of Central Administration",
@@ -25190,12 +27251,6 @@
         {
           "record_id": "d0302297-3777-40c1-a7ef-34cf746170f0",
           "title": "Minister for Magic",
-          "salary": {
-            "galleons": 2000,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1707
         }
       ],
@@ -25204,10 +27259,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1707",
           "year": 1707,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "school_id": "",
@@ -25222,7 +27279,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Division of International Engagement",
@@ -25237,12 +27297,14 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1798",
           "year": 1798,
           "description": "",
           "person_ids": [
             "f812561f-6caa-4c1e-a5dc-6764288ed90a"
           ],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25257,7 +27319,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Department of International Magical Cooperation",
@@ -25272,12 +27337,14 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1798",
           "year": 1798,
           "description": "",
           "person_ids": [
             "f812561f-6caa-4c1e-a5dc-6764288ed90a"
           ],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25292,7 +27359,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Division of Law and Justice",
@@ -25307,10 +27377,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1707",
           "year": 1707,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25325,7 +27397,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Department of Magical Law Enforcement",
@@ -25340,24 +27415,20 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1707",
           "year": 1707,
           "description": "",
           "person_ids": [
             "bf8fda89-3eaa-4603-832d-498431b15447"
           ],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [
         {
           "record_id": "79c7febb-df26-45f4-a2a1-29a15d0fbde7",
           "title": "Head of the Office",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1707
         }
       ],
@@ -25372,7 +27443,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Wizengamot",
@@ -25387,31 +27461,29 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1539",
           "year": 1539,
           "description": "Founded as an independent agency",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         },
         {
           "record_id": "348e92c8-fa5b-40f1-b9b0-6c778e5c1a88",
           "event_type": "event",
           "title": "Incorporation into the Ministry",
+          "date": "1707",
           "year": 1707,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [
         {
           "record_id": "00e4cd28-ac41-4938-9029-5edf31026585",
           "title": "Chief Warlock",
-          "salary": {
-            "galleons": 1754,
-            "sickles": 12,
-            "knuts": 21,
-            "period": "month"
-          },
           "opened_year": 1539
         }
       ],
@@ -25426,7 +27498,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Division of Research",
@@ -25441,10 +27516,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1722",
           "year": 1722,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25459,7 +27536,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Department of Mysteries",
@@ -25474,28 +27554,34 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1202",
           "year": 1202,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         },
         {
           "record_id": "da81315c-9f84-4098-8887-34abcbb172aa",
           "event_type": "event",
           "title": "Incorporation into the Ministry",
+          "date": "1722",
           "year": 1722,
           "description": "Became a department within the ministry for magic.",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         },
         {
           "record_id": "87445c96-57c6-4a1d-8c3a-2a12222dc2f2",
           "event_type": "event",
           "title": "Renamed the Department of Mysteries",
+          "date": "1777",
           "year": 1777,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25510,7 +27596,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Division of Domestic Affairs",
@@ -25525,10 +27614,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1750",
           "year": 1750,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25543,7 +27634,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Division for the Regulation of the Use of Magic",
@@ -25558,10 +27652,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1811",
           "year": 1811,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25576,7 +27672,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Investigations Department",
@@ -25591,10 +27690,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "2005",
           "year": 2005,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25609,7 +27710,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Hit Wizards Squad",
@@ -25624,10 +27728,12 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1752",
           "year": 1752,
           "description": "",
           "person_ids": [],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
@@ -25642,7 +27748,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Auror's Office",
@@ -25657,200 +27766,100 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "1737",
           "year": 1737,
           "description": "",
           "person_ids": [
             "a42cd75f-b0d3-4771-8530-c9568102bedf"
           ],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [
         {
           "record_id": "e0ea9f33-d867-4f0b-a186-a8d4c208086e",
           "title": "Head of the Office of the Aurors",
-          "salary": {
-            "galleons": 1214,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1737
         },
         {
           "record_id": "51cf1142-9a1a-4cf5-acd2-c820ecfa5ab1",
           "title": "Chief Assistant",
-          "salary": {
-            "galleons": 1200,
-            "sickles": 12,
-            "knuts": 2,
-            "period": "month"
-          },
           "opened_year": 1737
         },
         {
           "record_id": "d6da6d2e-e037-46c9-b45e-044a253c6146",
           "title": "Deputy Chief Assistant",
-          "salary": {
-            "galleons": 1189,
-            "sickles": 12,
-            "knuts": 1,
-            "period": "month"
-          },
           "opened_year": 1810
         },
         {
           "record_id": "223f1f30-aec3-4290-bde2-973dbf884aee",
           "title": "Senior Auror",
-          "salary": {
-            "galleons": 988,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1737
         },
         {
           "record_id": "78ad61c6-828c-4fb0-bc39-f025b2a1c057",
           "title": "Senior Auror",
-          "salary": {
-            "galleons": 988,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1749
         },
         {
           "record_id": "cc81aee1-4dcc-4251-b4a2-545480f9f387",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1737
         },
         {
           "record_id": "f4cbc8c1-69c6-4100-81de-916dd5b5da4d",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1737
         },
         {
           "record_id": "d72c9feb-efd5-421f-bb9f-810ccc25dc23",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1737
         },
         {
           "record_id": "f1ee50ac-bcc6-465c-a87d-26fdebb53479",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1741
         },
         {
           "record_id": "c92df7d1-7a46-4a39-8637-3a96b8a4812b",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1742
         },
         {
           "record_id": "a3461eb9-3d7d-454d-8221-7ab602b2d24a",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1750
         },
         {
           "record_id": "18009523-8d4a-4856-bd72-9a4a50c645d3",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1921
         },
         {
           "record_id": "835a43f7-e36c-45c1-a647-72b599975e1c",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1935
         },
         {
           "record_id": "8cc36517-0fa8-488a-a755-57391def639d",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1971
         },
         {
           "record_id": "92c64ada-0316-439b-b9fc-041d892bfe27",
           "title": "Auror",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1996
         },
         {
           "record_id": "15200d0e-f8dc-4592-b66a-c611674143cb",
           "title": "Senior Clerk",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1799
         },
         {
           "record_id": "c5f9d994-65cf-4998-b47e-d51be16c3bde",
           "title": "Clerk",
-          "salary": {
-            "galleons": 0,
-            "sickles": 0,
-            "knuts": 0,
-            "period": "month"
-          },
           "opened_year": 1924
         }
       ],
@@ -25865,7 +27874,10 @@
         "rarely_in_stock": []
       },
       "extinct": false,
-      "extinction_date": ""
+      "extinction_date": "",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
     },
     {
       "name": "Hogwarts",
@@ -25889,18 +27901,127 @@
           "record_id": "organization-founding",
           "event_type": "founding",
           "title": "Founding",
+          "date": "990",
           "year": 990,
           "description": "",
           "person_ids": [
             "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
           ],
-          "eminence_person_ids": []
+          "eminence_person_ids": [],
+          "eminence_skills": {}
         }
       ],
       "jobs": [],
       "record_id": "a92dd0cc-d54e-4c76-9848-502280c2f401",
       "created_at": "2026-08-01T08:25:45.179311+00:00",
-      "last_updated": "2026-08-01T08:26:12.767363+00:00"
+      "last_updated": "2026-08-01T08:26:12.767363+00:00",
+      "famous_organization": false,
+      "has_storeroom": false,
+      "storeroom_inventory": []
+    },
+    {
+      "name": "British Wizards Council",
+      "organization_type": "Governmental",
+      "location_id": "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
+      "parent_organization_id": "",
+      "school_id": "",
+      "has_shop": false,
+      "shop_inventory": {
+        "always_in_stock": [],
+        "regularly_in_stock": [],
+        "sometimes_in_stock": [],
+        "rarely_in_stock": []
+      },
+      "famous_organization": true,
+      "has_storeroom": false,
+      "storeroom_inventory": [],
+      "extinct": true,
+      "extinction_date": "1706-12-31",
+      "overview": "",
+      "notes": "",
+      "events": [
+        {
+          "record_id": "organization-founding",
+          "event_type": "founding",
+          "title": "Founding",
+          "date": "1065",
+          "year": 1065,
+          "description": "",
+          "person_ids": [],
+          "eminence_person_ids": [],
+          "eminence_skills": {}
+        }
+      ],
+      "jobs": [
+        {
+          "record_id": "bc434e19-547d-4431-a8cc-91e5bc9b6e01",
+          "title": "Léodwita",
+          "opened_year": 1065
+        },
+        {
+          "record_id": "8e173800-c5c9-43af-9eea-bd8e84c611e5",
+          "title": "Heahwita",
+          "opened_year": 1065
+        },
+        {
+          "record_id": "e28e51c1-9a6c-47f2-8743-25f686afd1c7",
+          "title": "Heahwita",
+          "opened_year": 1181
+        },
+        {
+          "record_id": "454e0bc0-55df-4179-a8db-2899aae3e416",
+          "title": "Wita",
+          "opened_year": 1065
+        },
+        {
+          "record_id": "9e16bbd7-438a-4c18-b91c-fd5682910a2f",
+          "title": "Wita",
+          "opened_year": 1065
+        },
+        {
+          "record_id": "6966cf67-a5f5-484f-a19a-e8014c00095e",
+          "title": "Wita",
+          "opened_year": 1065
+        },
+        {
+          "record_id": "ebd750b6-e612-43d6-b870-4b1b7f136d4b",
+          "title": "Wita",
+          "opened_year": 1170
+        },
+        {
+          "record_id": "ef1031aa-9da6-41ef-b521-b358d00206c8",
+          "title": "Wita",
+          "opened_year": 1171
+        },
+        {
+          "record_id": "bde824df-7801-4a0e-9c34-925cfe24d856",
+          "title": "Wita",
+          "opened_year": 1215
+        },
+        {
+          "record_id": "df44a950-b1a9-4d80-bad3-530f70b02484",
+          "title": "Wita",
+          "opened_year": 1215
+        },
+        {
+          "record_id": "a0b58187-7465-4a53-b43f-39a28e932575",
+          "title": "Bocere",
+          "opened_year": 1096
+        },
+        {
+          "record_id": "d52c833f-b564-4853-897f-93999bf06d0c",
+          "title": "Bocere",
+          "opened_year": 1309
+        },
+        {
+          "record_id": "ff1ee0ab-7569-449f-87d6-2aeff4be46d6",
+          "title": "Bocere",
+          "opened_year": 1413
+        }
+      ],
+      "record_id": "7b65e3c9-05e0-480c-b672-ccba403671fb",
+      "created_at": "2026-08-02T06:54:23.586876+00:00",
+      "last_updated": "2026-08-02T07:51:02.935111+00:00"
     }
   ],
   "events": [
@@ -25916,7 +28037,8 @@
       "record_id": "4af542c4-8972-4d72-91f6-7ee029e83d78",
       "created_at": "2026-07-24T04:12:43.832814+00:00",
       "last_updated": "2026-07-24T04:12:43.832814+00:00",
-      "eminence_person_ids": []
+      "eminence_person_ids": [],
+      "eminence_skills": {}
     },
     {
       "event_type": "founding",
@@ -25934,7 +28056,8 @@
       "record_id": "d8eaa3d9-67ee-4a70-b27e-6ddcf48e3df2",
       "created_at": "2026-07-24T05:57:01.593090+00:00",
       "last_updated": "2026-07-24T05:58:09.794967+00:00",
-      "eminence_person_ids": []
+      "eminence_person_ids": [],
+      "eminence_skills": {}
     },
     {
       "event_type": "other",
@@ -25950,7 +28073,8 @@
       "created_at": "2026-07-23T11:40:02.541008+00:00",
       "last_updated": "2026-07-23T11:40:02.541008+00:00",
       "eminence_person_ids": [],
-      "locked_location_ids": []
+      "locked_location_ids": [],
+      "eminence_skills": {}
     },
     {
       "event_type": "other",
@@ -25966,7 +28090,8 @@
       "created_at": "2026-07-23T11:41:18.455518+00:00",
       "last_updated": "2026-07-23T11:41:18.455518+00:00",
       "eminence_person_ids": [],
-      "locked_location_ids": []
+      "locked_location_ids": [],
+      "eminence_skills": {}
     },
     {
       "event_type": "founding",
@@ -25982,7 +28107,8 @@
       "created_at": "2026-07-23T11:50:56.194090+00:00",
       "last_updated": "2026-07-23T11:50:56.194090+00:00",
       "eminence_person_ids": [],
-      "locked_location_ids": []
+      "locked_location_ids": [],
+      "eminence_skills": {}
     },
     {
       "event_type": "other",
@@ -25998,67 +28124,140 @@
       "created_at": "2026-07-23T11:55:46.897862+00:00",
       "last_updated": "2026-07-23T11:55:46.897862+00:00",
       "eminence_person_ids": [],
-      "locked_location_ids": []
-    },
-    {
-      "event_type": "custom",
-      "title": "Converts Azkeban into a prison",
-      "date": "1723",
-      "description": "Damocles converts Azkeban into a prision and introduces Dementors as guards.",
-      "person_ids": [
-        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
-      ],
-      "period_names": [],
-      "location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
-      ],
-      "locked_location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
-      ],
-      "record_id": "4ad19233-ad81-4486-aa41-d3951f8e3759",
-      "created_at": "2026-07-31T14:12:14.553558+00:00",
-      "last_updated": "2026-08-01T07:47:58.854079+00:00",
-      "eminence_person_ids": [
-        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
-      ]
-    },
-    {
-      "event_type": "other",
-      "title": "Quidditch World Cup Hosted in Britain",
-      "date": "1805",
-      "description": "Artemisia Lufkin successfully lobbied to bring the event to Britain",
-      "person_ids": [
-        "f812561f-6caa-4c1e-a5dc-6764288ed90a"
-      ],
-      "period_names": [],
-      "location_ids": [],
       "locked_location_ids": [],
-      "record_id": "d1ac256b-4e2d-4e5c-8835-1b765e38c4dc",
-      "created_at": "2026-07-31T13:43:03.671812+00:00",
-      "last_updated": "2026-07-31T13:43:03.671812+00:00",
-      "eminence_person_ids": []
+      "eminence_skills": {}
     },
     {
       "event_type": "founding",
-      "title": "Founding of Azkeban",
-      "date": "1455",
-      "description": "",
-      "person_ids": [
-        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
-      ],
-      "eminence_person_ids": [
-        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
-      ],
+      "title": "Founding of Holy Roman Empire",
+      "date": "962-02-02",
+      "description": "Otto I crowned emperor by the Pope.",
+      "person_ids": [],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
       "period_names": [],
       "location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
+        "45e5a2df-7b87-4424-8d81-d10ab034d139"
       ],
       "locked_location_ids": [
-        "fc7f56ad-8d4a-426e-933f-156384f10423"
+        "45e5a2df-7b87-4424-8d81-d10ab034d139"
       ],
-      "record_id": "ea1f8927-a69d-418d-b5c6-139384f1efbd",
-      "created_at": "2026-08-01T02:28:05.635164+00:00",
-      "last_updated": "2026-08-01T02:28:05.635164+00:00"
+      "record_id": "b49150ef-eaf9-4e1a-bbc4-a56f109e89e5",
+      "created_at": "2026-08-02T08:30:20.903265+00:00",
+      "last_updated": "2026-08-02T08:32:18.708283+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Armand and William become friends",
+      "date": "1028",
+      "description": "Armand and Malfoy become childhood friends.",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
+      },
+      "period_names": [],
+      "location_ids": [
+        "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+      ],
+      "locked_location_ids": [],
+      "record_id": "671f1a67-031c-4433-989e-2c2edd7b28a8",
+      "created_at": "2026-08-02T08:21:21.128991+00:00",
+      "last_updated": "2026-08-02T08:21:32.929584+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Becomes Senior Advisor to William",
+      "date": "1035",
+      "description": "Armand advises William on matters related to magic. As a part of his duties, he takes on an ambassadorial and investigative role traveling to various regions to learn more about their magical populations.",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Social"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "bc51ce4c-8e33-4bb7-a8e3-a82f4dbf100f",
+      "created_at": "2026-08-02T08:22:29.028321+00:00",
+      "last_updated": "2026-08-02T08:24:13.917742+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to London",
+      "date": "1036",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "53d8feaa-3154-4f0c-89c3-00d24f3a855e",
+      "created_at": "2026-08-02T08:23:20.653193+00:00",
+      "last_updated": "2026-08-02T08:24:45.621446+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Paris",
+      "date": "1039",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "8ca999ab-62a2-40c4-ba41-cfdcb3bca870"
+      ],
+      "locked_location_ids": [],
+      "record_id": "8a7ebb7d-dba8-4625-9f66-622142129ef3",
+      "created_at": "2026-08-02T08:26:15.852782+00:00",
+      "last_updated": "2026-08-02T08:26:15.852782+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to Aachen",
+      "date": "1041",
+      "description": "",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_skills": {
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f02e9fc5-b286-4197-b08b-de69383a67e4"
+      ],
+      "locked_location_ids": [],
+      "record_id": "8af4aa26-0c76-4740-92c1-edf156991603",
+      "created_at": "2026-08-02T08:28:39.618658+00:00",
+      "last_updated": "2026-08-02T08:28:39.618658+00:00"
     },
     {
       "event_type": "custom",
@@ -26076,7 +28275,8 @@
       "locked_location_ids": [],
       "record_id": "336591a5-7fe1-4444-a893-a060558bc426",
       "created_at": "2026-08-01T09:09:15.460294+00:00",
-      "last_updated": "2026-08-01T09:18:24.958051+00:00"
+      "last_updated": "2026-08-01T09:18:24.958051+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26098,7 +28298,8 @@
       "locked_location_ids": [],
       "record_id": "2bc715e2-8451-468e-80ef-b406a6382a82",
       "created_at": "2026-08-01T09:11:23.404499+00:00",
-      "last_updated": "2026-08-01T09:19:15.871362+00:00"
+      "last_updated": "2026-08-01T09:19:15.871362+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26118,7 +28319,8 @@
       "locked_location_ids": [],
       "record_id": "c43430f9-ea79-4989-9db4-fca7e31c856c",
       "created_at": "2026-08-01T09:13:38.389036+00:00",
-      "last_updated": "2026-08-01T09:16:15.812082+00:00"
+      "last_updated": "2026-08-01T09:16:15.812082+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26141,7 +28343,8 @@
       "locked_location_ids": [],
       "record_id": "2eb51aef-4deb-4e68-be36-d8e95e96afa9",
       "created_at": "2026-08-01T09:19:07.483890+00:00",
-      "last_updated": "2026-08-01T09:19:07.483890+00:00"
+      "last_updated": "2026-08-01T09:19:07.483890+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26159,7 +28362,8 @@
       "locked_location_ids": [],
       "record_id": "1b46be9f-cdac-44be-8d76-2143513a2504",
       "created_at": "2026-08-01T09:22:46.692246+00:00",
-      "last_updated": "2026-08-01T09:22:46.692246+00:00"
+      "last_updated": "2026-08-01T09:22:46.692246+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26179,7 +28383,8 @@
       "locked_location_ids": [],
       "record_id": "44cd6ed2-7957-4b5c-84cc-b6eec661aa12",
       "created_at": "2026-08-01T09:24:35.125649+00:00",
-      "last_updated": "2026-08-01T09:34:33.833242+00:00"
+      "last_updated": "2026-08-01T09:34:33.833242+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26197,7 +28402,8 @@
       "locked_location_ids": [],
       "record_id": "7feef0b2-5fce-453a-b570-3b65d89f43f7",
       "created_at": "2026-08-01T09:40:05.605976+00:00",
-      "last_updated": "2026-08-01T09:43:10.986074+00:00"
+      "last_updated": "2026-08-01T09:43:10.986074+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26217,7 +28423,8 @@
       "locked_location_ids": [],
       "record_id": "0309fcfa-831a-4525-ace3-1884942ee196",
       "created_at": "2026-08-01T09:45:35.741420+00:00",
-      "last_updated": "2026-08-01T09:48:19.038947+00:00"
+      "last_updated": "2026-08-01T09:48:19.038947+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26235,7 +28442,8 @@
       "locked_location_ids": [],
       "record_id": "04f5eb8a-0b52-487c-8c7e-9848aee7b8e9",
       "created_at": "2026-08-01T10:19:14.748920+00:00",
-      "last_updated": "2026-08-01T10:19:14.748920+00:00"
+      "last_updated": "2026-08-01T10:19:14.748920+00:00",
+      "eminence_skills": {}
     },
     {
       "event_type": "custom",
@@ -26253,16 +28461,18 @@
       "locked_location_ids": [],
       "record_id": "77e763bc-ff7b-4e95-aa6a-d4106365995c",
       "created_at": "2026-08-01T10:22:21.436303+00:00",
-      "last_updated": "2026-08-01T10:22:21.436303+00:00"
+      "last_updated": "2026-08-01T10:22:21.436303+00:00",
+      "eminence_skills": {}
     },
     {
-      "event_type": "custom",
-      "title": "Kills Salazar Slytherin",
+      "event_type": "died",
+      "title": "Emeric Kills Salazar Slytherin",
       "date": "1064-02-02",
-      "description": "",
+      "description": "This ignites in Egbert the Egregious a striving for vengence. Most of the public was unaware that Egbert killed Slytherin.",
       "person_ids": [
         "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "731751aa-a668-4887-840f-c8e5d624c655"
       ],
       "eminence_person_ids": [
         "6cd8d366-28a4-4199-9c5c-ff55362851b2"
@@ -26272,7 +28482,10 @@
       "locked_location_ids": [],
       "record_id": "6f16f9db-6a8b-4070-82a4-55ea6d144654",
       "created_at": "2026-08-01T10:40:45.947074+00:00",
-      "last_updated": "2026-08-01T10:41:49.334728+00:00"
+      "last_updated": "2026-08-02T07:56:23.558703+00:00",
+      "eminence_skills": {
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
+      }
     },
     {
       "event_type": "custom",
@@ -26292,59 +28505,342 @@
       "locked_location_ids": [],
       "record_id": "6ea00264-cd87-4666-95c8-996f435eea0b",
       "created_at": "2026-08-01T10:44:13.804727+00:00",
-      "last_updated": "2026-08-01T10:44:13.804727+00:00"
+      "last_updated": "2026-08-01T10:44:13.804727+00:00",
+      "eminence_skills": {}
+    },
+    {
+      "event_type": "custom",
+      "title": "Kills many muggles in Inverness",
+      "date": "1064-06",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "66b781c8-1a17-43d5-8e03-3fe184d5df8c"
+      ],
+      "locked_location_ids": [],
+      "record_id": "ef97abf5-1465-4e79-8418-9b7dc797b5d0",
+      "created_at": "2026-08-01T10:47:57.741040+00:00",
+      "last_updated": "2026-08-01T10:50:59.548676+00:00",
+      "eminence_skills": {}
+    },
+    {
+      "event_type": "custom",
+      "title": "Kills more muggles in Ft William",
+      "date": "1064-11",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f"
+      ],
+      "locked_location_ids": [],
+      "record_id": "30517fab-5319-42d9-aec5-889b32892f1d",
+      "created_at": "2026-08-01T10:52:05.939329+00:00",
+      "last_updated": "2026-08-01T10:52:05.939329+00:00",
+      "eminence_skills": {}
+    },
+    {
+      "event_type": "custom",
+      "title": "Infultrates Hogwarts and kills multiple staff",
+      "date": "1065-03",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "341834b6-1494-4efb-83df-f70b780d4413",
+      "created_at": "2026-08-01T10:53:33.198136+00:00",
+      "last_updated": "2026-08-01T10:54:59.487132+00:00",
+      "eminence_skills": {}
+    },
+    {
+      "event_type": "custom",
+      "title": "Travel to London",
+      "date": "1066-01",
+      "description": "He is in London when Emeric the Evil kills 25 mages and reports this information back to William of Normandy",
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "4d80a20d-cbee-4bc8-9dfa-44db2d32eb73",
+      "created_at": "2026-08-02T08:17:19.638680+00:00",
+      "last_updated": "2026-08-02T08:17:19.638680+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Travels to London and kills many muggles",
+      "date": "1066-01",
+      "description": "He murders many many muggles and 25 wizards in London as a display of his hatred of muggleborns, a kind of self-hatred.",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "record_id": "b359b89b-e38f-481e-a927-d951665ffd05",
+      "created_at": "2026-08-01T10:56:21.486762+00:00",
+      "last_updated": "2026-08-02T08:14:51.726196+00:00",
+      "eminence_skills": {
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
+      }
+    },
+    {
+      "event_type": "died",
+      "title": "Egbert kills Emeric",
+      "date": "1066-04-12",
+      "description": "",
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "a04ba8f5-c7bc-4459-b8cc-16c2f896b645",
+      "created_at": "2026-08-01T10:58:49.683467+00:00",
+      "last_updated": "2026-08-02T05:46:20.093762+00:00",
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
+      }
+    },
+    {
+      "event_type": "custom",
+      "title": "Killing spree",
+      "date": "1066-05",
+      "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "b054e551-6e71-4f82-bee4-59789647ed60",
+      "created_at": "2026-08-02T05:16:24.182311+00:00",
+      "last_updated": "2026-08-02T05:16:24.182311+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins assembling an invasion",
+      "date": "1066-06",
+      "description": "Begins assembling a fleet and army to invade England. Learning of the weakened position of the wizards in England and Scotland, He siezes the opportunity to amass an invasion force.",
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+      ],
+      "locked_location_ids": [],
+      "record_id": "1d09f653-76eb-4790-9d1f-875e94fb1b7f",
+      "created_at": "2026-08-02T05:32:04.854987+00:00",
+      "last_updated": "2026-08-02T05:32:04.854987+00:00"
+    },
+    {
+      "event_type": "died",
+      "title": "Accidental death",
+      "date": "1066-06-12",
+      "description": "Egbert accidentally kills himself attempting to make a horcrux.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "24138fdb-a54a-4592-b7a4-e654ff9e6941",
+      "created_at": "2026-08-02T05:17:03.046153+00:00",
+      "last_updated": "2026-08-02T05:46:26.972574+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins the Norman Invasion",
+      "date": "1066-09-28",
+      "description": "",
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "5bc80b00-51ab-4463-a11c-379c8de449c7"
+      ],
+      "locked_location_ids": [],
+      "record_id": "2153d744-3d18-417e-8584-69ebde57cf10",
+      "created_at": "2026-08-02T05:40:15.457511+00:00",
+      "last_updated": "2026-08-02T05:40:22.235003+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Crowned King",
+      "date": "1066-12-25",
+      "description": "Becomes King of England and is known as William I, King of England.",
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "93281b5f-1409-43ef-ba7e-2825ccfbddda",
+      "created_at": "2026-08-02T05:41:03.937794+00:00",
+      "last_updated": "2026-08-02T05:42:04.158604+00:00"
+    },
+    {
+      "event_type": "founding",
+      "title": "Founding of Azkeban",
+      "date": "1455",
+      "description": "",
+      "person_ids": [
+        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+      ],
+      "eminence_person_ids": [
+        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "locked_location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "record_id": "ea1f8927-a69d-418d-b5c6-139384f1efbd",
+      "created_at": "2026-08-01T02:28:05.635164+00:00",
+      "last_updated": "2026-08-01T02:28:05.635164+00:00",
+      "eminence_skills": {}
+    },
+    {
+      "event_type": "custom",
+      "title": "Converts Azkeban into a prison",
+      "date": "1723",
+      "description": "Damocles converts Azkeban into a prision and introduces Dementors as guards.",
+      "person_ids": [
+        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
+      ],
+      "period_names": [],
+      "location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "locked_location_ids": [
+        "fc7f56ad-8d4a-426e-933f-156384f10423"
+      ],
+      "record_id": "4ad19233-ad81-4486-aa41-d3951f8e3759",
+      "created_at": "2026-07-31T14:12:14.553558+00:00",
+      "last_updated": "2026-08-01T07:47:58.854079+00:00",
+      "eminence_person_ids": [
+        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
+      ],
+      "eminence_skills": {}
+    },
+    {
+      "event_type": "other",
+      "title": "Quidditch World Cup Hosted in Britain",
+      "date": "1805",
+      "description": "Artemisia Lufkin successfully lobbied to bring the event to Britain",
+      "person_ids": [
+        "f812561f-6caa-4c1e-a5dc-6764288ed90a"
+      ],
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "record_id": "d1ac256b-4e2d-4e5c-8835-1b765e38c4dc",
+      "created_at": "2026-07-31T13:43:03.671812+00:00",
+      "last_updated": "2026-07-31T13:43:03.671812+00:00",
+      "eminence_person_ids": [],
+      "eminence_skills": {}
     }
   ],
   "_recent_people": [
-    "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-    "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-    "765c03a4-9624-4cd0-9695-419cf59c043a",
-    "a94e7b2e-2faa-49e3-83ef-cdc136502f54",
+    "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
     "fd2e3f62-3530-4fe5-a618-da26accca07f",
-    "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-    "6882e7fb-529a-4b3e-8929-a795b91b816d",
-    "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9",
-    "6cea2c79-66b4-4018-88f1-6238ad15ebd7",
+    "0164a838-659c-40f7-b201-ff20fef4679d",
+    "6cd8d366-28a4-4199-9c5c-ff55362851b2",
     "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
-    "ccde7cef-2aff-4be4-974f-c72ffe652c71",
-    "da621804-0d7d-4af5-8cd1-54e535323c8b"
+    "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+    "731751aa-a668-4887-840f-c8e5d624c655",
+    "bf8fda89-3eaa-4603-832d-498431b15447",
+    "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
+    "a42cd75f-b0d3-4771-8530-c9568102bedf",
+    "f812561f-6caa-4c1e-a5dc-6764288ed90a",
+    "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
   ],
   "_recent_locations": [
-    "1df35516-b69f-45df-ac06-b52616e5ed41",
-    "f6dacd04-90b6-4949-af1e-1bf0e69d62fb",
-    "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
-    "38b8b79b-0785-4213-826e-0e65998d3b41",
-    "de9bca8f-8fea-4db4-a040-131af6804693",
-    "23b54b30-b742-4e20-a224-915ca732fd61",
-    "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8",
-    "cce73c77-b94d-47a5-b386-66387b3dcd8d",
+    "45e5a2df-7b87-4424-8d81-d10ab034d139",
     "d51a30e1-25ce-4c79-afc8-49c2d3ee0745",
-    "d3ba12b1-afe7-443b-a75b-31de101048c6",
-    "fc7f56ad-8d4a-426e-933f-156384f10423",
-    "96103198-d236-4041-92af-7fb8580ae909"
+    "cce73c77-b94d-47a5-b386-66387b3dcd8d",
+    "__mage_maker_world__",
+    "96103198-d236-4041-92af-7fb8580ae909",
+    "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
+    "23b54b30-b742-4e20-a224-915ca732fd61",
+    "66a30d33-afe8-4134-9c98-b120e07cf519",
+    "a1bdfa5d-ed43-4775-a505-42e43d0a006e",
+    "de9bca8f-8fea-4db4-a040-131af6804693",
+    "66b781c8-1a17-43d5-8e03-3fe184d5df8c",
+    "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f"
   ],
   "_recent_event_associations": {
     "person_ids": [
+      "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+      "0164a838-659c-40f7-b201-ff20fef4679d",
       "6cd8d366-28a4-4199-9c5c-ff55362851b2",
       "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+      "731751aa-a668-4887-840f-c8e5d624c655",
       "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
       "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9",
       "f812561f-6caa-4c1e-a5dc-6764288ed90a",
       "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
     ],
     "location_ids": [
+      "45e5a2df-7b87-4424-8d81-d10ab034d139",
+      "f02e9fc5-b286-4197-b08b-de69383a67e4",
+      "8ca999ab-62a2-40c4-ba41-cfdcb3bca870",
+      "c2cc8919-1108-47c9-b3be-9423eea86c1a",
+      "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
+      "5bc80b00-51ab-4463-a11c-379c8de449c7",
+      "c6e1c5f9-423d-40e0-bc33-9bc83cdc2e9f",
+      "66b781c8-1a17-43d5-8e03-3fe184d5df8c",
       "26b19885-3ce3-4df3-8b4b-3dded23625f2",
       "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
       "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4",
-      "d3ba12b1-afe7-443b-a75b-31de101048c6",
-      "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
-      "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8",
-      "fd02c4e8-9159-48c6-8143-d329cb7af046",
-      "d51a30e1-25ce-4c79-afc8-49c2d3ee0745",
-      "f31e3a15-e52c-4cdc-ac14-249bb323bde1",
-      "b20a71ed-95e2-465a-a035-9ad734d67bf6",
-      "fc7f56ad-8d4a-426e-933f-156384f10423",
-      "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      "d3ba12b1-afe7-443b-a75b-31de101048c6"
     ]
   },
   "_application_settings": {
@@ -26389,6 +28885,11 @@
         "group_id": "11be47fc-d743-4c5c-92ff-db5e0c6e0cbb",
         "name": "Charms Check Player Character",
         "color": "#FBFEC0"
+      },
+      {
+        "group_id": "e2ce8e4b-d0a6-431c-af47-21e7e275b9d7",
+        "name": "Real Historical Figures",
+        "color": "#000000"
       }
     ],
     "database_date": {

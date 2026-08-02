@@ -4,11 +4,12 @@ EVENT_TYPE_DEFINITIONS = (
     ("birth_name", "Birth name", ("person",), True),
     ("gave_birth", "Gave birth", ("person",), False),
     ("had_child", "Had a child", ("person",), False),
-    ("got_married", "Got married", ("person",), False),
-    ("died", "Died", ("person",), False),
-    ("started_school", "Started at school", ("person",), False),
+    ("got_married", "Marriage", ("person",), False),
+    ("died", "Death", ("person",), False),
+    ("started_school", "Started school", ("person",), False),
     ("opened_business", "Opened a business", ("person",), False),
-    ("got_job", "Got a job", ("person",), False),
+    ("started_job", "Started job", ("person",), False),
+    ("received_raise", "Received a raise", ("person",), False),
     ("work_change", "Change in work", ("person",), False),
     ("relocated", "Relocated", ("person",), False),
     ("name_change", "Name change", ("person",), False),
@@ -36,10 +37,23 @@ EVENT_LABEL_TYPES = {
     label: event_type
     for event_type, label, contexts, automatic in EVENT_TYPE_DEFINITIONS
 }
+EVENT_LABEL_TYPES.update(
+    {
+        "Got married": "got_married",
+        "Died": "died",
+        "Started at school": "started_school",
+        "Got a job": "started_job",
+    }
+)
 LEGACY_EVENT_TYPE_ALIASES = {
     "birth": "born",
     "death": "died",
     "marriage": "got_married",
+    "got_job": "started_job",
+    "got a job": "started_job",
+    "got job": "started_job",
+    "started job": "started_job",
+    "received a raise": "received_raise",
     "relocation": "relocated",
     "wizarding community established": (
         "wizarding_community_established"
@@ -53,7 +67,13 @@ HIDDEN_OUTSIDE_PERSON_EVENT_TYPES = {
 
 def canonical_event_type(event_type):
     normalized = str(event_type or "").strip()
-    return LEGACY_EVENT_TYPE_ALIASES.get(normalized, normalized)
+    return LEGACY_EVENT_TYPE_ALIASES.get(
+        normalized,
+        LEGACY_EVENT_TYPE_ALIASES.get(
+            normalized.casefold(),
+            normalized,
+        ),
+    )
 
 
 def event_type_label(event_or_type):

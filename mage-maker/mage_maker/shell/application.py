@@ -119,6 +119,7 @@ class MageMakerApp(tk.Tk):
             self.database,
             self.location_controller.list_locations,
             self.game_database.schools,
+            self.game_database.storeroom_items,
         )
         self.status_value = tk.StringVar(value="Ready")
         self.pages = {}
@@ -297,6 +298,7 @@ class MageMakerApp(tk.Tk):
                     self.event_controller,
                     self.refresh_cross_page_data,
                     self.organization_lock_changed,
+                    auto_refresh=False,
                 )
             elif page_name == "settings":
                 page = SettingsPage(
@@ -320,6 +322,7 @@ class MageMakerApp(tk.Tk):
             page.set_organization_lock(
                 self.organization_lock_id,
                 notify=False,
+                refresh_page=False,
             )
 
         return True

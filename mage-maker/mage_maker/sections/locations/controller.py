@@ -14,6 +14,7 @@ from mage_maker.sections.locations.models import (
 )
 from mage_maker.sections.locations.periods import categorized_people_for_period
 from mage_maker.sections.timeline.locations import normalize_location
+from mage_maker.sections.events.models import world_event_year
 
 
 RECENT_LOCATION_STORAGE_KEY = "_recent_locations"
@@ -109,6 +110,107 @@ class LocationController:
             location,
             self.database.list_records("events"),
         )
+
+    def location_distinctions(self, location_id):
+        selected_id = str(location_id or "").strip()
+        location = self.get_location(selected_id)
+
+        if location is None:
+            return []
+
+        distinctions = []
+        foundation_state = self.foundation_state_for_location(selected_id)
+        foundation_year = world_event_year(
+            foundation_state.get("foundation_event_date", "")
+        )
+        foundation_type = str(
+            foundation_state.get("foundation_event_type", "") or ""
+        )
+
+        if foundation_year is not None:
+            if foundation_type == "wizarding_community_established":
+                distinctions.append(
+                    "First Wizarding community established in "
+                    f"{foundation_year}"
+                )
+            else:
+                distinctions.append(f"Founded in {foundation_year}")
+
+        location_name_key = normalize_location(location.get("name", ""))
+        famous_people = []
+
+        for person in self.people_provider():
+            if not isinstance(person, dict) or not bool(
+                person.get("famous_person")
+            ):
+                continue
+
+            starts_here = False
+
+            for event in person.get("timeline_events", []) or []:
+                if (
+                    not isinstance(event, dict)
+                    or str(event.get("event_type", "") or "")
+                    != "starting_location"
+                ):
+                    continue
+
+                linked_ids = {
+                    str(linked_id or "").strip()
+                    for linked_id in event.get("location_ids", []) or []
+                    if str(linked_id or "").strip()
+                }
+                event_location_key = normalize_location(
+                    event.get("detail", event.get("location", ""))
+                )
+                starts_here = (
+                    selected_id in linked_ids
+                    or bool(
+                        location_name_key
+                        and event_location_key == location_name_key
+                    )
+                )
+
+                if starts_here:
+                    break
+
+            if starts_here:
+                famous_people.append(
+                    str(
+                        person.get("displayed_name", "")
+                        or "Unnamed magician"
+                    ).strip()
+                )
+
+        for person_name in sorted(
+            set(famous_people),
+            key=str.casefold,
+        ):
+            distinctions.append(f"Birthplace of {person_name}")
+
+        famous_organizations = sorted(
+            {
+                str(
+                    organization.get("name", "")
+                    or "Unnamed organization"
+                ).strip()
+                for organization in self.database.list_records(
+                    "organizations"
+                )
+                if isinstance(organization, dict)
+                and bool(organization.get("famous_organization"))
+                and str(
+                    organization.get("location_id", "") or ""
+                ).strip()
+                == selected_id
+            },
+            key=str.casefold,
+        )
+
+        for organization_name in famous_organizations:
+            distinctions.append(f"Home of {organization_name}")
+
+        return distinctions
 
     def synchronize_mage_locations(self):
         locations = self.database.list_records("locations")

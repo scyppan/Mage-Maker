@@ -2,11 +2,10 @@ import hashlib
 import uuid
 from copy import deepcopy
 
-from mage_maker.core.dates import historical_year_after
-from mage_maker.core.wizarding_currency import (
-    format_monthly_salary,
-    monthly_salary_identity,
-    normalize_monthly_salary,
+from mage_maker.core.dates import (
+    LATEST_HISTORICAL_YEAR,
+    next_historical_date,
+    previous_historical_date,
 )
 from mage_maker.sections.development.event_eminence import (
     apply_event_eminence_updates,
@@ -14,18 +13,17 @@ from mage_maker.sections.development.event_eminence import (
 )
 from mage_maker.sections.development.models import (
     job_assignment_active_on,
-    job_assignment_overlaps_year_range,
     job_date_tuple,
     normalize_job_records,
 )
 from mage_maker.sections.locations.models import (
     ancestor_locations,
-    location_path,
     location_paths_by_id,
     recent_location_label,
 )
 from mage_maker.sections.events.models import (
     normalize_association_values,
+    normalize_eminence_skill_values,
     normalize_world_event,
     normalize_world_event_date,
     world_event_year,
@@ -52,6 +50,45 @@ SHOP_STOCK_CATEGORIES = (
 )
 
 
+def normalize_storeroom_inventory(value):
+    if value in (None, ""):
+        candidate_items = []
+    elif isinstance(value, (list, tuple)):
+        candidate_items = list(value)
+    else:
+        raise TypeError("Organization storeroom inventory must be a list.")
+
+    normalized_items = []
+    used_identities = set()
+
+    for candidate in candidate_items:
+        if not isinstance(candidate, dict):
+            raise TypeError("Every storeroom item must be an object.")
+
+        collection = str(candidate.get("collection", "") or "").strip()
+        record_id = str(candidate.get("record_id", "") or "").strip()
+
+        if not collection or not record_id:
+            raise ValueError(
+                "Every storeroom item must identify its database collection."
+            )
+
+        identity = (collection, record_id)
+
+        if identity in used_identities:
+            continue
+
+        used_identities.add(identity)
+        normalized_items.append(
+            {
+                "collection": collection,
+                "record_id": record_id,
+            }
+        )
+
+    return normalized_items
+
+
 def normalize_organization_event(value):
     if not isinstance(value, dict):
         raise TypeError("An organization event must be an object.")
@@ -66,27 +103,37 @@ def normalize_organization_event(value):
     elif not title:
         raise ValueError("An organization event must have a title.")
 
-    year_value = value.get("year")
+    event_date = str(value.get("date", "") or "").strip()
 
-    if year_value in (None, ""):
-        year = None
+    if not event_date:
+        year_value = value.get("year")
+        month_value = value.get("month")
+        day_value = value.get("day")
+
+        if year_value in (None, ""):
+            if month_value not in (None, "") or day_value not in (None, ""):
+                raise ValueError(
+                    "Organization event month and day require a year."
+                )
+        else:
+            event_date = str(year_value).strip()
+
+            if month_value not in (None, ""):
+                event_date += f"-{month_value}"
+
+            if day_value not in (None, ""):
+                if month_value in (None, ""):
+                    raise ValueError(
+                        "Organization event day requires a month."
+                    )
+
+                event_date += f"-{day_value}"
+
+    if event_date:
+        event_date = normalize_world_event_date(event_date)
+        year = world_event_year(event_date)
     else:
-        if isinstance(year_value, bool):
-            raise ValueError(
-                "An organization event year must be a whole number."
-            )
-
-        try:
-            year = int(year_value)
-        except (TypeError, ValueError) as error:
-            raise ValueError(
-                "An organization event year must be a whole number."
-            ) from error
-
-        if not -99999 <= year <= 99999:
-            raise ValueError(
-                "An organization event year must be between -99999 and 99999."
-            )
+        year = None
 
     description = str(
         value.get("description", "") or ""
@@ -101,6 +148,10 @@ def normalize_organization_event(value):
         )
         if person_id in person_ids
     ]
+    eminence_skills = normalize_eminence_skill_values(
+        value.get("eminence_skills"),
+        eminence_person_ids,
+    )
     record_id = str(
         value.get("record_id", "") or ""
     ).strip()
@@ -111,7 +162,7 @@ def normalize_organization_event(value):
         identity_text = "|".join(
             (
                 title.casefold(),
-                str(year or ""),
+                event_date,
                 description.casefold(),
             )
         )
@@ -123,10 +174,12 @@ def normalize_organization_event(value):
         "record_id": record_id,
         "event_type": event_type or "event",
         "title": title,
+        "date": event_date,
         "year": year,
         "description": description,
         "person_ids": person_ids,
         "eminence_person_ids": eminence_person_ids,
+        "eminence_skills": eminence_skills,
     }
 
 
@@ -176,6 +229,9 @@ def new_organization_event(
     description="",
     person_ids=(),
     eminence_person_ids=(),
+    eminence_skills=None,
+    month=None,
+    day=None,
 ):
     return normalize_organization_event(
         {
@@ -183,11 +239,14 @@ def new_organization_event(
             "event_type": "event",
             "title": title,
             "year": year,
+            "month": month,
+            "day": day,
             "description": description,
             "person_ids": list(person_ids),
             "eminence_person_ids": list(
                 eminence_person_ids
             ),
+            "eminence_skills": dict(eminence_skills or {}),
         }
     )
 
@@ -231,11 +290,14 @@ def organization_event_as_world_event(
                 else "other"
             ),
             "title": normalized_event["title"],
-            "date": str(normalized_event["year"]),
+            "date": normalized_event["date"],
             "description": normalized_event["description"],
             "person_ids": normalized_event["person_ids"],
             "eminence_person_ids": normalized_event[
                 "eminence_person_ids"
+            ],
+            "eminence_skills": normalized_event[
+                "eminence_skills"
             ],
             "location_ids": location_ids,
             "locked_location_ids": location_ids,
@@ -259,13 +321,14 @@ def organization_event_from_world_event(
         {
             **normalized_existing,
             "title": normalized_world_event["title"],
-            "year": world_event_year(
-                normalized_world_event["date"]
-            ),
+            "date": normalized_world_event["date"],
             "description": normalized_world_event["description"],
             "person_ids": normalized_world_event["person_ids"],
             "eminence_person_ids": normalized_world_event[
                 "eminence_person_ids"
+            ],
+            "eminence_skills": normalized_world_event[
+                "eminence_skills"
             ],
         }
     )
@@ -296,7 +359,6 @@ def normalize_organization_job(value):
         raise TypeError("An organization job must be an object.")
 
     title = str(value.get("title", "") or "").strip()
-    salary = normalize_monthly_salary(value.get("salary"))
     opened_year_value = value.get(
         "opened_year",
         value.get("start_year"),
@@ -333,7 +395,6 @@ def normalize_organization_job(value):
                     value.get("organization_id", "") or ""
                 ).strip().casefold(),
                 title.casefold(),
-                str(monthly_salary_identity(salary)),
                 str(opened_year),
             )
         )
@@ -344,7 +405,6 @@ def normalize_organization_job(value):
     return {
         "record_id": record_id,
         "title": title,
-        "salary": salary,
         "opened_year": opened_year,
     }
 
@@ -376,12 +436,14 @@ def normalize_organization_jobs(value):
     return normalized_jobs
 
 
-def new_organization_job(title, salary, opened_year):
+def new_organization_job(
+    title,
+    opened_year,
+):
     return normalize_organization_job(
         {
             "record_id": str(uuid.uuid4()),
             "title": title,
-            "salary": salary,
             "opened_year": opened_year,
         }
     )
@@ -461,6 +523,17 @@ def normalize_organization_record(values):
     )
     normalized["shop_inventory"] = normalize_shop_inventory(
         normalized.get("shop_inventory", {})
+    )
+    normalized["famous_organization"] = bool(
+        normalized.get("famous_organization", False)
+    )
+    normalized["has_storeroom"] = bool(
+        normalized.get("has_storeroom", False)
+    )
+    normalized["storeroom_inventory"] = (
+        normalize_storeroom_inventory(
+            normalized.get("storeroom_inventory", [])
+        )
     )
     normalized["extinct"] = bool(normalized.get("extinct", False))
     normalized["extinction_date"] = (
@@ -699,10 +772,13 @@ class OrganizationController:
         database,
         locations_provider,
         schools_provider=None,
+        items_provider=None,
     ):
         self.database = database
         self.locations_provider = locations_provider
         self.schools_provider = schools_provider
+        self.items_provider = items_provider
+        self._storeroom_item_options_cache = None
 
     def list_organizations(self):
         organizations = [
@@ -839,6 +915,9 @@ class OrganizationController:
                 "school_id": "",
                 "has_shop": False,
                 "shop_inventory": normalize_shop_inventory({}),
+                "famous_organization": False,
+                "has_storeroom": False,
+                "storeroom_inventory": [],
                 "extinct": False,
                 "extinction_date": "",
                 "overview": "",
@@ -848,6 +927,11 @@ class OrganizationController:
                         "record_id": "organization-founding",
                         "event_type": ORGANIZATION_EVENT_FOUNDING,
                         "title": "Founding",
+                        "date": (
+                            f"{database_date['year']}-"
+                            f"{database_date['month']:02d}-"
+                            f"{database_date['day']:02d}"
+                        ),
                         "year": database_date["year"],
                         "description": "",
                         "person_ids": [],
@@ -1031,14 +1115,22 @@ class OrganizationController:
                     "Every organization event must have a year."
                 )
 
+        people = (
+            self.database.list_people()
+            if hasattr(self.database, "list_people")
+            else []
+        )
         known_person_ids = {
             str(person.get("record_id", "") or "").strip()
-            for person in (
-                self.database.list_people()
-                if hasattr(self.database, "list_people")
-                else []
-            )
+            for person in people
             if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        non_magical_person_ids = {
+            str(person.get("record_id", "") or "").strip()
+            for person in people
+            if isinstance(person, dict)
+            and bool(person.get("non_magical"))
             and str(person.get("record_id", "") or "").strip()
         }
 
@@ -1050,6 +1142,13 @@ class OrganizationController:
                 raise ValueError(
                     "Every person linked to an organization event "
                     "must exist."
+                )
+
+            if non_magical_person_ids.intersection(
+                event.get("eminence_person_ids", [])
+            ):
+                raise ValueError(
+                    "Non-magical people cannot earn Eminence."
                 )
 
         founding_year = int(events[0]["year"])
@@ -1130,6 +1229,73 @@ class OrganizationController:
             if isinstance(school, dict)
             and str(school.get("record_id", "") or "").strip()
         ]
+
+    def storeroom_item_options(self):
+        if self.items_provider is None:
+            return []
+
+        if self._storeroom_item_options_cache is not None:
+            return deepcopy(self._storeroom_item_options_cache)
+
+        items = []
+
+        for candidate in self.items_provider() or []:
+            if not isinstance(candidate, dict):
+                continue
+
+            collection = str(
+                candidate.get("collection", "") or ""
+            ).strip()
+            record_id = str(
+                candidate.get("record_id", "") or ""
+            ).strip()
+            name = str(candidate.get("name", "") or "").strip()
+            category = str(
+                candidate.get("category", "") or collection
+            ).strip()
+
+            if not collection or not record_id or not name:
+                continue
+
+            items.append(
+                {
+                    "collection": collection,
+                    "record_id": record_id,
+                    "name": name,
+                    "category": category,
+                    "label": f"{name} · {category}",
+                }
+            )
+
+        items.sort(key=self.storeroom_item_sort_key)
+        self._storeroom_item_options_cache = items
+        return deepcopy(items)
+
+    def storeroom_item_sort_key(self, item):
+        return (
+            item["category"].casefold(),
+            item["name"].casefold(),
+            item["record_id"],
+        )
+
+    def storeroom_item_label(self, reference):
+        normalized_reference = normalize_storeroom_inventory(
+            [reference]
+        )[0]
+
+        for item in self.storeroom_item_options():
+            if (
+                item["collection"]
+                == normalized_reference["collection"]
+                and item["record_id"]
+                == normalized_reference["record_id"]
+            ):
+                return item["label"]
+
+        return (
+            f"Missing item · {normalized_reference['collection']} / "
+            f"{normalized_reference['record_id']}"
+        )
 
     def school_by_id(self, school_id):
         selected_id = str(school_id or "").strip()
@@ -1231,6 +1397,11 @@ class OrganizationController:
         organization,
         organizations=None,
         paths_by_id=None,
+        locations=None,
+        location_paths=None,
+        location_labels=None,
+        school_labels=None,
+        storeroom_labels=None,
     ):
         organization_id = str(
             organization.get("record_id", "") or ""
@@ -1238,6 +1409,29 @@ class OrganizationController:
         location_id = str(
             organization.get("location_id", "") or ""
         ).strip()
+        resolved_locations = (
+            self.locations_provider()
+            if locations is None
+            else locations
+        )
+        resolved_location_paths = (
+            location_paths_by_id(resolved_locations)
+            if location_paths is None
+            else location_paths
+        )
+        location_label = (
+            location_labels.get(location_id, "Unknown location")
+            if location_labels is not None
+            else recent_location_label(location_id, resolved_locations)
+        )
+        school_id = str(
+            organization.get("school_id", "") or ""
+        ).strip()
+        school_label = (
+            school_labels.get(school_id, "")
+            if school_labels is not None
+            else self.school_label(school_id)
+        )
         searchable_values = [
             organization.get("name"),
             organization.get("organization_type"),
@@ -1255,15 +1449,16 @@ class OrganizationController:
                     ),
                 )
             ),
-            location_path(
-                location_id,
-                self.locations_provider(),
-            ),
-            self.location_label(location_id),
-            self.school_label(organization.get("school_id"))
-            if organization.get("school_id")
-            else "",
+            resolved_location_paths.get(location_id, ""),
+            location_label,
+            school_label,
             "Has a shop" if organization.get("has_shop") else "",
+            (
+                "Famous organization"
+                if organization.get("famous_organization")
+                else ""
+            ),
+            "Has a storeroom" if organization.get("has_storeroom") else "",
             "Extinct" if organization.get("extinct") else "Active",
             organization.get("extinction_date"),
         ]
@@ -1283,9 +1478,28 @@ class OrganizationController:
                 searchable_values.extend(
                     (
                         job.get("title"),
-                        format_monthly_salary(job.get("salary")),
                         job.get("opened_year"),
                     )
+                )
+
+        for stored_item in organization.get(
+            "storeroom_inventory",
+            [],
+        ):
+            if isinstance(stored_item, dict):
+                collection = str(
+                    stored_item.get("collection", "") or ""
+                ).strip()
+                record_id = str(
+                    stored_item.get("record_id", "") or ""
+                ).strip()
+                searchable_values.append(
+                    storeroom_labels.get(
+                        (collection, record_id),
+                        f"Missing item · {collection} / {record_id}",
+                    )
+                    if storeroom_labels is not None
+                    else self.storeroom_item_label(stored_item)
                 )
 
         return " ".join(
@@ -1298,6 +1512,7 @@ class OrganizationController:
         self,
         organization,
         location_id,
+        locations=None,
     ):
         selected_id = str(location_id or "").strip()
 
@@ -1316,7 +1531,11 @@ class OrganizationController:
             == selected_id
             for location in ancestor_locations(
                 organization_location_id,
-                self.locations_provider(),
+                (
+                    self.locations_provider()
+                    if locations is None
+                    else locations
+                ),
             )
         )
 
@@ -1327,6 +1546,7 @@ class OrganizationController:
         existing_year=None,
         location_id="",
         school_link="all",
+        organizations=None,
     ):
         query_terms = [
             term
@@ -1338,11 +1558,88 @@ class OrganizationController:
             school_link or "all"
         ).strip().casefold()
         matching = []
+        available_organizations = (
+            self.list_organizations()
+            if organizations is None
+            else list(organizations)
+        )
+        paths_by_id = organization_paths_by_id(
+            available_organizations
+        )
+        selected_location_id = str(location_id or "").strip()
+        locations = (
+            self.locations_provider()
+            if query_terms or selected_location_id
+            else []
+        )
+        location_paths = (
+            location_paths_by_id(locations)
+            if query_terms
+            else {}
+        )
+        organization_location_ids = {
+            str(
+                organization.get("location_id", "") or ""
+            ).strip()
+            for organization in available_organizations
+            if str(
+                organization.get("location_id", "") or ""
+            ).strip()
+        }
+        location_labels = {
+            organization_location_id: recent_location_label(
+                organization_location_id,
+                locations,
+            )
+            for organization_location_id in organization_location_ids
+        }
+        school_labels = {}
+        storeroom_labels = {}
 
-        organizations = self.list_organizations()
-        paths_by_id = organization_paths_by_id(organizations)
+        if query_terms:
+            for school in self.school_records():
+                school_id = str(
+                    school.get("record_id", "") or ""
+                ).strip()
 
-        for organization in organizations:
+                if not school_id:
+                    continue
+
+                school_name = str(
+                    school.get("name", "") or "Unnamed school"
+                ).strip()
+                school_location = str(
+                    school.get("location", "") or ""
+                ).strip()
+                school_labels[school_id] = (
+                    f"{school_name} · {school_location}"
+                    if school_location
+                    else school_name
+                )
+
+            if any(
+                organization.get("storeroom_inventory")
+                for organization in available_organizations
+            ):
+                storeroom_labels = {
+                    (
+                        str(
+                            item.get("collection", "") or ""
+                        ).strip(),
+                        str(
+                            item.get("record_id", "") or ""
+                        ).strip(),
+                    ): str(item.get("label", "") or "").strip()
+                    for item in self.storeroom_item_options()
+                    if str(
+                        item.get("collection", "") or ""
+                    ).strip()
+                    and str(
+                        item.get("record_id", "") or ""
+                    ).strip()
+                }
+
+        for organization in available_organizations:
             if (
                 selected_type
                 and selected_type != "All types"
@@ -1370,6 +1667,7 @@ class OrganizationController:
             if not self.organization_matches_location(
                 organization,
                 location_id,
+                locations,
             ):
                 continue
 
@@ -1383,17 +1681,23 @@ class OrganizationController:
             if selected_school_link == "unlinked" and has_school:
                 continue
 
-            search_text_value = self.organization_search_text(
-                organization,
-                organizations,
-                paths_by_id,
-            )
+            if query_terms:
+                search_text_value = self.organization_search_text(
+                    organization,
+                    available_organizations,
+                    paths_by_id,
+                    locations,
+                    location_paths,
+                    location_labels,
+                    school_labels,
+                    storeroom_labels,
+                )
 
-            if not all(
-                term in search_text_value
-                for term in query_terms
-            ):
-                continue
+                if not all(
+                    term in search_text_value
+                    for term in query_terms
+                ):
+                    continue
 
             matching.append(organization)
 
@@ -1401,7 +1705,7 @@ class OrganizationController:
             (
                 self.organization_sort_key_for(
                     organization,
-                    organizations,
+                    available_organizations,
                     paths_by_id,
                 ),
                 organization,
@@ -1595,80 +1899,269 @@ class OrganizationController:
         assignments = self.job_assignments_with_people(
             normalized_job["record_id"]
         )
-
-        if not assignments:
-            return []
-
         database_date = normalize_database_date(
             self.database.data.get(
                 "_application_settings",
                 {},
             ).get(DATABASE_DATE_SETTING_KEY)
         )
-        first_year = min(
-            assignment["start_year"]
-            for assignment in assignments
+        timeline_start = (
+            normalized_job["opened_year"],
+            1,
+            1,
         )
-        last_year = first_year
+        timeline_end = (
+            database_date["year"],
+            database_date["month"],
+            database_date["day"],
+        )
 
         for assignment in assignments:
-            assignment_last_year = (
-                assignment["end_year"]
-                if assignment["end_year"] is not None
-                else max(
-                    assignment["start_year"],
-                    database_date["year"],
-                )
+            assignment_start = job_date_tuple(
+                assignment["start_year"],
+                assignment["start_month"],
+                assignment["start_day"],
             )
-            last_year = max(last_year, assignment_last_year)
+            assignment_end = job_date_tuple(
+                assignment["end_year"],
+                assignment["end_month"],
+                assignment["end_day"],
+                end_boundary=True,
+            )
 
+            if assignment_start > timeline_end:
+                timeline_end = assignment_start
+
+            if assignment_end is not None and assignment_end > timeline_end:
+                timeline_end = assignment_end
+
+        assignments.sort(key=self.job_assignment_person_sort_key)
         timeline = []
-        timeline_year = first_year
+        cursor = timeline_start
 
-        while True:
-            year_assignments = [
-                assignment
-                for assignment in assignments
-                if job_assignment_overlaps_year_range(
-                    assignment,
-                    timeline_year,
+        for assignment in assignments:
+            assignment_start = job_date_tuple(
+                assignment["start_year"],
+                assignment["start_month"],
+                assignment["start_day"],
+            )
+            assignment_end = job_date_tuple(
+                assignment["end_year"],
+                assignment["end_month"],
+                assignment["end_day"],
+                end_boundary=True,
+            )
+
+            if assignment_start > cursor:
+                vacant_end = previous_historical_date(
+                    *assignment_start
                 )
-            ]
-            holder_names = []
-            person_ids = []
+                timeline.append(
+                    self.job_timeline_entry(
+                        cursor,
+                        vacant_end,
+                        [],
+                        [],
+                        True,
+                    )
+                )
 
-            for assignment in year_assignments:
-                person_name = assignment["person_name"]
-                person_id = assignment["person_id"]
-
-                if person_name not in holder_names:
-                    holder_names.append(person_name)
-
-                if person_id and person_id not in person_ids:
-                    person_ids.append(person_id)
-
-            holder_text = (
-                " → ".join(holder_names)
-                if holder_names
-                else "Vacant"
+            visible_assignment_end = (
+                assignment_end
+                if assignment_end is not None
+                else timeline_end
             )
             timeline.append(
-                {
-                    "year": timeline_year,
-                    "person_ids": person_ids,
-                    "holder_names": holder_names,
-                    "label": f"{timeline_year}  ·  {holder_text}",
-                }
+                self.job_timeline_entry(
+                    assignment_start,
+                    visible_assignment_end,
+                    [assignment["person_id"]],
+                    [assignment["person_name"]],
+                    False,
+                )
             )
-
-            if timeline_year == last_year:
+            if visible_assignment_end == (
+                LATEST_HISTORICAL_YEAR,
+                12,
+                31,
+            ):
+                cursor = None
                 break
 
-            timeline_year = historical_year_after(
-                timeline_year
+            next_cursor = next_historical_date(*visible_assignment_end)
+
+            if next_cursor > cursor:
+                cursor = next_cursor
+
+        if cursor is not None and cursor <= timeline_end:
+            timeline.append(
+                self.job_timeline_entry(
+                    cursor,
+                    timeline_end,
+                    [],
+                    [],
+                    True,
+                )
             )
 
-        return timeline
+        return self.combine_job_timeline_entries(timeline)
+
+    def combine_job_timeline_entries(self, timeline):
+        combined = []
+
+        for entry in timeline:
+            if not combined:
+                combined.append(deepcopy(entry))
+                continue
+
+            previous = combined[-1]
+            same_holder = (
+                previous.get("vacant") == entry.get("vacant")
+                and previous.get("person_ids") == entry.get("person_ids")
+                and previous.get("holder_names")
+                == entry.get("holder_names")
+            )
+            previous_end = (
+                previous["end_year"],
+                previous["end_month"],
+                previous["end_day"],
+            )
+            entry_start = (
+                entry["start_year"],
+                entry["start_month"],
+                entry["start_day"],
+            )
+
+            entries_touch = entry_start <= previous_end
+
+            if (
+                not entries_touch
+                and previous_end
+                != (LATEST_HISTORICAL_YEAR, 12, 31)
+            ):
+                entries_touch = (
+                    entry_start == next_historical_date(*previous_end)
+                )
+
+            if same_holder and entries_touch:
+                entry_end = (
+                    entry["end_year"],
+                    entry["end_month"],
+                    entry["end_day"],
+                )
+                merged_end = max(previous_end, entry_end)
+                combined[-1] = self.job_timeline_entry(
+                    (
+                        previous["start_year"],
+                        previous["start_month"],
+                        previous["start_day"],
+                    ),
+                    merged_end,
+                    previous["person_ids"],
+                    previous["holder_names"],
+                    previous["vacant"],
+                )
+                continue
+
+            combined.append(deepcopy(entry))
+
+        return combined
+
+    def job_timeline_entry(
+        self,
+        start_date,
+        end_date,
+        person_ids,
+        holder_names,
+        vacant,
+    ):
+        start_year, start_month, start_day = start_date
+        end_year, end_month, end_day = end_date
+        range_text = self.job_timeline_range_text(
+            start_year,
+            start_month,
+            start_day,
+            end_year,
+            end_month,
+            end_day,
+        )
+        holder_text = (
+            " → ".join(holder_names)
+            if holder_names
+            else "Vacant"
+        )
+        return {
+            "year": start_year,
+            "start_year": start_year,
+            "start_month": start_month,
+            "start_day": start_day,
+            "end_year": end_year,
+            "end_month": end_month,
+            "end_day": end_day,
+            "person_ids": list(person_ids),
+            "holder_names": list(holder_names),
+            "vacant": bool(vacant),
+            "label": f"{range_text} • {holder_text}",
+        }
+
+    def job_timeline_range_text(
+        self,
+        start_year,
+        start_month,
+        start_day,
+        end_year,
+        end_month,
+        end_day,
+    ):
+        start_text = self.job_timeline_date_text(
+            start_year,
+            start_month,
+            start_day,
+        )
+        end_text = self.job_timeline_date_text(
+            end_year,
+            end_month,
+            end_day,
+        )
+
+        if start_text == end_text:
+            return start_text
+
+        if start_year == end_year:
+            if (
+                start_month == 1
+                and start_day == 1
+                and end_month == 12
+                and end_day == 31
+            ):
+                return str(start_year)
+
+        if (
+            start_month == 1
+            and start_day == 1
+            and end_month == 12
+            and end_day == 31
+        ):
+            return f"{start_year}-{end_year}"
+
+        if start_month == 1 and start_day == 1:
+            return f"{start_year}–{end_text}"
+
+        if end_month == 12 and end_day == 31:
+            return f"{start_text}–{end_year}"
+
+        return f"{start_text}–{end_text}"
+
+    def job_timeline_date_text(self, year, month, day):
+        date_text = str(year)
+
+        if month not in (None, ""):
+            date_text += f"-{int(month):02d}"
+
+        if day not in (None, ""):
+            date_text += f"-{int(day):02d}"
+
+        return date_text
 
     def organization_job_is_referenced(self, organization_job_id):
         selected_id = str(

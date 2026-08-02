@@ -1,17 +1,29 @@
 import uuid
 from copy import deepcopy
 
-from mage_maker.core.dates import normalize_partial_date
+from mage_maker.core.dates import format_date_parts, normalize_partial_date
+from mage_maker.core.wizarding_currency import format_monthly_salary
+from mage_maker.sections.development.models import (
+    calculate_school_start_year,
+    school_year_calendar_year,
+)
 from mage_maker.sections.events.types import (
     EVENT_LABEL_TYPES,
     EVENT_TYPE_LABELS,
     canonical_event_type,
     event_type_options,
 )
-from mage_maker.sections.events.models import normalize_association_values
+from mage_maker.sections.events.models import (
+    normalize_association_values,
+    normalize_job_event_metadata,
+)
 
 
 EVENT_TYPES = event_type_options("person", include_automatic=True)
+DEATH_DATE_EVENT_SOURCE = "death_date"
+SCHOOL_START_EVENT_SOURCE = "school_start"
+DEATH_DATE_EVENT_ID = "automatic:death"
+SCHOOL_START_EVENT_ID = "automatic:school-start"
 
 
 def normalize_timeline_events(events):
@@ -46,6 +58,7 @@ def normalize_timeline_event(event):
     normalized["event_type"] = canonical_event_type(
         normalized.get("event_type") or "custom"
     )
+    normalized = normalize_job_event_metadata(normalized)
     normalized["detail"] = str(normalized.get("detail") or "").strip()
     normalized["date"] = normalize_event_date(normalized.get("date"))
     normalized["note"] = str(normalized.get("note") or "").strip()
@@ -147,12 +160,22 @@ def timeline_event_summary(event):
         return "Had a child"
 
     if event_type == "got_married":
-        return f"Got married to {detail}" if detail else "Got married"
+        return f"Marriage to {detail}" if detail else "Marriage"
 
     if event_type == "died":
-        return f"Died: {detail}" if detail else "Died"
+        return f"Death: {detail}" if detail else "Death"
 
     if event_type == "started_school":
+        if event.get("automatic_source") == SCHOOL_START_EVENT_SOURCE:
+            if event.get("started_late"):
+                return (
+                    f"Started at {detail} a bit late"
+                    if detail
+                    else "Started school a bit late"
+                )
+
+            return "Started school"
+
         return f"Started at {detail} school" if detail else "Started at school"
 
     if event_type == "opened_business":
@@ -162,8 +185,25 @@ def timeline_event_summary(event):
             else "Opened a business"
         )
 
-    if event_type == "got_job":
-        return f"Got a job: {detail}" if detail else "Got a job"
+    if event_type == "started_job":
+        summary = f"Started job: {detail}" if detail else "Started job"
+
+        if event.get("salary") is not None:
+            summary += f" · {format_monthly_salary(event['salary'])}"
+
+        return summary
+
+    if event_type == "received_raise":
+        summary = (
+            f"Received a raise: {detail}"
+            if detail
+            else "Received a raise"
+        )
+
+        if event.get("salary") is not None:
+            summary += f" · {format_monthly_salary(event['salary'])}"
+
+        return summary
 
     if event_type == "work_change":
         return (
@@ -192,7 +232,8 @@ def timeline_detail_label(event_type):
         "died": "Death detail",
         "started_school": "School name",
         "opened_business": "Business name",
-        "got_job": "Job or employer",
+        "started_job": "Job",
+        "received_raise": "Job",
         "work_change": "New role, employer, or work change",
         "relocated": "New location",
         "name_change": "New name",
@@ -249,3 +290,168 @@ def automatic_child_timeline_event(child, existing_event=None):
     event["related_person_id"] = child_id
     event["automatic_source"] = "child_assignment"
     return normalize_timeline_event(event)
+
+
+def person_death_timeline_date(person):
+    if not isinstance(person, dict):
+        return ""
+
+    if not bool(person.get("deceased")):
+        return ""
+
+    if person.get("death_year") in (None, ""):
+        return ""
+
+    return format_date_parts(
+        person.get("death_year"),
+        person.get("death_month"),
+        person.get("death_day"),
+        unknown="",
+    )
+
+
+def automatic_death_timeline_event(person, existing_event=None):
+    death_date = person_death_timeline_date(person)
+
+    if not death_date:
+        return None
+
+    event = deepcopy(existing_event) if isinstance(existing_event, dict) else {}
+    event["event_id"] = str(
+        event.get("event_id") or DEATH_DATE_EVENT_ID
+    )
+    event["event_type"] = "died"
+    event["detail"] = ""
+    event["date"] = death_date
+    event["note"] = ""
+    event["related_person_id"] = ""
+    event["automatic_source"] = DEATH_DATE_EVENT_SOURCE
+    return normalize_timeline_event(event)
+
+
+def first_attended_school_year(person):
+    if not isinstance(person, dict):
+        return None
+
+    if bool(person.get("non_magical")):
+        return None
+
+    if not str(person.get("school", "") or "").strip():
+        return None
+
+    development_plan = person.get("development_plan")
+
+    if not isinstance(development_plan, dict):
+        return None
+
+    school_year_records = development_plan.get("school_years", [])
+
+    if not isinstance(school_year_records, list):
+        return None
+
+    attended_years = []
+
+    for school_year_record in school_year_records:
+        if not isinstance(school_year_record, dict):
+            continue
+
+        if bool(school_year_record.get("skipped", False)):
+            continue
+
+        try:
+            school_year = int(school_year_record.get("year"))
+        except (TypeError, ValueError):
+            continue
+
+        if 1 <= school_year <= 7:
+            attended_years.append(school_year)
+
+    if attended_years:
+        return min(attended_years)
+
+    if bool(development_plan.get("school_started")) and not school_year_records:
+        return 1
+
+    return None
+
+
+def automatic_school_start_timeline_event(person, existing_event=None):
+    first_school_year = first_attended_school_year(person)
+
+    if first_school_year is None:
+        return None
+
+    academic_start_year = calculate_school_start_year(
+        person.get("birth_year"),
+        person.get("birth_month"),
+        person.get("birth_day"),
+    )
+    calendar_year = school_year_calendar_year(
+        academic_start_year,
+        first_school_year,
+    )
+
+    if calendar_year is None:
+        return None
+
+    school_name = str(person.get("school", "") or "").strip()
+    event = deepcopy(existing_event) if isinstance(existing_event, dict) else {}
+    event["event_id"] = str(
+        event.get("event_id") or SCHOOL_START_EVENT_ID
+    )
+    event["event_type"] = "started_school"
+    event["detail"] = school_name
+    event["date"] = format_date_parts(
+        calendar_year,
+        9,
+        1,
+        unknown="",
+    )
+    event["note"] = ""
+    event["related_person_id"] = ""
+    event["automatic_source"] = SCHOOL_START_EVENT_SOURCE
+    event["school_year"] = first_school_year
+    event["started_late"] = first_school_year > 1
+    return normalize_timeline_event(event)
+
+
+def synchronize_profile_timeline_events(person, timeline_events=None):
+    person_values = person if isinstance(person, dict) else {}
+    source_events = normalize_timeline_events(
+        person_values.get("timeline_events", [])
+        if timeline_events is None
+        else timeline_events
+    )
+    automatic_events = {}
+    retained_events = []
+
+    for event in source_events:
+        automatic_source = str(
+            event.get("automatic_source", "") or ""
+        ).strip()
+
+        if automatic_source in (
+            DEATH_DATE_EVENT_SOURCE,
+            SCHOOL_START_EVENT_SOURCE,
+        ):
+            automatic_events.setdefault(automatic_source, event)
+            continue
+
+        retained_events.append(event)
+
+    death_event = automatic_death_timeline_event(
+        person_values,
+        automatic_events.get(DEATH_DATE_EVENT_SOURCE),
+    )
+    school_event = automatic_school_start_timeline_event(
+        person_values,
+        automatic_events.get(SCHOOL_START_EVENT_SOURCE),
+    )
+
+    if death_event is not None:
+        retained_events.append(death_event)
+
+    if school_event is not None:
+        retained_events.append(school_event)
+
+    return normalize_timeline_events(retained_events)

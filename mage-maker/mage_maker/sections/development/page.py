@@ -7,6 +7,7 @@ from mage_maker.core.dates import (
     historical_year_distance,
     historical_year_shift,
 )
+from mage_maker.core.wizarding_currency import format_monthly_salary
 from mage_maker.sections.development.bonus_dialogs import (
     InitialSkillBonusDialog,
     TraitSelectionDialog,
@@ -239,6 +240,7 @@ class DevelopmentView(tk.Frame):
         self.active_year_tab = 0
         self.active_adult_year = 0
         self.active_development_page_index = 0
+        self.development_page_by_person_id = {}
         self.year_placeholder_value = tk.StringVar()
         self.year_detail_heading_value = tk.StringVar()
         self.development_page_heading_value = tk.StringVar(
@@ -2052,6 +2054,23 @@ class DevelopmentView(tk.Frame):
 
     def set_person(self, person):
         person_values = person if isinstance(person, dict) else {}
+
+        if not hasattr(self, "development_page_by_person_id"):
+            self.development_page_by_person_id = {}
+
+        previous_person_id = str(
+            getattr(self, "current_person", {}).get("record_id", "")
+            or ""
+        ).strip()
+
+        if previous_person_id:
+            self.development_page_by_person_id[previous_person_id] = int(
+                getattr(self, "active_development_page_index", 0)
+            )
+
+        selected_person_id = str(
+            person_values.get("record_id", "") or ""
+        ).strip()
         loaded_development_values = {
             "school": person_values.get("school", ""),
             "blood_status": person_values.get("blood_status"),
@@ -2100,7 +2119,12 @@ class DevelopmentView(tk.Frame):
         )
         self.active_year_tab = 0
         self.active_adult_year = 0
-        self.active_development_page_index = 0
+        self.active_development_page_index = (
+            self.development_page_by_person_id.get(
+                selected_person_id,
+                0,
+            )
+        )
         self.strategy_value.set(plan["schema"])
         self.blood_status_value.set(
             resolved_blood_status(
@@ -2595,6 +2619,23 @@ class DevelopmentView(tk.Frame):
         )
 
     def school_changed(self):
+        stored_plan = getattr(self, "development_plan", {})
+        was_calendar_year_progression = bool(
+            stored_plan.get("calendar_year_progression", False)
+            if isinstance(stored_plan, dict)
+            else False
+        )
+
+        if self.school_is_selected() and was_calendar_year_progression:
+            self.development_plan.pop(
+                "calendar_year_progression",
+                None,
+            )
+            self.school_started = True
+            self.academic_years_advanced = 0
+            self.ensure_school_year_record_count(1)
+            self.active_development_page_index = 1
+
         if hasattr(self, "start_year_value"):
             self.update_start_year()
         self.update_school_progress_controls()
@@ -2647,6 +2688,26 @@ class DevelopmentView(tk.Frame):
             getattr(self, "school_started", False),
             getattr(self, "academic_years_advanced", 0),
         )
+
+    def visible_development_adult_years(self):
+        adult_year_count = len(
+            normalize_adult_year_records(
+                getattr(self, "adult_year_records", [])
+            )
+        )
+
+        if DevelopmentView.uses_calendar_year_progression(self):
+            return adult_year_count
+
+        if (
+            normalize_academic_years_advanced(
+                getattr(self, "academic_years_advanced", 0)
+            )
+            >= ACADEMIC_YEARS_TO_ADULTHOOD
+        ):
+            return adult_year_count
+
+        return 0
 
     def strategy_changed(self, *arguments):
         if self.loading:
@@ -3045,11 +3106,7 @@ class DevelopmentView(tk.Frame):
         page_count = (
             1
             + visible_years
-            + len(
-                normalize_adult_year_records(
-                    getattr(self, "adult_year_records", [])
-                )
-            )
+            + DevelopmentView.visible_development_adult_years(self)
         )
 
         if select_latest:
@@ -3200,10 +3257,8 @@ class DevelopmentView(tk.Frame):
 
             target_index = normalized_year
         elif page_type == "adult":
-            adult_year_count = len(
-                normalize_adult_year_records(
-                    getattr(self, "adult_year_records", [])
-                )
+            adult_year_count = (
+                DevelopmentView.visible_development_adult_years(self)
             )
 
             if not 1 <= normalized_year <= adult_year_count:
@@ -3221,11 +3276,7 @@ class DevelopmentView(tk.Frame):
         return (
             1
             + DevelopmentView.visible_development_school_years(self)
-            + len(
-                normalize_adult_year_records(
-                    getattr(self, "adult_year_records", [])
-                )
-            )
+            + DevelopmentView.visible_development_adult_years(self)
         )
 
     def recorded_death_date(self):
@@ -3352,6 +3403,13 @@ class DevelopmentView(tk.Frame):
             ),
         )
         self.active_development_page_index = page_index
+        person_id = str(
+            getattr(self, "current_person", {}).get("record_id", "")
+            or ""
+        ).strip()
+
+        if person_id:
+            self.development_page_by_person_id[person_id] = page_index
 
         if page_index == 0:
             self.active_year_tab = 0
@@ -3467,6 +3525,16 @@ class DevelopmentView(tk.Frame):
                 self.academic_years_advanced = (
                     ACADEMIC_YEARS_TO_ADULTHOOD
                 )
+
+                if normalize_adult_year_records(
+                    getattr(self, "adult_year_records", [])
+                ):
+                    self.active_development_page_index = (
+                        visible_years + 1
+                    )
+                    self.update_school_progress_controls()
+                    self.notify_change()
+                    return
 
             self.add_next_adult_year()
             return
@@ -3807,7 +3875,8 @@ class DevelopmentView(tk.Frame):
                 "end",
                 (
                     f"{job['organization_name']} — {job['title']} · "
-                    f"{start_date} to {end_date}"
+                    f"{start_date} to {end_date} · "
+                    f"{format_monthly_salary(job['salary'])}"
                 ),
             )
 
@@ -5488,8 +5557,8 @@ class DevelopmentView(tk.Frame):
         else:
             trait_label = "trait" if trait_count == 1 else "traits"
             selected_text = (
-                "\n"
-                + "\n".join(
+                ": "
+                + "; ".join(
                     f"{trait_name}: "
                     f"{trait_effect_text(trait_name)}"
                     for trait_name in selected_traits

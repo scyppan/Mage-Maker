@@ -296,6 +296,9 @@ class MagesPage(tk.Frame):
     def prepare_creation_values(self, values):
         creation_values = deepcopy(values)
 
+        if creation_values.get("non_magical"):
+            return creation_values
+
         if creation_values.get("development_plan") not in (None, ""):
             return creation_values
 

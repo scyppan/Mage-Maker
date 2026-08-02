@@ -4,6 +4,7 @@ from mage_maker.core.dates import is_at_least_age, normalize_date_parts
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
     new_development_plan,
+    non_magical_development_plan,
     normalize_development_assignment_policy,
     normalize_development_plan,
 )
@@ -42,6 +43,7 @@ from mage_maker.sections.settings.mage_groups import (
 from mage_maker.sections.timeline.events import (
     automatic_child_timeline_event,
     normalize_timeline_events,
+    synchronize_profile_timeline_events,
 )
 from mage_maker.sections.timeline.locations import (
     ParentLocationConflict,
@@ -79,6 +81,7 @@ class PeopleController:
         "player_character",
         "non_magical",
         "can_give_birth",
+        "does_not_have_children",
         "famous_person",
         "unfinished",
     )
@@ -252,6 +255,7 @@ class PeopleController:
             "player_character": False,
             "non_magical": False,
             "can_give_birth": False,
+            "does_not_have_children": False,
             "famous_person": False,
             "unfinished": False,
             "biological_mother_id": "",
@@ -274,7 +278,14 @@ class PeopleController:
         }
         defaults.update(creation_values)
 
-        if defaults.get("development_plan") in (None, ""):
+        if bool(defaults.get("non_magical")):
+            defaults["school"] = ""
+            defaults["development_plan"] = (
+                non_magical_development_plan(
+                    defaults.get("development_plan")
+                )
+            )
+        elif defaults.get("development_plan") in (None, ""):
             defaults["development_plan"] = new_development_plan(
                 self.development_assignment_policy()
             )
@@ -305,6 +316,15 @@ class PeopleController:
         normalized["characteristics"] = normalize_characteristics(
             normalized.get("characteristics")
         )
+
+        if normalized["non_magical"]:
+            normalized["school"] = ""
+            normalized["development_plan"] = (
+                non_magical_development_plan(
+                    normalized.get("development_plan")
+                )
+            )
+
         normalize_date_parts(
             normalized.get("birth_year"),
             normalized.get("birth_month"),
@@ -319,6 +339,10 @@ class PeopleController:
         )
         normalized["timeline_events"] = synchronize_name_change_events(
             normalized["name_details"],
+            normalized["timeline_events"],
+        )
+        normalized["timeline_events"] = synchronize_profile_timeline_events(
+            normalized,
             normalized["timeline_events"],
         )
         self.validate_values(normalized)
@@ -380,6 +404,15 @@ class PeopleController:
                 prospective_person.get("initial_bonuses")
             )
         )
+
+        if prospective_person.get("non_magical"):
+            prospective_person["school"] = ""
+            prospective_person["development_plan"] = (
+                non_magical_development_plan(
+                    prospective_person.get("development_plan")
+                )
+            )
+
         normalize_date_parts(
             prospective_person.get("birth_year"),
             prospective_person.get("birth_month"),
@@ -396,6 +429,12 @@ class PeopleController:
             prospective_person.get("name_details", empty_name_details()),
             prospective_person["timeline_events"],
         )
+        prospective_person["timeline_events"] = (
+            synchronize_profile_timeline_events(
+                prospective_person,
+                prospective_person["timeline_events"],
+            )
+        )
         normalized["biological_mother_status"] = prospective_person[
             "biological_mother_status"
         ]
@@ -411,6 +450,10 @@ class PeopleController:
         normalized["initial_bonuses"] = deepcopy(
             prospective_person["initial_bonuses"]
         )
+        normalized["school"] = prospective_person.get("school", "")
+        normalized["development_plan"] = deepcopy(
+            prospective_person.get("development_plan")
+        )
         normalized["timeline_events"] = prospective_person["timeline_events"]
         self.validate_values(prospective_person)
         old_spouse_relationships = normalize_spouse_relationships(
@@ -421,6 +464,10 @@ class PeopleController:
             current_person.get("non_magical")
         ) != bool(prospective_person.get("non_magical"))
         updated_person = self.database.update_person(record_id, normalized)
+
+        if non_magical_changed and updated_person.get("non_magical"):
+            self.remove_person_eminence_associations(record_id)
+
         if non_magical_changed:
             self.reconcile_child_blood_statuses(record_id)
         self.synchronize_spouses(
@@ -825,6 +872,12 @@ class PeopleController:
             if parent is None:
                 raise ValueError(f"The selected {role_label} no longer exists.")
 
+            if bool(parent.get("does_not_have_children")):
+                raise ValueError(
+                    f"The selected {role_label} is marked Does not have "
+                    "children and cannot be added as a parent."
+                )
+
             if bool(parent.get("can_give_birth")) != required_capability:
                 requirement = "checked" if required_capability else "unchecked"
                 raise ValueError(
@@ -866,6 +919,17 @@ class PeopleController:
 
         if record_id:
             for child in self.database.list_people():
+                is_parent = record_id in (
+                    str(child.get("biological_mother_id", "") or ""),
+                    str(child.get("biological_father_id", "") or ""),
+                )
+
+                if values.get("does_not_have_children") and is_parent:
+                    raise ValueError(
+                        "Does not have children cannot be checked while "
+                        "this person is linked as a parent."
+                    )
+
                 if child.get("biological_mother_id") == record_id and not current_can_give_birth:
                     raise ValueError(
                         "Can give birth must remain checked while this person is listed "
@@ -878,14 +942,68 @@ class PeopleController:
                         "as a non-birthing parent."
                     )
 
-                if record_id in (
-                    str(child.get("biological_mother_id", "") or ""),
-                    str(child.get("biological_father_id", "") or ""),
-                ) and is_at_least_age(values, child, 18) is False:
+                if is_parent and is_at_least_age(values, child, 18) is False:
                     raise ValueError(
                         "This birth date would make the person younger than 18 "
                         f"when {child.get('displayed_name', 'their child')} was born."
                     )
+
+    def remove_person_eminence_associations(self, record_id):
+        normalized_record_id = str(record_id or "").strip()
+
+        if not normalized_record_id:
+            return False
+
+        changed = False
+
+        for event in self.database.data.get("events", []):
+            if not isinstance(event, dict):
+                continue
+
+            earned_ids = event.get("eminence_person_ids", [])
+
+            if isinstance(earned_ids, list) and normalized_record_id in earned_ids:
+                event["eminence_person_ids"] = [
+                    person_id
+                    for person_id in earned_ids
+                    if person_id != normalized_record_id
+                ]
+                changed = True
+
+            skills = event.get("eminence_skills")
+
+            if isinstance(skills, dict) and normalized_record_id in skills:
+                skills.pop(normalized_record_id, None)
+                changed = True
+
+        for organization in self.database.data.get("organizations", []):
+            if not isinstance(organization, dict):
+                continue
+
+            for event in organization.get("events", []):
+                if not isinstance(event, dict):
+                    continue
+
+                earned_ids = event.get("eminence_person_ids", [])
+
+                if isinstance(earned_ids, list) and normalized_record_id in earned_ids:
+                    event["eminence_person_ids"] = [
+                        person_id
+                        for person_id in earned_ids
+                        if person_id != normalized_record_id
+                    ]
+                    changed = True
+
+                skills = event.get("eminence_skills")
+
+                if isinstance(skills, dict) and normalized_record_id in skills:
+                    skills.pop(normalized_record_id, None)
+                    changed = True
+
+        if changed:
+            self.database.dirty = True
+
+        return changed
 
     def synchronize_spouses(
         self,

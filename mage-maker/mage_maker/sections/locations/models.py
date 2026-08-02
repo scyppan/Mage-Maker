@@ -101,6 +101,8 @@ def location_foundation_event_state(location, world_events=None):
             "valid": False,
             "first_event_id": "",
             "foundation_event_id": "",
+            "foundation_event_type": "",
+            "foundation_event_date": "",
         }
 
     location_id = str(
@@ -167,6 +169,16 @@ def location_foundation_event_state(location, world_events=None):
         ),
         "foundation_event_id": (
             foundation_event["event_id"]
+            if foundation_event is not None
+            else ""
+        ),
+        "foundation_event_type": (
+            foundation_event["event_type"]
+            if foundation_event is not None
+            else ""
+        ),
+        "foundation_event_date": (
+            foundation_event["date"]
             if foundation_event is not None
             else ""
         ),

@@ -2,7 +2,9 @@ import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox
 
-from mage_maker.core.wizarding_currency import format_monthly_salary
+from mage_maker.core.wizarding_currency import (
+    currency_component_input_is_valid,
+)
 from mage_maker.sections.development.models import (
     new_job_record,
     normalize_job_record,
@@ -72,11 +74,29 @@ class PositionAssignmentDialog(tk.Toplevel):
         self.selected_organization = None
         self.selected_job = None
         self.visible_jobs = []
+        existing_salary = (
+            self.existing_record["salary"]
+            if self.existing_record is not None
+            else {
+                "galleons": 0,
+                "sickles": 0,
+                "knuts": 0,
+            }
+        )
         self.organization_value = tk.StringVar(
             value="No organization selected"
         )
         self.assignment_status_value = tk.StringVar(
             value="Choose an organization and job."
+        )
+        self.salary_galleons_value = tk.StringVar(
+            value=str(existing_salary["galleons"])
+        )
+        self.salary_sickles_value = tk.StringVar(
+            value=str(existing_salary["sickles"])
+        )
+        self.salary_knuts_value = tk.StringVar(
+            value=str(existing_salary["knuts"])
         )
         self.start_year_value = tk.StringVar(
             value=(
@@ -158,8 +178,8 @@ class PositionAssignmentDialog(tk.Toplevel):
             else "Add job"
         )
         self.configure(bg=APP_BACKGROUND)
-        self.geometry("760x690")
-        self.minsize(680, 610)
+        self.geometry("760x740")
+        self.minsize(680, 660)
         self.transient(parent.winfo_toplevel())
         self.protocol("WM_DELETE_WINDOW", self.close_dialog)
         self.grid_rowconfigure(1, weight=1)
@@ -326,9 +346,64 @@ class PositionAssignmentDialog(tk.Toplevel):
             yscrollcommand=job_scrollbar.set
         )
 
+        salary_panel = tk.Frame(body, bg=SURFACE)
+        salary_panel.grid(
+            row=5,
+            column=0,
+            sticky="ew",
+            pady=(0, 14),
+        )
+        salary_panel.grid_columnconfigure((0, 1, 2), weight=1)
+
+        for column, label_text, value, maximum in (
+            (0, "Monthly salary · Galleons", self.salary_galleons_value, ""),
+            (1, "Sickles", self.salary_sickles_value, "16"),
+            (2, "Knuts", self.salary_knuts_value, "28"),
+        ):
+            salary_block = tk.Frame(salary_panel, bg=SURFACE)
+            salary_block.grid(
+                row=0,
+                column=column,
+                sticky="ew",
+                padx=(0, 8) if column < 2 else 0,
+            )
+            salary_block.grid_columnconfigure(0, weight=1)
+            salary_label = tk.Label(
+                salary_block,
+                text=label_text,
+                bg=SURFACE,
+                fg=TEXT_MUTED,
+                font=app_font(9, "bold"),
+                anchor="w",
+            )
+            salary_label.grid(row=0, column=0, sticky="ew")
+            salary_entry = RoundedEntry(
+                salary_block,
+                textvariable=value,
+                background=SURFACE,
+                width=170,
+                height=36,
+                font=app_font(10),
+                justify="center",
+            )
+            salary_entry.grid(
+                row=1,
+                column=0,
+                sticky="ew",
+                pady=(4, 0),
+            )
+            salary_entry.entry.configure(
+                validate="key",
+                validatecommand=(
+                    self.register(currency_component_input_is_valid),
+                    "%P",
+                    maximum,
+                ),
+            )
+
         dates_frame = tk.Frame(body, bg=SURFACE)
         dates_frame.grid(
-            row=5,
+            row=6,
             column=0,
             sticky="ew",
         )
@@ -355,7 +430,7 @@ class PositionAssignmentDialog(tk.Toplevel):
             wraplength=680,
         )
         calendar_notice.grid(
-            row=6,
+            row=7,
             column=0,
             sticky="w",
             pady=(8, 0),
@@ -370,7 +445,7 @@ class PositionAssignmentDialog(tk.Toplevel):
             justify="left",
         )
         status_label.grid(
-            row=7,
+            row=8,
             column=0,
             sticky="ew",
             pady=(12, 0),
@@ -607,7 +682,6 @@ class PositionAssignmentDialog(tk.Toplevel):
                 "end",
                 (
                     f"{organization_job['title']} · "
-                    f"{format_monthly_salary(organization_job['salary'])} · "
                     f"opened {organization_job['opened_year']} · "
                     f"{status}"
                 ),
@@ -687,7 +761,11 @@ class PositionAssignmentDialog(tk.Toplevel):
                 or ""
             ),
             organization_job["title"],
-            organization_job["salary"],
+            {
+                "galleons": self.salary_galleons_value.get(),
+                "sickles": self.salary_sickles_value.get(),
+                "knuts": self.salary_knuts_value.get(),
+            },
             self.start_year_value.get(),
             self.start_month_value.get(),
             self.start_day_value.get(),

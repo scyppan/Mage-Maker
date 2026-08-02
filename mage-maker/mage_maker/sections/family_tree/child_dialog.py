@@ -47,7 +47,12 @@ class AddChildDialog(tk.Toplevel):
         self.people_provider = people_provider
         self.save_command = save_command
         self.open_other_parent_command = open_other_parent_command
-        self.existing_mates = list(existing_mates or [])
+        self.existing_mates = [
+            person
+            for person in existing_mates or []
+            if isinstance(person, dict)
+            and not bool(person.get("does_not_have_children"))
+        ]
         self.visible_children = []
         self.eligible_children = []
         self.new_child_name = ""
@@ -633,6 +638,12 @@ class AddChildDialog(tk.Toplevel):
         if selected_person is None:
             self.choose_unknown_parent()
             return
+
+        if bool(selected_person.get("does_not_have_children")):
+            raise ValueError(
+                "The selected person is marked Does not have children "
+                "and cannot be added as a parent."
+            )
 
         self.other_parent_id = str(record_id)
         self.other_parent_kind = "person"
