@@ -2,7 +2,7 @@
   "_database": {
     "schema_version": 33,
     "database_version": "0.33.0",
-    "last_saved": "2026-08-02T14:28:49.913430+00:00"
+    "last_saved": "2026-08-02T14:47:04.035628+00:00"
   },
   "people": [
     {
@@ -80,7 +80,7 @@
       "imported_fields": {},
       "record_id": "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
       "created_at": "2026-07-22T13:11:28.910114+00:00",
-      "last_updated": "2026-08-01T03:54:58.375731+00:00",
+      "last_updated": "2026-08-02T14:47:04.012964+00:00",
       "death_year": null,
       "death_month": null,
       "death_day": null,
@@ -93,7 +93,43 @@
         "school_years": [],
         "ledger_entries": [],
         "adult_years": [],
-        "initial_eminence": [],
+        "initial_eminence": [
+          {
+            "record_id": "event-eminence-b426b72d238019b47d681b3c",
+            "title": "Godric and Salazar study together",
+            "description": "Throughout the entire year, Godric and Salazar regularly study together, continuing to harness their skills.",
+            "skill": "Arithmancy",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-cd303b1c1d73e4c7571bc305",
+            "title": "Salazar and Godric continue their study",
+            "description": "",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-8d21c8c3aba97d147b57fbfa",
+            "title": "Godric recruits Ravenclaw",
+            "description": "Rowena and Godric were friends from Wessex for years. Godric always respected Rowena and was excited to ask her to join the mission to found Hogwarts.",
+            "skill": "Social",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-f0278d097467169e2abc954a",
+            "title": "Rowena, Godric and Salazar travel together",
+            "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
+            "skill": "Perception",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-c397e77f8b06c352294443eb",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Defense",
+            "points": 1
+          }
+        ],
         "mortality_checked_through_age": null,
         "blood_status_initialized": true
       },
@@ -24531,7 +24567,36 @@
         "school_years": [],
         "ledger_entries": [],
         "adult_years": [],
-        "initial_eminence": [],
+        "initial_eminence": [
+          {
+            "record_id": "event-eminence-98f1d3e95e2b37d2b94ce225",
+            "title": "Godric and Salazar study together",
+            "description": "Throughout the entire year, Godric and Salazar regularly study together, continuing to harness their skills.",
+            "skill": "Charms",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-8c536c323f2e7b470a4b96a7",
+            "title": "Salazar and Godric continue their study",
+            "description": "",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-eef1642fb9d63310145349e7",
+            "title": "Rowena, Godric and Salazar travel together",
+            "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
+            "skill": "Artificing",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-6946123e5bfa7c2d5d7db3dc",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Arithmancy",
+            "points": 1
+          }
+        ],
         "mortality_checked_through_age": null,
         "focused_skills": [
           "Arithmancy",
@@ -24543,7 +24608,7 @@
       "imported_fields": {},
       "record_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "created_at": "2026-08-01T10:33:54.882512+00:00",
-      "last_updated": "2026-08-02T13:25:46.114259+00:00",
+      "last_updated": "2026-08-02T14:47:04.012659+00:00",
       "does_not_have_children": false
     },
     {
@@ -26736,7 +26801,22 @@
         "school_years": [],
         "ledger_entries": [],
         "adult_years": [],
-        "initial_eminence": [],
+        "initial_eminence": [
+          {
+            "record_id": "event-eminence-5d43bdae2f279196b7df1962",
+            "title": "Rowena, Godric and Salazar travel together",
+            "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-4358e3b2471360aa4e272fc5",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Charms",
+            "points": 1
+          }
+        ],
         "mortality_checked_through_age": null,
         "focused_skills": [
           "Alchemy"
@@ -26746,7 +26826,7 @@
       "imported_fields": {},
       "record_id": "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
       "created_at": "2026-08-02T14:17:50.564174+00:00",
-      "last_updated": "2026-08-02T14:17:50.564174+00:00"
+      "last_updated": "2026-08-02T14:47:04.012470+00:00"
     },
     {
       "displayed_name": "Rowena Ravenclaw",
@@ -26831,7 +26911,29 @@
         "school_years": [],
         "ledger_entries": [],
         "adult_years": [],
-        "initial_eminence": [],
+        "initial_eminence": [
+          {
+            "record_id": "event-eminence-fe42c9ceefd9a528bfcc2b1a",
+            "title": "Godric recruits Ravenclaw",
+            "description": "Rowena and Godric were friends from Wessex for years. Godric always respected Rowena and was excited to ask her to join the mission to found Hogwarts.",
+            "skill": "Social",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-b36c5e1e0b405a242d1ca149",
+            "title": "Rowena, Godric and Salazar travel together",
+            "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
+            "skill": "Arithmancy",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-9671274dde0550a11be342a6",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Artificing",
+            "points": 1
+          }
+        ],
         "mortality_checked_through_age": null,
         "focused_ability": "Power"
       },
@@ -26839,7 +26941,7 @@
       "imported_fields": {},
       "record_id": "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
       "created_at": "2026-08-02T14:19:54.167753+00:00",
-      "last_updated": "2026-08-02T14:19:54.167753+00:00"
+      "last_updated": "2026-08-02T14:47:04.012796+00:00"
     }
   ],
   "locations": [
@@ -28789,18 +28891,31 @@
           "title": "Founding",
           "date": "990",
           "year": 990,
-          "description": "",
+          "description": "All contributed to magical construction but Godric primarily supported the defensive elements of the castle, Salazar contributed to trace detection, concealment elements, and (of course) built and hid the chamber of secrets. Rowena primarily contributed many magical objects and enchanted objects or areas. Rowena was the progenitor of the sorting hat, though all contributed to its construction. Helga contributed to many functional elements of the castle, created numerous efficencies, and built the kitchens.",
           "person_ids": [
-            "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+            "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+            "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+            "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+            "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
           ],
-          "eminence_person_ids": [],
-          "eminence_skills": {}
+          "eminence_person_ids": [
+            "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+            "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+            "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+            "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+          ],
+          "eminence_skills": {
+            "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Defense",
+            "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Arithmancy",
+            "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Artificing",
+            "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Charms"
+          }
         }
       ],
       "jobs": [],
       "record_id": "a92dd0cc-d54e-4c76-9848-502280c2f401",
       "created_at": "2026-08-01T08:25:45.179311+00:00",
-      "last_updated": "2026-08-01T08:26:12.767363+00:00",
+      "last_updated": "2026-08-02T14:47:04.010805+00:00",
       "famous_organization": false,
       "has_storeroom": false,
       "storeroom_inventory": [],
@@ -29286,6 +29401,307 @@
       "record_id": "c03704a7-0874-4e73-84f2-048923c7d502",
       "created_at": "2026-08-02T13:21:58.377795+00:00",
       "last_updated": "2026-08-02T13:25:56.038766+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Realizes he is a parsletongue",
+      "date": "983-02",
+      "description": "When exploring in nature, he discovers he has the ability to commune with snakes.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Creatures"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "0733fe4e-6c52-4d6e-869b-4fec9e086806",
+      "created_at": "2026-08-02T13:37:54.868242+00:00",
+      "last_updated": "2026-08-02T13:40:35.422711+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Isolates from other children in his area.",
+      "date": "983-07",
+      "description": "Salazar realizes he cannot fit in with other children his age and isolates himself. He uses his ability to manipulate snakes to scare and torment children who bother him.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "cc66b461-8734-4e5b-87f6-a28aec158414",
+      "created_at": "2026-08-02T13:40:27.911430+00:00",
+      "last_updated": "2026-08-02T13:40:58.018125+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins inventing dark magic & defensive spells",
+      "date": "983-08",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Runes"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "2fa76f97-2122-4d68-a277-c8007a152660",
+      "created_at": "2026-08-02T13:41:57.715340+00:00",
+      "last_updated": "2026-08-02T13:43:47.131414+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Invents more defensive spells",
+      "date": "984",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "6644ca75-b65b-4986-aeeb-2b5a3a6444d7",
+      "created_at": "2026-08-02T13:43:41.480556+00:00",
+      "last_updated": "2026-08-02T14:00:28.533260+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Discovers Diagon Alley",
+      "date": "985-02-02",
+      "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Arithmancy",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "f4105b94-f811-4a9f-bbc4-b9bcc9fd13b6",
+      "created_at": "2026-08-02T13:46:34.890923+00:00",
+      "last_updated": "2026-08-02T14:26:46.071996+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Spends months spying on Diagon Alley Ent",
+      "date": "985-07-13",
+      "description": "Through patient spying, he learns the identities of many magical individuals.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "36b35241-787a-4cfe-8f40-ad56ef84a247",
+      "created_at": "2026-08-02T13:52:09.303286+00:00",
+      "last_updated": "2026-08-02T14:25:11.382696+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Salazar sneaks into Diagon Alley",
+      "date": "985-08-16",
+      "description": "Through a combination of concealment charms, arithmancy, and perception, Slytherin discerns how to enter Diagon Alley and sneaks inside. Salazar's mother did not want him to interact with wizarding folk. However, he sneaks into Diagon Alley anyway. Gryffindor notices him do this and immediately recognizes his talents. The magical commuinity welcomes Salazar, but he remains wary of others.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception"
+      },
+      "period_names": [],
+      "location_ids": [
+        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "19f60ebb-b0f4-41d7-9f48-695c20009089",
+      "created_at": "2026-08-02T14:05:35.316383+00:00",
+      "last_updated": "2026-08-02T14:24:59.540190+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar trade knowledge",
+      "date": "986-05",
+      "description": "Against his mother's wishes, Salazar spends the majority of the summer of 986 studying with Godric. They aren't exactly friends, but they teach one another what they know. Salazar, having now invented many spells and having harnessed his parseltongue and arithmancy skills, had much to teach Gryffindor about the magical world. Godric had a more foundational grasp of concepts that Salazar had not yet encountered.\n\nGodric spent the summer in London exclusively to be close to Salazar for the purposes of their mutual study.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "ef68c120-8a30-4eb3-92b3-7ed7f701e1db",
+      "created_at": "2026-08-02T14:09:39.777104+00:00",
+      "last_updated": "2026-08-02T14:24:48.651956+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar study together",
+      "date": "987-06",
+      "description": "Godric and Slytherin spend another summer studying together, inventing spells and documenting magical concepts. They aren't exactly friends, they just recognize the value the other brings. Godric remains quite skeptical of slytherin's moral compass and his intentions.\n\nGodric spends an entire summer living in London to study with Salazar",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "1d419615-d4b8-4506-8a7f-72716f28a10b",
+      "created_at": "2026-08-02T14:11:29.910692+00:00",
+      "last_updated": "2026-08-02T14:26:33.433288+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar study together",
+      "date": "988-01",
+      "description": "Throughout the entire year, Godric and Salazar regularly study together, continuing to harness their skills.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "e65d806b-a0aa-4083-ba59-ccbfa4ae830f",
+      "created_at": "2026-08-02T14:12:49.987487+00:00",
+      "last_updated": "2026-08-02T14:34:15.695469+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar study intensely",
+      "date": "989-01",
+      "description": "Throughout the first part of the year, Godric and Salazar study nearly daily together and rapidly improve their skills.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "f1918dd6-08a1-4d43-a26a-8e187547f33d",
+      "created_at": "2026-08-02T14:14:02.777952+00:00",
+      "last_updated": "2026-08-02T14:27:20.722263+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric and Salazar agree to open a school",
+      "date": "989-03",
+      "description": "Godric and Salazar come to an agreement to open a school together and begin to seek additional support.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "6cf4844e-f0f6-4c3e-a5ef-d84a63923ca0",
+      "created_at": "2026-08-02T14:15:19.853007+00:00",
+      "last_updated": "2026-08-02T14:15:19.853007+00:00"
     },
     {
       "event_type": "custom",
@@ -30213,82 +30629,41 @@
       "organization_name": ""
     },
     {
-      "event_type": "custom",
-      "title": "Realizes he is a parsletongue",
-      "date": "983-02",
-      "description": "When exploring in nature, he discovers he has the ability to commune with snakes.",
+      "event_type": "relocated",
+      "title": "Godric relocates to London",
+      "date": "987-12-28",
+      "description": "Godric relocates to London specifically to be close to Salazar to continue their intense study together.",
       "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Creatures"
-      },
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "0733fe4e-6c52-4d6e-869b-4fec9e086806",
-      "created_at": "2026-08-02T13:37:54.868242+00:00",
-      "last_updated": "2026-08-02T13:40:35.422711+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Isolates from other children in his area.",
-      "date": "983-07",
-      "description": "Salazar realizes he cannot fit in with other children his age and isolates himself. He uses his ability to manipulate snakes to scare and torment children who bother him.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
       ],
       "eminence_person_ids": [],
       "eminence_skills": {},
       "period_names": [],
-      "location_ids": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
       "locked_location_ids": [],
       "organization_id": "",
       "organization_name": "",
-      "record_id": "cc66b461-8734-4e5b-87f6-a28aec158414",
-      "created_at": "2026-08-02T13:40:27.911430+00:00",
-      "last_updated": "2026-08-02T13:40:58.018125+00:00"
+      "record_id": "2c75675c-c272-4678-a9a7-0d990982e9ac",
+      "created_at": "2026-08-02T14:33:15.269833+00:00",
+      "last_updated": "2026-08-02T14:33:26.172125+00:00"
     },
     {
       "event_type": "custom",
-      "title": "Begins inventing dark magic & defensive spells",
-      "date": "983-08",
+      "title": "Salazar and Godric continue their study",
+      "date": "988-04",
       "description": "",
       "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
         "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
       ],
       "eminence_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
         "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
       ],
       "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Runes"
-      },
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "2fa76f97-2122-4d68-a277-c8007a152660",
-      "created_at": "2026-08-02T13:41:57.715340+00:00",
-      "last_updated": "2026-08-02T13:43:47.131414+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Invents more defensive spells",
-      "date": "984",
-      "description": "",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_skills": {
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Defense",
         "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense"
       },
       "period_names": [],
@@ -30296,231 +30671,76 @@
       "locked_location_ids": [],
       "organization_id": "",
       "organization_name": "",
-      "record_id": "6644ca75-b65b-4986-aeeb-2b5a3a6444d7",
-      "created_at": "2026-08-02T13:43:41.480556+00:00",
-      "last_updated": "2026-08-02T14:00:28.533260+00:00"
+      "record_id": "d96e4da2-2561-4897-84d1-b4899f1b4f7e",
+      "created_at": "2026-08-02T14:35:16.978034+00:00",
+      "last_updated": "2026-08-02T14:35:42.812827+00:00"
     },
     {
       "event_type": "custom",
-      "title": "Discovers Diagon Alley",
-      "date": "985-02-02",
-      "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
+      "title": "Godric recruits Ravenclaw",
+      "date": "989-06",
+      "description": "Rowena and Godric were friends from Wessex for years. Godric always respected Rowena and was excited to ask her to join the mission to found Hogwarts.",
       "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
       ],
       "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
       ],
       "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Arithmancy",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception"
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Social",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Social"
       },
-      "period_names": [],
-      "location_ids": [
-        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "f4105b94-f811-4a9f-bbc4-b9bcc9fd13b6",
-      "created_at": "2026-08-02T13:46:34.890923+00:00",
-      "last_updated": "2026-08-02T14:26:46.071996+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Spends months spying on Diagon Alley Ent",
-      "date": "985-07-13",
-      "description": "Through patient spying, he learns the identities of many magical individuals.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Perception"
-      },
-      "period_names": [],
-      "location_ids": [
-        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "36b35241-787a-4cfe-8f40-ad56ef84a247",
-      "created_at": "2026-08-02T13:52:09.303286+00:00",
-      "last_updated": "2026-08-02T14:25:11.382696+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Salazar sneaks into Diagon Alley",
-      "date": "985-08-16",
-      "description": "Through a combination of concealment charms, arithmancy, and perception, Slytherin discerns how to enter Diagon Alley and sneaks inside. Salazar's mother did not want him to interact with wizarding folk. However, he sneaks into Diagon Alley anyway. Gryffindor notices him do this and immediately recognizes his talents. The magical commuinity welcomes Salazar, but he remains wary of others.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception"
-      },
-      "period_names": [],
-      "location_ids": [
-        "bc89bd68-989e-42ec-a5b2-e7da7fbce321"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "19f60ebb-b0f4-41d7-9f48-695c20009089",
-      "created_at": "2026-08-02T14:05:35.316383+00:00",
-      "last_updated": "2026-08-02T14:24:59.540190+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Godric and Salazar trade knowledge",
-      "date": "986-05",
-      "description": "Against his mother's wishes, Salazar spends the majority of the summer of 986 studying with Godric. They aren't exactly friends, but they teach one another what they know. Salazar, having now invented many spells and having harnessed his parseltongue and arithmancy skills, had much to teach Gryffindor about the magical world. Godric had a more foundational grasp of concepts that Salazar had not yet encountered.\n\nGodric spent the summer in London exclusively to be close to Salazar for the purposes of their mutual study.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
-      },
-      "period_names": [],
-      "location_ids": [
-        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "ef68c120-8a30-4eb3-92b3-7ed7f701e1db",
-      "created_at": "2026-08-02T14:09:39.777104+00:00",
-      "last_updated": "2026-08-02T14:24:48.651956+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Godric and Salazar study together",
-      "date": "987-06",
-      "description": "Godric and Slytherin spend another summer studying together, inventing spells and documenting magical concepts. They aren't exactly friends, they just recognize the value the other brings. Godric remains quite skeptical of slytherin's moral compass and his intentions.\n\nGodric spends an entire summer living in London to study with Salazar",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
-      },
-      "period_names": [],
-      "location_ids": [
-        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "1d419615-d4b8-4506-8a7f-72716f28a10b",
-      "created_at": "2026-08-02T14:11:29.910692+00:00",
-      "last_updated": "2026-08-02T14:26:33.433288+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Godric and Salazar study together",
-      "date": "988",
-      "description": "Throughout the entire year, Godric and Salazar regularly study together, continuing to harness their skills.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
-      },
-      "period_names": [],
-      "location_ids": [
-        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "e65d806b-a0aa-4083-ba59-ccbfa4ae830f",
-      "created_at": "2026-08-02T14:12:49.987487+00:00",
-      "last_updated": "2026-08-02T14:27:08.036006+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Godric and Salazar study intensely",
-      "date": "989-01",
-      "description": "Throughout the first part of the year, Godric and Salazar study nearly daily together and rapidly improve their skills.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_skills": {
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Arithmancy"
-      },
-      "period_names": [],
-      "location_ids": [
-        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "f1918dd6-08a1-4d43-a26a-8e187547f33d",
-      "created_at": "2026-08-02T14:14:02.777952+00:00",
-      "last_updated": "2026-08-02T14:27:20.722263+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Godric and Salazar agree to open a school",
-      "date": "989-03",
-      "description": "Godric and Salazar come to an agreement to open a school together and begin to seek additional support.",
-      "person_ids": [
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
       "period_names": [],
       "location_ids": [],
       "locked_location_ids": [],
       "organization_id": "",
       "organization_name": "",
-      "record_id": "6cf4844e-f0f6-4c3e-a5ef-d84a63923ca0",
-      "created_at": "2026-08-02T14:15:19.853007+00:00",
-      "last_updated": "2026-08-02T14:15:19.853007+00:00"
+      "record_id": "af1c266a-2c1d-4133-b43d-c7b3bb1532b6",
+      "created_at": "2026-08-02T14:39:33.081391+00:00",
+      "last_updated": "2026-08-02T14:39:33.081391+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Rowena, Godric and Salazar travel together",
+      "date": "989-08-12",
+      "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
+      "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+      ],
+      "eminence_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+      ],
+      "eminence_skills": {
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Artificing",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Arithmancy",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "a2066a0e-0183-465e-844f-fd6a74c91c0d",
+      "created_at": "2026-08-02T14:43:35.556811+00:00",
+      "last_updated": "2026-08-02T14:43:52.365565+00:00"
     }
   ],
   "_recent_people": [
     "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
     "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
     "bcfff484-a85f-43e0-96e3-e20796e5396f",
     "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
-    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
     "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
     "0164a838-659c-40f7-b201-ff20fef4679d",
@@ -30544,8 +30764,10 @@
   ],
   "_recent_event_associations": {
     "person_ids": [
-      "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+      "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+      "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+      "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
       "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
       "bcfff484-a85f-43e0-96e3-e20796e5396f",
       "6cd8d366-28a4-4199-9c5c-ff55362851b2",
@@ -30553,9 +30775,7 @@
       "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
       "0164a838-659c-40f7-b201-ff20fef4679d",
       "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
-      "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9",
-      "f812561f-6caa-4c1e-a5dc-6764288ed90a",
-      "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
+      "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
     ],
     "location_ids": [
       "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
