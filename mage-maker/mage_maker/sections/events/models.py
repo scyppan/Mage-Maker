@@ -22,6 +22,7 @@ WORLD_EVENT_DATE_PATTERN = re.compile(
     r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
 JOB_EVENT_TYPES = frozenset(("started_job", "received_raise"))
+DEATH_EVENT_TYPES = frozenset(("died", "murder"))
 JOB_EVENT_ONLY_FIELDS = (
     "organization_job_id",
     "job_title",
@@ -103,6 +104,34 @@ def normalize_world_event(event):
     normalized["person_ids"] = normalize_association_values(
         normalized.get("person_ids")
     )
+    if normalized["event_type"] == "murder":
+        normalized["perpetrator_person_ids"] = (
+            normalize_association_values(
+                normalized.get("perpetrator_person_ids")
+            )
+        )
+        normalized["victim_person_ids"] = normalize_association_values(
+            normalized.get("victim_person_ids")
+        )
+        normalized["witness_person_ids"] = normalize_association_values(
+            normalized.get("witness_person_ids")
+        )
+        normalized["affected_person_ids"] = normalize_association_values(
+            normalized.get("affected_person_ids")
+        )
+        normalized["person_ids"] = normalize_association_values(
+            [
+                *normalized["perpetrator_person_ids"],
+                *normalized["victim_person_ids"],
+                *normalized["witness_person_ids"],
+                *normalized["affected_person_ids"],
+            ]
+        )
+    else:
+        normalized.pop("perpetrator_person_ids", None)
+        normalized.pop("victim_person_ids", None)
+        normalized.pop("witness_person_ids", None)
+        normalized.pop("affected_person_ids", None)
     requested_eminence_person_ids = normalize_association_values(
         normalized.get("eminence_person_ids")
     )
@@ -115,6 +144,21 @@ def normalize_world_event(event):
         normalized.get("eminence_skills"),
         normalized["eminence_person_ids"],
     )
+    if normalized["event_type"] == "died":
+        normalized["eminence_person_ids"] = []
+        normalized["eminence_skills"] = {}
+    elif normalized["event_type"] == "murder":
+        victim_ids = set(normalized["victim_person_ids"])
+        normalized["eminence_person_ids"] = [
+            person_id
+            for person_id in normalized["eminence_person_ids"]
+            if person_id not in victim_ids
+        ]
+        normalized["eminence_skills"] = {
+            person_id: skill
+            for person_id, skill in normalized["eminence_skills"].items()
+            if person_id in normalized["eminence_person_ids"]
+        }
     normalized["period_names"] = normalize_association_values(
         normalized.get("period_names")
     )
@@ -124,6 +168,17 @@ def normalize_world_event(event):
     normalized["locked_location_ids"] = normalize_association_values(
         normalized.get("locked_location_ids")
     )
+
+    if (
+        normalized["event_type"] in DEATH_EVENT_TYPES
+        and len(normalized["location_ids"]) > 1
+    ):
+        normalized["location_ids"] = normalized["location_ids"][-1:]
+        normalized["locked_location_ids"] = [
+            location_id
+            for location_id in normalized["locked_location_ids"]
+            if location_id in normalized["location_ids"]
+        ][-1:]
 
     for location_id in normalized["locked_location_ids"]:
         if location_id not in normalized["location_ids"]:
@@ -190,6 +245,126 @@ def normalize_association_values(values):
         normalized_values.append(normalized)
 
     return normalized_values
+
+
+def death_event_person_ids(event):
+    event_values = event if isinstance(event, dict) else {}
+    event_type = canonical_event_type(event_values.get("event_type"))
+
+    if event_type == "died":
+        return normalize_association_values(
+            event_values.get("person_ids")
+        )
+
+    if event_type == "murder":
+        return normalize_association_values(
+            event_values.get("victim_person_ids")
+        )
+
+    return []
+
+
+def death_event_date_sort_key(value):
+    date_text = str(value or "").strip()
+    match = WORLD_EVENT_DATE_PATTERN.fullmatch(date_text)
+
+    if match is None:
+        return 100000, 13, 32
+
+    return (
+        int(match.group(1)),
+        int(match.group(2) or 0),
+        int(match.group(3) or 0),
+    )
+
+
+def death_source_sort_key(event):
+    event_values = event if isinstance(event, dict) else {}
+    return (
+        death_event_date_sort_key(event_values.get("date")),
+        str(
+            event_values.get(
+                "record_id",
+                event_values.get("event_id", ""),
+            )
+            or ""
+        ),
+    )
+
+
+def synchronize_people_death_records(database_data, person_ids=None):
+    if not isinstance(database_data, dict):
+        return False
+
+    people = database_data.get("people", [])
+    world_events = database_data.get("events", [])
+
+    if not isinstance(people, list) or not isinstance(world_events, list):
+        return False
+
+    selected_ids = (
+        {
+            str(person_id or "").strip()
+            for person_id in person_ids
+            if str(person_id or "").strip()
+        }
+        if person_ids is not None
+        else None
+    )
+    changed = False
+
+    for person in people:
+        if not isinstance(person, dict):
+            continue
+
+        person_id = str(person.get("record_id", "") or "").strip()
+
+        if selected_ids is not None and person_id not in selected_ids:
+            continue
+
+        death_sources = [
+            event
+            for event in world_events
+            if isinstance(event, dict)
+            and person_id in death_event_person_ids(event)
+        ]
+        death_sources.extend(
+            event
+            for event in person.get("timeline_events", []) or []
+            if isinstance(event, dict)
+            and canonical_event_type(event.get("event_type")) == "died"
+            and str(event.get("date", "") or "").strip()
+        )
+        death_sources.sort(key=death_source_sort_key)
+
+        if death_sources:
+            death_year, death_month, death_day = split_world_event_date(
+                death_sources[0].get("date")
+            )
+            death_values = {
+                "deceased": True,
+                "death_year": int(death_year),
+                "death_month": (
+                    int(death_month) if death_month else None
+                ),
+                "death_day": int(death_day) if death_day else None,
+            }
+        else:
+            death_values = {
+                "deceased": False,
+                "death_year": None,
+                "death_month": None,
+                "death_day": None,
+            }
+
+        if any(
+            person.get(field_name) != value
+            for field_name, value in death_values.items()
+        ):
+            person.update(death_values)
+            changed = True
+
+    return changed
 
 
 def normalize_eminence_skill_values(values, earned_person_ids=()):

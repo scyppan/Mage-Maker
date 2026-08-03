@@ -204,6 +204,7 @@ def ensure_adult_year_records_with_improvements(
     books=None,
     spells=None,
     proficiencies=None,
+    manage_reading=True,
 ):
     normalized_records = normalize_adult_year_records(records)
     records_by_year = {
@@ -226,6 +227,21 @@ def ensure_adult_year_records_with_improvements(
 
     for adult_year in range(1, int(target_year_count) + 1):
         existing_record = records_by_year.get(adult_year)
+
+        if not manage_reading:
+            records_by_year[adult_year] = normalize_adult_year_record(
+                existing_record
+                if existing_record is not None
+                else {
+                    "adult_year": adult_year,
+                    "reading_characteristic": "",
+                    "reading_rolls": [],
+                    "books": [],
+                    "eminence": [],
+                    "jobs": [],
+                }
+            )
+            continue
 
         if (
             existing_record is None
@@ -773,6 +789,7 @@ def ensure_school_year_records(
     school_name="",
     assigned_books_by_year=None,
     initial_characteristics=None,
+    manage_books=True,
 ):
     normalized_records = normalize_school_year_records(records)
     records_by_year = {
@@ -784,7 +801,7 @@ def ensure_school_year_records(
     selected_school_name = str(school_name or "").strip()
     assignments = (
         assigned_books_by_year
-        if isinstance(assigned_books_by_year, dict)
+        if manage_books and isinstance(assigned_books_by_year, dict)
         else {}
     )
     assigned_identities = set()
@@ -820,7 +837,7 @@ def ensure_school_year_records(
             records_by_year[year_number] = random_school_year_record(
                 year_number,
                 development_plan,
-                books,
+                books if manage_books else [],
                 spells,
                 proficiencies,
                 randomizer,
@@ -855,25 +872,28 @@ def ensure_school_year_records(
             )
 
         if bool(existing_record.get("skipped", False)):
-            for assigned_book in assignments.get(
-                year_number,
-                [],
-            ):
-                assigned_identities.add(
-                    school_year_book_identity(assigned_book)
+            existing_record["school"] = selected_school_name
+
+            if manage_books:
+                for assigned_book in assignments.get(
+                    year_number,
+                    [],
+                ):
+                    assigned_identities.add(
+                        school_year_book_identity(assigned_book)
+                    )
+
+                existing_record["assigned_books"] = []
+                existing_record["books"] = select_school_year_books(
+                    development_plan,
+                    books or [],
+                    spells or [],
+                    proficiencies or [],
+                    randomizer,
+                    assigned_identities | intentional_identities,
+                    existing_record.get("books", []),
                 )
 
-            existing_record["school"] = selected_school_name
-            existing_record["assigned_books"] = []
-            existing_record["books"] = select_school_year_books(
-                development_plan,
-                books or [],
-                spells or [],
-                proficiencies or [],
-                randomizer,
-                assigned_identities | intentional_identities,
-                existing_record.get("books", []),
-            )
             records_by_year[year_number] = (
                 normalize_school_year_record(existing_record)
             )
@@ -892,27 +912,31 @@ def ensure_school_year_records(
             == selected_school_name.casefold()
         ):
             existing_record["school"] = selected_school_name
-            existing_record["assigned_books"] = deepcopy(
-                assignments.get(year_number, [])
+
+            if manage_books:
+                existing_record["assigned_books"] = deepcopy(
+                    assignments.get(year_number, [])
+                )
+
+        if manage_books:
+            for assigned_book in existing_record.get(
+                "assigned_books",
+                [],
+            ):
+                assigned_identities.add(
+                    school_year_book_identity(assigned_book)
+                )
+
+            existing_record["books"] = select_school_year_books(
+                development_plan,
+                books or [],
+                spells or [],
+                proficiencies or [],
+                randomizer,
+                assigned_identities | intentional_identities,
+                existing_record.get("books", []),
             )
 
-        for assigned_book in existing_record.get(
-            "assigned_books",
-            [],
-        ):
-            assigned_identities.add(
-                school_year_book_identity(assigned_book)
-            )
-
-        existing_record["books"] = select_school_year_books(
-            development_plan,
-            books or [],
-            spells or [],
-            proficiencies or [],
-            randomizer,
-            assigned_identities | intentional_identities,
-            existing_record.get("books", []),
-        )
         records_by_year[year_number] = normalize_school_year_record(
             existing_record
         )

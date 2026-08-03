@@ -45,9 +45,16 @@ from mage_maker.sections.family_tree.spouse_relationships import (
 from mage_maker.sections.timeline.events import (
     automatic_child_timeline_event,
     normalize_timeline_events,
+    synchronize_profile_timeline_events,
 )
 from mage_maker.sections.timeline.locations import ensure_life_start_events
-from mage_maker.sections.events.models import normalize_world_events
+from mage_maker.sections.events.models import (
+    DEATH_EVENT_TYPES,
+    death_event_person_ids,
+    normalize_world_event,
+    normalize_world_events,
+    synchronize_people_death_records,
+)
 from mage_maker.sections.settings.mage_groups import (
     MAGE_GROUPS_SETTING_KEY,
     normalize_mage_group_id,
@@ -244,10 +251,10 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version > 33:
+        if not isinstance(schema_version, int) or schema_version > 34:
             return False
 
-        if schema_version == 33:
+        if schema_version == 34:
             stored_events = database_data.get("events", [])
             stored_organizations = database_data.get("organizations", [])
             stored_locations = database_data.get("locations", [])
@@ -263,6 +270,9 @@ class JsonDatabase:
             database_data["events"] = normalized_events
             database_data["organizations"] = normalized_organizations
             database_data["locations"] = normalized_locations
+            death_event_changed = self.repair_orphan_death_events(
+                database_data
+            )
             campus_changed = synchronize_school_campus_locations(
                 database_data
             )
@@ -273,23 +283,15 @@ class JsonDatabase:
                 )
             )
             people_changed = False
-
-            for person in database_data.get("people", []):
-                if not isinstance(person, dict):
-                    continue
-
-                normalized_timeline = normalize_timeline_events(
-                    person.get("timeline_events", [])
-                )
-
-                if person.get("timeline_events", []) != normalized_timeline:
-                    person["timeline_events"] = normalized_timeline
-                    people_changed = True
+            people_changed = self.normalize_people_death_timeline_state(
+                database_data
+            )
 
             migrated = (
                 stored_events != normalized_events
                 or stored_organizations != normalized_organizations
                 or stored_locations != normalized_locations
+                or death_event_changed
                 or campus_changed
                 or extinction_changed
                 or people_changed
@@ -1376,11 +1378,117 @@ class JsonDatabase:
             schema_version = 33
             migrated = True
 
-        metadata["schema_version"] = 33
-        metadata["database_version"] = "0.33.0"
+        if schema_version < 34:
+            database_data["events"] = normalize_world_events(
+                database_data.get("events", [])
+            )
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get(
+                    "organizations",
+                    [],
+                )
+                if isinstance(organization, dict)
+            ]
+            database_data["locations"] = [
+                normalize_location_record(location)
+                for location in database_data.get("locations", [])
+                if isinstance(location, dict)
+            ]
+            synchronize_school_campus_locations(database_data)
+            synchronize_location_extinction_records(
+                database_data,
+                create_legacy_events=False,
+            )
+            self.repair_orphan_death_events(database_data)
+            self.normalize_people_death_timeline_state(database_data)
+            self.normalize_person_access_rules(database_data)
+            schema_version = 34
+            migrated = True
+
+        metadata["schema_version"] = 34
+        metadata["database_version"] = "0.34.0"
         database_data["_database"] = metadata
 
         return migrated
+
+    def repair_orphan_death_events(self, database_data):
+        known_person_ids = {
+            str(person.get("record_id", "") or "").strip()
+            for person in database_data.get("people", [])
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        stored_events = database_data.get("events", [])
+        repaired_events = []
+
+        for stored_event in stored_events:
+            event = normalize_world_event(stored_event)
+
+            if event.get("event_type") != "died":
+                repaired_events.append(event)
+                continue
+
+            valid_person_ids = [
+                person_id
+                for person_id in event.get("person_ids", [])
+                if person_id in known_person_ids
+            ]
+
+            if len(valid_person_ids) == 1:
+                event["person_ids"] = valid_person_ids
+                repaired_events.append(normalize_world_event(event))
+                continue
+
+            event["event_type"] = "other"
+            event["person_ids"] = valid_person_ids
+            event["eminence_person_ids"] = []
+            event["eminence_skills"] = {}
+            repaired_events.append(normalize_world_event(event))
+
+        normalized_events = normalize_world_events(repaired_events)
+        changed = stored_events != normalized_events
+
+        if changed:
+            database_data["events"] = normalized_events
+
+        return changed
+
+    def normalize_people_death_timeline_state(self, database_data):
+        shared_death_person_ids = {
+            person_id
+            for event in database_data.get("events", [])
+            for person_id in death_event_person_ids(event)
+        }
+        changed = False
+
+        for person in database_data.get("people", []):
+            if not isinstance(person, dict):
+                continue
+
+            person_id = str(person.get("record_id", "") or "").strip()
+            normalized_timeline = synchronize_profile_timeline_events(
+                person,
+                normalize_timeline_events(
+                    person.get("timeline_events", [])
+                ),
+                create_death_event=(
+                    person_id not in shared_death_person_ids
+                ),
+                organizations=database_data.get(
+                    "organizations",
+                    [],
+                ),
+            )
+
+            if person.get("timeline_events", []) != normalized_timeline:
+                person["timeline_events"] = normalized_timeline
+                changed = True
+
+        return (
+            synchronize_people_death_records(database_data)
+            or changed
+        )
 
     def validate_database(self, database_data):
         if not isinstance(database_data, dict):
@@ -1633,7 +1741,21 @@ class JsonDatabase:
                         "contain jobs only."
                     )
 
-            normalize_timeline_events(person.get("timeline_events", []))
+            normalized_timeline = normalize_timeline_events(
+                person.get("timeline_events", [])
+            )
+
+            for timeline_event in normalized_timeline:
+                if (
+                    timeline_event.get("event_type")
+                    in DEATH_EVENT_TYPES
+                    and not str(
+                        timeline_event.get("date", "") or ""
+                    ).strip()
+                ):
+                    raise ValueError(
+                        "Every Death or Murder event must have a year."
+                    )
 
         for collection_name in ("locations", "organizations", "events"):
             seen_record_ids = set()
@@ -1850,6 +1972,11 @@ class JsonDatabase:
             )
 
         world_events = normalize_world_events(database_data["events"])
+        location_ids = {
+            str(location.get("record_id", "") or "").strip()
+            for location in database_data["locations"]
+            if isinstance(location, dict)
+        }
 
         for event in world_events:
             if non_magical_person_ids.intersection(
@@ -1857,6 +1984,91 @@ class JsonDatabase:
             ):
                 raise ValueError(
                     "Non-magical people cannot earn Eminence."
+                )
+
+            event_type = event.get("event_type")
+
+            if event_type not in DEATH_EVENT_TYPES:
+                continue
+
+            if (
+                event_type == "died"
+                and event.get("eminence_person_ids")
+            ):
+                raise ValueError(
+                    "Death events cannot earn Eminence."
+                )
+
+            if len(event.get("location_ids", [])) > 1:
+                raise ValueError(
+                    "Death and Murder events can have no more than one "
+                    "location."
+                )
+
+            if any(
+                location_id not in location_ids
+                for location_id in event.get("location_ids", [])
+            ):
+                raise ValueError(
+                    "Every location linked to a Death or Murder event "
+                    "must exist."
+                )
+
+            if event_type == "died":
+                if len(event.get("person_ids", [])) != 1:
+                    raise ValueError(
+                        "A Death event needs one person."
+                    )
+
+                if any(
+                    person_id not in seen_ids
+                    for person_id in event.get("person_ids", [])
+                ):
+                    raise ValueError(
+                        "Every person linked to a Death event must exist."
+                    )
+
+                continue
+
+            perpetrator_ids = event.get(
+                "perpetrator_person_ids",
+                [],
+            )
+            victim_ids = event.get("victim_person_ids", [])
+            witness_ids = event.get("witness_person_ids", [])
+            affected_ids = event.get("affected_person_ids", [])
+
+            if not perpetrator_ids or not victim_ids:
+                raise ValueError(
+                    "A Murder event needs perpetrators and victims."
+                )
+
+            all_role_ids = [
+                *perpetrator_ids,
+                *victim_ids,
+                *witness_ids,
+                *affected_ids,
+            ]
+
+            if len(all_role_ids) != len(set(all_role_ids)):
+                raise ValueError(
+                    "Each Murder participant can belong to only one "
+                    "category."
+                )
+
+            if set(victim_ids).intersection(
+                event.get("eminence_person_ids", [])
+            ):
+                raise ValueError(
+                    "Victims cannot earn Eminence from a Murder event."
+                )
+
+            if any(
+                person_id not in seen_ids
+                for person_id in all_role_ids
+            ):
+                raise ValueError(
+                    "Every person linked to a Murder event must exist."
                 )
 
     def list_people(self):
@@ -2135,11 +2347,68 @@ class JsonDatabase:
             retained_events = []
 
             for event in self.data.get("events", []):
-                event["person_ids"] = [
+                event_type = str(event.get("event_type", "") or "")
+                perpetrator_ids = [
                     person_id
-                    for person_id in event.get("person_ids", [])
+                    for person_id in event.get(
+                        "perpetrator_person_ids",
+                        [],
+                    )
                     if person_id != record_id
                 ]
+                victim_ids = [
+                    person_id
+                    for person_id in event.get(
+                        "victim_person_ids",
+                        [],
+                    )
+                    if person_id != record_id
+                ]
+                witness_ids = [
+                    person_id
+                    for person_id in event.get(
+                        "witness_person_ids",
+                        [],
+                    )
+                    if person_id != record_id
+                ]
+                affected_ids = [
+                    person_id
+                    for person_id in event.get(
+                        "affected_person_ids",
+                        [],
+                    )
+                    if person_id != record_id
+                ]
+
+                if event_type == "murder":
+                    if not perpetrator_ids or not victim_ids:
+                        continue
+
+                    event["perpetrator_person_ids"] = perpetrator_ids
+                    event["victim_person_ids"] = victim_ids
+                    event["witness_person_ids"] = witness_ids
+                    event["affected_person_ids"] = affected_ids
+                    event["person_ids"] = list(
+                        dict.fromkeys(
+                            [
+                                *perpetrator_ids,
+                                *victim_ids,
+                                *witness_ids,
+                                *affected_ids,
+                            ]
+                        )
+                    )
+                else:
+                    event["person_ids"] = [
+                        person_id
+                        for person_id in event.get("person_ids", [])
+                        if person_id != record_id
+                    ]
+
+                    if event_type == "died" and not event["person_ids"]:
+                        continue
+
                 event["eminence_person_ids"] = [
                     person_id
                     for person_id in event.get(
@@ -2164,6 +2433,7 @@ class JsonDatabase:
                 retained_events.append(event)
 
             self.data["events"] = retained_events
+            synchronize_people_death_records(self.data)
 
             for organization in self.data.get(
                 "organizations",

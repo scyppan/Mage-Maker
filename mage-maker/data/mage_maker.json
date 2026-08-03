@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 33,
-    "database_version": "0.33.0",
-    "last_saved": "2026-08-02T14:47:04.035628+00:00"
+    "schema_version": 34,
+    "database_version": "0.34.0",
+    "last_saved": "2026-08-03T03:28:13.398932+00:00"
   },
   "people": [
     {
@@ -22,7 +22,7 @@
       "birth_year": 906,
       "birth_month": null,
       "birth_day": null,
-      "deceased": true,
+      "deceased": false,
       "canon": true,
       "player_character": false,
       "non_magical": false,
@@ -80,7 +80,7 @@
       "imported_fields": {},
       "record_id": "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
       "created_at": "2026-07-22T13:11:28.910114+00:00",
-      "last_updated": "2026-08-02T14:47:04.012964+00:00",
+      "last_updated": "2026-08-03T03:28:13.276783+00:00",
       "death_year": null,
       "death_month": null,
       "death_day": null,
@@ -90,10 +90,1468 @@
         "academic_years_advanced": 0,
         "focused_ability": "Power",
         "school_started": false,
-        "school_years": [],
-        "ledger_entries": [],
+        "school_years": [
+          {
+            "year": 1,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Social",
+              "Dark Arts"
+            ],
+            "characteristic": "strength",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_19661",
+                "name": "Mastery of Malefic Spells",
+                "author": ""
+              },
+              {
+                "record_id": "book_1259",
+                "name": "Practical Defense",
+                "author": "Harper-Rose Sutherland"
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 2,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Artificing",
+              "Dark Arts"
+            ],
+            "characteristic": "willpower",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_1360",
+                "name": "Intermediate Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_19594",
+                "name": "The Practitioner's Guide to Advanced Magical Protection",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 3,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Defense"
+            ],
+            "characteristic": "strength",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_19659",
+                "name": "Vicious Magic",
+                "author": ""
+              },
+              {
+                "record_id": "book_1304",
+                "name": "Standard Book of Spells Grade 4",
+                "author": "Miranda Goshawk"
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 4,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Defense"
+            ],
+            "characteristic": "charisma",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_1358",
+                "name": "A Beginner's Guide to Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_19571",
+                "name": "Compendium of Restricted Spells: Spells intended for use by ministry officials engaging in official ministry business",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 5,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Artificing",
+              "Dark Arts"
+            ],
+            "characteristic": "agility",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_1255",
+                "name": "Dark Forces: A Guide to Self-Protection",
+                "author": "Quentin Trimble"
+              },
+              {
+                "record_id": "book_19664",
+                "name": "Practitioner's Guide to Potent Dark Spells",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 6,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Charms"
+            ],
+            "characteristic": "attractiveness",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_19619",
+                "name": "Advanced Interclass Animal to Beast Transfiguration",
+                "author": ""
+              },
+              {
+                "record_id": "book_19675",
+                "name": "Secrets of the Darkest Art",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 7,
+            "school": "",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Defense"
+            ],
+            "characteristic": "attractiveness",
+            "assigned_books": [],
+            "books": [
+              {
+                "record_id": "book_1305",
+                "name": "Standard Book of Spells Grade 5",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1248",
+                "name": "Olde and Forgotten Bewitchments and Charms",
+                "author": "Soraya Barr"
+              }
+            ],
+            "eminence": []
+          }
+        ],
+        "ledger_entries": [
+          {
+            "entry_id": "starting-allowance",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 917,
+            "month": 7,
+            "day": 1,
+            "item": "starting allowance",
+            "amount_sickles": 204,
+            "kind": "earned",
+            "note": "Wealth × generosity Galleons",
+            "automatic_source": "starting_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:8",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 917,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:9",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 917,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:10",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 917,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:11",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 917,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:12",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 917,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:1",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:2",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:3",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:4",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:5",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:1:6",
+            "school_year": 1,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:7",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:8",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:9",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:10",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:11",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:12",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 918,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:1",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:2",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:3",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:4",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:5",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:2:6",
+            "school_year": 2,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:7",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:8",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:9",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:10",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:11",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:12",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 919,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:1",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:2",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:3",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:4",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:5",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:3:6",
+            "school_year": 3,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:7",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:8",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:9",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:10",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:11",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:12",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 920,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:1",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:2",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:3",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:4",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:5",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:6",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:7",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:8",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:9",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:10",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:11",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:12",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 921,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:1",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:2",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:3",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:4",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:5",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:6",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:7",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:8",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:9",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:10",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:11",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:12",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 922,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:1",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:2",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:3",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:4",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:5",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:6",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:7",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:8",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:9",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:10",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:11",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:12",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 923,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:1",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 924,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:2",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 924,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:3",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 924,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:4",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 924,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:5",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 924,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:6",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 924,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 12,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          }
+        ],
         "adult_years": [],
         "initial_eminence": [
+          {
+            "record_id": "event-eminence-e08145f5393909c625f7526d",
+            "title": "Salazar sneaks into Diagon Alley",
+            "description": "Through a combination of concealment charms, arithmancy, and perception, Slytherin discerns how to enter Diagon Alley and sneaks inside. Salazar's mother did not want him to interact with wizarding folk. However, he sneaks into Diagon Alley anyway. Gryffindor notices him do this and immediately recognizes his talents. The magical commuinity welcomes Salazar, but he remains wary of others.",
+            "skill": "Perception",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-d872319961d1dd9792af091c",
+            "title": "Godric and Salazar trade knowledge",
+            "description": "Against his mother's wishes, Salazar spends the majority of the summer of 986 studying with Godric. They aren't exactly friends, but they teach one another what they know. Salazar, having now invented many spells and having harnessed his parseltongue and arithmancy skills, had much to teach Gryffindor about the magical world. Godric had a more foundational grasp of concepts that Salazar had not yet encountered.\n\nGodric spent the summer in London exclusively to be close to Salazar for the purposes of their mutual study.",
+            "skill": "Arithmancy",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-881223d57c4e586e9357f299",
+            "title": "Godric and Salazar study together",
+            "description": "Godric and Slytherin spend another summer studying together, inventing spells and documenting magical concepts. They aren't exactly friends, they just recognize the value the other brings. Godric remains quite skeptical of slytherin's moral compass and his intentions.\n\nGodric spends an entire summer living in London to study with Salazar",
+            "skill": "Arithmancy",
+            "points": 1
+          },
           {
             "record_id": "event-eminence-b426b72d238019b47d681b3c",
             "title": "Godric and Salazar study together",
@@ -106,6 +1564,13 @@
             "title": "Salazar and Godric continue their study",
             "description": "",
             "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-45ff1aacb55f647bda7d077b",
+            "title": "Godric and Salazar study intensely",
+            "description": "Throughout the first part of the year, Godric and Salazar study nearly daily together and rapidly improve their skills.",
+            "skill": "Arithmancy",
             "points": 1
           },
           {
@@ -127,6 +1592,13 @@
             "title": "Founding of Hogwarts",
             "description": "",
             "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-6470a99e9f3527b88cfe2c59",
+            "title": "Discovers Diagon Alley",
+            "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
+            "skill": "Perception",
             "points": 1
           }
         ],
@@ -275,6 +1747,16 @@
             "6d806b4b-6308-428f-a332-7581faed8cfc"
           ],
           "locked_location_ids": []
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "0998",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "",
@@ -355,7 +1837,7 @@
       "birth_year": 902,
       "birth_month": null,
       "birth_day": null,
-      "deceased": true,
+      "deceased": false,
       "canon": true,
       "player_character": false,
       "non_magical": false,
@@ -469,7 +1951,7 @@
       "birth_year": null,
       "birth_month": null,
       "birth_day": null,
-      "deceased": true,
+      "deceased": false,
       "canon": false,
       "player_character": false,
       "non_magical": false,
@@ -649,6 +2131,16 @@
           "related_person_id": "",
           "related_name_entry_id": "e0ba49fc-4872-4ef9-ad36-d83952848079",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1000",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "",
@@ -813,6 +2305,18 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1991-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -9179,6 +10683,28 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1765-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1844",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -13083,6 +14609,28 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1701-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1747-11-12",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -17412,6 +18960,28 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1699-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1797",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -21065,6 +22635,16 @@
           "related_person_id": "",
           "related_name_entry_id": "",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:death",
+          "event_type": "died",
+          "detail": "",
+          "date": "1490",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "death_date",
+          "related_name_entry_id": ""
         }
       ],
       "school": "",
@@ -21375,6 +22955,18 @@
           "related_person_id": "",
           "related_name_entry_id": "3a2ad783-da43-4d76-b497-b69bd5d9bb6a",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1057-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -21794,7 +23386,7 @@
             "skipped": true,
             "ability": "Power",
             "skills": [
-              "Defense",
+              "Dark Arts",
               "Dark Arts"
             ],
             "characteristic": "agility",
@@ -21831,90 +23423,14 @@
           {
             "year": 7,
             "school": "Hogwarts",
-            "skipped": false,
+            "skipped": true,
             "ability": "Power",
             "skills": [
-              "Defense",
-              "Defense"
+              "Dark Arts",
+              "Dark Arts"
             ],
             "characteristic": "intellect",
-            "assigned_books": [
-              {
-                "record_id": "book_1353",
-                "name": "Advanced Potion-Making",
-                "author": "Libatius Borage"
-              },
-              {
-                "record_id": "book_21058",
-                "name": "The Roots of Sorcery and Alchemy",
-                "author": ""
-              },
-              {
-                "record_id": "book_1307",
-                "name": "Standard Book of Spells Grade 7",
-                "author": "Miranda Goshawk"
-              },
-              {
-                "record_id": "book_1359",
-                "name": "A Guide to Advanced Transfiguration",
-                "author": "Emeric Switch"
-              },
-              {
-                "record_id": "book_1275",
-                "name": "Quintessence: A Quest",
-                "author": "Bailey Willis"
-              },
-              {
-                "record_id": "book_1274",
-                "name": "Predicting the Unpredictable: Insulate Yourself Against Shocks",
-                "author": "Zainab Harwood"
-              },
-              {
-                "record_id": "book_1259",
-                "name": "Practical Defense",
-                "author": "Harper-Rose Sutherland"
-              },
-              {
-                "record_id": "book_21175",
-                "name": "The Complexities of Muggle Culture",
-                "author": ""
-              },
-              {
-                "record_id": "book_21043",
-                "name": "Flora Arcana: Studies in Magical Botany",
-                "author": ""
-              },
-              {
-                "record_id": "book_19731",
-                "name": "The Scholar's Guide to Advanced Arithmancy",
-                "author": ""
-              },
-              {
-                "record_id": "book_1228",
-                "name": "Advanced Runes",
-                "author": "Alexander Flanagan"
-              },
-              {
-                "record_id": "book_21152",
-                "name": "Celestial Mechanics",
-                "author": ""
-              },
-              {
-                "record_id": "book_1235",
-                "name": "Crafting Magical Objects",
-                "author": "Bobbie Bridge"
-              },
-              {
-                "record_id": "book_1225",
-                "name": "The Book of Alchemy",
-                "author": "Miya Rhodes"
-              },
-              {
-                "record_id": "book_21195",
-                "name": "Caring for Magical Creatures",
-                "author": ""
-              }
-            ],
+            "assigned_books": [],
             "books": [
               {
                 "record_id": "book_27618",
@@ -21947,13 +23463,6 @@
                 "title": "Kills many muggles in Inverness",
                 "description": "",
                 "skill": "Dark Arts",
-                "points": 1
-              },
-              {
-                "record_id": "event-eminence-c729d9ac65481b51f9e240e7",
-                "title": "Kills more muggles in Ft William",
-                "description": "",
-                "skill": "Defense",
                 "points": 1
               }
             ]
@@ -23746,231 +25255,6 @@
             "suppressed": false
           },
           {
-            "entry_id": "school-book:7:17b3295f50a54b990137",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 20,
-            "item": "Practical Defense",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1259",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:a2fa7f7ff989bc76eb76",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 21,
-            "item": "Advanced Runes",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1228",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:fb0a4f503c7a184bff87",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 22,
-            "item": "Crafting Magical Objects",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1235",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:d65f59568c94cef5ac2a",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 23,
-            "item": "A Guide to Advanced Transfiguration",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1359",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:575995f826ee6e0446bc",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 23,
-            "item": "Celestial Mechanics",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_21152",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:664eb34749471f239d03",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 26,
-            "item": "The Scholar's Guide to Advanced Arithmancy",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_19731",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:96625efc2a5de0c0cc3d",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 27,
-            "item": "Flora Arcana: Studies in Magical Botany",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_21043",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:5b8d1abd0022e68d9499",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 27,
-            "item": "The Book of Alchemy",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1225",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:55a6ce5d6fb6c52073cb",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 28,
-            "item": "Predicting the Unpredictable: Insulate Yourself Against Shocks",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1274",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:0001300fbfcdd6fb7db1",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 28,
-            "item": "The Complexities of Muggle Culture",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_21175",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:6e5d377bb29edfda1be4",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 30,
-            "item": "Advanced Potion-Making",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1353",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:aaee1d4e60e1967fc29e",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 30,
-            "item": "Quintessence: A Quest",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1275",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:9bbb761bd35b4a0b725b",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 30,
-            "item": "Standard Book of Spells Grade 7",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_1307",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:6b9a6ec772f9c4cf8632",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 30,
-            "item": "The Roots of Sorcery and Alchemy",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_21058",
-            "suppressed": false
-          },
-          {
-            "entry_id": "school-book:7:492e9ba4541aa72371dd",
-            "school_year": 7,
-            "adult_year": null,
-            "calendar_year": 1063,
-            "month": 7,
-            "day": 31,
-            "item": "Caring for Magical Creatures",
-            "amount_sickles": 0,
-            "kind": "neutral",
-            "note": "purchased by caregivers",
-            "automatic_source": "school_book",
-            "book_record_id": "book_21195",
-            "suppressed": false
-          },
-          {
             "entry_id": "allowance:7:8",
             "school_year": 7,
             "adult_year": null,
@@ -24137,7 +25421,36 @@
           }
         ],
         "adult_years": [],
-        "initial_eminence": [],
+        "initial_eminence": [
+          {
+            "record_id": "event-eminence-c729d9ac65481b51f9e240e7",
+            "title": "Kills more muggles in Ft William",
+            "description": "",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-b40e756c24a33c725263cb12",
+            "title": "Infultrates Hogwarts and kills multiple staff",
+            "description": "",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-8bb4de9d3e6e705e8ddc2c24",
+            "title": "Travels to London and kills many",
+            "description": "He murders many many muggles and 25 wizards in London over the course of a month.",
+            "skill": "Dark Arts",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-992533e07f1ec029d34b28f6",
+            "title": "Emeric Kills Salazar Slytherin",
+            "description": "This ignites in Egbert the Egregious a striving for vengence. Most of the public was unaware that Egbert killed Slytherin.",
+            "skill": "Dark Arts",
+            "points": 1
+          }
+        ],
         "mortality_checked_through_age": null,
         "focused_skills": [
           "Defense",
@@ -24148,7 +25461,7 @@
       "imported_fields": {},
       "record_id": "6cd8d366-28a4-4199-9c5c-ff55362851b2",
       "created_at": "2026-08-01T08:32:48.317910+00:00",
-      "last_updated": "2026-08-02T13:14:10.313362+00:00",
+      "last_updated": "2026-08-03T03:16:37.066571+00:00",
       "does_not_have_children": false
     },
     {
@@ -24538,23 +25851,6 @@
           "related_person_id": "",
           "related_name_entry_id": "26870357-80f3-4ff7-a15a-f84d70de2a63",
           "automatic_source": "life_start"
-        },
-        {
-          "event_id": "automatic:death",
-          "event_type": "died",
-          "detail": "",
-          "date": "1066-02-02",
-          "note": "",
-          "related_person_id": "",
-          "automatic_source": "death_date",
-          "related_name_entry_id": "",
-          "person_ids": [
-            "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-          ],
-          "location_ids": [],
-          "locked_location_ids": [],
-          "organization_id": "",
-          "organization_name": ""
         }
       ],
       "school": "",
@@ -24595,6 +25891,13 @@
             "description": "",
             "skill": "Arithmancy",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-1ffb7d7ad5784ff66392463b",
+            "title": "Discovers Diagon Alley",
+            "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
+            "skill": "Arithmancy",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -24608,7 +25911,7 @@
       "imported_fields": {},
       "record_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "created_at": "2026-08-01T10:33:54.882512+00:00",
-      "last_updated": "2026-08-02T14:47:04.012659+00:00",
+      "last_updated": "2026-08-03T03:28:13.275264+00:00",
       "does_not_have_children": false
     },
     {
@@ -24631,7 +25934,7 @@
       "deceased": true,
       "death_year": 1066,
       "death_month": 6,
-      "death_day": 12,
+      "death_day": 1,
       "canon": true,
       "player_character": false,
       "non_magical": false,
@@ -24721,6 +26024,18 @@
           "related_person_id": "",
           "related_name_entry_id": "db34af23-a8e7-4ae8-9102-8ab258e6e7c9",
           "automatic_source": "life_start"
+        },
+        {
+          "event_id": "automatic:school-start",
+          "event_type": "started_school",
+          "detail": "Hogwarts",
+          "date": "1063-09-01",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "school_start",
+          "school_year": 1,
+          "started_late": false,
+          "related_name_entry_id": ""
         }
       ],
       "school": "Hogwarts",
@@ -24803,6 +26118,20 @@
                 "title": "Private tutoring from Salazar Slytherin",
                 "description": "",
                 "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-15e560e32c78f93206ff14a8",
+                "title": "Salazar takes a liking",
+                "description": "Salazar takes a liking to Egbert and begins to offer him private lessons.",
+                "skill": "Defense",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-17c658224823de928124d96b",
+                "title": "Private tutoring",
+                "description": "Salazar continues to provide private tutoring.",
+                "skill": "Defense",
                 "points": 1
               }
             ]
@@ -24887,6 +26216,27 @@
                 "description": "",
                 "skill": "Dark Arts",
                 "points": 1
+              },
+              {
+                "record_id": "event-eminence-0a3758c22c173fc16f76acf3",
+                "title": "Private tutoring",
+                "description": "Salazar continues to provide private tutoring.",
+                "skill": "Defense",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-03222f0884db2d9ed3f8f5d2",
+                "title": "private tutoring",
+                "description": "Salazar continues to provide private tutoring.",
+                "skill": "Defense",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-e531d8decbf87399d2552ddb",
+                "title": "Private tutoring",
+                "description": "",
+                "skill": "Defense",
+                "points": 1
               }
             ]
           },
@@ -24894,7 +26244,7 @@
             "year": 3,
             "school": "Hogwarts",
             "skipped": false,
-            "ability": "Erudition",
+            "ability": "Power",
             "skills": [
               "Dark Arts",
               "Divination"
@@ -25019,20 +26369,440 @@
                 "points": 1
               },
               {
-                "record_id": "event-eminence-24463189597840bc61559f5c",
-                "title": "Killing spree",
-                "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
+                "record_id": "event-eminence-ffcd2819dc42fda18ba307f8",
+                "title": "Private tutoring",
+                "description": "Salazar continues to provide private tutoring.",
+                "skill": "Defense",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-7958204d53674477da7ccfd9",
+                "title": "Investigates dark resurrection practices",
+                "description": "Still in his grief practice, Egbert returns to Hogwarts library and dives deeply into all records related to resurrection in an attempt to resurrect Salazar.",
+                "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-27e6435a19dc397cd8cf9526",
+                "title": "Researches resurrection practices",
+                "description": "Even more deeply investigates resurrection practices.",
                 "skill": "Dark Arts",
                 "points": 1
               },
               {
                 "record_id": "event-eminence-a1db7e14c70eea84802db2b4",
                 "title": "Egbert kills Emeric",
-                "description": "",
+                "description": "As a means of avenging his mentor, Egbert murders Emeric.",
                 "skill": "Dark Arts",
+                "points": 1
+              },
+              {
+                "record_id": "event-eminence-42f35d4ce841066e3854e69a",
+                "title": "Private tutoring",
+                "description": "Salazar continues to provide private tutoring.",
+                "skill": "Defense",
                 "points": 1
               }
             ]
+          },
+          {
+            "year": 4,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Alchemy",
+              "Dark Arts"
+            ],
+            "characteristic": "equanimity",
+            "assigned_books": [
+              {
+                "record_id": "book_21026",
+                "name": "Midlevel Brewing",
+                "author": ""
+              },
+              {
+                "record_id": "book_21057",
+                "name": "Magicka Antiquita",
+                "author": ""
+              },
+              {
+                "record_id": "book_1270",
+                "name": "Introduction to Ichthyomancy",
+                "author": "Guilia Hatton"
+              },
+              {
+                "record_id": "book_1272",
+                "name": "Heptomancy",
+                "author": "Ronny Moore"
+              },
+              {
+                "record_id": "book_1273",
+                "name": "Ovomancy and Ornithomancy for Ordinary Occultists",
+                "author": "Miles Reeve"
+              },
+              {
+                "record_id": "book_1276",
+                "name": "The Dream Oracle",
+                "author": "Inigo Imago"
+              },
+              {
+                "record_id": "book_1277",
+                "name": "The Lost Art of Xylomancy",
+                "author": "Estelle Dunne"
+              },
+              {
+                "record_id": "book_1304",
+                "name": "Standard Book of Spells Grade 4",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1360",
+                "name": "Intermediate Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1257",
+                "name": "Essential Defense Against the Dark Arts",
+                "author": "Arsenius Jigger"
+              },
+              {
+                "record_id": "book_1349",
+                "name": "Home Life and Social Habits of British Muggles",
+                "author": "Anayah Briggs"
+              },
+              {
+                "record_id": "book_1347",
+                "name": "Monster Book of Monsters",
+                "author": "Snorre Vinter"
+              },
+              {
+                "record_id": "book_1267",
+                "name": "Clairvoyance using Catoptromancy",
+                "author": "Lyla Carter"
+              },
+              {
+                "record_id": "book_1229",
+                "name": "Ancient Runes Made Easy",
+                "author": "Alexander Flanagan"
+              },
+              {
+                "record_id": "book_21042",
+                "name": "Goshawk's Guide to Herbology",
+                "author": ""
+              },
+              {
+                "record_id": "book_21149",
+                "name": "A Primer on Astronomical Observation",
+                "author": ""
+              },
+              {
+                "record_id": "book_19719",
+                "name": "Foundations of Arithmetic Theory",
+                "author": ""
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_19635",
+                "name": "Introduction to Jinxes and Hexes",
+                "author": ""
+              },
+              {
+                "record_id": "book_19668",
+                "name": "Tenets of Tenebrosity",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 5,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Dark Arts"
+            ],
+            "characteristic": "willpower",
+            "assigned_books": [
+              {
+                "record_id": "book_21026",
+                "name": "Midlevel Brewing",
+                "author": ""
+              },
+              {
+                "record_id": "book_21058",
+                "name": "The Roots of Sorcery and Alchemy",
+                "author": ""
+              },
+              {
+                "record_id": "book_1234",
+                "name": "Numerology for Divination",
+                "author": "Remy Burton"
+              },
+              {
+                "record_id": "book_23046",
+                "name": "Studies in Divination: Essential Forms",
+                "author": ""
+              },
+              {
+                "record_id": "book_1305",
+                "name": "Standard Book of Spells Grade 5",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1360",
+                "name": "Intermediate Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1257",
+                "name": "Essential Defense Against the Dark Arts",
+                "author": "Arsenius Jigger"
+              },
+              {
+                "record_id": "book_1349",
+                "name": "Home Life and Social Habits of British Muggles",
+                "author": "Anayah Briggs"
+              },
+              {
+                "record_id": "book_21195",
+                "name": "Caring for Magical Creatures",
+                "author": ""
+              },
+              {
+                "record_id": "book_21042",
+                "name": "Goshawk's Guide to Herbology",
+                "author": ""
+              },
+              {
+                "record_id": "book_21150",
+                "name": "A Guide to Celestial Phenomena",
+                "author": ""
+              },
+              {
+                "record_id": "book_19724",
+                "name": "Arithmancy and Occult Mathematics",
+                "author": ""
+              },
+              {
+                "record_id": "book_1231",
+                "name": "Intermediate Rune Reading",
+                "author": "Alexander Flanagan"
+              },
+              {
+                "record_id": "book_1268",
+                "name": "Death Omens: What To Do When You Know The Worst is Coming",
+                "author": "Quentin Trimble"
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_19661",
+                "name": "Mastery of Malefic Spells",
+                "author": ""
+              },
+              {
+                "record_id": "book_19675",
+                "name": "Secrets of the Darkest Art",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 6,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Dark Arts"
+            ],
+            "characteristic": "equanimity",
+            "assigned_books": [
+              {
+                "record_id": "book_1353",
+                "name": "Advanced Potion-Making",
+                "author": "Libatius Borage"
+              },
+              {
+                "record_id": "book_21058",
+                "name": "The Roots of Sorcery and Alchemy",
+                "author": ""
+              },
+              {
+                "record_id": "book_1306",
+                "name": "Standard Book of Spells Grade 6",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1359",
+                "name": "A Guide to Advanced Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1259",
+                "name": "Practical Defense",
+                "author": "Harper-Rose Sutherland"
+              },
+              {
+                "record_id": "book_21175",
+                "name": "The Complexities of Muggle Culture",
+                "author": ""
+              },
+              {
+                "record_id": "book_21195",
+                "name": "Caring for Magical Creatures",
+                "author": ""
+              },
+              {
+                "record_id": "book_21043",
+                "name": "Flora Arcana: Studies in Magical Botany",
+                "author": ""
+              },
+              {
+                "record_id": "book_19727",
+                "name": "Explorations in Higher Arithmancy",
+                "author": ""
+              },
+              {
+                "record_id": "book_1247",
+                "name": "Magical Theory",
+                "author": "Adalbert Waffling"
+              },
+              {
+                "record_id": "book_21151",
+                "name": "Understanding the Night Sky",
+                "author": ""
+              },
+              {
+                "record_id": "book_1382",
+                "name": "Elemental Artificing",
+                "author": "Eleanor Fiddlewitch"
+              },
+              {
+                "record_id": "book_1225",
+                "name": "The Book of Alchemy",
+                "author": "Miya Rhodes"
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_19664",
+                "name": "Practitioner's Guide to Potent Dark Spells",
+                "author": ""
+              },
+              {
+                "record_id": "book_28453",
+                "name": "Helm & Shieldbind",
+                "author": ""
+              }
+            ],
+            "eminence": []
+          },
+          {
+            "year": 7,
+            "school": "Hogwarts",
+            "skipped": false,
+            "ability": "Power",
+            "skills": [
+              "Dark Arts",
+              "Dark Arts"
+            ],
+            "characteristic": "willpower",
+            "assigned_books": [
+              {
+                "record_id": "book_1353",
+                "name": "Advanced Potion-Making",
+                "author": "Libatius Borage"
+              },
+              {
+                "record_id": "book_21058",
+                "name": "The Roots of Sorcery and Alchemy",
+                "author": ""
+              },
+              {
+                "record_id": "book_1307",
+                "name": "Standard Book of Spells Grade 7",
+                "author": "Miranda Goshawk"
+              },
+              {
+                "record_id": "book_1359",
+                "name": "A Guide to Advanced Transfiguration",
+                "author": "Emeric Switch"
+              },
+              {
+                "record_id": "book_1275",
+                "name": "Quintessence: A Quest",
+                "author": "Bailey Willis"
+              },
+              {
+                "record_id": "book_1274",
+                "name": "Predicting the Unpredictable: Insulate Yourself Against Shocks",
+                "author": "Zainab Harwood"
+              },
+              {
+                "record_id": "book_1259",
+                "name": "Practical Defense",
+                "author": "Harper-Rose Sutherland"
+              },
+              {
+                "record_id": "book_21175",
+                "name": "The Complexities of Muggle Culture",
+                "author": ""
+              },
+              {
+                "record_id": "book_21043",
+                "name": "Flora Arcana: Studies in Magical Botany",
+                "author": ""
+              },
+              {
+                "record_id": "book_19731",
+                "name": "The Scholar's Guide to Advanced Arithmancy",
+                "author": ""
+              },
+              {
+                "record_id": "book_1228",
+                "name": "Advanced Runes",
+                "author": "Alexander Flanagan"
+              },
+              {
+                "record_id": "book_21152",
+                "name": "Celestial Mechanics",
+                "author": ""
+              },
+              {
+                "record_id": "book_1235",
+                "name": "Crafting Magical Objects",
+                "author": "Bobbie Bridge"
+              },
+              {
+                "record_id": "book_1225",
+                "name": "The Book of Alchemy",
+                "author": "Miya Rhodes"
+              },
+              {
+                "record_id": "book_21195",
+                "name": "Caring for Magical Creatures",
+                "author": ""
+              }
+            ],
+            "books": [
+              {
+                "record_id": "book_26904",
+                "name": "Veiled Strength: Disciplined Approaches to Dark Spelluse",
+                "author": ""
+              },
+              {
+                "record_id": "book_27418",
+                "name": "Mastering Shadow: Advanced Kanaima Practices",
+                "author": ""
+              }
+            ],
+            "eminence": []
           }
         ],
         "ledger_entries": [
@@ -26010,6 +27780,1611 @@
             "automatic_source": "monthly_allowance",
             "book_record_id": "",
             "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:7",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:9d92b9efdedf791a3579",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 20,
+            "item": "Ancient Runes Made Easy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1229",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:e183acb621fb22d1181b",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 20,
+            "item": "Heptomancy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1272",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:5066d278d35c707300de",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 21,
+            "item": "Clairvoyance using Catoptromancy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1267",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:8f772479d6dd8e5392f5",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 22,
+            "item": "Ovomancy and Ornithomancy for Ordinary Occultists",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1273",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:cac632abd2100b86606d",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 24,
+            "item": "Essential Defense Against the Dark Arts",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1257",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:47c9ecbfe0418c2ff558",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 24,
+            "item": "Home Life and Social Habits of British Muggles",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1349",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:a77f04c9a2df20d3670a",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 24,
+            "item": "Magicka Antiquita",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21057",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:2f93d274957d44ae8081",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 25,
+            "item": "Introduction to Ichthyomancy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1270",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:31cbc1e72fd5ee700e14",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 25,
+            "item": "Monster Book of Monsters",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1347",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:c4bd9e5eab94aa753163",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 25,
+            "item": "The Dream Oracle",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1276",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:7b6da298bac5ed9b5aef",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 26,
+            "item": "Standard Book of Spells Grade 4",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1304",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:5354a9808c015bf4f19c",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 28,
+            "item": "Midlevel Brewing",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21026",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:5bb0cbfe54764935cc54",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 28,
+            "item": "The Lost Art of Xylomancy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1277",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:547e273133e1ab739ceb",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 29,
+            "item": "Goshawk's Guide to Herbology",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21042",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:3912e5b684e538d506a6",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 30,
+            "item": "Foundations of Arithmetic Theory",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_19719",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:48cb89a508e8d14a534a",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 30,
+            "item": "Intermediate Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1360",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:4:33f15780f195a0051620",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 7,
+            "day": 31,
+            "item": "A Primer on Astronomical Observation",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21149",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:8",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:9",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:10",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:11",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:12",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1066,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:1",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:2",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:3",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:4",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:5",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:4:6",
+            "school_year": 4,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:7",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:b217dddc315a3f613b2a",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 20,
+            "item": "Arithmancy and Occult Mathematics",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_19724",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:cac632abd2100b86606d",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 20,
+            "item": "Essential Defense Against the Dark Arts",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1257",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:48cb89a508e8d14a534a",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 20,
+            "item": "Intermediate Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1360",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:47c9ecbfe0418c2ff558",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 21,
+            "item": "Home Life and Social Habits of British Muggles",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1349",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:3bcd474a1a3d5edad785",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 21,
+            "item": "Studies in Divination: Essential Forms",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_23046",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:632df473feface7150fb",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 22,
+            "item": "Death Omens: What To Do When You Know The Worst is Coming",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1268",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:ed837501f54ff5b428f7",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 22,
+            "item": "Intermediate Rune Reading",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1231",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:547e273133e1ab739ceb",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 23,
+            "item": "Goshawk's Guide to Herbology",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21042",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:492e9ba4541aa72371dd",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 26,
+            "item": "Caring for Magical Creatures",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21195",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:df9afde1f6fda8f85ebe",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 26,
+            "item": "Numerology for Divination",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1234",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:cffe09af736dfd7f78e9",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 28,
+            "item": "Standard Book of Spells Grade 5",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1305",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:6b9a6ec772f9c4cf8632",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 28,
+            "item": "The Roots of Sorcery and Alchemy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21058",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:8e09988024cf4e9e15d9",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 29,
+            "item": "A Guide to Celestial Phenomena",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21150",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:5:5354a9808c015bf4f19c",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 7,
+            "day": 31,
+            "item": "Midlevel Brewing",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21026",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:8",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:9",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:10",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:11",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:12",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1067,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:1",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:2",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:3",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:4",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:5",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:5:6",
+            "school_year": 5,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:7",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:492e9ba4541aa72371dd",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 21,
+            "item": "Caring for Magical Creatures",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21195",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:0001300fbfcdd6fb7db1",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 21,
+            "item": "The Complexities of Muggle Culture",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21175",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:d65f59568c94cef5ac2a",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 22,
+            "item": "A Guide to Advanced Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1359",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:96625efc2a5de0c0cc3d",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 25,
+            "item": "Flora Arcana: Studies in Magical Botany",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21043",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:12752178f66435f93f32",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 25,
+            "item": "Standard Book of Spells Grade 6",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1306",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:6b9a6ec772f9c4cf8632",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 25,
+            "item": "The Roots of Sorcery and Alchemy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21058",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:3a3f8216add56990428e",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 26,
+            "item": "Elemental Artificing",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1382",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:17b3295f50a54b990137",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 27,
+            "item": "Practical Defense",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1259",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:6e5d377bb29edfda1be4",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 28,
+            "item": "Advanced Potion-Making",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1353",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:5b8d1abd0022e68d9499",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 28,
+            "item": "The Book of Alchemy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1225",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:170d5a771d3f0916cf27",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 29,
+            "item": "Explorations in Higher Arithmancy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_19727",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:66a7dc69c1e94bd152c3",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 29,
+            "item": "Understanding the Night Sky",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21151",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:6:56f9c429b462eea8c89d",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 7,
+            "day": 30,
+            "item": "Magical Theory",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1247",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:8",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:9",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:10",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:11",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:12",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1068,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:1",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:2",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:3",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:4",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:5",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:6:6",
+            "school_year": 6,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:7",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:17b3295f50a54b990137",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 20,
+            "item": "Practical Defense",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1259",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:a2fa7f7ff989bc76eb76",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 21,
+            "item": "Advanced Runes",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1228",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:fb0a4f503c7a184bff87",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 22,
+            "item": "Crafting Magical Objects",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1235",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:d65f59568c94cef5ac2a",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 23,
+            "item": "A Guide to Advanced Transfiguration",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1359",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:575995f826ee6e0446bc",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 23,
+            "item": "Celestial Mechanics",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21152",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:664eb34749471f239d03",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 26,
+            "item": "The Scholar's Guide to Advanced Arithmancy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_19731",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:96625efc2a5de0c0cc3d",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 27,
+            "item": "Flora Arcana: Studies in Magical Botany",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21043",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:5b8d1abd0022e68d9499",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 27,
+            "item": "The Book of Alchemy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1225",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:55a6ce5d6fb6c52073cb",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 28,
+            "item": "Predicting the Unpredictable: Insulate Yourself Against Shocks",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1274",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:0001300fbfcdd6fb7db1",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 28,
+            "item": "The Complexities of Muggle Culture",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21175",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:6e5d377bb29edfda1be4",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 30,
+            "item": "Advanced Potion-Making",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1353",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:aaee1d4e60e1967fc29e",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 30,
+            "item": "Quintessence: A Quest",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1275",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:9bbb761bd35b4a0b725b",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 30,
+            "item": "Standard Book of Spells Grade 7",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_1307",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:6b9a6ec772f9c4cf8632",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 30,
+            "item": "The Roots of Sorcery and Alchemy",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21058",
+            "suppressed": false
+          },
+          {
+            "entry_id": "school-book:7:492e9ba4541aa72371dd",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 7,
+            "day": 31,
+            "item": "Caring for Magical Creatures",
+            "amount_sickles": 0,
+            "kind": "neutral",
+            "note": "purchased by caregivers",
+            "automatic_source": "school_book",
+            "book_record_id": "book_21195",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:8",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 8,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:9",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 9,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:10",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 10,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:11",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 11,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:12",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1069,
+            "month": 12,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:1",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1070,
+            "month": 1,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:2",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1070,
+            "month": 2,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:3",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1070,
+            "month": 3,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:4",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1070,
+            "month": 4,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:5",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1070,
+            "month": 5,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
+          },
+          {
+            "entry_id": "allowance:7:6",
+            "school_year": 7,
+            "adult_year": null,
+            "calendar_year": 1070,
+            "month": 6,
+            "day": 1,
+            "item": "Monthly allowance",
+            "amount_sickles": 32,
+            "kind": "earned",
+            "note": "Received at the beginning of the month",
+            "automatic_source": "monthly_allowance",
+            "book_record_id": "",
+            "suppressed": false
           }
         ],
         "adult_years": [],
@@ -26023,7 +29398,7 @@
       "imported_fields": {},
       "record_id": "731751aa-a668-4887-840f-c8e5d624c655",
       "created_at": "2026-08-01T11:07:25.165541+00:00",
-      "last_updated": "2026-08-02T05:46:20.095062+00:00",
+      "last_updated": "2026-08-03T03:22:35.977281+00:00",
       "does_not_have_children": false
     },
     {
@@ -26395,7 +29770,7 @@
       "can_give_birth": false,
       "does_not_have_children": false,
       "famous_person": false,
-      "unfinished": true,
+      "unfinished": false,
       "biological_mother_id": "",
       "biological_father_id": "",
       "biological_mother_status": "unknown",
@@ -26567,7 +29942,7 @@
       "imported_fields": {},
       "record_id": "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
       "created_at": "2026-08-02T08:07:06.721121+00:00",
-      "last_updated": "2026-08-02T11:06:45.202278+00:00"
+      "last_updated": "2026-08-03T03:22:15.483363+00:00"
     },
     {
       "displayed_name": "Maia bint Yūsuf",
@@ -29516,7 +32891,7 @@
       "organization_name": "",
       "record_id": "f4105b94-f811-4a9f-bbc4-b9bcc9fd13b6",
       "created_at": "2026-08-02T13:46:34.890923+00:00",
-      "last_updated": "2026-08-02T14:26:46.071996+00:00"
+      "last_updated": "2026-08-03T03:28:13.275038+00:00"
     },
     {
       "event_type": "custom",
@@ -29628,6 +33003,27 @@
       "last_updated": "2026-08-02T14:26:33.433288+00:00"
     },
     {
+      "event_type": "relocated",
+      "title": "Godric relocates to London",
+      "date": "987-12-28",
+      "description": "Godric relocates to London specifically to be close to Salazar to continue their intense study together.",
+      "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "2c75675c-c272-4678-a9a7-0d990982e9ac",
+      "created_at": "2026-08-02T14:33:15.269833+00:00",
+      "last_updated": "2026-08-02T14:33:26.172125+00:00"
+    },
+    {
       "event_type": "custom",
       "title": "Godric and Salazar study together",
       "date": "988-01",
@@ -29654,6 +33050,32 @@
       "record_id": "e65d806b-a0aa-4083-ba59-ccbfa4ae830f",
       "created_at": "2026-08-02T14:12:49.987487+00:00",
       "last_updated": "2026-08-02T14:34:15.695469+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Salazar and Godric continue their study",
+      "date": "988-04",
+      "description": "",
+      "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_skills": {
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Defense",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "d96e4da2-2561-4897-84d1-b4899f1b4f7e",
+      "created_at": "2026-08-02T14:35:16.978034+00:00",
+      "last_updated": "2026-08-02T14:35:42.812827+00:00"
     },
     {
       "event_type": "custom",
@@ -29702,6 +33124,64 @@
       "record_id": "6cf4844e-f0f6-4c3e-a5ef-d84a63923ca0",
       "created_at": "2026-08-02T14:15:19.853007+00:00",
       "last_updated": "2026-08-02T14:15:19.853007+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Godric recruits Ravenclaw",
+      "date": "989-06",
+      "description": "Rowena and Godric were friends from Wessex for years. Godric always respected Rowena and was excited to ask her to join the mission to found Hogwarts.",
+      "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Social",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Social"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "af1c266a-2c1d-4133-b43d-c7b3bb1532b6",
+      "created_at": "2026-08-02T14:39:33.081391+00:00",
+      "last_updated": "2026-08-02T14:39:33.081391+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Rowena, Godric and Salazar travel together",
+      "date": "989-08-12",
+      "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
+      "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+      ],
+      "eminence_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+      ],
+      "eminence_skills": {
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Artificing",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Arithmancy",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "a2066a0e-0183-465e-844f-fd6a74c91c0d",
+      "created_at": "2026-08-02T14:43:35.556811+00:00",
+      "last_updated": "2026-08-02T14:43:52.365565+00:00"
     },
     {
       "event_type": "custom",
@@ -29926,11 +33406,12 @@
     },
     {
       "event_type": "custom",
-      "title": "Expelled from Hogwarts",
+      "title": "Emeric expelled from Hogwarts",
       "date": "1060",
       "description": "After a minor incident with other students, Slytherin amplified evidence to paint Emeric as dangerous and untrustworthy. Slytherin assured he would be expelled. Emeric was furious at Slytherin for his sabotage of his future, bitter at the other staff for failing to protect him, and became angry at all magical folk, launching his mission to seek power, his drive to kill wizards, and his search for the elder wand.",
       "person_ids": [
-        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
       ],
       "eminence_person_ids": [
         "6cd8d366-28a4-4199-9c5c-ff55362851b2"
@@ -29940,8 +33421,10 @@
       "locked_location_ids": [],
       "record_id": "336591a5-7fe1-4444-a893-a060558bc426",
       "created_at": "2026-08-01T09:09:15.460294+00:00",
-      "last_updated": "2026-08-01T09:18:24.958051+00:00",
-      "eminence_skills": {},
+      "last_updated": "2026-08-03T02:10:10.209185+00:00",
+      "eminence_skills": {
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
+      },
       "organization_id": "",
       "organization_name": ""
     },
@@ -30155,6 +33638,32 @@
     },
     {
       "event_type": "custom",
+      "title": "Salazar takes a liking",
+      "date": "1063-10-12",
+      "description": "Salazar takes a liking to Egbert and begins to offer him private lessons.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "1d1a318f-894d-4397-87ba-bba81a418c87",
+      "created_at": "2026-08-03T02:12:54.631596+00:00",
+      "last_updated": "2026-08-03T02:14:30.250453+00:00"
+    },
+    {
+      "event_type": "custom",
       "title": "Finds the Elder Wand",
       "date": "1063-12",
       "description": "He discovers the wand was buried with a former possessor and he takes possession and attunement of it using dark magic.",
@@ -30173,6 +33682,32 @@
       "eminence_skills": {},
       "organization_id": "",
       "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1064-02",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "c17a88be-95bf-48c5-a193-56ab4bae42fc",
+      "created_at": "2026-08-03T02:15:18.061886+00:00",
+      "last_updated": "2026-08-03T02:15:18.061886+00:00"
     },
     {
       "event_type": "custom",
@@ -30245,6 +33780,58 @@
     },
     {
       "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1064-11",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "f31c2ddb-f6a2-4ac9-8204-a12f1bbd9ad3",
+      "created_at": "2026-08-03T02:16:04.157952+00:00",
+      "last_updated": "2026-08-03T02:18:21.135653+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1065-01",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "22ad742b-4be8-48c5-8d71-7a257ecc695f",
+      "created_at": "2026-08-03T02:18:48.304736+00:00",
+      "last_updated": "2026-08-03T02:22:06.606489+00:00"
+    },
+    {
+      "event_type": "custom",
       "title": "Travels to Ireland",
       "date": "1065-01",
       "description": "He travels around Ireland for several months before leaving to Arabia",
@@ -30291,6 +33878,32 @@
     },
     {
       "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1065-04",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "3f9dc9d9-aabc-4dd8-a898-e9bf05e498a5",
+      "created_at": "2026-08-03T02:19:49.932275+00:00",
+      "last_updated": "2026-08-03T02:21:51.624020+00:00"
+    },
+    {
+      "event_type": "custom",
       "title": "Travels to the new Crucethu school",
       "date": "1065-06-30",
       "description": "Prior to the school's grand opening, Malfoy visits the founders and tours the campus.",
@@ -30313,6 +33926,32 @@
       "record_id": "ccf62814-2ad6-43f3-9585-484eae059f99",
       "created_at": "2026-08-02T08:39:10.327317+00:00",
       "last_updated": "2026-08-02T08:45:24.118295+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1065-09",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "966ffb3c-3b36-4782-b5fb-f248a81d4a11",
+      "created_at": "2026-08-03T02:20:39.660252+00:00",
+      "last_updated": "2026-08-03T02:21:33.506301+00:00"
     },
     {
       "event_type": "custom",
@@ -30384,7 +34023,7 @@
       "last_updated": "2026-08-02T11:01:47.170965+00:00"
     },
     {
-      "event_type": "died",
+      "event_type": "murder",
       "title": "Emeric Kills Salazar Slytherin",
       "date": "1066-02-02",
       "description": "This ignites in Egbert the Egregious a striving for vengence. Most of the public was unaware that Egbert killed Slytherin.",
@@ -30397,46 +34036,118 @@
         "6cd8d366-28a4-4199-9c5c-ff55362851b2"
       ],
       "period_names": [],
-      "location_ids": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
       "locked_location_ids": [],
       "record_id": "6f16f9db-6a8b-4070-82a4-55ea6d144654",
       "created_at": "2026-08-01T10:40:45.947074+00:00",
-      "last_updated": "2026-08-02T13:14:10.310759+00:00",
+      "last_updated": "2026-08-03T03:11:01.829888+00:00",
       "eminence_skills": {
         "6cd8d366-28a4-4199-9c5c-ff55362851b2": "Dark Arts"
       },
       "organization_id": "",
-      "organization_name": ""
+      "organization_name": "",
+      "perpetrator_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "victim_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "witness_person_ids": [],
+      "affected_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ]
     },
     {
-      "event_type": "died",
+      "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1066-01",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "8b18417b-7398-4113-b256-6feef430b85d",
+      "created_at": "2026-08-03T02:21:25.197135+00:00",
+      "last_updated": "2026-08-03T03:22:35.974145+00:00"
+    },
+    {
+      "event_type": "murder",
       "title": "Egbert kills Emeric",
       "date": "1066-04-12",
-      "description": "",
+      "description": "As a means of avenging his mentor, Egbert murders Emeric.",
       "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
         "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-        "731751aa-a668-4887-840f-c8e5d624c655"
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
       ],
       "eminence_person_ids": [
         "731751aa-a668-4887-840f-c8e5d624c655"
       ],
       "period_names": [],
-      "location_ids": [],
+      "location_ids": [
+        "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4"
+      ],
       "locked_location_ids": [],
       "record_id": "a04ba8f5-c7bc-4459-b8cc-16c2f896b645",
       "created_at": "2026-08-01T10:58:49.683467+00:00",
-      "last_updated": "2026-08-02T05:46:20.093762+00:00",
+      "last_updated": "2026-08-03T03:16:58.493205+00:00",
       "eminence_skills": {
         "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
       },
       "organization_id": "",
-      "organization_name": ""
+      "organization_name": "",
+      "perpetrator_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "victim_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "witness_person_ids": [],
+      "affected_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ]
     },
     {
       "event_type": "custom",
-      "title": "Killing spree",
-      "date": "1066-05",
-      "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
+      "title": "Kills many muggles",
+      "date": "1066-04-13",
+      "description": "The next day after killing Emeric, he is still grief stricken and displaces this grief on many muggles murdering several in Loch ness",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "a1bdfa5d-ed43-4775-a505-42e43d0a006e"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "ff0d3291-dca0-4c59-90d2-9ebce503d4dd",
+      "created_at": "2026-08-03T02:24:38.718757+00:00",
+      "last_updated": "2026-08-03T02:25:46.636519+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Investigates dark resurrection practices",
+      "date": "1066-04-14",
+      "description": "Still in his grief practice, Egbert returns to Hogwarts library and dives deeply into all records related to resurrection in an attempt to resurrect Salazar.",
       "person_ids": [
         "731751aa-a668-4887-840f-c8e5d624c655"
       ],
@@ -30446,14 +34157,60 @@
       "eminence_skills": {
         "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
       },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "9c5c44ce-798d-4d29-8019-db761745f997",
+      "created_at": "2026-08-03T02:26:47.167065+00:00",
+      "last_updated": "2026-08-03T02:29:09.810423+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Killing spree",
+      "date": "1066-05-15",
+      "description": "His vengence didn't settle the pain of losing his mentor. He goes on a grief-striken muggle killing spree.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
       "period_names": [],
       "location_ids": [],
       "locked_location_ids": [],
       "record_id": "b054e551-6e71-4f82-bee4-59789647ed60",
       "created_at": "2026-08-02T05:16:24.182311+00:00",
-      "last_updated": "2026-08-02T05:16:24.182311+00:00",
+      "last_updated": "2026-08-03T02:31:50.685598+00:00",
       "organization_id": "",
       "organization_name": ""
+    },
+    {
+      "event_type": "custom",
+      "title": "Researches resurrection practices",
+      "date": "1066-05-16",
+      "description": "Even more deeply investigates resurrection practices.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Dark Arts"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "edb80610-b526-4c57-8e15-7e3fa1f0f78d",
+      "created_at": "2026-08-03T02:33:01.308847+00:00",
+      "last_updated": "2026-08-03T02:33:01.308847+00:00"
     },
     {
       "event_type": "custom",
@@ -30497,25 +34254,6 @@
       "record_id": "1d09f653-76eb-4790-9d1f-875e94fb1b7f",
       "created_at": "2026-08-02T05:32:04.854987+00:00",
       "last_updated": "2026-08-02T05:32:04.854987+00:00",
-      "organization_id": "",
-      "organization_name": ""
-    },
-    {
-      "event_type": "died",
-      "title": "Accidental death",
-      "date": "1066-06-12",
-      "description": "Egbert accidentally kills himself attempting to make a horcrux.",
-      "person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "record_id": "24138fdb-a54a-4592-b7a4-e654ff9e6941",
-      "created_at": "2026-08-02T05:17:03.046153+00:00",
-      "last_updated": "2026-08-02T05:46:26.972574+00:00",
       "organization_id": "",
       "organization_name": ""
     },
@@ -30629,124 +34367,38 @@
       "organization_name": ""
     },
     {
-      "event_type": "relocated",
-      "title": "Godric relocates to London",
-      "date": "987-12-28",
-      "description": "Godric relocates to London specifically to be close to Salazar to continue their intense study together.",
+      "event_type": "died",
+      "title": "Accidentally killed self",
+      "date": "1066-06-01",
+      "description": "Egbert accidentally dies while attempting to resurrect Slytherin.",
       "person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+        "731751aa-a668-4887-840f-c8e5d624c655"
       ],
       "eminence_person_ids": [],
       "eminence_skills": {},
       "period_names": [],
-      "location_ids": [
-        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "2c75675c-c272-4678-a9a7-0d990982e9ac",
-      "created_at": "2026-08-02T14:33:15.269833+00:00",
-      "last_updated": "2026-08-02T14:33:26.172125+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Salazar and Godric continue their study",
-      "date": "988-04",
-      "description": "",
-      "person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_skills": {
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Defense",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Defense"
-      },
-      "period_names": [],
       "location_ids": [],
       "locked_location_ids": [],
       "organization_id": "",
       "organization_name": "",
-      "record_id": "d96e4da2-2561-4897-84d1-b4899f1b4f7e",
-      "created_at": "2026-08-02T14:35:16.978034+00:00",
-      "last_updated": "2026-08-02T14:35:42.812827+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Godric recruits Ravenclaw",
-      "date": "989-06",
-      "description": "Rowena and Godric were friends from Wessex for years. Godric always respected Rowena and was excited to ask her to join the mission to found Hogwarts.",
-      "person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
-      ],
-      "eminence_person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
-      ],
-      "eminence_skills": {
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Social",
-        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Social"
-      },
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "af1c266a-2c1d-4133-b43d-c7b3bb1532b6",
-      "created_at": "2026-08-02T14:39:33.081391+00:00",
-      "last_updated": "2026-08-02T14:39:33.081391+00:00"
-    },
-    {
-      "event_type": "custom",
-      "title": "Rowena, Godric and Salazar travel together",
-      "date": "989-08-12",
-      "description": "The three future founders begin to travel the British Isles together seeking a potential site for their school. The had no intention of bringing on another founder. However, they were charmed and impressed by Helga Hufflepuff when they met her in the Orkneys. She suggested the area that eventually became the home of Hogwarts. During their time traveling together, they continued to share their mutually beneficial skillsets with one another.",
-      "person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
-        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
-      ],
-      "eminence_person_ids": [
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
-        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
-      ],
-      "eminence_skills": {
-        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Perception",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Artificing",
-        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Arithmancy",
-        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense"
-      },
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "a2066a0e-0183-465e-844f-fd6a74c91c0d",
-      "created_at": "2026-08-02T14:43:35.556811+00:00",
-      "last_updated": "2026-08-02T14:43:52.365565+00:00"
+      "record_id": "55f28600-7e32-426c-8758-62123ecbcd90",
+      "created_at": "2026-08-03T03:18:38.006913+00:00",
+      "last_updated": "2026-08-03T03:20:14.763415+00:00"
     }
   ],
   "_recent_people": [
-    "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
-    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-    "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
-    "bcfff484-a85f-43e0-96e3-e20796e5396f",
+    "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+    "731751aa-a668-4887-840f-c8e5d624c655",
+    "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
     "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
-    "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
-    "0164a838-659c-40f7-b201-ff20fef4679d",
-    "6cd8d366-28a4-4199-9c5c-ff55362851b2",
+    "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+    "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
     "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
-    "731751aa-a668-4887-840f-c8e5d624c655"
+    "bcfff484-a85f-43e0-96e3-e20796e5396f",
+    "0164a838-659c-40f7-b201-ff20fef4679d"
   ],
   "_recent_locations": [
     "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
@@ -30764,32 +34416,32 @@
   ],
   "_recent_event_associations": {
     "person_ids": [
-      "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
       "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+      "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+      "731751aa-a668-4887-840f-c8e5d624c655",
+      "6cd8d366-28a4-4199-9c5c-ff55362851b2",
       "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
       "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
       "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
       "bcfff484-a85f-43e0-96e3-e20796e5396f",
-      "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-      "731751aa-a668-4887-840f-c8e5d624c655",
       "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
       "0164a838-659c-40f7-b201-ff20fef4679d",
       "8cf308b5-afae-4323-a4fd-209dd5b63c7c",
       "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
     ],
     "location_ids": [
-      "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
       "bc89bd68-989e-42ec-a5b2-e7da7fbce321",
+      "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
+      "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4",
+      "a1bdfa5d-ed43-4775-a505-42e43d0a006e",
+      "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
       "ec397fa8-dfa3-4278-b78f-c3d96b4066fe",
       "77f07ff9-955c-4f2d-a2d5-761141b5b5dd",
       "f6c823f8-7f67-49a3-98de-84331105deed",
-      "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
       "e2f7a85b-83ff-4c25-a779-d05da445a37b",
       "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
       "1df35516-b69f-45df-ac06-b52616e5ed41",
-      "45e5a2df-7b87-4424-8d81-d10ab034d139",
-      "f02e9fc5-b286-4197-b08b-de69383a67e4",
-      "8ca999ab-62a2-40c4-ba41-cfdcb3bca870"
+      "45e5a2df-7b87-4424-8d81-d10ab034d139"
     ]
   },
   "_application_settings": {

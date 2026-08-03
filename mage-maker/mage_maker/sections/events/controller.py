@@ -16,9 +16,12 @@ from mage_maker.sections.development.event_eminence import (
     suggested_event_eminence_skill,
 )
 from mage_maker.sections.events.models import (
+    DEATH_EVENT_TYPES,
+    death_event_person_ids,
     normalize_world_event,
     normalize_world_events,
     split_world_event_date,
+    synchronize_people_death_records,
     world_event_sort_key,
     world_event_year,
 )
@@ -130,6 +133,7 @@ class EventController:
         )
 
     def create_event(self, values):
+        self.require_single_death_location(values)
         prepared = normalize_world_event(
             self.apply_event_rules(values)
         )
@@ -150,6 +154,7 @@ class EventController:
         )
         created = self.database.create_record("events", normalized)
         self.synchronize_started_job_assignments((), (created,))
+        self.synchronize_death_event_people((), (created,))
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -190,6 +195,7 @@ class EventController:
         prospective = deepcopy(current)
         prospective.update(deepcopy(values))
         prospective["record_id"] = record_id
+        self.require_single_death_location(prospective)
         normalized = self.with_eligible_eminence(
             normalize_world_event(
                 self.apply_event_rules(prospective, current)
@@ -214,6 +220,10 @@ class EventController:
             normalized,
         )
         self.synchronize_started_job_assignments(
+            (current,),
+            (updated,),
+        )
+        self.synchronize_death_event_people(
             (current,),
             (updated,),
         )
@@ -242,6 +252,7 @@ class EventController:
         )
         deleted = self.database.delete_record("events", record_id)
         self.synchronize_started_job_assignments((current,), ())
+        self.synchronize_death_event_people((current,), ())
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -249,6 +260,42 @@ class EventController:
         self.synchronize_location_extinction_state()
         self.database.save()
         return normalize_world_event(deleted)
+
+    def duplicate_event(self, record_id):
+        current = self.get_event(record_id)
+
+        if current is None:
+            raise KeyError(f"Unknown event record_id: {record_id}")
+
+        if current.get("organization_event"):
+            raise ValueError(
+                "Organization-owned events cannot be duplicated here."
+            )
+
+        if current.get("event_type") in DEATH_EVENT_TYPES:
+            raise ValueError(
+                "Death and Murder events cannot be duplicated."
+            )
+
+        duplicated = deepcopy(current)
+
+        for field_name in (
+            "record_id",
+            "event_id",
+            "organization_event",
+            "organization_event_id",
+            "_stored_event",
+            "_draft_event",
+            "_person_id",
+            "created_at",
+            "last_updated",
+        ):
+            duplicated.pop(field_name, None)
+
+        if duplicated.get("event_type") == "started_job":
+            duplicated["job_assignment_id"] = ""
+
+        return self.create_event(duplicated)
 
     def synchronize_location_extinction_state(self):
         database_data = getattr(self.database, "data", None)
@@ -480,6 +527,43 @@ class EventController:
         event_type = canonical_event_type(
             prepared.get("event_type")
         )
+
+        if event_type == "died":
+            prepared["eminence_person_ids"] = []
+            prepared["eminence_skills"] = {}
+        elif event_type == "murder":
+            victim_ids = {
+                str(person_id or "").strip()
+                for person_id in prepared.get(
+                    "victim_person_ids",
+                    [],
+                )
+                if str(person_id or "").strip()
+            }
+            prepared["eminence_person_ids"] = [
+                person_id
+                for person_id in prepared.get(
+                    "eminence_person_ids",
+                    [],
+                )
+                if person_id not in victim_ids
+            ]
+            prepared["eminence_skills"] = {
+                person_id: skill
+                for person_id, skill in prepared.get(
+                    "eminence_skills",
+                    {},
+                ).items()
+                if person_id in prepared["eminence_person_ids"]
+            }
+
+        if (
+            event_type in DEATH_EVENT_TYPES
+            and not str(prepared.get("title", "") or "").strip()
+        ):
+            prepared["title"] = (
+                "Murder" if event_type == "murder" else "Death"
+            )
 
         if event_type not in ("started_job", "received_raise"):
             return prepared
@@ -838,6 +922,50 @@ class EventController:
                 {"development_plan": plan},
             )
 
+    def synchronize_death_event_people(
+        self,
+        previous_events,
+        updated_events,
+    ):
+        affected_person_ids = {
+            person_id
+            for event in (
+                *tuple(previous_events or ()),
+                *tuple(updated_events or ()),
+            )
+            for person_id in death_event_person_ids(event)
+        }
+
+        if not affected_person_ids:
+            return False
+
+        changed = synchronize_people_death_records(
+            self.database.data,
+            affected_person_ids,
+        )
+
+        if changed:
+            self.database.dirty = True
+
+        return changed
+
+    def require_single_death_location(self, event):
+        if canonical_event_type(
+            (event or {}).get("event_type")
+        ) not in DEATH_EVENT_TYPES:
+            return
+
+        location_ids = {
+            str(location_id or "").strip()
+            for location_id in (event or {}).get("location_ids", [])
+            if str(location_id or "").strip()
+        }
+
+        if len(location_ids) > 1:
+            raise ValueError(
+                "A Death or Murder event can use no more than one location."
+            )
+
     def events_for_period(self, period_name, start_year, end_year):
         normalized_start = int(start_year)
         normalized_end = int(end_year)
@@ -862,6 +990,38 @@ class EventController:
             for event in self.list_events()
             if normalized_person_id in event["person_ids"]
         ]
+
+    def eminence_points_for_person(self, person_id):
+        normalized_person_id = str(person_id or "").strip()
+
+        if (
+            not normalized_person_id
+            or normalized_person_id
+            not in self.eminence_eligible_person_ids()
+        ):
+            return 0
+
+        stored_events = self.database.list_records("events")
+
+        for organization in self.database.list_records(
+            "organizations"
+        ):
+            if not isinstance(organization, dict):
+                continue
+
+            stored_events.extend(
+                event
+                for event in organization.get("events", [])
+                if isinstance(event, dict)
+            )
+
+        return sum(
+            normalized_person_id in event.get("person_ids", [])
+            and normalized_person_id
+            in event.get("eminence_person_ids", [])
+            for event in stored_events
+            if isinstance(event, dict)
+        )
 
     def event_has_famous_person(self, event):
         linked_person_ids = {
@@ -1473,6 +1633,7 @@ class EventController:
     def validate_associations(self, event, current_event=None):
         self.validate_job_event(event, current_event)
         self.validate_death_event(event, current_event)
+        self.validate_murder_event(event, current_event)
 
         if (
             event.get("event_type") == "relocated"
@@ -1496,6 +1657,14 @@ class EventController:
         ):
             raise ValueError(
                 "Select exactly one location for an extinction event."
+            )
+
+        if (
+            event.get("event_type") in DEATH_EVENT_TYPES
+            and len(event.get("location_ids", [])) > 1
+        ):
+            raise ValueError(
+                "A Death or Murder event can use no more than one location."
             )
 
         if event.get("event_type") == "founding":
@@ -1611,7 +1780,76 @@ class EventController:
                 "A Death event must belong to exactly one person."
             )
 
-        person_id = str(person_ids[0] or "").strip()
+        self.require_person_without_other_death_event(
+            person_ids[0],
+            current_event,
+        )
+
+    def validate_murder_event(self, event, current_event=None):
+        if canonical_event_type(
+            (event or {}).get("event_type")
+        ) != "murder":
+            return
+
+        perpetrator_ids = list(
+            (event or {}).get("perpetrator_person_ids", []) or []
+        )
+        victim_ids = list(
+            (event or {}).get("victim_person_ids", []) or []
+        )
+        witness_ids = list(
+            (event or {}).get("witness_person_ids", []) or []
+        )
+        affected_ids = list(
+            (event or {}).get("affected_person_ids", []) or []
+        )
+
+        if not perpetrator_ids:
+            raise ValueError(
+                "A Murder event needs at least one perpetrator."
+            )
+
+        if not victim_ids:
+            raise ValueError("A Murder event needs at least one victim.")
+
+        if set(perpetrator_ids).intersection(victim_ids):
+            raise ValueError(
+                "The same person cannot be both perpetrator and victim."
+            )
+
+        all_role_ids = [
+            *perpetrator_ids,
+            *victim_ids,
+            *witness_ids,
+            *affected_ids,
+        ]
+
+        if len(all_role_ids) != len(set(all_role_ids)):
+            raise ValueError(
+                "Each Murder participant can belong to only one category."
+            )
+
+        victim_eminence_ids = set(victim_ids).intersection(
+            (event or {}).get("eminence_person_ids", []) or []
+        )
+
+        if victim_eminence_ids:
+            raise ValueError(
+                "Victims cannot earn Eminence from a Murder event."
+            )
+
+        for victim_id in victim_ids:
+            self.require_person_without_other_death_event(
+                victim_id,
+                current_event,
+            )
+
+    def require_person_without_other_death_event(
+        self,
+        person_id,
+        current_event=None,
+    ):
+        selected_person_id = str(person_id or "").strip()
         current_event_id = str(
             (current_event or {}).get("record_id", "") or ""
         ).strip()
@@ -1628,11 +1866,7 @@ class EventController:
             ):
                 continue
 
-            if (
-                canonical_event_type(stored_event.get("event_type"))
-                == "died"
-                and person_id in stored_event.get("person_ids", [])
-            ):
+            if selected_person_id in death_event_person_ids(stored_event):
                 raise ValueError(
                     "This person already has a Death event."
                 )
@@ -1642,7 +1876,7 @@ class EventController:
                 candidate
                 for candidate in self.people_provider()
                 if str(candidate.get("record_id", "") or "").strip()
-                == person_id
+                == selected_person_id
             ),
             None,
         )

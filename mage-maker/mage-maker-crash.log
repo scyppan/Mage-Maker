@@ -4,11 +4,11 @@ Traceback (most recent call last):
   File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\shell\application.py", line 93, in __init__
     self.database.load()
     ~~~~~~~~~~~~~~~~~~^^
-  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 89, in load
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 101, in load
     self.validate_database(loaded_data)
     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 1290, in validate_database
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 1964, in validate_database
     raise ValueError(
-    ...<2 lines>...
+        "A Death event needs one person."
     )
-ValueError: Organizations must use their canonical stored structure.
+ValueError: A Death event needs one person.

@@ -6,6 +6,7 @@ EVENT_TYPE_DEFINITIONS = (
     ("had_child", "Had a child", ("person",), False),
     ("got_married", "Marriage", ("person",), False),
     ("died", "Death", ("person",), False),
+    ("murder", "Murder", ("person",), False),
     ("started_school", "Started school", ("person",), False),
     ("opened_business", "Opened a business", ("person",), False),
     ("started_job", "Started job", ("person",), False),
@@ -57,6 +58,7 @@ EVENT_LABEL_TYPES.update(
 LEGACY_EVENT_TYPE_ALIASES = {
     "birth": "born",
     "death": "died",
+    "murder": "murder",
     "marriage": "got_married",
     "got_job": "started_job",
     "got a job": "started_job",

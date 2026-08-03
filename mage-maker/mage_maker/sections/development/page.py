@@ -12,9 +12,6 @@ from mage_maker.sections.development.bonus_dialogs import (
     InitialSkillBonusDialog,
     TraitSelectionDialog,
 )
-from mage_maker.sections.development.book_dialog import (
-    BookSelectionDialog,
-)
 from mage_maker.sections.development.event_eminence import (
     reconcile_person_event_eminence,
 )
@@ -75,7 +72,6 @@ from mage_maker.sections.development.models import (
     DEVELOPMENT_ABILITY_OPTIONS,
     DEVELOPMENT_SCHEMA_OPTIONS,
     DEVELOPMENT_SKILL_OPTIONS,
-    SCHOOL_YEAR_BOOK_COUNT,
     adult_year_calendar_year,
     adult_year_calendar_year_range,
     calendar_year_age_range,
@@ -91,12 +87,10 @@ from mage_maker.sections.development.models import (
     normalize_job_records,
     job_assignment_overlaps_year_range,
     normalize_school_started,
-    normalize_school_year_books,
     normalize_school_year_records,
     randomized_development_plan,
     school_year_calendar_year,
     school_progress_text,
-    school_year_book_identity,
     suggested_job_start_date,
     total_eminence_points,
 )
@@ -104,7 +98,6 @@ from mage_maker.sections.development.mortality import (
     simulate_mortality_to_database_date,
 )
 from mage_maker.sections.development.school_years import (
-    assigned_school_books_by_year,
     ensure_adult_year_records_with_improvements,
     ensure_school_year_records,
     random_school_year_skill,
@@ -252,12 +245,6 @@ class DevelopmentView(tk.Frame):
         self.adult_eminence_summary_value = tk.StringVar(
             value="No eminence earned"
         )
-        self.adult_reading_summary_value = tk.StringVar(
-            value="Book limit: 0"
-        )
-        self.adult_book_summary_value = tk.StringVar(
-            value="No books read"
-        )
         self.job_summary_value = tk.StringVar(
             value="No jobs recorded"
         )
@@ -274,9 +261,6 @@ class DevelopmentView(tk.Frame):
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
         ]
-        self.year_book_summary_value = tk.StringVar(
-            value="No books selected"
-        )
         self.skill_values = [
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[index])
             for index in range(3)
@@ -1394,7 +1378,7 @@ class DevelopmentView(tk.Frame):
             sticky="nsew",
         )
         self.year_detail_panel.grid_columnconfigure(1, weight=1)
-        self.year_detail_panel.grid_rowconfigure(5, weight=1)
+        self.year_detail_panel.grid_rowconfigure(2, weight=1)
         year_detail_heading = tk.Label(
             self.year_detail_panel,
             textvariable=self.year_detail_heading_value,
@@ -1626,66 +1610,6 @@ class DevelopmentView(tk.Frame):
             )
             self.year_skill_selects.append(skill_select)
 
-        year_detail_divider = tk.Frame(
-            self.year_detail_panel,
-            bg=BORDER_SOFT,
-            height=1,
-        )
-        year_detail_divider.grid(
-            row=3,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-            pady=(8, 7),
-        )
-        books_heading = tk.Label(
-            self.year_detail_panel,
-            text="Intentional study books",
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-        )
-        books_heading.grid(
-            row=4,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-        )
-        books_summary = tk.Label(
-            self.year_detail_panel,
-            textvariable=self.year_book_summary_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10),
-            anchor="nw",
-            justify="left",
-            wraplength=520,
-        )
-        books_summary.grid(
-            row=5,
-            column=0,
-            sticky="ew",
-            pady=(5, 8),
-        )
-        self.select_books_button = SoftButton(
-            self.year_detail_panel,
-            text="Select books",
-            command=self.open_school_year_books,
-            background=SURFACE_MUTED,
-            fill=BUTTON_SOFT,
-            hover_fill=BUTTON_SOFT_HOVER,
-            foreground=TEXT_DARK,
-            width=108,
-            height=30,
-            font=app_font(9, "bold"),
-        )
-        self.select_books_button.grid(
-            row=5,
-            column=1,
-            sticky="ne",
-            padx=(10, 0),
-        )
         self.adult_detail_panel = tk.Frame(
             self.year_tabs_container,
             bg=SURFACE_MUTED,
@@ -1700,107 +1624,13 @@ class DevelopmentView(tk.Frame):
             sticky="nsew",
         )
         self.adult_detail_panel.grid_columnconfigure(0, weight=1)
-        self.adult_detail_panel.grid_rowconfigure(3, weight=1)
-        adult_reading_frame = tk.Frame(
-            self.adult_detail_panel,
-            bg=SURFACE_MUTED,
-        )
-        adult_reading_frame.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-        adult_reading_frame.grid_columnconfigure(0, weight=1)
-        adult_reading_heading = tk.Label(
-            adult_reading_frame,
-            text="Reading",
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(11, "bold"),
-            anchor="w",
-        )
-        adult_reading_heading.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-        adult_reading_summary = tk.Label(
-            adult_reading_frame,
-            textvariable=self.adult_reading_summary_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_MUTED,
-            font=app_font(9),
-            anchor="w",
-            justify="left",
-        )
-        adult_reading_summary.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-            pady=(4, 0),
-        )
-        adult_book_summary = tk.Label(
-            adult_reading_frame,
-            textvariable=self.adult_book_summary_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10),
-            anchor="nw",
-            justify="left",
-            wraplength=430,
-        )
-        adult_book_summary.grid(
-            row=2,
-            column=0,
-            sticky="ew",
-            pady=(5, 0),
-        )
-        self.adult_books_button = SoftButton(
-            adult_reading_frame,
-            text="Select books",
-            command=self.open_adult_year_books,
-            background=SURFACE_MUTED,
-            fill=BUTTON_SOFT,
-            hover_fill=BUTTON_SOFT_HOVER,
-            foreground=TEXT_DARK,
-            width=108,
-            height=30,
-            font=app_font(9, "bold"),
-        )
-        self.adult_books_button.grid(
-            row=0,
-            column=1,
-            sticky="ne",
-            padx=(10, 0),
-        )
-        adult_reading_divider = tk.Frame(
-            self.adult_detail_panel,
-            bg=BORDER_SOFT,
-            height=1,
-        )
-        adult_reading_divider.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-            pady=(10, 9),
-        )
-        adult_jobs_divider = tk.Frame(
-            self.adult_detail_panel,
-            bg=BORDER_SOFT,
-            height=1,
-        )
-        adult_jobs_divider.grid(
-            row=2,
-            column=0,
-            sticky="ew",
-            pady=(10, 9),
-        )
+        self.adult_detail_panel.grid_rowconfigure(0, weight=1)
         jobs_frame = tk.Frame(
             self.adult_detail_panel,
             bg=SURFACE_MUTED,
         )
         jobs_frame.grid(
-            row=3,
+            row=0,
             column=0,
             sticky="nsew",
         )
@@ -2168,21 +1998,6 @@ class DevelopmentView(tk.Frame):
         previous_adult_year_records = deepcopy(
             getattr(self, "adult_year_records", [])
         )
-        available_books = (
-            self.game_database_collection("books")
-            if hasattr(self, "game_database_collection")
-            else []
-        )
-        available_spells = (
-            self.game_database_collection("spells")
-            if hasattr(self, "game_database_collection")
-            else []
-        )
-        available_proficiencies = (
-            self.game_database_collection("proficiencies")
-            if hasattr(self, "game_database_collection")
-            else []
-        )
         self.adult_year_records = (
             ensure_adult_year_records_with_improvements(
                 previous_adult_year_records,
@@ -2198,9 +2013,7 @@ class DevelopmentView(tk.Frame):
                     "school_year_records",
                     [],
                 ),
-                books=available_books,
-                spells=available_spells,
-                proficiencies=available_proficiencies,
+                manage_reading=False,
             )
         )
         if not isinstance(
@@ -3284,11 +3097,7 @@ class DevelopmentView(tk.Frame):
                     "school_year_records",
                     [],
                 ),
-                books=self.game_database_collection("books"),
-                spells=self.game_database_collection("spells"),
-                proficiencies=self.game_database_collection(
-                    "proficiencies"
-                ),
+                manage_reading=False,
             )
         )
         if not isinstance(
@@ -3330,27 +3139,6 @@ class DevelopmentView(tk.Frame):
 
         return None
 
-    def school_year_book_summary_text(self, books):
-        normalized_books = normalize_school_year_books(books)
-
-        if not normalized_books:
-            return "No books selected"
-
-        return "\n".join(
-            (
-                f"{index}. {book['name']}"
-                + (
-                    f" — {book['author']}"
-                    if book["author"]
-                    else ""
-                )
-            )
-            for index, book in enumerate(
-                normalized_books,
-                start=1,
-            )
-        )
-
     def render_school_year_record(self):
         record = self.school_year_record()
 
@@ -3372,12 +3160,6 @@ class DevelopmentView(tk.Frame):
         previous_loading = self.loading
         self.loading = True
         skipped = bool(record.get("skipped", False))
-        book_summary = self.school_year_book_summary_text(
-            record.get("books", [])
-        )
-
-        if skipped:
-            book_summary = f"Intentional study:\n{book_summary}"
 
         if hasattr(self, "year_detail_heading_value"):
             self.year_detail_heading_value.set(
@@ -3465,17 +3247,6 @@ class DevelopmentView(tk.Frame):
             ):
                 skill_value.set(record["skills"][index])
 
-        if hasattr(self, "year_book_summary_value"):
-            self.year_book_summary_value.set(book_summary)
-
-        if hasattr(self, "select_books_button"):
-            self.select_books_button.set_text(
-                "Change books"
-                if len(record.get("books", []))
-                == SCHOOL_YEAR_BOOK_COUNT
-                else "Select books"
-            )
-
         self.refresh_eminence_lists(
             record.get("eminence", [])
         )
@@ -3484,8 +3255,7 @@ class DevelopmentView(tk.Frame):
             self.year_placeholder_value.set(
                 f"Ability: {record['ability']}\n"
                 f"Skills: {record['skills'][0]}, "
-                f"{record['skills'][1]}\n"
-                f"Books:\n{book_summary}"
+                f"{record['skills'][1]}"
             )
 
         if hasattr(self, "year_detail_panel"):
@@ -3528,26 +3298,6 @@ class DevelopmentView(tk.Frame):
 
         previous_loading = self.loading
         self.loading = True
-        book_limit = int(record.get("book_limit", 0) or 0)
-        self.adult_reading_summary_value.set(
-            f"Book limit: {book_limit}"
-        )
-        self.adult_book_summary_value.set(
-            self.school_year_book_summary_text(
-                record.get("books", [])
-            )
-            if book_limit
-            else "No books read"
-        )
-        self.adult_books_button.set_text(
-            "Change books"
-            if (
-                book_limit
-                and len(record.get("books", [])) == book_limit
-            )
-            else "Select books"
-        )
-        self.adult_books_button.set_enabled(book_limit > 0)
         self.refresh_eminence_lists(
             record.get("eminence", [])
         )
@@ -4029,12 +3779,6 @@ class DevelopmentView(tk.Frame):
         if hasattr(self, "year_characteristic_select"):
             self.year_characteristic_select.set_enabled(True)
 
-        if (
-            hasattr(self, "select_books_button")
-            and getattr(self, "active_year_tab", 0)
-        ):
-            self.select_books_button.set_enabled(True)
-
     def year_skip_changed(self, *arguments):
         if self.loading:
             return
@@ -4058,11 +3802,8 @@ class DevelopmentView(tk.Frame):
                 "Skip school this year?",
                 (
                     f"{person_name} will skip attending school this "
-                    "year. Their assigned school books will not be "
-                    "purchased or read.\n\n"
-                    "They can still choose ability, skill, and "
-                    "characteristic development, read intentional-study "
-                    "books.\n\n"
+                    "year. They can still choose ability, skill, and "
+                    "characteristic development.\n\n"
                     "Confirm this school year should be skipped."
                 ),
                 parent=self,
@@ -4115,12 +3856,8 @@ class DevelopmentView(tk.Frame):
                     "assigned_books": record.get(
                         "assigned_books",
                         [],
-                    )
-                    if not skipped
-                    else [],
-                    "books": (
-                        record.get("books", [])
                     ),
+                    "books": record.get("books", []),
                     "eminence": record.get("eminence", []),
                 }
             ]
@@ -4142,246 +3879,6 @@ class DevelopmentView(tk.Frame):
         self.ensure_school_year_record_count(visible_years)
         self.render_school_year_record()
         self.notify_change()
-
-    def open_school_year_books(self):
-        record = self.school_year_record()
-
-        if record is None:
-            return
-
-        books = self.game_database_collection("books")
-
-        if len(books) < SCHOOL_YEAR_BOOK_COUNT:
-            messagebox.showinfo(
-                "Books unavailable",
-                "The game database does not contain two books to select.",
-                parent=self,
-            )
-            return
-
-        BookSelectionDialog(
-            self,
-            books,
-            record.get("books", []),
-            self.save_school_year_books,
-            excluded_book_identities=(
-                self.unavailable_intentional_book_identities(
-                    record["year"]
-                )
-            ),
-        )
-
-    def save_school_year_books(self, books):
-        excluded_identities = (
-            self.unavailable_intentional_book_identities(
-                self.active_year_tab
-            )
-        )
-        normalized_books = [
-            book
-            for book in normalize_school_year_books(books)
-            if school_year_book_identity(book)
-            not in excluded_identities
-        ]
-
-        if len(normalized_books) != SCHOOL_YEAR_BOOK_COUNT:
-            return
-
-        record = self.school_year_record()
-
-        if record is None:
-            return
-
-        record["books"] = normalized_books
-        self.school_year_records = normalize_school_year_records(
-            self.school_year_records
-        )
-        self.development_plan["school_years"] = deepcopy(
-            self.school_year_records
-        )
-        self.render_school_year_record()
-        self.notify_change()
-
-    def open_adult_year_books(self):
-        record = self.adult_year_record()
-
-        if record is None:
-            return
-
-        book_limit = int(record.get("book_limit", 0) or 0)
-
-        if book_limit <= 0:
-            return
-
-        excluded_identities = self.unavailable_adult_book_identities(
-            record["adult_year"]
-        )
-        available_books = [
-            book
-            for book in self.game_database_collection("books")
-            if school_year_book_identity(book)
-            not in excluded_identities
-        ]
-
-        if len(available_books) < book_limit:
-            messagebox.showinfo(
-                "Books unavailable",
-                (
-                    "The game database does not contain enough unread "
-                    "books for this year's reading result."
-                ),
-                parent=self,
-            )
-            return
-
-        BookSelectionDialog(
-            self,
-            self.game_database_collection("books"),
-            record.get("books", []),
-            self.save_adult_year_books,
-            excluded_book_identities=excluded_identities,
-            required_book_count=book_limit,
-            heading_text="Books read during this adult year",
-            explanation_text=(
-                f"Book limit for this year: {book_limit}. "
-                "Search by title, author, category, spell, or "
-                "proficiency. Books already read are excluded."
-            ),
-        )
-
-    def save_adult_year_books(self, books):
-        record = self.adult_year_record()
-
-        if record is None:
-            return
-
-        book_limit = int(record.get("book_limit", 0) or 0)
-        excluded_identities = self.unavailable_adult_book_identities(
-            record["adult_year"]
-        )
-        normalized_books = [
-            book
-            for book in normalize_school_year_books(
-                books,
-                book_limit,
-            )
-            if school_year_book_identity(book)
-            not in excluded_identities
-        ]
-
-        if len(normalized_books) != book_limit:
-            return
-
-        record["books"] = normalized_books
-        self.adult_year_records = normalize_adult_year_records(
-            self.adult_year_records
-        )
-        self.development_plan["adult_years"] = deepcopy(
-            self.adult_year_records
-        )
-        self.render_adult_year_record()
-        self.notify_change()
-
-    def unavailable_adult_book_identities(self, adult_year):
-        identities = set()
-
-        for school_record in getattr(
-            self,
-            "school_year_records",
-            [],
-        ):
-            for field_name in ("assigned_books", "books"):
-                identities.update(
-                    school_year_book_identity(book)
-                    for book in school_record.get(
-                        field_name,
-                        [],
-                    )
-                )
-
-        for adult_record in getattr(
-            self,
-            "adult_year_records",
-            [],
-        ):
-            if int(adult_record.get("adult_year", 0) or 0) == int(
-                adult_year
-            ):
-                continue
-
-            identities.update(
-                school_year_book_identity(book)
-                for book in adult_record.get("books", [])
-            )
-
-        return identities
-
-    def unavailable_intentional_book_identities(
-        self,
-        year_number,
-    ):
-        identities = set()
-        assigned_by_year = self.assigned_books_for_selected_school()
-
-        for assigned_year, assigned_books in assigned_by_year.items():
-            if int(assigned_year) > int(year_number):
-                continue
-
-            identities.update(
-                school_year_book_identity(book)
-                for book in assigned_books
-            )
-
-        for record in getattr(
-            self,
-            "school_year_records",
-            [],
-        ):
-            record_year = int(record.get("year", 0) or 0)
-
-            if record_year <= int(year_number):
-                for book in record.get("assigned_books", []) or []:
-                    identities.add(
-                        school_year_book_identity(book)
-                    )
-
-            if record_year == int(year_number):
-                continue
-
-            for book in record.get("books", []) or []:
-                identities.add(school_year_book_identity(book))
-
-        return identities
-
-    def assigned_books_for_selected_school(self):
-        school_field = getattr(self, "school_field", None)
-        school_name = (
-            school_field.get_value()
-            if school_field is not None
-            else str(
-                getattr(self, "current_person", {}).get(
-                    "school",
-                    "",
-                )
-                or ""
-            ).strip()
-        )
-        return assigned_school_books_by_year(
-            school_name,
-            self.game_database_collection("schools"),
-            self.game_database_collection("books"),
-        )
-
-    def game_database_collection(self, collection_name):
-        game_database = getattr(self, "game_database", None)
-
-        if (
-            game_database is None
-            or not getattr(game_database, "loaded", False)
-        ):
-            return []
-
-        return game_database.collection(collection_name)
 
     def school_year_generation_plan(self):
         plan = deepcopy(
@@ -4461,18 +3958,13 @@ class DevelopmentView(tk.Frame):
             previous_records,
             target_year_count,
             self.school_year_generation_plan(),
-            self.game_database_collection("books"),
-            self.game_database_collection("spells"),
-            self.game_database_collection("proficiencies"),
             school_name=school_name,
-            assigned_books_by_year=(
-                self.assigned_books_for_selected_school()
-            ),
             initial_characteristics=getattr(
                 self,
                 "characteristics",
                 None,
             ),
+            manage_books=False,
         )
         self.school_year_records = generated_records
         initial_bonuses = getattr(
@@ -4813,21 +4305,6 @@ class DevelopmentView(tk.Frame):
             )
 
         self.ensure_school_year_record_count(school_year_count)
-        available_books = (
-            self.game_database_collection("books")
-            if hasattr(self, "game_database_collection")
-            else []
-        )
-        available_spells = (
-            self.game_database_collection("spells")
-            if hasattr(self, "game_database_collection")
-            else []
-        )
-        available_proficiencies = (
-            self.game_database_collection("proficiencies")
-            if hasattr(self, "game_database_collection")
-            else []
-        )
         self.adult_year_records = (
             ensure_adult_year_records_with_improvements(
                 getattr(self, "adult_year_records", []),
@@ -4843,9 +4320,7 @@ class DevelopmentView(tk.Frame):
                     "school_year_records",
                     [],
                 ),
-                books=available_books,
-                spells=available_spells,
-                proficiencies=available_proficiencies,
+                manage_reading=False,
             )
         )
         self.development_plan["adult_years"] = deepcopy(

@@ -1,6 +1,7 @@
 import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox
+from uuid import uuid4
 
 from mage_maker.core.dates import (
     format_historical_display_date,
@@ -18,6 +19,7 @@ from mage_maker.sections.events.editor import (
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_TYPE_LABELS,
+    murder_timeline_summary,
     normalize_timeline_event,
     normalize_timeline_events,
     sort_timeline_events,
@@ -50,6 +52,7 @@ EVENT_COLORS = {
     "had_child": "#E7D5F0",
     "got_married": "#D5EAD9",
     "died": "#EBCFD6",
+    "murder": "#E4C6CF",
     "started_school": "#D9E3F1",
     "opened_business": "#E8D9C4",
     "started_job": "#D8E3EC",
@@ -86,6 +89,8 @@ class TimelineView(tk.Frame):
         linked_event_create_command=None,
         linked_event_edit_command=None,
         life_start_save_command=None,
+        death_event_save_command=None,
+        death_event_delete_command=None,
         name_details_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
@@ -97,6 +102,8 @@ class TimelineView(tk.Frame):
         self.person_id_provider = person_id_provider
         self.linked_events_changed_command = linked_events_changed_command
         self.life_start_save_command = life_start_save_command
+        self.death_event_save_command = death_event_save_command
+        self.death_event_delete_command = death_event_delete_command
         self.name_details_command = name_details_command
         self.events = []
         self.linked_events = []
@@ -140,6 +147,20 @@ class TimelineView(tk.Frame):
             height=36,
         )
         self.add_button.grid(row=0, column=1, padx=(6, 0), pady=4)
+        self.duplicate_button = SoftButton(
+            toolbar,
+            text="Duplicate event",
+            command=self.duplicate_event,
+            background=SURFACE,
+            width=126,
+            height=36,
+        )
+        self.duplicate_button.grid(
+            row=0,
+            column=2,
+            padx=(6, 0),
+            pady=4,
+        )
         self.remove_button = SoftButton(
             toolbar,
             text="Remove",
@@ -148,7 +169,7 @@ class TimelineView(tk.Frame):
             width=118,
             height=36,
         )
-        self.remove_button.grid(row=0, column=2, padx=(6, 0), pady=4)
+        self.remove_button.grid(row=0, column=3, padx=(6, 0), pady=4)
 
     def build_workspace(self):
         self.workspace = tk.Frame(self, bg=SURFACE)
@@ -667,11 +688,19 @@ class TimelineView(tk.Frame):
                 self.listbox.itemconfigure(
                     row_index,
                     background=(
-                        LIST_ALTERNATE
-                        if event.get("_stored_event")
-                        else EVENT_COLORS.get(
-                            event.get("event_type"),
-                            FIELD_BACKGROUND,
+                        EVENT_COLORS["died"]
+                        if (
+                            event.get("event_type") == "murder"
+                            and self.current_person_id()
+                            in event.get("victim_person_ids", [])
+                        )
+                        else (
+                            LIST_ALTERNATE
+                            if event.get("_stored_event")
+                            else EVENT_COLORS.get(
+                                event.get("event_type"),
+                                FIELD_BACKGROUND,
+                            )
                         )
                     ),
                 )
@@ -687,6 +716,18 @@ class TimelineView(tk.Frame):
     def event_summary_text(self, event):
         if event.get("_draft_event"):
             return "New event (unsaved)"
+
+        if event.get("event_type") == "murder":
+            people = (
+                self.people_provider()
+                if self.people_provider is not None
+                else []
+            )
+            return murder_timeline_summary(
+                event,
+                self.current_person_id(),
+                people,
+            )
 
         if event.get("_stored_event"):
             summary = (
@@ -709,7 +750,7 @@ class TimelineView(tk.Frame):
 
     def display_event_sort_key(self, event):
         if event.get("_draft_event"):
-            return -1, 0, 0, 0, ""
+            return -1, 0, 0, 0, 0, ""
 
         event_type = str(event.get("event_type", "") or "")
 
@@ -719,15 +760,28 @@ class TimelineView(tk.Frame):
                 LIFE_START_PRIORITIES[event_type],
                 0,
                 0,
+                0,
                 "",
             )
 
         year, month, day = self.event_date_parts(event.get("date"))
+        terminal_priority = 0
+
+        if event_type == "died":
+            terminal_priority = 1
+        elif (
+            event_type == "murder"
+            and self.current_person_id()
+            in event.get("victim_person_ids", [])
+        ):
+            terminal_priority = 1
+
         return (
             1,
             year,
             month,
             day,
+            terminal_priority,
             self.event_summary_text(event).casefold(),
         )
 
@@ -820,6 +874,18 @@ class TimelineView(tk.Frame):
         return False
 
     def confirm_unsaved_event_changes(self):
+        association_guard_command = getattr(
+            getattr(self, "event_editor", None),
+            "association_selection_guard_active",
+            None,
+        )
+
+        if (
+            callable(association_guard_command)
+            and association_guard_command()
+        ):
+            return False
+
         unsaved_changes_command = getattr(
             getattr(self, "event_editor", None),
             "has_unsaved_changes",
@@ -1033,12 +1099,12 @@ class TimelineView(tk.Frame):
                 locked_person_ids=(person_id,),
                 read_only=False,
                 explanation=(
-                    "The death date is synchronized from Profile. "
-                    "The title and description remain editable."
+                    "Saving this event updates the read-only death date "
+                    "shown on Overview."
                 ),
-                lock_date=True,
+                lock_date=False,
                 lock_people=True,
-                title_and_description_only=True,
+                single_location=True,
             )
             return
 
@@ -1188,6 +1254,47 @@ class TimelineView(tk.Frame):
                 "The synchronized opening event could not be reloaded."
             )
 
+        if (
+            storage_kind == "timeline"
+            and original_event.get("automatic_source") == "death_date"
+        ):
+            if self.death_event_save_command is None:
+                raise ValueError(
+                    "This Death event cannot be synchronized."
+                )
+
+            synchronized_events = self.death_event_save_command(
+                values,
+                deepcopy(original_event),
+            )
+            self.events = normalize_timeline_events(
+                synchronized_events
+            )
+            self.selected_event_id = str(
+                original_event.get("event_id", "") or ""
+            )
+            self.filter_events()
+
+            if not self.loading:
+                self.change_command()
+
+            for event in self.events:
+                if event.get("event_id") == self.selected_event_id:
+                    return deepcopy(event)
+
+            raise ValueError(
+                "The synchronized Death event could not be reloaded."
+            )
+
+        if (
+            storage_kind == "timeline"
+            and values.get("event_type") in ("died", "murder")
+        ):
+            raise ValueError(
+                "Create Death and Murder as new Timeline events so their "
+                "people and death dates stay synchronized."
+            )
+
         timeline_event = deepcopy(original_event)
         timeline_event.update(
             {
@@ -1196,6 +1303,22 @@ class TimelineView(tk.Frame):
                 "date": values["date"],
                 "note": values["description"],
                 "person_ids": values["person_ids"],
+                "perpetrator_person_ids": values.get(
+                    "perpetrator_person_ids",
+                    [],
+                ),
+                "victim_person_ids": values.get(
+                    "victim_person_ids",
+                    [],
+                ),
+                "witness_person_ids": values.get(
+                    "witness_person_ids",
+                    [],
+                ),
+                "affected_person_ids": values.get(
+                    "affected_person_ids",
+                    [],
+                ),
                 "location_ids": values["location_ids"],
                 "locked_location_ids": values["locked_location_ids"],
                 "organization_id": values.get("organization_id", ""),
@@ -1279,11 +1402,87 @@ class TimelineView(tk.Frame):
             has_selection
             and selected_event.get("automatic_source")
         )
+        removable_automatic_death = bool(
+            automatic
+            and selected_event.get("automatic_source") == "death_date"
+            and self.death_event_delete_command is not None
+        )
         self.remove_button.set_enabled(
             has_selection
-            and not automatic
+            and (not automatic or removable_automatic_death)
             and not selected_event.get("_draft_event")
         )
+        if hasattr(self, "duplicate_button"):
+            self.duplicate_button.set_enabled(
+                has_selection
+                and not automatic
+                and not selected_event.get("_draft_event")
+                and not selected_event.get("organization_event")
+                and selected_event.get("event_type")
+                not in ("died", "murder")
+            )
+
+    def duplicate_event(self):
+        selected_event = self.selected_event()
+
+        if selected_event is None or selected_event.get("_draft_event"):
+            return False
+
+        if not self.confirm_unsaved_event_changes():
+            return False
+
+        if selected_event.get("automatic_source"):
+            self.event_editor.show_error(
+                "Automatic events cannot be duplicated."
+            )
+            return False
+
+        if selected_event.get("event_type") in ("died", "murder"):
+            self.event_editor.show_error(
+                "Death and Murder events cannot be duplicated."
+            )
+            return False
+
+        if selected_event.get("organization_event"):
+            self.event_editor.show_error(
+                "Organization-owned events cannot be duplicated here."
+            )
+            return False
+
+        if selected_event.get("_stored_event"):
+            if self.event_controller is None:
+                return False
+
+            try:
+                duplicated = self.event_controller.duplicate_event(
+                    selected_event.get("record_id", "")
+                )
+            except (KeyError, TypeError, ValueError) as error:
+                self.event_editor.show_error(str(error))
+                return False
+
+            person_id = self.current_person_id()
+            self.linked_events = (
+                self.event_controller.events_for_person(person_id)
+                if person_id
+                else []
+            )
+            self.selected_event_id = duplicated["record_id"]
+            self.filter_events()
+
+            if self.linked_events_changed_command is not None:
+                self.linked_events_changed_command(duplicated)
+
+            return True
+
+        duplicated = deepcopy(selected_event)
+        duplicated["event_id"] = str(uuid4())
+        duplicated.pop("record_id", None)
+        duplicated.pop("_stored_event", None)
+        duplicated.pop("_draft_event", None)
+        duplicated.pop("_person_id", None)
+        self.save_event(duplicated)
+        return True
 
     def remove_event(self):
         selected_event = self.selected_event()
@@ -1292,7 +1491,18 @@ class TimelineView(tk.Frame):
             self.cancel_editor()
             return
 
-        if selected_event is None or selected_event.get("automatic_source"):
+        if selected_event is None:
+            return
+
+        removable_automatic_death = bool(
+            selected_event.get("automatic_source") == "death_date"
+            and self.death_event_delete_command is not None
+        )
+
+        if (
+            selected_event.get("automatic_source")
+            and not removable_automatic_death
+        ):
             return
 
         event_id = str(selected_event.get("event_id", "") or "")
@@ -1305,7 +1515,17 @@ class TimelineView(tk.Frame):
             )
             return
 
-        if selected_event.get("_stored_event"):
+        if removable_automatic_death:
+            synchronized_events = self.death_event_delete_command(
+                deepcopy(selected_event)
+            )
+            self.events = normalize_timeline_events(
+                synchronized_events
+            )
+
+            if not self.loading:
+                self.change_command()
+        elif selected_event.get("_stored_event"):
             if self.event_controller is None:
                 return
 

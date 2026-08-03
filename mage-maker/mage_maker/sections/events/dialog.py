@@ -34,6 +34,7 @@ from mage_maker.ui.theme import (
     BORDER,
     BORDER_SOFT,
     FIELD_BACKGROUND,
+    LIST_ALTERNATE,
     LIST_HOVER,
     LIST_SELECTED,
     PRIMARY,
@@ -652,6 +653,7 @@ class WorldEventDialog(tk.Toplevel):
                 "create_placeholder_location",
                 None,
             ),
+            recent_location_options=self.recent_location_options,
         )
 
     def location_chosen(self, location_id):
@@ -1823,6 +1825,7 @@ class EventLocationPickerDialog(tk.Toplevel):
         dialog_title="Add event location",
         action_text="Add location",
         create_location_command=None,
+        recent_location_options=(),
     ):
         super().__init__(parent)
         self.locations = [
@@ -1839,12 +1842,54 @@ class EventLocationPickerDialog(tk.Toplevel):
         )
         self.action_text = str(action_text or "Add location")
         self.create_location_command = create_location_command
+        available_location_ids = {
+            str(location.get("record_id", "") or "").strip()
+            for location in self.locations
+            if str(location.get("record_id", "") or "").strip()
+        }
+        self.recent_location_options = []
+        used_recent_ids = set()
+
+        for option in recent_location_options or ():
+            if not isinstance(option, dict):
+                continue
+
+            location_id = str(option.get("value", "") or "").strip()
+
+            if (
+                not location_id
+                or location_id not in available_location_ids
+                or location_id in used_recent_ids
+            ):
+                continue
+
+            used_recent_ids.add(location_id)
+            self.recent_location_options.append(
+                {
+                    "value": location_id,
+                    "label": str(
+                        option.get("label", "")
+                        or recent_location_label(
+                            location_id,
+                            self.locations,
+                        )
+                    ).strip(),
+                }
+            )
+
+            if len(self.recent_location_options) >= 5:
+                break
+
+        self.recent_location_ids = [
+            option["value"]
+            for option in self.recent_location_options
+        ]
         self.selection_value = tk.StringVar(
             value="Select a location from the hierarchy."
         )
         self.title(self.dialog_title)
-        self.geometry("620x680")
-        self.minsize(500, 520)
+        self.geometry("620x760")
+        self.minsize(500, 620)
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent.winfo_toplevel())
         self.grab_set()
@@ -1871,7 +1916,7 @@ class EventLocationPickerDialog(tk.Toplevel):
             pady=16,
         )
         card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        card.grid_rowconfigure(2, weight=1)
+        card.grid_rowconfigure(3, weight=1)
         card.grid_columnconfigure(0, weight=1)
         heading = tk.Label(
             card,
@@ -1896,13 +1941,88 @@ class EventLocationPickerDialog(tk.Toplevel):
             wraplength=520,
         )
         explanation.grid(row=1, column=0, sticky="ew", pady=(4, 12))
+        recent_panel = tk.Frame(
+            card,
+            bg=SURFACE_MUTED,
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            padx=10,
+            pady=8,
+        )
+        recent_panel.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(0, 12),
+        )
+        recent_panel.grid_columnconfigure(0, weight=1)
+        recent_heading = tk.Label(
+            recent_panel,
+            text="Recently viewed locations",
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        recent_heading.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        self.recent_listbox = tk.Listbox(
+            recent_panel,
+            height=min(
+                5,
+                max(1, len(self.recent_location_options)),
+            ),
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            selectbackground=LIST_SELECTED,
+            selectforeground=TEXT_DARK,
+            relief="flat",
+            highlightbackground=BORDER_SOFT,
+            highlightthickness=1,
+            borderwidth=0,
+            font=app_font(9),
+            activestyle="none",
+            exportselection=False,
+        )
+        self.recent_listbox.grid(row=1, column=0, sticky="ew")
+        self.recent_listbox.bind(
+            "<<ListboxSelect>>",
+            self.recent_location_selected,
+        )
+        self.recent_listbox.bind(
+            "<Double-Button-1>",
+            self.choose_recent_location,
+        )
+
+        if self.recent_location_options:
+            for index, option in enumerate(
+                self.recent_location_options
+            ):
+                self.recent_listbox.insert("end", option["label"])
+                self.recent_listbox.itemconfigure(
+                    index,
+                    background=(
+                        FIELD_BACKGROUND
+                        if index % 2 == 0
+                        else LIST_ALTERNATE
+                    ),
+                )
+        else:
+            self.recent_listbox.insert(
+                "end",
+                "No recently viewed locations",
+            )
+            self.recent_listbox.configure(
+                state="disabled",
+                fg=TEXT_MUTED,
+            )
+
         self.location_tree = LocationHierarchyTree(
             card,
             self.location_selected,
             background=SURFACE,
             show_scope_controls=True,
         )
-        self.location_tree.grid(row=2, column=0, sticky="nsew")
+        self.location_tree.grid(row=3, column=0, sticky="nsew")
         selected_label = tk.Label(
             card,
             textvariable=self.selection_value,
@@ -1911,9 +2031,9 @@ class EventLocationPickerDialog(tk.Toplevel):
             font=app_font(9, "bold"),
             anchor="w",
         )
-        selected_label.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        selected_label.grid(row=4, column=0, sticky="ew", pady=(10, 0))
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=4, column=0, sticky="e", pady=(14, 0))
+        footer.grid(row=5, column=0, sticky="e", pady=(14, 0))
 
         if self.create_location_command is not None:
             new_location_button = SoftButton(
@@ -1951,6 +2071,12 @@ class EventLocationPickerDialog(tk.Toplevel):
     def location_selected(self, location_id):
         requested_id = str(location_id or "").strip()
         self.selected_location_id = requested_id
+        self.recent_listbox.selection_clear(0, "end")
+
+        if requested_id in self.recent_location_ids:
+            recent_index = self.recent_location_ids.index(requested_id)
+            self.recent_listbox.selection_set(recent_index)
+            self.recent_listbox.see(recent_index)
 
         if not requested_id:
             self.selection_value.set(
@@ -1963,6 +2089,20 @@ class EventLocationPickerDialog(tk.Toplevel):
             recent_location_label(requested_id, self.locations)
         )
         self.add_button.set_enabled(True)
+
+    def recent_location_selected(self, event=None):
+        selected = self.recent_listbox.curselection()
+
+        if not selected or selected[0] >= len(self.recent_location_ids):
+            return
+
+        location_id = self.recent_location_ids[selected[0]]
+        self.location_tree.select_location(location_id, notify=True)
+
+    def choose_recent_location(self, event=None):
+        self.recent_location_selected()
+        self.choose_location()
+        return "break"
 
     def open_placeholder_location(self):
         if self.create_location_command is None:

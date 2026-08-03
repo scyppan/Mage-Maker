@@ -386,6 +386,9 @@ class CreationWizardDialog(tk.Toplevel):
                 "create_placeholder_location",
                 None,
             ),
+            recent_location_options=(
+                self.event_controller.recent_location_options()
+            ),
         )
         return True
 

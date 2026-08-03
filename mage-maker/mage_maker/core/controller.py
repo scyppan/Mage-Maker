@@ -33,7 +33,10 @@ from mage_maker.sections.family_tree.spouse_relationships import (
 )
 from mage_maker.sections.names.history import empty_name_details, normalize_name_details
 from mage_maker.sections.names.timeline import synchronize_name_change_events
-from mage_maker.sections.events.types import canonical_event_type
+from mage_maker.sections.events.models import (
+    death_event_person_ids,
+    synchronize_people_death_records,
+)
 from mage_maker.sections.settings.mage_groups import (
     MAGE_GROUPS_SETTING_KEY,
     default_mage_group_id,
@@ -345,6 +348,7 @@ class PeopleController:
         normalized["timeline_events"] = synchronize_profile_timeline_events(
             normalized,
             normalized["timeline_events"],
+            organizations=self.database.list_records("organizations"),
         )
         self.validate_values(normalized)
         created_person = self.database.create_person(normalized)
@@ -432,6 +436,18 @@ class PeopleController:
             prospective_person.get("death_month"),
             prospective_person.get("death_day"),
         )
+        shared_death_exists = self.person_has_shared_death_event(
+            record_id
+        )
+
+        if (
+            shared_death_exists
+            and prospective_death_signature != current_death_signature
+        ):
+            raise ValueError(
+                "This death date is controlled by a Timeline event. "
+                "Edit or remove that event instead."
+            )
 
         if (
             prospective_death_signature[0]
@@ -439,13 +455,7 @@ class PeopleController:
             and prospective_death_signature != current_death_signature
         ):
             for shared_event in self.database.list_records("events"):
-                if (
-                    canonical_event_type(
-                        shared_event.get("event_type")
-                    )
-                    == "died"
-                    and record_id in shared_event.get("person_ids", [])
-                ):
+                if record_id in death_event_person_ids(shared_event):
                     raise ValueError(
                         "This person already has a Death event. Remove it "
                         "before entering a Profile death date."
@@ -465,6 +475,10 @@ class PeopleController:
             synchronize_profile_timeline_events(
                 prospective_person,
                 prospective_person["timeline_events"],
+                create_death_event=not shared_death_exists,
+                organizations=self.database.list_records(
+                    "organizations"
+                ),
             )
         )
         normalized["biological_mother_status"] = prospective_person[
@@ -524,12 +538,24 @@ class PeopleController:
         current_person = self.database.read_person(record_id)
         old_parent_ids = self.parent_ids_from_person(current_person)
         deleted_person = self.database.delete_person(record_id)
+        synchronize_people_death_records(self.database.data)
 
         for parent_id in old_parent_ids:
             self.reconcile_child_timeline_events_for_parent(parent_id)
 
         self.database.save()
         return deleted_person
+
+    def person_has_shared_death_event(self, person_id):
+        normalized_person_id = str(person_id or "").strip()
+
+        if not normalized_person_id:
+            return False
+
+        return any(
+            normalized_person_id in death_event_person_ids(event)
+            for event in self.database.list_records("events")
+        )
 
     def normalize_values(self, values):
         normalized = deepcopy(values)

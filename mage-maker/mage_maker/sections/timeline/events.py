@@ -77,6 +77,35 @@ def normalize_timeline_event(event):
             normalized.get("person_ids")
         )
 
+    if normalized["event_type"] == "murder":
+        normalized["perpetrator_person_ids"] = (
+            normalize_association_values(
+                normalized.get("perpetrator_person_ids")
+            )
+        )
+        normalized["victim_person_ids"] = normalize_association_values(
+            normalized.get("victim_person_ids")
+        )
+        normalized["witness_person_ids"] = normalize_association_values(
+            normalized.get("witness_person_ids")
+        )
+        normalized["affected_person_ids"] = normalize_association_values(
+            normalized.get("affected_person_ids")
+        )
+        normalized["person_ids"] = normalize_association_values(
+            [
+                *normalized["perpetrator_person_ids"],
+                *normalized["victim_person_ids"],
+                *normalized["witness_person_ids"],
+                *normalized["affected_person_ids"],
+            ]
+        )
+    else:
+        normalized.pop("perpetrator_person_ids", None)
+        normalized.pop("victim_person_ids", None)
+        normalized.pop("witness_person_ids", None)
+        normalized.pop("affected_person_ids", None)
+
     if (
         "location_ids" in normalized
         or "locked_location_ids" in normalized
@@ -165,6 +194,9 @@ def timeline_event_summary(event):
     if event_type == "died":
         return f"Death: {detail}" if detail else "Death"
 
+    if event_type == "murder":
+        return detail or "Murder"
+
     if event_type == "started_school":
         if event.get("automatic_source") == SCHOOL_START_EVENT_SOURCE:
             if event.get("started_late"):
@@ -230,6 +262,7 @@ def timeline_detail_label(event_type):
         "had_child": "Child's name",
         "got_married": "Spouse or event detail",
         "died": "Death detail",
+        "murder": "Murder detail",
         "started_school": "School name",
         "opened_business": "Business name",
         "started_job": "Job",
@@ -240,6 +273,68 @@ def timeline_detail_label(event_type):
         "custom": "Event description",
     }
     return labels.get(event_type, "Event detail")
+
+
+def murder_people_label(person_ids, people):
+    people_by_id = {
+        str(person.get("record_id", "") or "").strip(): str(
+            person.get("displayed_name", "") or "Unnamed person"
+        ).strip()
+        for person in people or ()
+        if isinstance(person, dict)
+        and str(person.get("record_id", "") or "").strip()
+    }
+    names = [
+        people_by_id.get(person_id, "Missing person")
+        for person_id in normalize_association_values(person_ids)
+    ]
+
+    if len(names) == 1:
+        return names[0]
+
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+
+    return f"{len(names)} people" if names else "no one"
+
+
+def murder_timeline_summary(event, current_person_id, people):
+    event_values = event if isinstance(event, dict) else {}
+    selected_person_id = str(current_person_id or "").strip()
+    perpetrator_ids = normalize_association_values(
+        event_values.get("perpetrator_person_ids")
+    )
+    victim_ids = normalize_association_values(
+        event_values.get("victim_person_ids")
+    )
+    witness_ids = normalize_association_values(
+        event_values.get("witness_person_ids")
+    )
+    affected_ids = normalize_association_values(
+        event_values.get("affected_person_ids")
+    )
+
+    if selected_person_id in perpetrator_ids:
+        return f"Murders {murder_people_label(victim_ids, people)}"
+
+    if selected_person_id in victim_ids:
+        return (
+            f"Murdered by {murder_people_label(perpetrator_ids, people)}"
+        )
+
+    if selected_person_id in witness_ids:
+        return (
+            "Witnessed the murder of "
+            f"{murder_people_label(victim_ids, people)}"
+        )
+
+    if selected_person_id in affected_ids:
+        return (
+            "Affected by the murder of "
+            f"{murder_people_label(victim_ids, people)}"
+        )
+
+    return str(event_values.get("title", "") or "Murder").strip()
 
 
 def person_birth_timeline_date(person):
@@ -375,7 +470,11 @@ def first_attended_school_year(person):
     return None
 
 
-def automatic_school_start_timeline_event(person, existing_event=None):
+def automatic_school_start_timeline_event(
+    person,
+    existing_event=None,
+    organizations=None,
+):
     first_school_year = first_attended_school_year(person)
 
     if first_school_year is None:
@@ -412,10 +511,52 @@ def automatic_school_start_timeline_event(person, existing_event=None):
     event["automatic_source"] = SCHOOL_START_EVENT_SOURCE
     event["school_year"] = first_school_year
     event["started_late"] = first_school_year > 1
+
+    if organizations is not None:
+        location_ids = []
+        normalized_school_name = school_name.casefold()
+
+        for organization in organizations or ():
+            if not isinstance(organization, dict):
+                continue
+
+            organization_name = str(
+                organization.get("name", "") or ""
+            ).strip()
+            organization_type = str(
+                organization.get("organization_type", "") or ""
+            ).strip()
+
+            if (
+                organization_type.casefold() != "school"
+                or organization_name.casefold()
+                != normalized_school_name
+            ):
+                continue
+
+            location_id = str(
+                organization.get("campus_location_id", "")
+                or organization.get("location_id", "")
+                or ""
+            ).strip()
+
+            if location_id:
+                location_ids.append(location_id)
+
+            break
+
+        event["location_ids"] = location_ids
+        event["locked_location_ids"] = list(location_ids)
+
     return normalize_timeline_event(event)
 
 
-def synchronize_profile_timeline_events(person, timeline_events=None):
+def synchronize_profile_timeline_events(
+    person,
+    timeline_events=None,
+    create_death_event=True,
+    organizations=None,
+):
     person_values = person if isinstance(person, dict) else {}
     source_events = normalize_timeline_events(
         person_values.get("timeline_events", [])
@@ -450,13 +591,18 @@ def synchronize_profile_timeline_events(person, timeline_events=None):
 
         retained_events.append(event)
 
-    death_event = automatic_death_timeline_event(
-        person_values,
-        automatic_events.get(DEATH_DATE_EVENT_SOURCE),
+    death_event = (
+        automatic_death_timeline_event(
+            person_values,
+            automatic_events.get(DEATH_DATE_EVENT_SOURCE),
+        )
+        if create_death_event
+        else None
     )
     school_event = automatic_school_start_timeline_event(
         person_values,
         automatic_events.get(SCHOOL_START_EVENT_SOURCE),
+        organizations,
     )
 
     if death_event is not None:

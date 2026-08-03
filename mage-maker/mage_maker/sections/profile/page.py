@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 from mage_maker.core.dates import (
     format_date_parts,
+    format_historical_display_date,
     person_death_age_text,
     split_partial_date,
 )
@@ -20,6 +21,7 @@ from mage_maker.sections.development.models import (
 )
 from mage_maker.sections.development.page import DevelopmentView
 from mage_maker.sections.family_tree.page import FamilyTreeView
+from mage_maker.sections.events.models import death_event_person_ids
 from mage_maker.sections.names.details import NameDetailsDialog, NameEntryDialog
 from mage_maker.sections.names.history import (
     new_name_entry,
@@ -45,6 +47,8 @@ from mage_maker.sections.settings.mage_groups import (
 )
 from mage_maker.sections.timeline.page import TimelineView
 from mage_maker.sections.timeline.events import (
+    normalize_timeline_event,
+    normalize_timeline_events,
     synchronize_profile_timeline_events,
 )
 from mage_maker.sections.timeline.locations import (
@@ -65,7 +69,6 @@ from mage_maker.ui.theme import (
     app_font,
 )
 from mage_maker.ui.widgets import (
-    CalendarAdoptionNotice,
     HoverTooltip,
     LabeledEntry,
     MultilineField,
@@ -426,7 +429,7 @@ class PersonForm(tk.Frame):
 
         birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
         birth_frame.grid(row=2, column=0, sticky="ew", pady=(0, 9))
-        birth_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        birth_frame.grid_columnconfigure(0, weight=1)
         birth_heading = tk.Label(
             birth_frame,
             text="Date of birth",
@@ -438,56 +441,30 @@ class PersonForm(tk.Frame):
         birth_heading.grid(
             row=0,
             column=0,
-            columnspan=3,
             sticky="ew",
             pady=(0, 5),
         )
-        self.add_entry_field(
-            birth_frame,
-            1,
-            0,
-            "birth_year",
-            "Year",
-            SURFACE_MUTED,
-            (0, 6),
+        for field_name in ("birth_year", "birth_month", "birth_day"):
+            self.variables[field_name] = tk.StringVar()
+
+        self.birth_date_display_value = tk.StringVar(
+            value="Not recorded"
         )
-        self.add_entry_field(
+        birth_value = tk.Label(
             birth_frame,
-            1,
-            1,
-            "birth_month",
-            "Month",
-            SURFACE_MUTED,
-            (0, 6),
+            textvariable=self.birth_date_display_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
         )
-        self.add_entry_field(
-            birth_frame,
-            1,
-            2,
-            "birth_day",
-            "Day",
-            SURFACE_MUTED,
-        )
-        calendar_notice = CalendarAdoptionNotice(
-            birth_frame,
-            background=SURFACE_MUTED,
-            wraplength=620,
-            date_variables=(
-                self.variables["birth_year"],
-                self.variables["birth_month"],
-                self.variables["birth_day"],
-            ),
-        )
-        calendar_notice.grid(
-            row=2,
+        birth_value.grid(
+            row=1,
             column=0,
-            columnspan=3,
-            sticky="w",
-            pady=(5, 0),
+            sticky="ew",
         )
 
         deceased_value = tk.BooleanVar(value=False)
-        deceased_value.trace_add("write", self.deceased_changed)
         self.variables["deceased"] = deceased_value
         death_status_row = tk.Frame(
             identity_panel.content,
@@ -500,23 +477,31 @@ class PersonForm(tk.Frame):
             pady=(0, 7),
         )
         death_status_row.grid_columnconfigure(1, weight=1)
-        deceased_check = tk.Checkbutton(
+        death_status_heading = tk.Label(
             death_status_row,
-            text="Dead",
-            variable=deceased_value,
+            text="Life status",
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        death_status_heading.grid(row=0, column=0, sticky="w")
+        self.death_status_value = tk.StringVar(value="Alive")
+        self.death_overview_value = tk.StringVar(value="")
+        death_status_value = tk.Label(
+            death_status_row,
+            textvariable=self.death_status_value,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
-            activebackground=SURFACE_MUTED,
-            activeforeground=TEXT_DARK,
-            selectcolor=FIELD_BACKGROUND,
-            font=app_font(10),
+            font=app_font(10, "bold"),
             anchor="w",
-            borderwidth=0,
-            highlightthickness=0,
         )
-        deceased_check.grid(row=0, column=0, sticky="w")
-        self.boolean_widgets["deceased"] = deceased_check
-        self.death_overview_value = tk.StringVar(value="")
+        death_status_value.grid(
+            row=1,
+            column=0,
+            sticky="w",
+            pady=(4, 0),
+        )
         death_overview = tk.Label(
             death_status_row,
             textvariable=self.death_overview_value,
@@ -526,10 +511,11 @@ class PersonForm(tk.Frame):
             anchor="w",
         )
         death_overview.grid(
-            row=0,
+            row=1,
             column=1,
             sticky="ew",
             padx=(12, 0),
+            pady=(4, 0),
         )
 
         self.death_date_frame = tk.Frame(
@@ -537,7 +523,7 @@ class PersonForm(tk.Frame):
             bg=SURFACE_MUTED,
         )
         self.death_date_frame.grid(row=4, column=0, sticky="ew", pady=(0, 9))
-        self.death_date_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        self.death_date_frame.grid_columnconfigure(0, weight=1)
         death_heading = tk.Label(
             self.death_date_frame,
             text="Date of death",
@@ -549,37 +535,24 @@ class PersonForm(tk.Frame):
         death_heading.grid(
             row=0,
             column=0,
-            columnspan=3,
             sticky="ew",
             pady=(0, 5),
         )
-        self.add_entry_field(
-            self.death_date_frame,
-            1,
-            0,
-            "death_year",
-            "Year",
-            SURFACE_MUTED,
-            (0, 6),
+        for field_name in ("death_year", "death_month", "death_day"):
+            self.variables[field_name] = tk.StringVar()
+
+        self.death_date_display_value = tk.StringVar(
+            value="Not recorded"
         )
-        self.add_entry_field(
+        death_value = tk.Label(
             self.death_date_frame,
-            1,
-            1,
-            "death_month",
-            "Month",
-            SURFACE_MUTED,
-            (0, 6),
+            textvariable=self.death_date_display_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(10, "bold"),
+            anchor="w",
         )
-        self.add_entry_field(
-            self.death_date_frame,
-            1,
-            2,
-            "death_day",
-            "Day",
-            SURFACE_MUTED,
-        )
-        self.death_date_frame.grid_remove()
+        death_value.grid(row=1, column=0, sticky="ew")
         overview = tk.Frame(page, bg=SURFACE)
         overview.grid(
             row=1,
@@ -783,10 +756,7 @@ class PersonForm(tk.Frame):
         self.pages["jobs"] = page
 
     def build_books_page(self):
-        page = BooksView(
-            self.content,
-            self.open_intentional_study_development_page,
-        )
+        page = BooksView(self.content)
         page.grid(row=0, column=0, sticky="nsew")
         self.books = page
         self.pages["books"] = page
@@ -828,6 +798,8 @@ class PersonForm(tk.Frame):
             person_id_provider=self.current_person_identifier,
             linked_events_changed_command=self.shared_event_saved,
             life_start_save_command=self.save_life_start_event,
+            death_event_save_command=self.save_death_timeline_event,
+            death_event_delete_command=self.remove_death_timeline_event,
             name_details_command=self.open_name_details,
         )
         self.timeline.grid(row=0, column=0, sticky="nsew")
@@ -1101,18 +1073,28 @@ class PersonForm(tk.Frame):
             self.name_details,
             ensure_life_start_events(timeline_person),
         )
-        self.timeline.set_events(
-            synchronize_profile_timeline_events(
-                timeline_person,
-                synchronized_events,
-            )
-        )
         self.linked_events_snapshot = (
             self.event_controller.events_for_person(
                 self.current_record_id
             )
             if self.event_controller is not None
             else []
+        )
+        shared_death_exists = any(
+            self.current_record_id in death_event_person_ids(event)
+            for event in self.linked_events_snapshot
+        )
+        self.timeline.set_events(
+            synchronize_profile_timeline_events(
+                timeline_person,
+                synchronized_events,
+                create_death_event=not shared_death_exists,
+                organizations=(
+                    self.event_controller.organization_records()
+                    if self.event_controller is not None
+                    else []
+                ),
+            )
         )
         self.timeline.set_linked_events(self.linked_events_snapshot)
         self.loaded_section_record_ids["timeline"] = self.current_record_id
@@ -1234,9 +1216,35 @@ class PersonForm(tk.Frame):
         self.school_year_summary_value.set(
             self.development.school_progress_display_text()
         )
-        self.total_eminence_summary_value.set(
-            self.development.total_eminence_text()
+        point_count = self.event_eminence_point_count(
+            self.person_snapshot
         )
+        self.total_eminence_summary_value.set(
+            "1 point" if point_count == 1 else f"{point_count} points"
+        )
+
+    def event_eminence_point_count(self, person):
+        person_values = person if isinstance(person, dict) else {}
+
+        if bool(person_values.get("non_magical")):
+            return 0
+
+        event_controller = getattr(self, "event_controller", None)
+        point_counter = getattr(
+            event_controller,
+            "eminence_points_for_person",
+            None,
+        )
+
+        if not callable(point_counter):
+            return 0
+
+        person_id = str(
+            person_values.get("record_id", "")
+            or getattr(self, "current_record_id", "")
+            or ""
+        ).strip()
+        return int(point_counter(person_id)) if person_id else 0
 
     def update_school_summary_from_person(self, person):
         person_values = person if isinstance(person, dict) else {}
@@ -1266,27 +1274,7 @@ class PersonForm(tk.Frame):
                 plan.get("academic_years_advanced", 0),
             )
         )
-        initial_eminence = plan.get("initial_eminence", [])
-        point_count = (
-            len(initial_eminence)
-            if isinstance(initial_eminence, list)
-            else 0
-        )
-
-        for collection_name in ("school_years", "adult_years"):
-            year_records = plan.get(collection_name, [])
-
-            if not isinstance(year_records, list):
-                continue
-
-            for year_record in year_records:
-                if not isinstance(year_record, dict):
-                    continue
-
-                eminence_records = year_record.get("eminence", [])
-
-                if isinstance(eminence_records, list):
-                    point_count += len(eminence_records)
+        point_count = self.event_eminence_point_count(person_values)
 
         self.total_eminence_summary_value.set(
             "1 point" if point_count == 1 else f"{point_count} points"
@@ -1328,29 +1316,6 @@ class PersonForm(tk.Frame):
             ),
             academic_start_year,
             self.current_record_id,
-        )
-
-    def open_intentional_study_development_page(
-        self,
-        page_type,
-        page_number,
-    ):
-        non_magical_variable = getattr(
-            self,
-            "variables",
-            {},
-        ).get("non_magical")
-
-        if (
-            non_magical_variable is not None
-            and non_magical_variable.get()
-        ):
-            return
-
-        self.show_page("development")
-        self.development.show_development_record(
-            page_type,
-            page_number,
         )
 
     def open_name_details(self):
@@ -1507,6 +1472,22 @@ class PersonForm(tk.Frame):
                 str(int(birth_day)) if birth_day else ""
             )
             self.loading = previous_loading
+            if hasattr(self, "person_snapshot"):
+                self.person_snapshot.update(
+                    {
+                        "birth_year": self.variables[
+                            "birth_year"
+                        ].get(),
+                        "birth_month": self.variables[
+                            "birth_month"
+                        ].get(),
+                        "birth_day": self.variables[
+                            "birth_day"
+                        ].get(),
+                    }
+                )
+            PersonForm.update_birth_date_display(self)
+            PersonForm.update_death_overview(self)
             born_event["note"] = str(
                 values.get("description", "") or ""
             ).strip()
@@ -1554,6 +1535,109 @@ class PersonForm(tk.Frame):
             self.name_details,
             synchronized_events,
         )
+
+    def save_death_timeline_event(self, values, original_event):
+        death_year, death_month, death_day = split_partial_date(
+            values.get("date", ""),
+            "Death date",
+        )
+
+        if not death_year:
+            raise ValueError("A Death event requires a year.")
+
+        location_ids = [
+            str(location_id or "").strip()
+            for location_id in values.get("location_ids", [])
+            if str(location_id or "").strip()
+        ]
+
+        if len(location_ids) > 1:
+            raise ValueError(
+                "A Death event can have no more than one location."
+            )
+
+        previous_loading = self.loading
+        self.loading = True
+        self.variables["deceased"].set(True)
+        self.variables["death_year"].set(death_year)
+        self.variables["death_month"].set(death_month)
+        self.variables["death_day"].set(death_day)
+        self.loading = previous_loading
+        mortality_values = {
+            "deceased": True,
+            "death_year": death_year,
+            "death_month": death_month,
+            "death_day": death_day,
+        }
+        self.person_snapshot.update(mortality_values)
+        self.update_death_date_visibility()
+        self.update_death_overview()
+
+        updated_event = deepcopy(original_event)
+        updated_event.update(
+            {
+                "event_type": "died",
+                "detail": str(values.get("title", "") or "").strip(),
+                "date": format_date_parts(
+                    death_year,
+                    death_month,
+                    death_day,
+                    unknown="",
+                ),
+                "note": str(
+                    values.get("description", "") or ""
+                ).strip(),
+                "person_ids": [self.current_person_identifier()],
+                "location_ids": location_ids,
+                "locked_location_ids": [],
+                "related_person_id": "",
+                "automatic_source": "death_date",
+            }
+        )
+        normalized_event = normalize_timeline_event(updated_event)
+        event_id = normalized_event["event_id"]
+        events = [
+            normalized_event
+            if event.get("event_id") == event_id
+            else deepcopy(event)
+            for event in self.timeline.get_events()
+        ]
+
+        if not any(
+            event.get("event_id") == event_id
+            for event in events
+        ):
+            events.append(normalized_event)
+
+        self.person_snapshot["timeline_events"] = deepcopy(events)
+        return normalize_timeline_events(events)
+
+    def remove_death_timeline_event(self, death_event):
+        event_id = str(death_event.get("event_id", "") or "").strip()
+        previous_loading = self.loading
+        self.loading = True
+        self.variables["deceased"].set(False)
+        self.variables["death_year"].set("")
+        self.variables["death_month"].set("")
+        self.variables["death_day"].set("")
+        self.loading = previous_loading
+        self.person_snapshot.update(
+            {
+                "deceased": False,
+                "death_year": "",
+                "death_month": "",
+                "death_day": "",
+            }
+        )
+        events = [
+            deepcopy(event)
+            for event in self.timeline.get_events()
+            if event.get("event_id") != event_id
+        ]
+        self.person_snapshot["timeline_events"] = deepcopy(events)
+        self.update_death_date_visibility()
+        self.update_death_overview()
+        return normalize_timeline_events(events)
 
     def open_timeline_name_change(self, event=None):
         event_values = event if isinstance(event, dict) else {}
@@ -1671,6 +1755,7 @@ class PersonForm(tk.Frame):
         if hasattr(self, "navigation_buttons"):
             self.update_person_navigation()
         self.update_school_summary_from_person(person_values)
+        self.update_birth_date_display()
         self.update_death_date_visibility()
         self.update_death_overview()
 
@@ -2006,13 +2091,47 @@ class PersonForm(tk.Frame):
         self.change_command()
 
     def update_death_date_visibility(self):
-        if not hasattr(self, "death_date_frame"):
+        deceased = bool(self.variables["deceased"].get())
+
+        if hasattr(self, "death_status_value"):
+            self.death_status_value.set("Dead" if deceased else "Alive")
+
+        if not hasattr(self, "death_date_display_value"):
             return
 
-        if self.variables["deceased"].get():
-            self.death_date_frame.grid()
-        else:
-            self.death_date_frame.grid_remove()
+        death_date = (
+            format_date_parts(
+                self.variables["death_year"].get(),
+                self.variables["death_month"].get(),
+                self.variables["death_day"].get(),
+                unknown="",
+            )
+            if deceased
+            else ""
+        )
+        self.death_date_display_value.set(
+            format_historical_display_date(
+                death_date,
+                unknown="Not recorded",
+            )
+        )
+
+    def update_birth_date_display(self):
+        if not hasattr(self, "birth_date_display_value"):
+            return
+
+        birth_date = format_date_parts(
+            self.variables["birth_year"].get(),
+            self.variables["birth_month"].get(),
+            self.variables["birth_day"].get(),
+            unknown="",
+        )
+        self.birth_date_display_value.set(
+            format_historical_display_date(
+                birth_date,
+                unknown="Not recorded",
+            )
+        )
 
     def update_death_overview(self):
         if not hasattr(self, "death_overview_value"):

@@ -119,15 +119,12 @@ def adult_year_reading_entries(
 
 
 class BooksView(tk.Frame):
-    def __init__(self, parent, development_navigation_command=None):
+    def __init__(self, parent):
         super().__init__(parent, bg=SURFACE)
-        self.development_navigation_command = (
-            development_navigation_command
-        )
         self.entries = []
         self.count_value = tk.StringVar(value="0 books")
         self.empty_value = tk.StringVar(
-            value="School-year reading will appear after school starts."
+            value="No reading has been recorded."
         )
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -168,8 +165,7 @@ class BooksView(tk.Frame):
             self,
             "Reading history",
             (
-                "This list is read-only. Curriculum assignments and "
-                "intentional study choices are managed in Development."
+                "All assigned and independently read books appear here."
             ),
         )
         panel.grid(
@@ -265,14 +261,6 @@ class BooksView(tk.Frame):
             sticky="ns",
         )
         self.table.configure(yscrollcommand=scrollbar.set)
-        self.table.bind(
-            "<ButtonRelease-1>",
-            self.open_intentional_study_entry,
-        )
-        self.table.bind(
-            "<Return>",
-            self.open_intentional_study_entry,
-        )
         self.empty_label = tk.Label(
             panel.content,
             textvariable=self.empty_value,
@@ -347,33 +335,3 @@ class BooksView(tk.Frame):
                 ),
                 tags=("alternate",) if index % 2 else (),
             )
-
-    def open_intentional_study_entry(self, event=None):
-        item_id = ""
-
-        if event is not None and hasattr(event, "y"):
-            item_id = self.table.identify_row(event.y)
-
-        if not item_id:
-            selected_items = self.table.selection()
-            item_id = selected_items[0] if selected_items else ""
-
-        if not str(item_id).startswith("reading-"):
-            return
-
-        try:
-            entry_index = int(str(item_id).split("-", 1)[1])
-            entry = self.entries[entry_index]
-        except (IndexError, TypeError, ValueError):
-            return
-
-        if (
-            entry.get("source_kind") != "intentional"
-            or self.development_navigation_command is None
-        ):
-            return
-
-        self.development_navigation_command(
-            entry["page_type"],
-            entry["page_number"],
-        )
