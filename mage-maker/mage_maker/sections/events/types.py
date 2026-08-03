@@ -1,9 +1,9 @@
 EVENT_TYPE_DEFINITIONS = (
     ("starting_location", "Starting location", ("person",), True),
-    ("born", "Born", ("person",), True),
+    ("born", "Birth event", ("person",), False),
     ("birth_name", "Birth name", ("person",), True),
-    ("gave_birth", "Gave birth", ("person",), False),
-    ("had_child", "Had a child", ("person",), False),
+    ("gave_birth", "Gave birth", ("person",), True),
+    ("had_child", "Had a child", ("person",), True),
     ("got_married", "Marriage", ("person",), False),
     ("died", "Death", ("person",), False),
     ("murder", "Murder", ("person",), False),
@@ -49,6 +49,8 @@ EVENT_LABEL_TYPES = {
 EVENT_LABEL_TYPES.update(
     {
         "Got married": "got_married",
+        "Born": "born",
+        "Birth": "born",
         "Died": "died",
         "Started at school": "started_school",
         "Got a job": "started_job",

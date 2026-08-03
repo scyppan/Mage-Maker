@@ -544,7 +544,7 @@ class NameEntryDialog(tk.Toplevel):
         )
         card.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
         card.grid_columnconfigure((0, 1), weight=1, uniform="name_fields")
-        card.grid_rowconfigure(4, weight=1, minsize=122)
+        card.grid_rowconfigure(3, weight=1, minsize=122)
 
         heading = tk.Label(
             card,
@@ -575,7 +575,7 @@ class NameEntryDialog(tk.Toplevel):
             font=app_font(11),
             width=28,
         )
-        self.name_type_field.grid(row=1, column=0, sticky="w", ipady=7)
+        self.name_type_field.grid(row=1, column=0, sticky="ew", ipady=7)
         self.name_type_field.bind(
             "<<ComboboxSelected>>",
             self.apply_name_type_rules,
@@ -583,8 +583,8 @@ class NameEntryDialog(tk.Toplevel):
         name_type_frame.grid(
             row=1,
             column=0,
-            columnspan=2,
             sticky="ew",
+            padx=(0, 6),
             pady=(0, 12),
         )
 
@@ -595,16 +595,16 @@ class NameEntryDialog(tk.Toplevel):
             background=SURFACE,
         )
         self.name_entry_field.grid(
-            row=2,
-            column=0,
-            columnspan=2,
+            row=1,
+            column=1,
             sticky="ew",
+            padx=(6, 0),
             pady=(0, 12),
         )
 
         date_frame = tk.Frame(card, bg=SURFACE)
         date_frame.grid(
-            row=3,
+            row=2,
             column=0,
             columnspan=2,
             sticky="ew",
@@ -687,12 +687,12 @@ class NameEntryDialog(tk.Toplevel):
             background=SURFACE,
             hint_text="Optional context about this name.",
         )
-        note_field.grid(row=4, column=0, columnspan=2, sticky="nsew")
+        note_field.grid(row=3, column=0, columnspan=2, sticky="nsew")
         note_field.text.insert("1.0", str(entry.get("note", "") or ""))
         self.note_text = note_field.text
 
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+        footer.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(14, 0))
         footer.grid_columnconfigure(0, weight=1)
 
         cancel_button = SoftButton(

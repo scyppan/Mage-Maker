@@ -35,6 +35,7 @@ from mage_maker.sections.names.history import empty_name_details, normalize_name
 from mage_maker.sections.names.timeline import synchronize_name_change_events
 from mage_maker.sections.events.models import (
     death_event_person_ids,
+    synchronize_birth_events_from_people,
     synchronize_people_death_records,
 )
 from mage_maker.sections.settings.mage_groups import (
@@ -45,7 +46,6 @@ from mage_maker.sections.settings.mage_groups import (
     require_mage_group_id,
 )
 from mage_maker.sections.timeline.events import (
-    automatic_child_timeline_event,
     normalize_timeline_events,
     synchronize_profile_timeline_events,
 )
@@ -366,10 +366,19 @@ class PeopleController:
         self.reconcile_child_timeline_events_for_parent(
             created_person["record_id"]
         )
+        synchronize_birth_events_from_people(
+            self.database.data,
+            (created_person["record_id"],),
+        )
         self.database.save()
         return self.database.read_person(created_person["record_id"])
 
-    def update_person(self, record_id, values):
+    def update_person(
+        self,
+        record_id,
+        values,
+        synchronize_birth_event=True,
+    ):
         current_person = self.get_person(record_id)
 
         if current_person is None:
@@ -440,14 +449,19 @@ class PeopleController:
             record_id
         )
 
-        if (
-            shared_death_exists
-            and prospective_death_signature != current_death_signature
-        ):
-            raise ValueError(
-                "This death date is controlled by a Timeline event. "
-                "Edit or remove that event instead."
-            )
+        if shared_death_exists:
+            for field_name in (
+                "deceased",
+                "death_year",
+                "death_month",
+                "death_day",
+            ):
+                prospective_person[field_name] = current_person.get(
+                    field_name
+                )
+                normalized[field_name] = current_person.get(field_name)
+
+            prospective_death_signature = current_death_signature
 
         if (
             prospective_death_signature[0]
@@ -531,6 +545,13 @@ class PeopleController:
         )
         self.reconcile_child_parent_timelines(updated_person, old_parent_ids)
         self.reconcile_child_timeline_events_for_parent(record_id)
+
+        if synchronize_birth_event:
+            synchronize_birth_events_from_people(
+                self.database.data,
+                (record_id,),
+            )
+
         self.database.save()
         return self.database.read_person(record_id)
 
@@ -543,6 +564,7 @@ class PeopleController:
         for parent_id in old_parent_ids:
             self.reconcile_child_timeline_events_for_parent(parent_id)
 
+        synchronize_birth_events_from_people(self.database.data)
         self.database.save()
         return deleted_person
 
@@ -1190,60 +1212,17 @@ class PeopleController:
         if parent is None:
             return
 
-        children = [
-            person
-            for person in self.database.list_people()
-            if parent_id
-            in (
-                str(person.get("biological_mother_id", "") or ""),
-                str(person.get("biological_father_id", "") or ""),
-            )
-        ]
-        child_ids = {
-            str(child.get("record_id", "") or "")
-            for child in children
-            if str(child.get("record_id", "") or "")
-        }
         existing_events = normalize_timeline_events(
             parent.get("timeline_events", [])
         )
-        original_events = deepcopy(existing_events)
         retained_events = [
             event
             for event in existing_events
-            if not (
-                event.get("automatic_source") == "child_assignment"
-                and event.get("related_person_id") not in child_ids
-            )
+            if event.get("automatic_source") != "child_assignment"
         ]
-
-        for child in children:
-            child_id = str(child.get("record_id", "") or "")
-            matching_event = None
-
-            for event in retained_events:
-                if (
-                    event.get("automatic_source") == "child_assignment"
-                    and event.get("related_person_id") == child_id
-                ):
-                    matching_event = event
-                    break
-
-            synchronized_event = automatic_child_timeline_event(
-                child,
-                matching_event,
-            )
-
-            if matching_event is None:
-                retained_events.append(synchronized_event)
-            else:
-                retained_events[retained_events.index(matching_event)] = (
-                    synchronized_event
-                )
-
         normalized_events = normalize_timeline_events(retained_events)
 
-        if normalized_events != original_events:
+        if normalized_events != existing_events:
             self.database.update_person(
                 parent_id,
                 {"timeline_events": normalized_events},

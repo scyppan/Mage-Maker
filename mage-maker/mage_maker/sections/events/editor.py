@@ -116,19 +116,24 @@ class EventAssociationPicker(tk.Frame):
             "locations": "Locations",
             "organizations": "Organizations",
         }
-        heading = tk.Label(
-            heading_row,
-            text=heading_labels.get(
+        self.heading_value = tk.StringVar(
+            value=heading_labels.get(
                 self.association_kind,
                 "Records",
-            ),
+            )
+        )
+
+        if self.heading_text:
+            self.heading_value.set(self.heading_text)
+
+        heading = tk.Label(
+            heading_row,
+            textvariable=self.heading_value,
             bg=self.background,
             fg=TEXT_DARK,
             font=app_font(9, "bold"),
             anchor="w",
         )
-        if self.heading_text:
-            heading.configure(text=self.heading_text)
         heading.grid(row=0, column=0, sticky="ew")
         recent_heading = tk.Label(
             heading_row,
@@ -626,6 +631,9 @@ class EventEditor(tk.Frame):
 
         if self.context == "location":
             self.people_picker.listbox.configure(height=6)
+            self.baby_picker.listbox.configure(height=3)
+            self.birthing_parent_picker.listbox.configure(height=3)
+            self.non_birthing_parent_picker.listbox.configure(height=3)
             self.perpetrators_picker.listbox.configure(height=3)
             self.victims_picker.listbox.configure(height=3)
             self.witnesses_picker.listbox.configure(height=3)
@@ -1011,6 +1019,45 @@ class EventEditor(tk.Frame):
         self.people_picker.change_command = (
             self.people_selection_changed
         )
+        self.baby_picker = EventAssociationPicker(
+            self.association_panel,
+            self.controller,
+            "people",
+            background=self.background,
+            heading_text="Baby",
+            select_button_text="Select the baby",
+        )
+        self.baby_picker.single_selection = True
+        self.baby_picker.change_command = (
+            self.birth_people_selection_changed
+        )
+        self.baby_picker.grid_remove()
+        self.birthing_parent_picker = EventAssociationPicker(
+            self.association_panel,
+            self.controller,
+            "people",
+            background=self.background,
+            heading_text="Birthing parent",
+            select_button_text="Select the birthing parent",
+        )
+        self.birthing_parent_picker.single_selection = True
+        self.birthing_parent_picker.change_command = (
+            self.birth_people_selection_changed
+        )
+        self.birthing_parent_picker.grid_remove()
+        self.non_birthing_parent_picker = EventAssociationPicker(
+            self.association_panel,
+            self.controller,
+            "people",
+            background=self.background,
+            heading_text="Non-Birthing parent",
+            select_button_text="Select the non-birthing parent",
+        )
+        self.non_birthing_parent_picker.single_selection = True
+        self.non_birthing_parent_picker.change_command = (
+            self.birth_people_selection_changed
+        )
+        self.non_birthing_parent_picker.grid_remove()
         self.perpetrators_picker = EventAssociationPicker(
             self.association_panel,
             self.controller,
@@ -1087,20 +1134,14 @@ class EventEditor(tk.Frame):
         )
         self.organizations_picker.grid_remove()
         self.eminence_picker = EventEminencePicker(
-            self.form,
+            self.association_panel,
             self.controller,
             self.background,
         )
-        self.eminence_picker.grid(
-            row=7,
-            column=0,
-            columnspan=form_columnspan,
-            sticky="ew",
-            pady=(3, 0),
-        )
+        self.eminence_picker.grid_remove()
         footer = tk.Frame(self.form, bg=self.background)
         footer.grid(
-            row=8,
+            row=7,
             column=0,
             columnspan=form_columnspan,
             sticky="ew",
@@ -1208,6 +1249,9 @@ class EventEditor(tk.Frame):
         self.generated_extinction_title = ""
         self.people_picker.include_recent = True
         self.people_picker.single_selection = False
+        self.baby_picker.include_recent = True
+        self.birthing_parent_picker.include_recent = True
+        self.non_birthing_parent_picker.include_recent = True
         self.perpetrators_picker.include_recent = True
         self.victims_picker.include_recent = True
         self.witnesses_picker.include_recent = True
@@ -1233,6 +1277,9 @@ class EventEditor(tk.Frame):
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
         self.people_picker.set_values(())
+        self.baby_picker.set_values(())
+        self.birthing_parent_picker.set_values(())
+        self.non_birthing_parent_picker.set_values(())
         self.perpetrators_picker.set_values(())
         self.victims_picker.set_values(())
         self.witnesses_picker.set_values(())
@@ -1280,6 +1327,9 @@ class EventEditor(tk.Frame):
         self.generated_job_event_title = ""
         self.people_picker.include_recent = True
         self.people_picker.single_selection = False
+        self.baby_picker.include_recent = True
+        self.birthing_parent_picker.include_recent = True
+        self.non_birthing_parent_picker.include_recent = True
         self.perpetrators_picker.include_recent = True
         self.victims_picker.include_recent = True
         self.witnesses_picker.include_recent = True
@@ -1310,6 +1360,9 @@ class EventEditor(tk.Frame):
             default_person_ids,
             locked_person_ids,
         )
+        self.baby_picker.set_values(())
+        self.birthing_parent_picker.set_values(())
+        self.non_birthing_parent_picker.set_values(())
         self.perpetrators_picker.set_values(())
         self.victims_picker.set_values(())
         self.witnesses_picker.set_values(())
@@ -1428,6 +1481,11 @@ class EventEditor(tk.Frame):
         self.generated_founding_title = ""
         self.generated_extinction_title = ""
         self.people_picker.include_recent = not self.lock_people
+        self.baby_picker.include_recent = not self.lock_people
+        self.birthing_parent_picker.include_recent = not self.lock_people
+        self.non_birthing_parent_picker.include_recent = (
+            not self.lock_people
+        )
         self.perpetrators_picker.include_recent = not self.lock_people
         self.victims_picker.include_recent = not self.lock_people
         self.witnesses_picker.include_recent = not self.lock_people
@@ -1441,6 +1499,7 @@ class EventEditor(tk.Frame):
                 "relocated",
                 "founding",
                 "extinction",
+                "born",
                 "died",
                 "murder",
             )
@@ -1493,6 +1552,32 @@ class EventEditor(tk.Frame):
             list(stored_person_ids or ()) + list(person_ids or ()),
             locked_person_ids,
         )
+        baby_ids = list(
+            self.event.get("baby_person_ids", []) or ()
+        )
+        birthing_parent_ids = list(
+            self.event.get("birthing_parent_person_ids", []) or ()
+        )
+        non_birthing_parent_ids = list(
+            self.event.get(
+                "non_birthing_parent_person_ids",
+                [],
+            )
+            or ()
+        )
+        self.baby_picker.set_values(
+            baby_ids,
+            (
+                baby_ids
+                if loaded_event_type == "born"
+                and self.event.get("automatic_source") == "birth_event"
+                else ()
+            ),
+        )
+        self.birthing_parent_picker.set_values(birthing_parent_ids)
+        self.non_birthing_parent_picker.set_values(
+            non_birthing_parent_ids
+        )
         perpetrator_ids = list(
             self.event.get("perpetrator_person_ids", []) or ()
         )
@@ -1505,11 +1590,7 @@ class EventEditor(tk.Frame):
         affected_ids = list(
             self.event.get("affected_person_ids", []) or ()
         )
-        locked_role_ids = {
-            str(person_id or "").strip()
-            for person_id in locked_person_ids or ()
-            if str(person_id or "").strip()
-        }
+        locked_role_ids = set()
         self.perpetrators_picker.set_values(
             perpetrator_ids,
             [
@@ -1556,6 +1637,9 @@ class EventEditor(tk.Frame):
                 if loaded_event_type == "murder"
                 else self.people_picker.get_values()
             )
+
+            if loaded_event_type == "born":
+                eminence_candidate_ids = []
             self.eminence_picker.set_values(
                 eminence_candidate_ids,
                 self.event.get("eminence_person_ids", []),
@@ -1804,6 +1888,9 @@ class EventEditor(tk.Frame):
             "other",
         )
         self.people_picker.grid_remove()
+        self.baby_picker.grid_remove()
+        self.birthing_parent_picker.grid_remove()
+        self.non_birthing_parent_picker.grid_remove()
         self.perpetrators_picker.grid_remove()
         self.victims_picker.grid_remove()
         self.witnesses_picker.grid_remove()
@@ -1813,10 +1900,7 @@ class EventEditor(tk.Frame):
             self.organizations_picker.grid_remove()
 
         if hasattr(self, "eminence_picker"):
-            if event_type == "died":
-                self.eminence_picker.grid_remove()
-            else:
-                self.eminence_picker.grid()
+            self.eminence_picker.grid_remove()
 
         if event_type == "murder":
             self.perpetrators_picker.grid(
@@ -1850,8 +1934,50 @@ class EventEditor(tk.Frame):
                 self.locations_picker.grid(
                     row=2,
                     column=0,
-                    columnspan=2,
                     sticky="ew",
+                    padx=(0, 4),
+                    pady=(4, 0),
+                )
+
+            if hasattr(self, "eminence_picker"):
+                self.eminence_picker.grid(
+                    row=2,
+                    column=(1 if not self.hide_locations else 0),
+                    columnspan=(1 if not self.hide_locations else 2),
+                    sticky="ew",
+                    padx=(4, 0) if not self.hide_locations else 0,
+                    pady=(4, 0),
+                )
+
+            return
+
+        if event_type == "born":
+            self.baby_picker.grid(
+                row=0,
+                column=0,
+                sticky="ew",
+                padx=(0, 4),
+            )
+            self.birthing_parent_picker.grid(
+                row=0,
+                column=1,
+                sticky="ew",
+                padx=(4, 0),
+            )
+            self.non_birthing_parent_picker.grid(
+                row=1,
+                column=0,
+                sticky="ew",
+                padx=(0, 4),
+                pady=(4, 0),
+            )
+
+            if not self.hide_locations:
+                self.locations_picker.grid(
+                    row=1,
+                    column=1,
+                    sticky="ew",
+                    padx=(4, 0),
                     pady=(4, 0),
                 )
 
@@ -1880,14 +2006,21 @@ class EventEditor(tk.Frame):
                 sticky="ew",
                 padx=(4, 0),
             )
-            return
-
-        if not self.hide_locations:
+        elif not self.hide_locations:
             self.locations_picker.grid(
                 row=0,
                 column=1,
                 sticky="ew",
                 padx=(4, 0),
+            )
+
+        if hasattr(self, "eminence_picker") and event_type != "died":
+            self.eminence_picker.grid(
+                row=1,
+                column=0,
+                columnspan=2,
+                sticky="ew",
+                pady=(4, 0),
             )
 
     def set_controls_enabled(self, enabled):
@@ -1899,11 +2032,16 @@ class EventEditor(tk.Frame):
             and not self.title_and_description_only
         )
         title_editable = editable and not self.description_only
+        selected_type = event_type_from_label(
+            self.event_type_value.get(),
+            "other",
+        )
         self.type_picker.set_enabled(field_editable and not self.lock_type)
         self.title_field.control.set_enabled(
             title_editable
             and not self.lock_title
             and not self.founding_title_locked
+            and selected_type != "born"
         )
         self.year_field.control.set_enabled(
             field_editable and not self.lock_date
@@ -1918,6 +2056,20 @@ class EventEditor(tk.Frame):
             state="normal" if editable else "disabled"
         )
         self.people_picker.set_enabled(
+            field_editable and not self.lock_people
+        )
+        self.baby_picker.set_enabled(
+            field_editable
+            and not self.lock_people
+            and not (
+                selected_type == "born"
+                and self.event.get("automatic_source") == "birth_event"
+            )
+        )
+        self.birthing_parent_picker.set_enabled(
+            field_editable and not self.lock_people
+        )
+        self.non_birthing_parent_picker.set_enabled(
             field_editable and not self.lock_people
         )
         self.perpetrators_picker.set_enabled(
@@ -1956,6 +2108,9 @@ class EventEditor(tk.Frame):
                 self.people_picker.get_values()
             )
 
+        self.form.after_idle(self.form_resized)
+
+    def birth_people_selection_changed(self):
         self.form.after_idle(self.form_resized)
 
     def murder_people_selection_changed(self):
@@ -2037,6 +2192,7 @@ class EventEditor(tk.Frame):
                 "relocated",
                 "founding",
                 "extinction",
+                "born",
                 "died",
                 "murder",
             )
@@ -2044,6 +2200,19 @@ class EventEditor(tk.Frame):
         self.locations_picker.foundation_only = (
             selected_type == "founding"
         )
+        if hasattr(self.locations_picker, "heading_value"):
+            self.locations_picker.heading_value.set(
+                "Birth location"
+                if selected_type == "born"
+                else "Locations"
+            )
+
+        if hasattr(self.locations_picker, "select_button"):
+            self.locations_picker.select_button.set_text(
+                "Select birth location"
+                if selected_type == "born"
+                else "Select another location"
+            )
         if hasattr(self.locations_picker, "set_instruction"):
             self.locations_picker.set_instruction(
                 "(only pick the destination location)."
@@ -2051,7 +2220,11 @@ class EventEditor(tk.Frame):
                 else (
                     "(optional; select no more than one location)."
                     if selected_type in ("died", "murder")
-                    else ""
+                    else (
+                        "(editable; select no more than one birth location)."
+                        if selected_type == "born"
+                        else ""
+                    )
                 )
             )
 
@@ -2061,6 +2234,7 @@ class EventEditor(tk.Frame):
                 "relocated",
                 "founding",
                 "extinction",
+                "born",
                 "died",
                 "murder",
             )
@@ -2075,7 +2249,14 @@ class EventEditor(tk.Frame):
                 self.locations_picker.locked_order[:1],
             )
 
-        if selected_type == "murder":
+        if selected_type == "born":
+            if self.title_value.get().strip() in (
+                "",
+                "New event",
+                "Born",
+            ):
+                self.title_value.set("Birth")
+        elif selected_type == "murder":
             if (
                 not self.perpetrators_picker.get_values()
                 and not self.victims_picker.get_values()
@@ -2084,7 +2265,7 @@ class EventEditor(tk.Frame):
             ):
                 self.perpetrators_picker.set_values(
                     self.people_picker.get_values(),
-                    self.people_picker.locked_order,
+                    (),
                 )
 
             if self.title_value.get().strip() in ("", "New event"):
@@ -2095,6 +2276,10 @@ class EventEditor(tk.Frame):
         ):
             self.title_value.set("Death")
         elif (
+            self.baby_picker.get_values()
+            or self.birthing_parent_picker.get_values()
+            or self.non_birthing_parent_picker.get_values()
+            or
             self.perpetrators_picker.get_values()
             or self.victims_picker.get_values()
             or self.witnesses_picker.get_values()
@@ -2104,6 +2289,9 @@ class EventEditor(tk.Frame):
                 dict.fromkeys(
                     [
                         *self.people_picker.get_values(),
+                        *self.baby_picker.get_values(),
+                        *self.birthing_parent_picker.get_values(),
+                        *self.non_birthing_parent_picker.get_values(),
                         *self.perpetrators_picker.get_values(),
                         *self.victims_picker.get_values(),
                         *self.witnesses_picker.get_values(),
@@ -2115,6 +2303,9 @@ class EventEditor(tk.Frame):
                 dict.fromkeys(
                     [
                         *self.people_picker.locked_order,
+                        *self.baby_picker.locked_order,
+                        *self.birthing_parent_picker.locked_order,
+                        *self.non_birthing_parent_picker.locked_order,
                         *self.perpetrators_picker.locked_order,
                         *self.victims_picker.locked_order,
                         *self.witnesses_picker.locked_order,
@@ -2127,7 +2318,7 @@ class EventEditor(tk.Frame):
                 role_locked_ids,
             )
 
-        if selected_type == "died" and hasattr(
+        if selected_type in ("born", "died") and hasattr(
             self,
             "eminence_picker",
         ):
@@ -2410,6 +2601,21 @@ class EventEditor(tk.Frame):
             self.event_type_value.get(),
             "other",
         )
+        baby_person_ids = (
+            self.baby_picker.get_values()
+            if event_type == "born"
+            else []
+        )
+        birthing_parent_person_ids = (
+            self.birthing_parent_picker.get_values()
+            if event_type == "born"
+            else []
+        )
+        non_birthing_parent_person_ids = (
+            self.non_birthing_parent_picker.get_values()
+            if event_type == "born"
+            else []
+        )
         perpetrator_person_ids = (
             self.perpetrators_picker.get_values()
             if event_type == "murder"
@@ -2434,22 +2640,34 @@ class EventEditor(tk.Frame):
             list(
                 dict.fromkeys(
                     [
+                        *baby_person_ids,
+                        *birthing_parent_person_ids,
+                        *non_birthing_parent_person_ids,
+                    ]
+                )
+            )
+            if event_type == "born"
+            else (
+                list(
+                    dict.fromkeys(
+                        [
                         *perpetrator_person_ids,
                         *victim_person_ids,
                         *witness_person_ids,
                         *affected_person_ids,
-                    ]
+                        ]
+                    )
                 )
+                if event_type == "murder"
+                else self.people_picker.get_values()
             )
-            if event_type == "murder"
-            else self.people_picker.get_values()
         )
         selected_location_ids = list(
             dict.fromkeys(selected_locations + locked_locations)
         )
 
         if (
-            event_type in ("died", "murder")
+            event_type in ("born", "died", "murder")
             and len(selected_location_ids) > 1
         ):
             selected_location_ids = selected_location_ids[-1:]
@@ -2459,7 +2677,7 @@ class EventEditor(tk.Frame):
                 if location_id in selected_location_ids
             ][-1:]
 
-        death_event = event_type == "died"
+        no_eminence_event = event_type in ("born", "died")
         job_option = self.selected_job_event_option()
         organization_ids = (
             self.organizations_picker.get_values()
@@ -2500,13 +2718,18 @@ class EventEditor(tk.Frame):
                 "end-1c",
             ),
             "person_ids": selected_person_ids,
+            "baby_person_ids": baby_person_ids,
+            "birthing_parent_person_ids": birthing_parent_person_ids,
+            "non_birthing_parent_person_ids": (
+                non_birthing_parent_person_ids
+            ),
             "perpetrator_person_ids": perpetrator_person_ids,
             "victim_person_ids": victim_person_ids,
             "witness_person_ids": witness_person_ids,
             "affected_person_ids": affected_person_ids,
             "eminence_person_ids": (
                 []
-                if death_event
+                if no_eminence_event
                 else (
                     self.eminence_picker.get_values()
                     if hasattr(self, "eminence_picker")
@@ -2515,7 +2738,7 @@ class EventEditor(tk.Frame):
             ),
             "eminence_skills": (
                 {}
-                if death_event
+                if no_eminence_event
                 else (
                     self.eminence_picker.get_skill_values()
                     if hasattr(self, "eminence_picker")
@@ -2591,7 +2814,11 @@ class EventEditor(tk.Frame):
         self.clamp_year_to_editor_bounds()
         values = self.values()
 
-        if self.storage_kind == "shared" and not values["date"]:
+        if (
+            self.storage_kind == "shared"
+            and not values["date"]
+            and values["event_type"] != "born"
+        ):
             self.show_error("Enter the year when this event happened.")
             return False
 
@@ -2657,6 +2884,43 @@ class EventEditor(tk.Frame):
                 "A friendship event needs at least two people."
             )
             return False
+
+        if values["event_type"] == "born":
+            if len(values["baby_person_ids"]) != 1:
+                self.show_error(
+                    "A Birth event needs exactly one baby."
+                )
+                return False
+
+            if len(values["birthing_parent_person_ids"]) > 1:
+                self.show_error(
+                    "Select no more than one birthing parent."
+                )
+                return False
+
+            if len(values["non_birthing_parent_person_ids"]) > 1:
+                self.show_error(
+                    "Select no more than one non-birthing parent."
+                )
+                return False
+
+            birth_role_ids = [
+                *values["baby_person_ids"],
+                *values["birthing_parent_person_ids"],
+                *values["non_birthing_parent_person_ids"],
+            ]
+
+            if len(birth_role_ids) != len(set(birth_role_ids)):
+                self.show_error(
+                    "The baby and parents must be different people."
+                )
+                return False
+
+            if len(values["location_ids"]) > 1:
+                self.show_error(
+                    "A Birth event can use no more than one location."
+                )
+                return False
 
         if (
             values["event_type"] == "died"

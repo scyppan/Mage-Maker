@@ -105,6 +105,8 @@ class LocationPage(tk.Frame):
         self.draft_event = None
         self.selected_timeline_event_id = ""
         self.event_editor_visible = False
+        self.location_timeline_built = False
+        self.has_refreshed = False
         self.remove_armed_event_id = ""
         self.current_location_id = None
         self.creating_location = False
@@ -288,7 +290,6 @@ class LocationPage(tk.Frame):
         )
         self.location_events_page.grid_rowconfigure(0, weight=1)
         self.location_events_page.grid_columnconfigure(0, weight=1)
-        self.build_timeline(self.location_events_page, row=0)
 
         self.location_organizations_page = tk.Frame(
             editor_card,
@@ -394,6 +395,10 @@ class LocationPage(tk.Frame):
         )
 
         if normalized_view == "events":
+            if not self.location_timeline_built:
+                self.build_timeline(self.location_events_page, row=0)
+                self.location_timeline_built = True
+
             self.location_events_page.grid()
             self.location_events_page.tkraise()
             self.location_events_button.set_colors(
@@ -1166,9 +1171,19 @@ class LocationPage(tk.Frame):
         )
         value.grid(row=row + 1, column=0, sticky="ew")
 
-    def refresh(self, selected_location_id=None):
+    def refresh(self, selected_location_id=None, force=False):
         selected_id = selected_location_id or self.current_location_id
-        self.locations = self.controller.list_locations()
+        refreshed_locations = self.controller.list_locations()
+
+        if (
+            self.has_refreshed
+            and not force
+            and selected_location_id is None
+            and refreshed_locations == self.locations
+        ):
+            return
+
+        self.locations = refreshed_locations
         available_ids = {
             str(location.get("record_id", "") or "")
             for location in self.locations
@@ -1219,9 +1234,11 @@ class LocationPage(tk.Frame):
             self.location_tree.select_location("")
             self.clear_form()
 
+        self.has_refreshed = True
+
     def refresh_person_data(self):
         self.controller.invalidate_caches(include_people_sync=True)
-        self.refresh(self.current_location_id)
+        self.refresh(self.current_location_id, force=True)
 
     def location_selected(self, location_id):
         requested_id = str(location_id or "").strip()
@@ -1263,10 +1280,17 @@ class LocationPage(tk.Frame):
             str(location.get("notes", "") or ""),
         )
         self.save_location_button.set_enabled(True)
-        self.timeline_add_button.set_enabled(True)
         self.refresh_location_distinctions()
-        self.refresh_assigned_organizations()
-        self.refresh_timeline()
+
+        if self.active_view_name == "organizations":
+            self.refresh_assigned_organizations()
+
+        if self.location_timeline_built:
+            self.timeline_add_button.set_enabled(True)
+
+            if self.active_view_name == "events":
+                self.refresh_timeline()
+
         self.status_command(f"Loaded location {location.get('name', 'Unnamed')}")
 
     def set_region_lock(self, location_id="", notify=False):
@@ -1672,14 +1696,19 @@ class LocationPage(tk.Frame):
         self.extinction_date_label.pack_forget()
         self.notes_control.text.delete("1.0", "end")
         self.notable_facts_value.set("No notable facts yet.")
-        self.refresh_assigned_organizations()
-        self.timeline_list.delete(0, "end")
-        self.visible_events = []
-        self.selected_timeline_event_id = ""
-        self.reset_event_remove_confirmation()
-        self.update_timeline_details()
+
+        if self.active_view_name == "organizations":
+            self.refresh_assigned_organizations()
+
+        if self.location_timeline_built:
+            self.timeline_list.delete(0, "end")
+            self.visible_events = []
+            self.selected_timeline_event_id = ""
+            self.reset_event_remove_confirmation()
+            self.update_timeline_details()
+            self.timeline_add_button.set_enabled(False)
+
         self.save_location_button.set_enabled(True)
-        self.timeline_add_button.set_enabled(False)
 
     def create_location(self):
         self.show_location_details()

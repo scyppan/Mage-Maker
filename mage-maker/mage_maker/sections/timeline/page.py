@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from mage_maker.core.dates import (
     format_historical_display_date,
+    historical_days_in_month,
+    historical_year_after,
     historical_year_shift,
 )
 from mage_maker.core.wizarding_currency import format_monthly_salary
@@ -16,9 +18,14 @@ from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
 )
+from mage_maker.sections.events.controller import (
+    DeathEventReplacementRequired,
+)
+from mage_maker.sections.events.models import split_world_event_date
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_TYPE_LABELS,
+    birth_timeline_summary,
     murder_timeline_summary,
     normalize_timeline_event,
     normalize_timeline_events,
@@ -574,6 +581,22 @@ class TimelineView(tk.Frame):
         )
         query = self.search_value.get().strip().casefold()
         candidate_events = [deepcopy(event) for event in self.events]
+        linked_birth_for_current_person = any(
+            linked_event.get("event_type") == "born"
+            and self.current_person_id()
+            in linked_event.get("baby_person_ids", [])
+            for linked_event in self.linked_events
+        )
+
+        if linked_birth_for_current_person:
+            candidate_events = [
+                event
+                for event in candidate_events
+                if not (
+                    event.get("event_type") == "born"
+                    and event.get("automatic_source") == "life_start"
+                )
+            ]
 
         for linked_event in self.linked_events:
             display_event = deepcopy(linked_event)
@@ -717,6 +740,20 @@ class TimelineView(tk.Frame):
         if event.get("_draft_event"):
             return "New event (unsaved)"
 
+        if event.get("event_type") == "born" and event.get(
+            "_stored_event"
+        ):
+            people = (
+                self.people_provider()
+                if self.people_provider is not None
+                else []
+            )
+            return birth_timeline_summary(
+                event,
+                self.current_person_id(),
+                people,
+            )
+
         if event.get("event_type") == "murder":
             people = (
                 self.people_provider()
@@ -754,7 +791,15 @@ class TimelineView(tk.Frame):
 
         event_type = str(event.get("event_type", "") or "")
 
-        if not event.get("_stored_event") and event_type in LIFE_START_PRIORITIES:
+        if (
+            not event.get("_stored_event")
+            and event_type in LIFE_START_PRIORITIES
+        ) or (
+            event.get("_stored_event")
+            and event_type == "born"
+            and self.current_person_id()
+            in event.get("baby_person_ids", [])
+        ):
             return (
                 0,
                 LIFE_START_PRIORITIES[event_type],
@@ -982,7 +1027,12 @@ class TimelineView(tk.Frame):
                 storage_kind="shared",
                 context="person",
                 person_ids=(person_id,),
-                locked_person_ids=(person_id,),
+                locked_person_ids=(
+                    ()
+                    if stored_event.get("event_type")
+                    in ("born", "murder")
+                    else (person_id,)
+                ),
                 read_only=False,
             )
             return
@@ -1194,13 +1244,40 @@ class TimelineView(tk.Frame):
                 original_event.get("record_id", "") or ""
             ).strip()
 
-            if record_id:
-                saved = self.event_controller.update_event(
-                    record_id,
-                    values,
+            try:
+                if record_id:
+                    saved = self.event_controller.update_event(
+                        record_id,
+                        values,
+                    )
+                else:
+                    saved = self.event_controller.create_event(values)
+            except DeathEventReplacementRequired as error:
+                replace_existing = messagebox.askyesno(
+                    "Replace existing Death event?",
+                    (
+                        f"{error}\n\nSaving this event will replace the "
+                        "existing Death event. Continue?"
+                    ),
+                    parent=self,
+                    icon="warning",
+                    default="no",
                 )
-            else:
-                saved = self.event_controller.create_event(values)
+
+                if not replace_existing:
+                    return False
+
+                if record_id:
+                    saved = self.event_controller.update_event(
+                        record_id,
+                        values,
+                        replace_existing_death=True,
+                    )
+                else:
+                    saved = self.event_controller.create_event(
+                        values,
+                        replace_existing_death=True,
+                    )
 
             self.draft_event = None
             self.selected_event_id = saved["record_id"]
@@ -1481,6 +1558,33 @@ class TimelineView(tk.Frame):
         duplicated.pop("_stored_event", None)
         duplicated.pop("_draft_event", None)
         duplicated.pop("_person_id", None)
+        duplicate_year, duplicate_month, duplicate_day = (
+            split_world_event_date(duplicated.get("date", ""))
+        )
+
+        if duplicate_year:
+            next_year = int(duplicate_year)
+
+            if duplicate_month:
+                next_month = int(duplicate_month) + 1
+
+                if next_month > 12:
+                    next_month = 1
+                    next_year = historical_year_after(next_year)
+
+                duplicated["date"] = f"{next_year}-{next_month:02d}"
+
+                if duplicate_day:
+                    next_day = min(
+                        int(duplicate_day),
+                        historical_days_in_month(next_year, next_month),
+                    )
+                    duplicated["date"] += f"-{next_day:02d}"
+            else:
+                duplicated["date"] = str(
+                    historical_year_after(next_year)
+                )
+
         self.save_event(duplicated)
         return True
 

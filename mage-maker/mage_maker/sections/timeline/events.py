@@ -298,6 +298,32 @@ def murder_people_label(person_ids, people):
     return f"{len(names)} people" if names else "no one"
 
 
+def birth_timeline_summary(event, current_person_id, people):
+    event_values = event if isinstance(event, dict) else {}
+    selected_person_id = str(current_person_id or "").strip()
+    baby_ids = normalize_association_values(
+        event_values.get("baby_person_ids")
+    )
+    birthing_parent_ids = normalize_association_values(
+        event_values.get("birthing_parent_person_ids")
+    )
+    non_birthing_parent_ids = normalize_association_values(
+        event_values.get("non_birthing_parent_person_ids")
+    )
+    baby_label = murder_people_label(baby_ids, people)
+
+    if selected_person_id in baby_ids:
+        return "Born"
+
+    if selected_person_id in birthing_parent_ids:
+        return f"Bore a child: {baby_label}"
+
+    if selected_person_id in non_birthing_parent_ids:
+        return f"sired a child: {baby_label}"
+
+    return str(event_values.get("title", "") or "Birth").strip()
+
+
 def murder_timeline_summary(event, current_person_id, people):
     event_values = event if isinstance(event, dict) else {}
     selected_person_id = str(current_person_id or "").strip()

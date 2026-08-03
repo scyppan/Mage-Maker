@@ -427,112 +427,43 @@ class PersonForm(tk.Frame):
             pady=(4, 0),
         )
 
-        birth_frame = tk.Frame(identity_panel.content, bg=SURFACE_MUTED)
-        birth_frame.grid(row=2, column=0, sticky="ew", pady=(0, 9))
-        birth_frame.grid_columnconfigure(0, weight=1)
-        birth_heading = tk.Label(
-            birth_frame,
-            text="Date of birth",
-            bg=SURFACE_MUTED,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        birth_heading.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-            pady=(0, 5),
-        )
         for field_name in ("birth_year", "birth_month", "birth_day"):
             self.variables[field_name] = tk.StringVar()
 
         self.birth_date_display_value = tk.StringVar(
             value="Not recorded"
         )
-        birth_value = tk.Label(
-            birth_frame,
-            textvariable=self.birth_date_display_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-        )
-        birth_value.grid(
-            row=1,
-            column=0,
-            sticky="ew",
-        )
-
         deceased_value = tk.BooleanVar(value=False)
         self.variables["deceased"] = deceased_value
-        death_status_row = tk.Frame(
-            identity_panel.content,
-            bg=SURFACE_MUTED,
-        )
-        death_status_row.grid(
-            row=3,
-            column=0,
-            sticky="ew",
-            pady=(0, 7),
-        )
-        death_status_row.grid_columnconfigure(1, weight=1)
-        death_status_heading = tk.Label(
-            death_status_row,
-            text="Life status",
-            bg=SURFACE_MUTED,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        death_status_heading.grid(row=0, column=0, sticky="w")
         self.death_status_value = tk.StringVar(value="Alive")
         self.death_overview_value = tk.StringVar(value="")
-        death_status_value = tk.Label(
-            death_status_row,
-            textvariable=self.death_status_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
+        self.death_date_display_value = tk.StringVar(
+            value="Not recorded"
         )
-        death_status_value.grid(
-            row=1,
-            column=0,
-            sticky="w",
-            pady=(4, 0),
+        self.life_dates_display_value = tk.StringVar(
+            value="Born: Not recorded  ·  alive"
         )
-        death_overview = tk.Label(
-            death_status_row,
-            textvariable=self.death_overview_value,
-            bg=SURFACE_MUTED,
-            fg=TEXT_DARK,
-            font=app_font(10, "bold"),
-            anchor="w",
-        )
-        death_overview.grid(
-            row=1,
-            column=1,
-            sticky="ew",
-            padx=(12, 0),
-            pady=(4, 0),
-        )
-
-        self.death_date_frame = tk.Frame(
+        life_dates_frame = tk.Frame(
             identity_panel.content,
             bg=SURFACE_MUTED,
         )
-        self.death_date_frame.grid(row=4, column=0, sticky="ew", pady=(0, 9))
-        self.death_date_frame.grid_columnconfigure(0, weight=1)
-        death_heading = tk.Label(
-            self.death_date_frame,
-            text="Date of death",
+        life_dates_frame.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(0, 9),
+        )
+        life_dates_frame.grid_columnconfigure(0, weight=1)
+        self.death_date_frame = life_dates_frame
+        life_dates_heading = tk.Label(
+            life_dates_frame,
+            text="Birth and death",
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
             anchor="w",
         )
-        death_heading.grid(
+        life_dates_heading.grid(
             row=0,
             column=0,
             sticky="ew",
@@ -541,18 +472,15 @@ class PersonForm(tk.Frame):
         for field_name in ("death_year", "death_month", "death_day"):
             self.variables[field_name] = tk.StringVar()
 
-        self.death_date_display_value = tk.StringVar(
-            value="Not recorded"
-        )
-        death_value = tk.Label(
-            self.death_date_frame,
-            textvariable=self.death_date_display_value,
+        life_dates_value = tk.Label(
+            life_dates_frame,
+            textvariable=self.life_dates_display_value,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(10, "bold"),
             anchor="w",
         )
-        death_value.grid(row=1, column=0, sticky="ew")
+        life_dates_value.grid(row=1, column=0, sticky="ew")
         overview = tk.Frame(page, bg=SURFACE)
         overview.grid(
             row=1,
@@ -2034,8 +1962,73 @@ class PersonForm(tk.Frame):
                 self.linked_events_snapshot
             )
 
-        if self.active_page_name == "relationships":
-            self.relationships.set_person(self.person_snapshot)
+        current_person = next(
+            (
+                person
+                for person in self.people_provider()
+                if str(person.get("record_id", "") or "")
+                == str(self.current_record_id or "")
+            ),
+            None,
+        )
+
+        if current_person is not None:
+            event_owned_fields = (
+                "birth_year",
+                "birth_month",
+                "birth_day",
+                "deceased",
+                "death_year",
+                "death_month",
+                "death_day",
+                "biological_mother_id",
+                "biological_father_id",
+                "biological_mother_status",
+                "biological_father_status",
+                "mate_ids",
+                "spouse_relationships",
+            )
+
+            for field_name in event_owned_fields:
+                self.person_snapshot[field_name] = deepcopy(
+                    current_person.get(field_name)
+                )
+
+            previous_loading = self.loading
+            self.loading = True
+
+            for field_name in (
+                "birth_year",
+                "birth_month",
+                "birth_day",
+                "death_year",
+                "death_month",
+                "death_day",
+            ):
+                self.variables[field_name].set(
+                    ""
+                    if current_person.get(field_name) in (None, "")
+                    else str(current_person.get(field_name))
+                )
+
+            self.variables["deceased"].set(
+                bool(current_person.get("deceased"))
+            )
+            self.loading = previous_loading
+            self.update_birth_date_display()
+            self.update_death_date_visibility()
+            self.update_death_overview()
+
+            if self.section_is_current("family_tree"):
+                family_person = deepcopy(current_person)
+                family_person.update(self.current_profile_values())
+                self.family_tree.set_person(
+                    family_person,
+                    redraw=self.active_page_name == "family_tree",
+                )
+
+            if self.active_page_name == "relationships":
+                self.relationships.set_person(self.person_snapshot)
 
         if self.variables["non_magical"].get():
             self.person_snapshot["development_plan"] = (
@@ -2056,16 +2049,6 @@ class PersonForm(tk.Frame):
             self.update_school_summary()
             self.refresh_books_and_ledger()
             return
-
-        current_person = next(
-            (
-                person
-                for person in self.people_provider()
-                if str(person.get("record_id", "") or "")
-                == str(self.current_record_id or "")
-            ),
-            None,
-        )
 
         if current_person is not None:
             self.person_snapshot["development_plan"] = deepcopy(
@@ -2115,6 +2098,7 @@ class PersonForm(tk.Frame):
                 unknown="Not recorded",
             )
         )
+        PersonForm.update_life_dates_display(self)
 
     def update_birth_date_display(self):
         if not hasattr(self, "birth_date_display_value"):
@@ -2131,6 +2115,36 @@ class PersonForm(tk.Frame):
                 birth_date,
                 unknown="Not recorded",
             )
+        )
+        PersonForm.update_life_dates_display(self)
+
+    def update_life_dates_display(self):
+        if not hasattr(self, "life_dates_display_value"):
+            return
+
+        birth_date = format_date_parts(
+            self.variables["birth_year"].get(),
+            self.variables["birth_month"].get(),
+            self.variables["birth_day"].get(),
+            unknown="",
+        )
+        death_date = format_date_parts(
+            self.variables["death_year"].get(),
+            self.variables["death_month"].get(),
+            self.variables["death_day"].get(),
+            unknown="",
+        )
+        birth_display = format_historical_display_date(
+            birth_date,
+            unknown="Not recorded",
+        )
+        death_display = (
+            f"Died: {format_historical_display_date(death_date)}"
+            if death_date
+            else "alive"
+        )
+        self.life_dates_display_value.set(
+            f"Born: {birth_display}  ·  {death_display}"
         )
 
     def update_death_overview(self):

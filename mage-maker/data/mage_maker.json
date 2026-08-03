@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 34,
-    "database_version": "0.34.0",
-    "last_saved": "2026-08-03T03:28:13.398932+00:00"
+    "schema_version": 35,
+    "database_version": "0.35.0",
+    "last_saved": "2026-08-03T04:38:34.943998+00:00"
   },
   "people": [
     {
@@ -63,16 +63,6 @@
           "related_person_id": "",
           "related_name_entry_id": "e78b3dbb-e28b-4005-8605-d044bfce6f8f",
           "automatic_source": "life_start"
-        },
-        {
-          "event_id": "had-child:ccde7cef-2aff-4be4-974f-c72ffe652c71",
-          "note": "Child: Cyneburga Gryffindor",
-          "event_type": "had_child",
-          "detail": "Cyneburga Gryffindor",
-          "date": "",
-          "related_person_id": "ccde7cef-2aff-4be4-974f-c72ffe652c71",
-          "automatic_source": "child_assignment",
-          "related_name_entry_id": ""
         }
       ],
       "school": "",
@@ -80,7 +70,7 @@
       "imported_fields": {},
       "record_id": "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
       "created_at": "2026-07-22T13:11:28.910114+00:00",
-      "last_updated": "2026-08-03T03:28:13.276783+00:00",
+      "last_updated": "2026-08-03T03:43:27.540607+00:00",
       "death_year": null,
       "death_month": null,
       "death_day": null,
@@ -1600,6 +1590,55 @@
             "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
             "skill": "Perception",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-4cac67a7e4656357bb1c133f",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-03b23a9c60659c15702de1a3",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "Artificing",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-d47f81f37c383805ecef805c",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-27e7f8c6bc7f4ccf56a70b70",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Social",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-3df216d93c0b5a24bfd67abb",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-e882d407713dfc1b45aa4efb",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-48c588b4306e9f139fab0672",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -2316,7 +2355,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         }
       ],
       "school": "Hogwarts",
@@ -6349,7 +6390,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         },
         {
           "event_id": "automatic:death",
@@ -10694,7 +10737,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         },
         {
           "event_id": "automatic:death",
@@ -14620,7 +14665,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         },
         {
           "event_id": "automatic:death",
@@ -18971,7 +19018,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         },
         {
           "event_id": "automatic:death",
@@ -22966,7 +23015,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         }
       ],
       "school": "Hogwarts",
@@ -25898,6 +25949,55 @@
             "description": "Through felt-sense, he develops an ability to detect traces of magic. This leads him to explore London eventually independently discovering Diagon Alley.",
             "skill": "Arithmancy",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-9cc80ac95592b8f3857f67ea",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-fdbc31f464db5f6c1f0b6b8a",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-55a48bf960441df23d1dad9f",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "Charms",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-6424c33ecf75edbeb00bf384",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-ca713bea8f93761b91b15edc",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-439867e467a65ab27c1dcacc",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-cb54922ee3c28ffb63f56a68",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -25911,7 +26011,7 @@
       "imported_fields": {},
       "record_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "created_at": "2026-08-01T10:33:54.882512+00:00",
-      "last_updated": "2026-08-03T03:28:13.275264+00:00",
+      "last_updated": "2026-08-03T03:43:27.541409+00:00",
       "does_not_have_children": false
     },
     {
@@ -26035,7 +26135,9 @@
           "automatic_source": "school_start",
           "school_year": 1,
           "started_late": false,
-          "related_name_entry_id": ""
+          "related_name_entry_id": "",
+          "location_ids": [],
+          "locked_location_ids": []
         }
       ],
       "school": "Hogwarts",
@@ -29703,16 +29805,6 @@
           "automatic_source": "life_start"
         },
         {
-          "event_id": "had-child:bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-          "note": "Child: Salazar Slytherin",
-          "event_type": "had_child",
-          "detail": "Salazar Slytherin",
-          "date": "0971",
-          "related_person_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-          "automatic_source": "child_assignment",
-          "related_name_entry_id": ""
-        },
-        {
           "event_id": "automatic:death",
           "event_type": "died",
           "detail": "Salazar's father is murdered by muggles",
@@ -30053,16 +30145,6 @@
           "automatic_source": "life_start"
         },
         {
-          "event_id": "had-child:bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-          "note": "Child: Salazar Slytherin",
-          "event_type": "had_child",
-          "detail": "Salazar Slytherin",
-          "date": "0971",
-          "related_person_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
-          "automatic_source": "child_assignment",
-          "related_name_entry_id": ""
-        },
-        {
           "event_id": "automatic:death",
           "event_type": "died",
           "detail": "",
@@ -30190,6 +30272,55 @@
             "description": "",
             "skill": "Charms",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-5e96d2cf987c42620ee2274b",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-3d6fb778d146721ce6480c33",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "Arithmancy",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-3f446a9a7ddfe5bafb03444b",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "Creatures",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-91f3fce3550a45b4f883ce56",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-41c9ba2337c356f322fb3e2b",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-b58bad402fdb3b6a615900f8",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-3bb2488e02eb99ae3bdbfdb6",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -30201,7 +30332,7 @@
       "imported_fields": {},
       "record_id": "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
       "created_at": "2026-08-02T14:17:50.564174+00:00",
-      "last_updated": "2026-08-02T14:47:04.012470+00:00"
+      "last_updated": "2026-08-03T03:43:27.541184+00:00"
     },
     {
       "displayed_name": "Rowena Ravenclaw",
@@ -30307,6 +30438,55 @@
             "description": "",
             "skill": "Artificing",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-5b5988bae7240d2ea8c71207",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-14f8ae7fd7af00d7938a6074",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "Charms",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-88694734ab67110b07a4ad0f",
+            "title": "Founders co-study group",
+            "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+            "skill": "Arithmancy",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-51d44d13d34665460f725255",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-749b1c2bfe3352bc543537cd",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-d5dd0f093353ee126f484db9",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-2372768e7d0012cc11659688",
+            "title": "Founders co-study group",
+            "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+            "skill": "Defense",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -30316,7 +30496,112 @@
       "imported_fields": {},
       "record_id": "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
       "created_at": "2026-08-02T14:19:54.167753+00:00",
-      "last_updated": "2026-08-02T14:47:04.012796+00:00"
+      "last_updated": "2026-08-03T03:43:27.541011+00:00"
+    },
+    {
+      "displayed_name": "Kalta",
+      "name_details": {
+        "entries": [
+          {
+            "name_type": "birth name",
+            "name_entry": "Ása at Katla",
+            "date": "0973",
+            "note": "",
+            "entry_id": "dbab7954-2f04-471d-805d-043aa9982de7"
+          }
+        ]
+      },
+      "narrative": "",
+      "birth_year": 973,
+      "birth_month": null,
+      "birth_day": null,
+      "deceased": false,
+      "death_year": null,
+      "death_month": null,
+      "death_day": null,
+      "canon": false,
+      "player_character": false,
+      "non_magical": false,
+      "can_give_birth": true,
+      "does_not_have_children": false,
+      "famous_person": true,
+      "unfinished": false,
+      "biological_mother_id": "",
+      "biological_father_id": "",
+      "biological_mother_status": "unknown",
+      "biological_father_status": "unknown",
+      "blood_status": "Pureblood",
+      "developmental_environment": "",
+      "parental_values": null,
+      "initial_bonuses": null,
+      "characteristics": null,
+      "mate_ids": [],
+      "spouse_relationships": [],
+      "timeline_events": [
+        {
+          "event_id": "life-start:starting-location",
+          "event_type": "starting_location",
+          "detail": "Nordic Lands and the Baltics",
+          "date": "0973",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "89f1088e-0d18-4490-9bb9-f16622473e9a"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:born",
+          "event_type": "born",
+          "detail": "",
+          "date": "0973",
+          "note": "",
+          "related_person_id": "",
+          "automatic_source": "life_start",
+          "location_ids": [
+            "89f1088e-0d18-4490-9bb9-f16622473e9a"
+          ],
+          "locked_location_ids": [],
+          "birth_location_source": "manual",
+          "related_name_entry_id": ""
+        },
+        {
+          "event_id": "life-start:birth-name",
+          "event_type": "birth_name",
+          "detail": "Ása at Katla",
+          "date": "0973",
+          "note": "",
+          "related_person_id": "",
+          "related_name_entry_id": "dbab7954-2f04-471d-805d-043aa9982de7",
+          "automatic_source": "life_start"
+        }
+      ],
+      "school": "",
+      "mage_group_id": "5f2290b5-c873-4f4c-a3db-c759515c79d8",
+      "development_plan": {
+        "schema": "Three skills",
+        "blood_status_initialized": false,
+        "academic_years_advanced": 0,
+        "school_started": false,
+        "school_years": [],
+        "ledger_entries": [],
+        "adult_years": [],
+        "initial_eminence": [],
+        "mortality_checked_through_age": null,
+        "focused_skills": [
+          "Flying",
+          "Dark Arts",
+          "Artificing"
+        ]
+      },
+      "notes": "She was the most famous magical person from Katla, so the name of the place became the way she herself was referred to.",
+      "imported_fields": {},
+      "record_id": "370ab1c3-6d64-4b89-afc4-90858a032cc4",
+      "created_at": "2026-08-03T04:07:39.118576+00:00",
+      "last_updated": "2026-08-03T04:12:13.724351+00:00"
     }
   ],
   "locations": [
@@ -31389,6 +31674,45 @@
       "record_id": "649ea454-31dd-4569-b9ea-9aba1552b19e",
       "created_at": "2026-08-02T14:17:18.331916+00:00",
       "last_updated": "2026-08-02T14:17:18.331916+00:00"
+    },
+    {
+      "name": "Libya",
+      "parent_location_id": "b8db052f-3f7d-4a18-84bf-b82297d37553",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "demographics": "",
+      "campus_organization_id": "",
+      "timeline_events": [],
+      "record_id": "dd215dfd-e36c-43aa-9bae-20aaef3509ed",
+      "created_at": "2026-08-03T03:36:59.171982+00:00",
+      "last_updated": "2026-08-03T03:36:59.171982+00:00"
+    },
+    {
+      "name": "Cyrenaica",
+      "parent_location_id": "dd215dfd-e36c-43aa-9bae-20aaef3509ed",
+      "notes": "Home of the basilisks",
+      "extinct": false,
+      "extinction_year": "",
+      "demographics": "",
+      "campus_organization_id": "",
+      "timeline_events": [],
+      "record_id": "78eb4202-7108-4712-8734-e02ad31a1213",
+      "created_at": "2026-08-03T03:37:19.442126+00:00",
+      "last_updated": "2026-08-03T03:37:19.442126+00:00"
+    },
+    {
+      "name": "Katla",
+      "parent_location_id": "89f1088e-0d18-4490-9bb9-f16622473e9a",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "demographics": "",
+      "campus_organization_id": "",
+      "timeline_events": [],
+      "record_id": "8be846a2-81d7-4dfa-bf42-b7bd99de1d40",
+      "created_at": "2026-08-03T04:08:36.340836+00:00",
+      "last_updated": "2026-08-03T04:08:36.340836+00:00"
     }
   ],
   "organizations": [
@@ -32610,6 +32934,152 @@
       "organization_name": ""
     },
     {
+      "record_id": "birth:fd2e3f62-3530-4fe5-a618-da26accca07f",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "899",
+      "description": "",
+      "baby_person_ids": [
+        "fd2e3f62-3530-4fe5-a618-da26accca07f"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "fd2e3f62-3530-4fe5-a618-da26accca07f"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "0bbf3d43-ea85-4af7-bc48-b42219f656e8"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:6cea2c79-66b4-4018-88f1-6238ad15ebd7",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "901",
+      "description": "",
+      "baby_person_ids": [
+        "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "6cea2c79-66b4-4018-88f1-6238ad15ebd7"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "6d806b4b-6308-428f-a332-7581faed8cfc"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:a94e7b2e-2faa-49e3-83ef-cdc136502f54",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "901",
+      "description": "",
+      "baby_person_ids": [
+        "a94e7b2e-2faa-49e3-83ef-cdc136502f54"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "a94e7b2e-2faa-49e3-83ef-cdc136502f54"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "0bbf3d43-ea85-4af7-bc48-b42219f656e8"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:6882e7fb-529a-4b3e-8929-a795b91b816d",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "902",
+      "description": "",
+      "baby_person_ids": [
+        "6882e7fb-529a-4b3e-8929-a795b91b816d"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "6882e7fb-529a-4b3e-8929-a795b91b816d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:765c03a4-9624-4cd0-9695-419cf59c043a",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "903",
+      "description": "",
+      "baby_person_ids": [
+        "765c03a4-9624-4cd0-9695-419cf59c043a"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "765c03a4-9624-4cd0-9695-419cf59c043a"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "0bbf3d43-ea85-4af7-bc48-b42219f656e8"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "906",
+      "description": "",
+      "baby_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
       "event_type": "founding",
       "title": "Limerick founded by the Vikings",
       "date": "922",
@@ -32625,6 +33095,102 @@
       "eminence_person_ids": [],
       "locked_location_ids": [],
       "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:7bd4ae68-1b41-43d9-8949-a6a9160517f8",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "923",
+      "description": "",
+      "baby_person_ids": [
+        "7bd4ae68-1b41-43d9-8949-a6a9160517f8"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "7bd4ae68-1b41-43d9-8949-a6a9160517f8"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "26fd04fa-d073-4f05-a170-d171e93ce06c"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "935",
+      "description": "",
+      "baby_person_ids": [
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "649ea454-31dd-4569-b9ea-9aba1552b19e"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "940",
+      "description": "",
+      "baby_person_ids": [
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:bcfff484-a85f-43e0-96e3-e20796e5396f",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "940",
+      "description": "",
+      "baby_person_ids": [
+        "bcfff484-a85f-43e0-96e3-e20796e5396f"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "bcfff484-a85f-43e0-96e3-e20796e5396f"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
       "organization_id": "",
       "organization_name": ""
     },
@@ -32665,6 +33231,87 @@
       "record_id": "b49150ef-eaf9-4e1a-bbc4-a56f109e89e5",
       "created_at": "2026-08-02T08:30:20.903265+00:00",
       "last_updated": "2026-08-02T08:32:18.708283+00:00",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "967",
+      "description": "",
+      "baby_person_ids": [
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "007cba6d-7f7a-4c8e-b46d-0f0f41372631"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "971",
+      "description": "",
+      "baby_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "birthing_parent_person_ids": [
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8"
+      ],
+      "non_birthing_parent_person_ids": [
+        "bcfff484-a85f-43e0-96e3-e20796e5396f"
+      ],
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
+        "bcfff484-a85f-43e0-96e3-e20796e5396f"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "1df35516-b69f-45df-ac06-b52616e5ed41"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:370ab1c3-6d64-4b89-afc4-90858a032cc4",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "973",
+      "description": "",
+      "baby_person_ids": [
+        "370ab1c3-6d64-4b89-afc4-90858a032cc4"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "370ab1c3-6d64-4b89-afc4-90858a032cc4"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "89f1088e-0d18-4490-9bb9-f16622473e9a"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
       "organization_id": "",
       "organization_name": ""
     },
@@ -33185,6 +33832,313 @@
     },
     {
       "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "993",
+      "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "History",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "History",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "History",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "History"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "006025d6-1f25-4036-aa85-4b8e987556dc",
+      "created_at": "2026-08-03T03:39:39.734695+00:00",
+      "last_updated": "2026-08-03T03:39:39.734695+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "994",
+      "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "Charms",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "History",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Creatures",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Arithmancy"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "f7dd317d-4d6a-4079-9be2-c0d393ec25df",
+      "created_at": "2026-08-03T03:39:44.064901+00:00",
+      "last_updated": "2026-08-03T03:42:17.736943+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "995",
+      "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "History",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Artificing",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Arithmancy",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Charms"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "cbd3845b-8cc9-4b71-8d76-4d5b5bd4e34c",
+      "created_at": "2026-08-03T03:41:07.018271+00:00",
+      "last_updated": "2026-08-03T03:42:11.168664+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "996",
+      "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "History",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "Social",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "d85c5163-5c88-4ef2-8314-e675c6c44136",
+      "created_at": "2026-08-03T03:42:22.627329+00:00",
+      "last_updated": "2026-08-03T03:42:51.593312+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "997",
+      "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "History",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "History",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "6e75286c-bc2a-466c-9d3c-9806b44be539",
+      "created_at": "2026-08-03T03:42:54.683524+00:00",
+      "last_updated": "2026-08-03T03:43:16.353772+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "998",
+      "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "History",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "History",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "40b1c8d6-d1c9-425d-911b-3f5179a9fece",
+      "created_at": "2026-08-03T03:43:19.312047+00:00",
+      "last_updated": "2026-08-03T03:43:25.427980+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Founders co-study group",
+      "date": "999",
+      "description": "The founders continue to co-study to learn from one another and share their research helping each grow together.",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3"
+      ],
+      "eminence_skills": {
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392": "History",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99": "History",
+        "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3": "Defense",
+        "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "239d531d-85dd-462d-b078-68654c3c0d0e",
+      "created_at": "2026-08-03T03:43:27.539130+00:00",
+      "last_updated": "2026-08-03T03:43:36.418082+00:00"
+    },
+    {
+      "event_type": "custom",
+      "title": "Begins sabatical",
+      "date": "1000-05-30",
+      "description": "",
+      "person_ids": [
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "1de6d933-bc54-4f6e-a93b-f2ff6c59803a",
+      "created_at": "2026-08-03T03:59:24.134993+00:00",
+      "last_updated": "2026-08-03T03:59:24.134993+00:00"
+    },
+    {
+      "record_id": "birth:0164a838-659c-40f7-b201-ff20fef4679d",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1027",
+      "description": "",
+      "baby_person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "0164a838-659c-40f7-b201-ff20fef4679d"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1027",
+      "description": "",
+      "baby_person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "0ae645e6-63a4-4f69-bf04-3aaf431fad3c"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "c2cc8919-1108-47c9-b3be-9423eea86c1a"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "event_type": "custom",
       "title": "Armand and William become friends",
       "date": "1028",
       "description": "Armand and Malfoy become childhood friends.",
@@ -33307,6 +34261,31 @@
       "organization_name": ""
     },
     {
+      "record_id": "birth:6cd8d366-28a4-4199-9c5c-ff55362851b2",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1046",
+      "description": "",
+      "baby_person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "6cd8d366-28a4-4199-9c5c-ff55362851b2"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "2ce042ec-ffb5-4b71-8b10-ff5bdd51e6d8"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
       "event_type": "custom",
       "title": "Travels to Egypt",
       "date": "1048-07",
@@ -33353,6 +34332,31 @@
       "record_id": "17f13302-0137-4d49-aa19-f8f7fbf10d0d",
       "created_at": "2026-08-02T08:48:54.338044+00:00",
       "last_updated": "2026-08-02T08:49:10.584395+00:00"
+    },
+    {
+      "record_id": "birth:731751aa-a668-4887-840f-c8e5d624c655",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1051-10-15",
+      "description": "",
+      "baby_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "ca7c093c-47cf-40bc-aa9c-075035b823ab"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
     },
     {
       "event_type": "custom",
@@ -33955,6 +34959,32 @@
     },
     {
       "event_type": "custom",
+      "title": "Private tutoring",
+      "date": "1066-01",
+      "description": "Salazar continues to provide private tutoring.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655",
+        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
+      ],
+      "eminence_person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_skills": {
+        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
+      },
+      "period_names": [],
+      "location_ids": [
+        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
+      ],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "8b18417b-7398-4113-b256-6feef430b85d",
+      "created_at": "2026-08-03T02:21:25.197135+00:00",
+      "last_updated": "2026-08-03T03:22:35.974145+00:00"
+    },
+    {
+      "event_type": "custom",
       "title": "Travel to London",
       "date": "1066-01-02",
       "description": "He is in London when Emeric the Evil kills 25 mages and reports this information back to William of Normandy",
@@ -34058,32 +35088,6 @@
       "affected_person_ids": [
         "731751aa-a668-4887-840f-c8e5d624c655"
       ]
-    },
-    {
-      "event_type": "custom",
-      "title": "Private tutoring",
-      "date": "1066-01",
-      "description": "Salazar continues to provide private tutoring.",
-      "person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655",
-        "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392"
-      ],
-      "eminence_person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
-      ],
-      "eminence_skills": {
-        "731751aa-a668-4887-840f-c8e5d624c655": "Defense"
-      },
-      "period_names": [],
-      "location_ids": [
-        "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef"
-      ],
-      "locked_location_ids": [],
-      "organization_id": "",
-      "organization_name": "",
-      "record_id": "8b18417b-7398-4113-b256-6feef430b85d",
-      "created_at": "2026-08-03T02:21:25.197135+00:00",
-      "last_updated": "2026-08-03T03:22:35.974145+00:00"
     },
     {
       "event_type": "murder",
@@ -34258,6 +35262,25 @@
       "organization_name": ""
     },
     {
+      "event_type": "died",
+      "title": "Accidentally killed self",
+      "date": "1066-06-01",
+      "description": "Egbert accidentally dies while attempting to resurrect Slytherin.",
+      "person_ids": [
+        "731751aa-a668-4887-840f-c8e5d624c655"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "",
+      "organization_name": "",
+      "record_id": "55f28600-7e32-426c-8758-62123ecbcd90",
+      "created_at": "2026-08-03T03:18:38.006913+00:00",
+      "last_updated": "2026-08-03T03:20:14.763415+00:00"
+    },
+    {
       "event_type": "custom",
       "title": "Begins the Norman Invasion",
       "date": "1066-09-28",
@@ -34298,6 +35321,29 @@
       "organization_name": ""
     },
     {
+      "record_id": "birth:1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1390",
+      "description": "",
+      "baby_person_ids": [
+        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
       "event_type": "founding",
       "title": "Founding of Azkeban",
       "date": "1455",
@@ -34319,6 +35365,77 @@
       "created_at": "2026-08-01T02:28:05.635164+00:00",
       "last_updated": "2026-08-01T02:28:05.635164+00:00",
       "eminence_skills": {},
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:bf8fda89-3eaa-4603-832d-498431b15447",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1651",
+      "description": "",
+      "baby_person_ids": [
+        "bf8fda89-3eaa-4603-832d-498431b15447"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "bf8fda89-3eaa-4603-832d-498431b15447"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:8cf308b5-afae-4323-a4fd-209dd5b63c7c",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1688",
+      "description": "",
+      "baby_person_ids": [
+        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "8cf308b5-afae-4323-a4fd-209dd5b63c7c"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "d4d5d8d1-604d-4f02-83c0-b7a8d7a7b73a"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:a42cd75f-b0d3-4771-8530-c9568102bedf",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1690",
+      "description": "",
+      "baby_person_ids": [
+        "a42cd75f-b0d3-4771-8530-c9568102bedf"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "a42cd75f-b0d3-4771-8530-c9568102bedf"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
       "organization_id": "",
       "organization_name": ""
     },
@@ -34348,6 +35465,29 @@
       "organization_name": ""
     },
     {
+      "record_id": "birth:f812561f-6caa-4c1e-a5dc-6764288ed90a",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1754",
+      "description": "",
+      "baby_person_ids": [
+        "f812561f-6caa-4c1e-a5dc-6764288ed90a"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
+      "person_ids": [
+        "f812561f-6caa-4c1e-a5dc-6764288ed90a"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
       "event_type": "other",
       "title": "Quidditch World Cup Hosted in Britain",
       "date": "1805",
@@ -34367,61 +35507,93 @@
       "organization_name": ""
     },
     {
-      "event_type": "died",
-      "title": "Accidentally killed self",
-      "date": "1066-06-01",
-      "description": "Egbert accidentally dies while attempting to resurrect Slytherin.",
+      "record_id": "birth:da621804-0d7d-4af5-8cd1-54e535323c8b",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "1980-07-31",
+      "description": "",
+      "baby_person_ids": [
+        "da621804-0d7d-4af5-8cd1-54e535323c8b"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [],
       "person_ids": [
-        "731751aa-a668-4887-840f-c8e5d624c655"
+        "da621804-0d7d-4af5-8cd1-54e535323c8b"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [
+        "f72ada00-abce-49d4-bcc3-37f2bfec2a20"
+      ],
+      "locked_location_ids": [],
+      "automatic_source": "birth_event",
+      "organization_id": "",
+      "organization_name": ""
+    },
+    {
+      "record_id": "birth:ccde7cef-2aff-4be4-974f-c72ffe652c71",
+      "event_type": "born",
+      "title": "Birth",
+      "date": "",
+      "description": "",
+      "baby_person_ids": [
+        "ccde7cef-2aff-4be4-974f-c72ffe652c71"
+      ],
+      "birthing_parent_person_ids": [],
+      "non_birthing_parent_person_ids": [
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
+      ],
+      "person_ids": [
+        "ccde7cef-2aff-4be4-974f-c72ffe652c71",
+        "1ef136a2-d6bd-4c91-af2e-3ec04770bf99"
       ],
       "eminence_person_ids": [],
       "eminence_skills": {},
       "period_names": [],
       "location_ids": [],
       "locked_location_ids": [],
+      "automatic_source": "birth_event",
       "organization_id": "",
-      "organization_name": "",
-      "record_id": "55f28600-7e32-426c-8758-62123ecbcd90",
-      "created_at": "2026-08-03T03:18:38.006913+00:00",
-      "last_updated": "2026-08-03T03:20:14.763415+00:00"
+      "organization_name": ""
     }
   ],
   "_recent_people": [
+    "370ab1c3-6d64-4b89-afc4-90858a032cc4",
+    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
+    "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
     "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
     "731751aa-a668-4887-840f-c8e5d624c655",
     "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-    "fd2e3f62-3530-4fe5-a618-da26accca07f",
     "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
-    "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
     "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
     "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
     "7bd4ae68-1b41-43d9-8949-a6a9160517f8",
-    "bcfff484-a85f-43e0-96e3-e20796e5396f",
-    "0164a838-659c-40f7-b201-ff20fef4679d"
+    "bcfff484-a85f-43e0-96e3-e20796e5396f"
   ],
   "_recent_locations": [
+    "89f1088e-0d18-4490-9bb9-f16622473e9a",
+    "8be846a2-81d7-4dfa-bf42-b7bd99de1d40",
+    "78eb4202-7108-4712-8734-e02ad31a1213",
+    "dd215dfd-e36c-43aa-9bae-20aaef3509ed",
+    "b8db052f-3f7d-4a18-84bf-b82297d37553",
+    "274823c0-acc2-4303-b637-789e5e4201ca",
     "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
     "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
     "d0faae51-593b-440f-95f9-8e3b8b252353",
-    "b8db052f-3f7d-4a18-84bf-b82297d37553",
     "75038204-dd2e-41ce-83fb-c1ca009f0120",
     "b140ddd1-77e2-4387-9a6d-d773c6b1fbb1",
-    "45e5a2df-7b87-4424-8d81-d10ab034d139",
-    "d51a30e1-25ce-4c79-afc8-49c2d3ee0745",
-    "cce73c77-b94d-47a5-b386-66387b3dcd8d",
-    "__mage_maker_world__",
-    "96103198-d236-4041-92af-7fb8580ae909",
-    "23b54b30-b742-4e20-a224-915ca732fd61"
+    "45e5a2df-7b87-4424-8d81-d10ab034d139"
   ],
   "_recent_event_associations": {
     "person_ids": [
       "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
+      "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
+      "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
       "731751aa-a668-4887-840f-c8e5d624c655",
       "6cd8d366-28a4-4199-9c5c-ff55362851b2",
-      "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
-      "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
       "2c6d4b9f-3607-4acc-8ca4-2c479fd116c8",
       "bcfff484-a85f-43e0-96e3-e20796e5396f",
       "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
@@ -34430,8 +35602,8 @@
       "1106d8d9-ff8b-4378-a9f9-9cad3fbdfee9"
     ],
     "location_ids": [
-      "bc89bd68-989e-42ec-a5b2-e7da7fbce321",
       "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
+      "bc89bd68-989e-42ec-a5b2-e7da7fbce321",
       "dd1d79dc-5da9-4148-bbd3-50fc30dac8f4",
       "a1bdfa5d-ed43-4775-a505-42e43d0a006e",
       "f72ada00-abce-49d4-bcc3-37f2bfec2a20",
@@ -34491,6 +35663,11 @@
         "group_id": "e2ce8e4b-d0a6-431c-af47-21e7e275b9d7",
         "name": "Real Historical Figures",
         "color": "#000000"
+      },
+      {
+        "group_id": "5f2290b5-c873-4f4c-a3db-c759515c79d8",
+        "name": "Folk & Occultist History",
+        "color": "#FACFFE"
       }
     ],
     "database_date": {

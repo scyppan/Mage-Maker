@@ -23,6 +23,13 @@ WORLD_EVENT_DATE_PATTERN = re.compile(
 )
 JOB_EVENT_TYPES = frozenset(("started_job", "received_raise"))
 DEATH_EVENT_TYPES = frozenset(("died", "murder"))
+BIRTH_EVENT_TYPE = "born"
+BIRTH_EVENT_SOURCE = "birth_event"
+BIRTH_ROLE_FIELDS = (
+    "baby_person_ids",
+    "birthing_parent_person_ids",
+    "non_birthing_parent_person_ids",
+)
 JOB_EVENT_ONLY_FIELDS = (
     "organization_job_id",
     "job_title",
@@ -95,8 +102,12 @@ def normalize_world_event(event):
     normalized["title"] = " ".join(
         str(normalized.get("title", "") or "").strip().split()
     )
-    normalized["date"] = normalize_world_event_date(
-        normalized.get("date")
+    requested_date = str(normalized.get("date", "") or "").strip()
+    normalized["date"] = (
+        ""
+        if normalized["event_type"] == BIRTH_EVENT_TYPE
+        and not requested_date
+        else normalize_world_event_date(requested_date)
     )
     normalized["description"] = str(
         normalized.get("description", "") or ""
@@ -104,7 +115,52 @@ def normalize_world_event(event):
     normalized["person_ids"] = normalize_association_values(
         normalized.get("person_ids")
     )
-    if normalized["event_type"] == "murder":
+    if normalized["event_type"] == BIRTH_EVENT_TYPE:
+        fallback_baby_ids = normalize_association_values(
+            normalized.get("person_ids")
+        )[:1]
+        singular_baby_id = str(
+            normalized.get("baby_person_id", "") or ""
+        ).strip()
+        normalized["baby_person_ids"] = normalize_association_values(
+            normalized.get("baby_person_ids")
+            or ([singular_baby_id] if singular_baby_id else fallback_baby_ids)
+        )
+        normalized["birthing_parent_person_ids"] = (
+            normalize_association_values(
+                normalized.get("birthing_parent_person_ids")
+                or (
+                    [normalized.get("birthing_parent_person_id")]
+                    if normalized.get("birthing_parent_person_id")
+                    else []
+                )
+            )
+        )
+        normalized["non_birthing_parent_person_ids"] = (
+            normalize_association_values(
+                normalized.get("non_birthing_parent_person_ids")
+                or (
+                    [normalized.get("non_birthing_parent_person_id")]
+                    if normalized.get("non_birthing_parent_person_id")
+                    else []
+                )
+            )
+        )
+        normalized["person_ids"] = normalize_association_values(
+            [
+                *normalized["baby_person_ids"],
+                *normalized["birthing_parent_person_ids"],
+                *normalized["non_birthing_parent_person_ids"],
+            ]
+        )
+        normalized.pop("baby_person_id", None)
+        normalized.pop("birthing_parent_person_id", None)
+        normalized.pop("non_birthing_parent_person_id", None)
+        normalized.pop("perpetrator_person_ids", None)
+        normalized.pop("victim_person_ids", None)
+        normalized.pop("witness_person_ids", None)
+        normalized.pop("affected_person_ids", None)
+    elif normalized["event_type"] == "murder":
         normalized["perpetrator_person_ids"] = (
             normalize_association_values(
                 normalized.get("perpetrator_person_ids")
@@ -128,6 +184,9 @@ def normalize_world_event(event):
             ]
         )
     else:
+        for field_name in BIRTH_ROLE_FIELDS:
+            normalized.pop(field_name, None)
+
         normalized.pop("perpetrator_person_ids", None)
         normalized.pop("victim_person_ids", None)
         normalized.pop("witness_person_ids", None)
@@ -144,7 +203,7 @@ def normalize_world_event(event):
         normalized.get("eminence_skills"),
         normalized["eminence_person_ids"],
     )
-    if normalized["event_type"] == "died":
+    if normalized["event_type"] in (BIRTH_EVENT_TYPE, "died"):
         normalized["eminence_person_ids"] = []
         normalized["eminence_skills"] = {}
     elif normalized["event_type"] == "murder":
@@ -170,7 +229,10 @@ def normalize_world_event(event):
     )
 
     if (
-        normalized["event_type"] in DEATH_EVENT_TYPES
+        normalized["event_type"] in (
+            BIRTH_EVENT_TYPE,
+            *DEATH_EVENT_TYPES,
+        )
         and len(normalized["location_ids"]) > 1
     ):
         normalized["location_ids"] = normalized["location_ids"][-1:]
@@ -245,6 +307,47 @@ def normalize_association_values(values):
         normalized_values.append(normalized)
 
     return normalized_values
+
+
+def birth_event_baby_ids(event):
+    event_values = event if isinstance(event, dict) else {}
+
+    if canonical_event_type(
+        event_values.get("event_type")
+    ) != BIRTH_EVENT_TYPE:
+        return []
+
+    baby_ids = normalize_association_values(
+        event_values.get("baby_person_ids")
+    )
+
+    if baby_ids:
+        return baby_ids
+
+    return normalize_association_values(
+        event_values.get("person_ids")
+    )[:1]
+
+
+def birth_event_person_ids(event):
+    event_values = event if isinstance(event, dict) else {}
+
+    if canonical_event_type(
+        event_values.get("event_type")
+    ) != BIRTH_EVENT_TYPE:
+        return []
+
+    return normalize_association_values(
+        [
+            *birth_event_baby_ids(event_values),
+            *normalize_association_values(
+                event_values.get("birthing_parent_person_ids")
+            ),
+            *normalize_association_values(
+                event_values.get("non_birthing_parent_person_ids")
+            ),
+        ]
+    )
 
 
 def death_event_person_ids(event):
@@ -498,6 +601,273 @@ def world_event_sort_key(event):
         str(event.get("title", "") or "").casefold(),
         str(event.get("record_id", "") or ""),
     )
+
+
+def person_birth_event_date(person):
+    person_values = person if isinstance(person, dict) else {}
+    year = person_values.get("birth_year")
+    month = person_values.get("birth_month")
+    day = person_values.get("birth_day")
+
+    if year in (None, ""):
+        return ""
+
+    date_value = str(int(year))
+
+    if month not in (None, ""):
+        date_value += f"-{int(month):02d}"
+
+    if day not in (None, ""):
+        date_value += f"-{int(day):02d}"
+
+    return normalize_world_event_date(date_value)
+
+
+def person_birth_event_location_ids(person):
+    person_values = person if isinstance(person, dict) else {}
+    timeline_events = person_values.get("timeline_events", [])
+
+    if not isinstance(timeline_events, list):
+        return []
+
+    for requested_type in ("born", "starting_location"):
+        for timeline_event in timeline_events:
+            if not isinstance(timeline_event, dict):
+                continue
+
+            if canonical_event_type(
+                timeline_event.get("event_type")
+            ) != requested_type:
+                continue
+
+            location_ids = normalize_association_values(
+                timeline_event.get("location_ids")
+            )
+
+            if location_ids:
+                return location_ids[-1:]
+
+    return []
+
+
+def person_birth_event_description(person):
+    person_values = person if isinstance(person, dict) else {}
+    timeline_events = person_values.get("timeline_events", [])
+
+    if not isinstance(timeline_events, list):
+        return ""
+
+    for timeline_event in timeline_events:
+        if not isinstance(timeline_event, dict):
+            continue
+
+        if canonical_event_type(
+            timeline_event.get("event_type")
+        ) != BIRTH_EVENT_TYPE:
+            continue
+
+        return str(timeline_event.get("note", "") or "").strip()
+
+    return ""
+
+
+def birth_event_from_person(person, existing_event=None):
+    person_values = person if isinstance(person, dict) else {}
+    person_id = str(person_values.get("record_id", "") or "").strip()
+    birth_date = person_birth_event_date(person_values)
+
+    if not person_id:
+        return None
+
+    event = (
+        deepcopy(existing_event)
+        if isinstance(existing_event, dict)
+        else {}
+    )
+    birthing_parent_id = str(
+        person_values.get("biological_mother_id", "") or ""
+    ).strip()
+    non_birthing_parent_id = str(
+        person_values.get("biological_father_id", "") or ""
+    ).strip()
+
+    if (
+        not birth_date
+        and not birthing_parent_id
+        and not non_birthing_parent_id
+        and not isinstance(existing_event, dict)
+    ):
+        return None
+    existing_description = str(
+        event.get("description", "") or ""
+    ).strip()
+    existing_locations = normalize_association_values(
+        event.get("location_ids")
+    )[-1:]
+    event.update(
+        {
+            "record_id": str(
+                event.get("record_id") or f"birth:{person_id}"
+            ).strip(),
+            "event_type": BIRTH_EVENT_TYPE,
+            "title": "Birth",
+            "date": birth_date,
+            "description": (
+                existing_description
+                or person_birth_event_description(person_values)
+            ),
+            "baby_person_ids": [person_id],
+            "birthing_parent_person_ids": (
+                [birthing_parent_id] if birthing_parent_id else []
+            ),
+            "non_birthing_parent_person_ids": (
+                [non_birthing_parent_id]
+                if non_birthing_parent_id
+                else []
+            ),
+            "person_ids": [
+                person_id,
+                *([birthing_parent_id] if birthing_parent_id else []),
+                *(
+                    [non_birthing_parent_id]
+                    if non_birthing_parent_id
+                    else []
+                ),
+            ],
+            "eminence_person_ids": [],
+            "eminence_skills": {},
+            "period_names": [],
+            "location_ids": (
+                existing_locations
+                or person_birth_event_location_ids(person_values)
+            ),
+            "locked_location_ids": [],
+            "automatic_source": BIRTH_EVENT_SOURCE,
+        }
+    )
+    return normalize_world_event(event)
+
+
+def synchronize_birth_events_from_people(database_data, person_ids=None):
+    if not isinstance(database_data, dict):
+        return False
+
+    people = database_data.get("people", [])
+    stored_events = database_data.get("events", [])
+
+    if not isinstance(people, list) or not isinstance(stored_events, list):
+        return False
+
+    selected_ids = (
+        {
+            str(person_id or "").strip()
+            for person_id in person_ids
+            if str(person_id or "").strip()
+        }
+        if person_ids is not None
+        else {
+            str(person.get("record_id", "") or "").strip()
+            for person in people
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+    )
+    normalized_events = normalize_world_events(stored_events)
+    known_location_ids = {
+        str(location.get("record_id", "") or "").strip()
+        for location in database_data.get("locations", [])
+        if isinstance(location, dict)
+        and str(location.get("record_id", "") or "").strip()
+    }
+    existing_birth_events = {}
+
+    for event in normalized_events:
+        baby_ids = birth_event_baby_ids(event)
+
+        if (
+            event.get("event_type") == BIRTH_EVENT_TYPE
+            and len(baby_ids) == 1
+            and baby_ids[0] not in existing_birth_events
+        ):
+            existing_birth_events[baby_ids[0]] = event
+
+    retained_events = [
+        event
+        for event in normalized_events
+        if not (
+            event.get("event_type") == BIRTH_EVENT_TYPE
+            and any(
+                baby_id in selected_ids
+                for baby_id in birth_event_baby_ids(event)
+            )
+        )
+    ]
+
+    for person in people:
+        if not isinstance(person, dict):
+            continue
+
+        person_id = str(person.get("record_id", "") or "").strip()
+
+        if person_id not in selected_ids:
+            continue
+
+        synchronized_event = birth_event_from_person(
+            person,
+            existing_birth_events.get(person_id),
+        )
+
+        if synchronized_event is not None:
+            synchronized_event["location_ids"] = [
+                location_id
+                for location_id in synchronized_event.get(
+                    "location_ids",
+                    [],
+                )
+                if location_id in known_location_ids
+            ][-1:]
+            synchronized_event["locked_location_ids"] = [
+                location_id
+                for location_id in synchronized_event.get(
+                    "locked_location_ids",
+                    [],
+                )
+                if location_id in synchronized_event["location_ids"]
+            ]
+            retained_events.append(synchronized_event)
+
+    synchronized_events = normalize_world_events(retained_events)
+    changed = synchronized_events != normalized_events
+
+    if changed:
+        database_data["events"] = synchronized_events
+
+    timeline_changed = False
+
+    for person in people:
+        if not isinstance(person, dict):
+            continue
+
+        timeline_events = person.get("timeline_events", [])
+
+        if not isinstance(timeline_events, list):
+            continue
+
+        retained_timeline_events = [
+            event
+            for event in timeline_events
+            if not (
+                isinstance(event, dict)
+                and str(event.get("automatic_source", "") or "")
+                == "child_assignment"
+            )
+        ]
+
+        if retained_timeline_events != timeline_events:
+            person["timeline_events"] = retained_timeline_events
+            timeline_changed = True
+
+    return changed or timeline_changed
 
 
 def world_event_type_label(event):

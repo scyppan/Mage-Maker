@@ -1,5 +1,10 @@
 from copy import deepcopy
 
+from mage_maker.core.dates import (
+    historical_days_in_month,
+    historical_year_after,
+    is_at_least_age,
+)
 from mage_maker.sections.development.models import (
     ensure_adult_year_records,
     job_assignment_active_on,
@@ -16,14 +21,22 @@ from mage_maker.sections.development.event_eminence import (
     suggested_event_eminence_skill,
 )
 from mage_maker.sections.events.models import (
+    BIRTH_EVENT_SOURCE,
+    BIRTH_EVENT_TYPE,
     DEATH_EVENT_TYPES,
+    birth_event_baby_ids,
+    birth_event_person_ids,
     death_event_person_ids,
     normalize_world_event,
     normalize_world_events,
     split_world_event_date,
+    synchronize_birth_events_from_people,
     synchronize_people_death_records,
     world_event_sort_key,
     world_event_year,
+)
+from mage_maker.sections.family_tree.relationships import (
+    FamilyRelationshipMap,
 )
 from mage_maker.sections.events.types import (
     canonical_event_type,
@@ -51,6 +64,7 @@ from mage_maker.sections.settings.mage_groups import (
     mage_group_definition,
     normalize_mage_groups,
 )
+from mage_maker.sections.timeline.events import normalize_timeline_events
 
 
 RECENT_ASSOCIATION_STORAGE_KEY = "_recent_event_associations"
@@ -58,6 +72,15 @@ RECENT_ASSOCIATION_STORAGE_LIMIT = 12
 RECENT_PERSON_STORAGE_KEY = "_recent_people"
 RECENT_LOCATION_STORAGE_KEY = "_recent_locations"
 RECENT_WORLD_LOCATION_ID = "__mage_maker_world__"
+
+
+class DeathEventReplacementRequired(ValueError):
+    def __init__(self, person_ids):
+        self.person_ids = list(dict.fromkeys(person_ids or ()))
+        person_word = "person" if len(self.person_ids) == 1 else "people"
+        super().__init__(
+            f"The selected {person_word} already has a Death event."
+        )
 
 
 class EventController:
@@ -132,7 +155,7 @@ class EventController:
             else None
         )
 
-    def create_event(self, values):
+    def create_event(self, values, replace_existing_death=False):
         self.require_single_death_location(values)
         prepared = normalize_world_event(
             self.apply_event_rules(values)
@@ -142,19 +165,31 @@ class EventController:
                 self.apply_event_rules(prepared)
             )
         )
-        self.validate_associations(normalized)
+        self.validate_associations(
+            normalized,
+            allow_death_replacement=replace_existing_death,
+        )
 
         if normalized["event_type"] == "organization_founding":
             return self.create_organization_founding_event(normalized)
 
+        replaced_events, retained_replacement_events = (
+            self.replace_death_event_conflicts(normalized)
+            if replace_existing_death
+            else ([], [])
+        )
         eminence_updates = prepare_event_eminence_updates(
             self.database,
-            (),
-            (normalized,),
+            replaced_events,
+            (*retained_replacement_events, normalized),
         )
         created = self.database.create_record("events", normalized)
         self.synchronize_started_job_assignments((), (created,))
-        self.synchronize_death_event_people((), (created,))
+        self.synchronize_birth_event_people((), (created,))
+        self.synchronize_death_event_people(
+            replaced_events,
+            (*retained_replacement_events, created),
+        )
         apply_event_eminence_updates(
             self.database,
             eminence_updates,
@@ -186,7 +221,12 @@ class EventController:
         prepared["organization_event_id"] = founding_event["record_id"]
         return self.update_organization_event(current, prepared)
 
-    def update_event(self, record_id, values):
+    def update_event(
+        self,
+        record_id,
+        values,
+        replace_existing_death=False,
+    ):
         current = self.get_event(record_id)
 
         if current is None:
@@ -201,7 +241,11 @@ class EventController:
                 self.apply_event_rules(prospective, current)
             )
         )
-        self.validate_associations(normalized, current)
+        self.validate_associations(
+            normalized,
+            current,
+            allow_death_replacement=replace_existing_death,
+        )
 
         if current.get("organization_event"):
             return self.update_organization_event(
@@ -209,10 +253,18 @@ class EventController:
                 normalized,
             )
 
+        replaced_events, retained_replacement_events = (
+            self.replace_death_event_conflicts(
+                normalized,
+                current,
+            )
+            if replace_existing_death
+            else ([], [])
+        )
         eminence_updates = prepare_event_eminence_updates(
             self.database,
-            (current,),
-            (normalized,),
+            (current, *replaced_events),
+            (normalized, *retained_replacement_events),
         )
         updated = self.database.update_record(
             "events",
@@ -223,9 +275,13 @@ class EventController:
             (current,),
             (updated,),
         )
-        self.synchronize_death_event_people(
+        self.synchronize_birth_event_people(
             (current,),
             (updated,),
+        )
+        self.synchronize_death_event_people(
+            (current, *replaced_events),
+            (updated, *retained_replacement_events),
         )
         apply_event_eminence_updates(
             self.database,
@@ -245,6 +301,14 @@ class EventController:
         if current.get("organization_event"):
             return self.delete_organization_event(current)
 
+        if canonical_event_type(
+            current.get("event_type")
+        ) == BIRTH_EVENT_TYPE:
+            raise ValueError(
+                "A Birth event is a required part of the baby's Timeline "
+                "and cannot be removed."
+            )
+
         eminence_updates = prepare_event_eminence_updates(
             self.database,
             (current,),
@@ -252,6 +316,7 @@ class EventController:
         )
         deleted = self.database.delete_record("events", record_id)
         self.synchronize_started_job_assignments((current,), ())
+        self.synchronize_birth_event_people((current,), ())
         self.synchronize_death_event_people((current,), ())
         apply_event_eminence_updates(
             self.database,
@@ -294,6 +359,33 @@ class EventController:
 
         if duplicated.get("event_type") == "started_job":
             duplicated["job_assignment_id"] = ""
+
+        duplicate_year, duplicate_month, duplicate_day = (
+            split_world_event_date(duplicated.get("date", ""))
+        )
+
+        if duplicate_year:
+            next_year = int(duplicate_year)
+
+            if duplicate_month:
+                next_month = int(duplicate_month) + 1
+
+                if next_month > 12:
+                    next_month = 1
+                    next_year = historical_year_after(next_year)
+
+                duplicated["date"] = f"{next_year}-{next_month:02d}"
+
+                if duplicate_day:
+                    next_day = min(
+                        int(duplicate_day),
+                        historical_days_in_month(next_year, next_month),
+                    )
+                    duplicated["date"] += f"-{next_day:02d}"
+            else:
+                duplicated["date"] = str(
+                    historical_year_after(next_year)
+                )
 
         return self.create_event(duplicated)
 
@@ -528,7 +620,12 @@ class EventController:
             prepared.get("event_type")
         )
 
-        if event_type == "died":
+        if event_type == BIRTH_EVENT_TYPE:
+            prepared["title"] = "Birth"
+            prepared["automatic_source"] = BIRTH_EVENT_SOURCE
+            prepared["eminence_person_ids"] = []
+            prepared["eminence_skills"] = {}
+        elif event_type == "died":
             prepared["eminence_person_ids"] = []
             prepared["eminence_skills"] = {}
         elif event_type == "murder":
@@ -921,6 +1018,270 @@ class EventController:
                 person_id,
                 {"development_plan": plan},
             )
+
+    def synchronize_birth_event_people(
+        self,
+        previous_events,
+        updated_events,
+    ):
+        previous_birth_locations = {}
+
+        for previous_event in previous_events or ():
+            if canonical_event_type(
+                (previous_event or {}).get("event_type")
+            ) != BIRTH_EVENT_TYPE:
+                continue
+
+            previous_baby_ids = birth_event_baby_ids(previous_event)
+
+            if len(previous_baby_ids) == 1:
+                previous_birth_locations[previous_baby_ids[0]] = list(
+                    previous_event.get("location_ids", []) or []
+                )[-1:]
+
+        updated_birth_events = [
+            normalize_world_event(event)
+            for event in updated_events or ()
+            if canonical_event_type(
+                (event or {}).get("event_type")
+            )
+            == BIRTH_EVENT_TYPE
+        ]
+
+        if not updated_birth_events:
+            return False
+
+        from mage_maker.core.controller import PeopleController
+
+        people_controller = PeopleController(self.database)
+        changed = False
+
+        for birth_event in updated_birth_events:
+            baby_ids = birth_event_baby_ids(birth_event)
+
+            if len(baby_ids) != 1:
+                continue
+
+            baby_id = baby_ids[0]
+            baby = self.database.read_person(baby_id)
+
+            if baby is None:
+                continue
+
+            birth_date = str(
+                birth_event.get("date", "") or ""
+            ).strip()
+            birth_year, birth_month, birth_day = (
+                split_world_event_date(birth_date)
+                if birth_date
+                else ("", "", "")
+            )
+            birthing_parent_ids = birth_event.get(
+                "birthing_parent_person_ids",
+                [],
+            )
+            non_birthing_parent_ids = birth_event.get(
+                "non_birthing_parent_person_ids",
+                [],
+            )
+            birthing_parent_id = (
+                birthing_parent_ids[0]
+                if birthing_parent_ids
+                else ""
+            )
+            non_birthing_parent_id = (
+                non_birthing_parent_ids[0]
+                if non_birthing_parent_ids
+                else ""
+            )
+            update_values = {
+                "birth_year": (
+                    int(birth_year) if birth_year else None
+                ),
+                "birth_month": (
+                    int(birth_month) if birth_month else None
+                ),
+                "birth_day": int(birth_day) if birth_day else None,
+                "biological_mother_id": birthing_parent_id,
+                "biological_mother_status": (
+                    "person" if birthing_parent_id else "unknown"
+                ),
+                "biological_father_id": non_birthing_parent_id,
+                "biological_father_status": (
+                    "person" if non_birthing_parent_id else "unknown"
+                ),
+            }
+            location_ids = list(
+                birth_event.get("location_ids", []) or []
+            )[-1:]
+
+            if location_ids:
+                location_id = location_ids[0]
+                location = next(
+                    (
+                        candidate
+                        for candidate in self.location_provider()
+                        if str(
+                            candidate.get("record_id", "") or ""
+                        ).strip()
+                        == location_id
+                    ),
+                    None,
+                )
+
+                if location is not None:
+                    update_values["starting_location_id"] = location_id
+                    update_values["starting_location"] = str(
+                        location.get("name", "") or ""
+                    ).strip()
+            elif (
+                baby_id in previous_birth_locations
+                and previous_birth_locations[baby_id] != location_ids
+            ):
+                update_values["starting_location_id"] = ""
+                update_values["starting_location"] = ""
+
+            people_controller.update_person(
+                baby_id,
+                update_values,
+                synchronize_birth_event=False,
+            )
+            synchronized_baby = self.database.read_person(baby_id)
+
+            if synchronized_baby is not None:
+                timeline_events = normalize_timeline_events(
+                    synchronized_baby.get("timeline_events", [])
+                )
+
+                for timeline_event in timeline_events:
+                    if (
+                        timeline_event.get("event_type")
+                        == BIRTH_EVENT_TYPE
+                        and timeline_event.get("automatic_source")
+                        == "life_start"
+                    ):
+                        timeline_event["note"] = str(
+                            birth_event.get("description", "") or ""
+                        ).strip()
+
+                self.database.update_person(
+                    baby_id,
+                    {"timeline_events": timeline_events},
+                )
+
+            synchronize_birth_events_from_people(
+                self.database.data,
+                (baby_id,),
+            )
+            changed = True
+
+        return changed
+
+    def replace_death_event_conflicts(
+        self,
+        replacement_event,
+        current_event=None,
+    ):
+        replacement_person_ids = set(
+            death_event_person_ids(replacement_event)
+        )
+
+        if not replacement_person_ids:
+            return [], []
+
+        current_event_id = str(
+            (current_event or {}).get("record_id", "") or ""
+        ).strip()
+        replaced_events = []
+        retained_events = []
+
+        for stored_event in self.database.list_records("events"):
+            stored_event_id = str(
+                stored_event.get("record_id", "") or ""
+            ).strip()
+
+            if stored_event_id == current_event_id:
+                continue
+
+            if not replacement_person_ids.intersection(
+                death_event_person_ids(stored_event)
+            ):
+                continue
+
+            normalized_stored_event = normalize_world_event(stored_event)
+            replaced_events.append(normalized_stored_event)
+
+            if normalized_stored_event.get("event_type") != "murder":
+                self.database.delete_record("events", stored_event_id)
+                continue
+
+            retained_victim_ids = [
+                person_id
+                for person_id in normalized_stored_event.get(
+                    "victim_person_ids",
+                    [],
+                )
+                if person_id not in replacement_person_ids
+            ]
+
+            if not retained_victim_ids:
+                self.database.delete_record("events", stored_event_id)
+                continue
+
+            retained_event = deepcopy(normalized_stored_event)
+            retained_event["victim_person_ids"] = retained_victim_ids
+            retained_event["person_ids"] = list(
+                dict.fromkeys(
+                    [
+                        *retained_event.get(
+                            "perpetrator_person_ids",
+                            [],
+                        ),
+                        *retained_victim_ids,
+                        *retained_event.get(
+                            "witness_person_ids",
+                            [],
+                        ),
+                        *retained_event.get(
+                            "affected_person_ids",
+                            [],
+                        ),
+                    ]
+                )
+            )
+            retained_event = normalize_world_event(retained_event)
+            self.database.update_record(
+                "events",
+                stored_event_id,
+                retained_event,
+            )
+            retained_events.append(retained_event)
+
+        for person_id in replacement_person_ids:
+            person = self.database.read_person(person_id)
+
+            if person is None:
+                continue
+
+            timeline_events = normalize_timeline_events(
+                person.get("timeline_events", [])
+            )
+            retained_timeline_events = [
+                timeline_event
+                for timeline_event in timeline_events
+                if canonical_event_type(
+                    timeline_event.get("event_type")
+                )
+                != "died"
+            ]
+
+            if retained_timeline_events != timeline_events:
+                self.database.update_person(
+                    person_id,
+                    {"timeline_events": retained_timeline_events},
+                )
+
+        return replaced_events, retained_events
 
     def synchronize_death_event_people(
         self,
@@ -1630,10 +1991,24 @@ class EventController:
 
         return matching_names
 
-    def validate_associations(self, event, current_event=None):
+    def validate_associations(
+        self,
+        event,
+        current_event=None,
+        allow_death_replacement=False,
+    ):
         self.validate_job_event(event, current_event)
-        self.validate_death_event(event, current_event)
-        self.validate_murder_event(event, current_event)
+        self.validate_birth_event(event, current_event)
+        self.validate_death_event(
+            event,
+            current_event,
+            allow_death_replacement,
+        )
+        self.validate_murder_event(
+            event,
+            current_event,
+            allow_death_replacement,
+        )
 
         if (
             event.get("event_type") == "relocated"
@@ -1660,11 +2035,15 @@ class EventController:
             )
 
         if (
-            event.get("event_type") in DEATH_EVENT_TYPES
+            event.get("event_type") in (
+                BIRTH_EVENT_TYPE,
+                *DEATH_EVENT_TYPES,
+            )
             and len(event.get("location_ids", [])) > 1
         ):
             raise ValueError(
-                "A Death or Murder event can use no more than one location."
+                "A Birth, Death, or Murder event can use no more than one "
+                "location."
             )
 
         if event.get("event_type") == "founding":
@@ -1767,7 +2146,160 @@ class EventController:
                 "The selected organization no longer exists."
             )
 
-    def validate_death_event(self, event, current_event=None):
+    def validate_birth_event(self, event, current_event=None):
+        if canonical_event_type(
+            (event or {}).get("event_type")
+        ) != BIRTH_EVENT_TYPE:
+            return
+
+        baby_ids = birth_event_baby_ids(event)
+        birthing_parent_ids = list(
+            (event or {}).get("birthing_parent_person_ids", []) or []
+        )
+        non_birthing_parent_ids = list(
+            (event or {}).get(
+                "non_birthing_parent_person_ids",
+                [],
+            )
+            or []
+        )
+
+        if len(baby_ids) != 1:
+            raise ValueError(
+                "A Birth event needs exactly one baby."
+            )
+
+        if len(birthing_parent_ids) > 1:
+            raise ValueError(
+                "A Birth event can have no more than one birthing parent."
+            )
+
+        if len(non_birthing_parent_ids) > 1:
+            raise ValueError(
+                "A Birth event can have no more than one non-birthing "
+                "parent."
+            )
+
+        all_role_ids = [
+            *baby_ids,
+            *birthing_parent_ids,
+            *non_birthing_parent_ids,
+        ]
+
+        if len(all_role_ids) != len(set(all_role_ids)):
+            raise ValueError(
+                "The baby and parents must be different people."
+            )
+
+        if (event or {}).get("eminence_person_ids", []):
+            raise ValueError(
+                "A Birth event cannot award Eminence."
+            )
+
+        current_baby_ids = birth_event_baby_ids(current_event)
+
+        if current_baby_ids and baby_ids != current_baby_ids:
+            raise ValueError(
+                "The baby on an existing Birth event cannot be changed."
+            )
+
+        current_event_id = str(
+            (current_event or {}).get("record_id", "") or ""
+        ).strip()
+
+        for stored_event in (
+            self.database.list_records("events")
+            if self.database is not None
+            else []
+        ):
+            if (
+                str(stored_event.get("record_id", "") or "").strip()
+                == current_event_id
+            ):
+                continue
+
+            if baby_ids[0] in birth_event_baby_ids(stored_event):
+                raise ValueError(
+                    "This baby already has a Birth event."
+                )
+
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): person
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        baby = people_by_id.get(baby_ids[0])
+
+        if baby is None:
+            return
+
+        dated_baby = deepcopy(baby)
+        birth_date = str((event or {}).get("date", "") or "").strip()
+
+        if birth_date:
+            birth_year, birth_month, birth_day = split_world_event_date(
+                birth_date
+            )
+            dated_baby.update(
+                {
+                    "birth_year": int(birth_year),
+                    "birth_month": (
+                        int(birth_month) if birth_month else None
+                    ),
+                    "birth_day": int(birth_day) if birth_day else None,
+                }
+            )
+        relationship_map = FamilyRelationshipMap(
+            self.people_provider()
+        )
+
+        for parent_ids, role_label, required_capability in (
+            (birthing_parent_ids, "birthing parent", True),
+            (
+                non_birthing_parent_ids,
+                "non-birthing parent",
+                False,
+            ),
+        ):
+            if not parent_ids:
+                continue
+
+            parent_id = parent_ids[0]
+            parent = people_by_id.get(parent_id)
+
+            if parent is None:
+                continue
+
+            if bool(parent.get("does_not_have_children")):
+                raise ValueError(
+                    f"The selected {role_label} is marked Does not have "
+                    "children."
+                )
+
+            if bool(parent.get("can_give_birth")) != required_capability:
+                requirement = "checked" if required_capability else "unchecked"
+                raise ValueError(
+                    f"A {role_label} must have Can give birth {requirement}."
+                )
+
+            if is_at_least_age(parent, dated_baby, 18) is False:
+                raise ValueError(
+                    f"The selected {role_label} must be at least 18 when "
+                    "the baby is born."
+                )
+
+            if parent_id in relationship_map.descendants_of(baby_ids[0]):
+                raise ValueError(
+                    "A descendant cannot also be a biological parent."
+                )
+
+    def validate_death_event(
+        self,
+        event,
+        current_event=None,
+        allow_death_replacement=False,
+    ):
         if canonical_event_type(
             (event or {}).get("event_type")
         ) != "died":
@@ -1783,9 +2315,15 @@ class EventController:
         self.require_person_without_other_death_event(
             person_ids[0],
             current_event,
+            allow_death_replacement,
         )
 
-    def validate_murder_event(self, event, current_event=None):
+    def validate_murder_event(
+        self,
+        event,
+        current_event=None,
+        allow_death_replacement=False,
+    ):
         if canonical_event_type(
             (event or {}).get("event_type")
         ) != "murder":
@@ -1842,12 +2380,14 @@ class EventController:
             self.require_person_without_other_death_event(
                 victim_id,
                 current_event,
+                allow_death_replacement,
             )
 
     def require_person_without_other_death_event(
         self,
         person_id,
         current_event=None,
+        allow_death_replacement=False,
     ):
         selected_person_id = str(person_id or "").strip()
         current_event_id = str(
@@ -1867,9 +2407,12 @@ class EventController:
                 continue
 
             if selected_person_id in death_event_person_ids(stored_event):
-                raise ValueError(
-                    "This person already has a Death event."
-                )
+                if not allow_death_replacement:
+                    raise DeathEventReplacementRequired(
+                        [selected_person_id]
+                    )
+
+                return
 
         person = next(
             (
@@ -1888,9 +2431,12 @@ class EventController:
             if canonical_event_type(
                 (timeline_event or {}).get("event_type")
             ) == "died":
-                raise ValueError(
-                    "This person already has a Death event."
-                )
+                if not allow_death_replacement:
+                    raise DeathEventReplacementRequired(
+                        [selected_person_id]
+                    )
+
+                return
 
     def validate_job_event(self, event, current_event=None):
         event_type = canonical_event_type(

@@ -49,10 +49,15 @@ from mage_maker.sections.timeline.events import (
 )
 from mage_maker.sections.timeline.locations import ensure_life_start_events
 from mage_maker.sections.events.models import (
+    BIRTH_EVENT_TYPE,
     DEATH_EVENT_TYPES,
+    birth_event_baby_ids,
+    birth_event_person_ids,
     death_event_person_ids,
     normalize_world_event,
     normalize_world_events,
+    split_world_event_date,
+    synchronize_birth_events_from_people,
     synchronize_people_death_records,
 )
 from mage_maker.sections.settings.mage_groups import (
@@ -251,10 +256,10 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version > 34:
+        if not isinstance(schema_version, int) or schema_version > 35:
             return False
 
-        if schema_version == 34:
+        if schema_version == 35:
             stored_events = database_data.get("events", [])
             stored_organizations = database_data.get("organizations", [])
             stored_locations = database_data.get("locations", [])
@@ -286,6 +291,9 @@ class JsonDatabase:
             people_changed = self.normalize_people_death_timeline_state(
                 database_data
             )
+            birth_changed = synchronize_birth_events_from_people(
+                database_data
+            )
 
             migrated = (
                 stored_events != normalized_events
@@ -295,6 +303,7 @@ class JsonDatabase:
                 or campus_changed
                 or extinction_changed
                 or people_changed
+                or birth_changed
             )
 
             return (
@@ -1406,8 +1415,16 @@ class JsonDatabase:
             schema_version = 34
             migrated = True
 
-        metadata["schema_version"] = 34
-        metadata["database_version"] = "0.34.0"
+        if schema_version < 35:
+            database_data["events"] = normalize_world_events(
+                database_data.get("events", [])
+            )
+            synchronize_birth_events_from_people(database_data)
+            schema_version = 35
+            migrated = True
+
+        metadata["schema_version"] = 35
+        metadata["database_version"] = "0.35.0"
         database_data["_database"] = metadata
 
         return migrated
@@ -1977,6 +1994,13 @@ class JsonDatabase:
             for location in database_data["locations"]
             if isinstance(location, dict)
         }
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): person
+            for person in database_data["people"]
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        seen_birth_baby_ids = set()
 
         for event in world_events:
             if non_magical_person_ids.intersection(
@@ -1987,6 +2011,121 @@ class JsonDatabase:
                 )
 
             event_type = event.get("event_type")
+
+            if event_type == BIRTH_EVENT_TYPE:
+                baby_ids = birth_event_baby_ids(event)
+                birthing_parent_ids = event.get(
+                    "birthing_parent_person_ids",
+                    [],
+                )
+                non_birthing_parent_ids = event.get(
+                    "non_birthing_parent_person_ids",
+                    [],
+                )
+                role_ids = birth_event_person_ids(event)
+
+                if len(baby_ids) != 1:
+                    raise ValueError(
+                        "A Birth event needs exactly one baby."
+                    )
+
+                if (
+                    len(birthing_parent_ids) > 1
+                    or len(non_birthing_parent_ids) > 1
+                ):
+                    raise ValueError(
+                        "A Birth event can have no more than one parent "
+                        "in each parent category."
+                    )
+
+                if len(role_ids) != (
+                    len(baby_ids)
+                    + len(birthing_parent_ids)
+                    + len(non_birthing_parent_ids)
+                ):
+                    raise ValueError(
+                        "Every Birth event role must belong to a different "
+                        "person."
+                    )
+
+                if event.get("eminence_person_ids"):
+                    raise ValueError(
+                        "Birth events cannot earn Eminence."
+                    )
+
+                if len(event.get("location_ids", [])) > 1:
+                    raise ValueError(
+                        "Birth events can have no more than one location."
+                    )
+
+                if any(
+                    person_id not in seen_ids
+                    for person_id in role_ids
+                ):
+                    raise ValueError(
+                        "Every person linked to a Birth event must exist."
+                    )
+
+                if any(
+                    location_id not in location_ids
+                    for location_id in event.get("location_ids", [])
+                ):
+                    raise ValueError(
+                        "Every location linked to a Birth event must exist."
+                    )
+
+                baby_id = baby_ids[0]
+
+                if baby_id in seen_birth_baby_ids:
+                    raise ValueError(
+                        "A baby can have only one Birth event."
+                    )
+
+                seen_birth_baby_ids.add(baby_id)
+                baby = people_by_id[baby_id]
+                event_birth_date = str(
+                    event.get("date", "") or ""
+                ).strip()
+                birth_year, birth_month, birth_day = (
+                    split_world_event_date(event_birth_date)
+                    if event_birth_date
+                    else ("", "", "")
+                )
+
+                if (
+                    (
+                        int(birth_year) if birth_year else None
+                    )
+                    != baby.get("birth_year")
+                    or (
+                        int(birth_month) if birth_month else None
+                    )
+                    != baby.get("birth_month")
+                    or (int(birth_day) if birth_day else None)
+                    != baby.get("birth_day")
+                    or str(
+                        baby.get("biological_mother_id", "") or ""
+                    ).strip()
+                    != (
+                        birthing_parent_ids[0]
+                        if birthing_parent_ids
+                        else ""
+                    )
+                    or str(
+                        baby.get("biological_father_id", "") or ""
+                    ).strip()
+                    != (
+                        non_birthing_parent_ids[0]
+                        if non_birthing_parent_ids
+                        else ""
+                    )
+                ):
+                    raise ValueError(
+                        "A Birth event must match the baby's birth date "
+                        "and family links."
+                    )
+
+                continue
 
             if event_type not in DEATH_EVENT_TYPES:
                 continue
@@ -2381,7 +2520,54 @@ class JsonDatabase:
                     if person_id != record_id
                 ]
 
-                if event_type == "murder":
+                if event_type == BIRTH_EVENT_TYPE:
+                    baby_ids = [
+                        person_id
+                        for person_id in event.get(
+                            "baby_person_ids",
+                            [],
+                        )
+                        if person_id != record_id
+                    ]
+
+                    if not baby_ids:
+                        continue
+
+                    birthing_parent_ids = [
+                        person_id
+                        for person_id in event.get(
+                            "birthing_parent_person_ids",
+                            [],
+                        )
+                        if person_id != record_id
+                    ]
+                    non_birthing_parent_ids = [
+                        person_id
+                        for person_id in event.get(
+                            "non_birthing_parent_person_ids",
+                            [],
+                        )
+                        if person_id != record_id
+                    ]
+                    event["baby_person_ids"] = baby_ids
+                    event[
+                        "birthing_parent_person_ids"
+                    ] = birthing_parent_ids
+                    event[
+                        "non_birthing_parent_person_ids"
+                    ] = non_birthing_parent_ids
+                    event["person_ids"] = list(
+                        dict.fromkeys(
+                            [
+                                *baby_ids,
+                                *birthing_parent_ids,
+                                *non_birthing_parent_ids,
+                            ]
+                        )
+                    )
+                    event["eminence_person_ids"] = []
+                    event["eminence_skills"] = {}
+                elif event_type == "murder":
                     if not perpetrator_ids or not victim_ids:
                         continue
 
@@ -2433,6 +2619,7 @@ class JsonDatabase:
                 retained_events.append(event)
 
             self.data["events"] = retained_events
+            synchronize_birth_events_from_people(self.data)
             synchronize_people_death_records(self.data)
 
             for organization in self.data.get(
