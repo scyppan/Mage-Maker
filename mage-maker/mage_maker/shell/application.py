@@ -394,6 +394,16 @@ class MageMakerApp(tk.Tk):
         ):
             return False
 
+        if (
+            confirm_change
+            and self.active_page_name == "locations"
+            and page_name != "locations"
+            and not self.pages[
+                "locations"
+            ].confirm_unsaved_location_changes()
+        ):
+            return False
+
         if not self.ensure_page(page_name):
             return False
 
@@ -690,6 +700,14 @@ class MageMakerApp(tk.Tk):
 
     def close_application(self):
         if not self.pages["mages"].confirm_unsaved_changes():
+            return
+
+        if (
+            "locations" in self.pages
+            and not self.pages[
+                "locations"
+            ].confirm_unsaved_location_changes()
+        ):
             return
 
         if (

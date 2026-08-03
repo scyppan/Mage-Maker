@@ -51,14 +51,17 @@ from mage_maker.sections.timeline.locations import ensure_life_start_events
 from mage_maker.sections.events.models import (
     BIRTH_EVENT_TYPE,
     DEATH_EVENT_TYPES,
+    GHOST_EVENT_TYPE,
     birth_event_baby_ids,
     birth_event_person_ids,
     death_event_person_ids,
+    event_linked_person_ids,
     normalize_world_event,
     normalize_world_events,
     split_world_event_date,
     synchronize_birth_events_from_people,
     synchronize_people_death_records,
+    world_event_date_is_on_or_after,
 )
 from mage_maker.sections.settings.mage_groups import (
     MAGE_GROUPS_SETTING_KEY,
@@ -92,11 +95,16 @@ from mage_maker.sections.ledger.models import (
 
 
 class JsonDatabase:
+    DAILY_BACKUP_LIMIT = 10
+    ROLLING_BACKUP_LIMIT = 10
+    WEEKLY_BACKUP_LIMIT = 10
+
     def __init__(self, database_path):
         self.database_path = Path(database_path)
         self.backup_directory = self.database_path.parent / "backups"
         self.data = {}
         self.dirty = False
+        self.revision = 0
 
     def load(self):
         with self.database_path.open("r", encoding="utf-8") as database_file:
@@ -107,6 +115,7 @@ class JsonDatabase:
         self.validate_database(loaded_data)
         self.data = loaded_data
         self.dirty = migrated or collections_added
+        self.revision += 1
 
     def ensure_application_collections(self, database_data):
         changed = False
@@ -1902,9 +1911,8 @@ class JsonDatabase:
             ):
                 unknown_person_ids = [
                     person_id
-                    for person_id in organization_event.get(
-                        "person_ids",
-                        [],
+                    for person_id in event_linked_person_ids(
+                        organization_event
                     )
                     if person_id not in seen_ids
                 ]
@@ -1913,6 +1921,26 @@ class JsonDatabase:
                     raise ValueError(
                         "Every person linked to an organization event "
                         "must exist."
+                    )
+
+                organization_event_role_ids = [
+                    *organization_event.get("person_ids", []),
+                    *organization_event.get(
+                        "witness_person_ids",
+                        [],
+                    ),
+                    *organization_event.get(
+                        "affected_person_ids",
+                        [],
+                    ),
+                ]
+
+                if len(organization_event_role_ids) != len(
+                    set(organization_event_role_ids)
+                ):
+                    raise ValueError(
+                        "Each person can belong to only one event "
+                        "category."
                     )
 
                 if non_magical_person_ids.intersection(
@@ -2003,6 +2031,16 @@ class JsonDatabase:
         seen_birth_baby_ids = set()
 
         for event in world_events:
+            linked_person_ids = event_linked_person_ids(event)
+
+            if any(
+                person_id not in seen_ids
+                for person_id in linked_person_ids
+            ):
+                raise ValueError(
+                    "Every person linked to an event must exist."
+                )
+
             if non_magical_person_ids.intersection(
                 event.get("eminence_person_ids", [])
             ):
@@ -2011,6 +2049,19 @@ class JsonDatabase:
                 )
 
             event_type = event.get("event_type")
+
+            if event_type != "murder":
+                event_role_ids = [
+                    *event.get("person_ids", []),
+                    *event.get("witness_person_ids", []),
+                    *event.get("affected_person_ids", []),
+                ]
+
+                if len(event_role_ids) != len(set(event_role_ids)):
+                    raise ValueError(
+                        "Each person can belong to only one event "
+                        "category."
+                    )
 
             if event_type == BIRTH_EVENT_TYPE:
                 baby_ids = birth_event_baby_ids(event)
@@ -2210,6 +2261,56 @@ class JsonDatabase:
                     "Every person linked to a Murder event must exist."
                 )
 
+        for ghost_event in world_events:
+            if ghost_event.get("event_type") != GHOST_EVENT_TYPE:
+                continue
+
+            ghost_person_ids = ghost_event.get("person_ids", [])
+
+            if len(ghost_person_ids) != 1:
+                raise ValueError(
+                    "A Returns as ghost event must belong to exactly one "
+                    "person."
+                )
+
+            ghost_person_id = ghost_person_ids[0]
+            death_events = [
+                event
+                for event in world_events
+                if ghost_person_id in death_event_person_ids(event)
+            ]
+            ghost_person = people_by_id.get(ghost_person_id)
+
+            if ghost_person is not None:
+                death_events.extend(
+                    timeline_event
+                    for timeline_event in normalize_timeline_events(
+                        ghost_person.get("timeline_events", [])
+                    )
+                    if timeline_event.get("event_type") == "died"
+                    and str(
+                        timeline_event.get("date", "") or ""
+                    ).strip()
+                )
+
+            if not death_events:
+                raise ValueError(
+                    "A Returns as ghost event requires a Death or Murder "
+                    "event for that person."
+                )
+
+            if not any(
+                world_event_date_is_on_or_after(
+                    ghost_event.get("date"),
+                    death_event.get("date"),
+                )
+                for death_event in death_events
+            ):
+                raise ValueError(
+                    "Returns as ghost cannot occur before that person's "
+                    "Death or Murder event."
+                )
+
     def list_people(self):
         return deepcopy(self.data["people"])
 
@@ -2309,6 +2410,7 @@ class JsonDatabase:
         person["last_updated"] = current_time
         self.data["people"].append(person)
         self.dirty = True
+        self.revision += 1
 
         return deepcopy(person)
 
@@ -2428,6 +2530,7 @@ class JsonDatabase:
             )
             person["last_updated"] = datetime.now(timezone.utc).isoformat()
             self.dirty = True
+            self.revision += 1
 
             return deepcopy(person)
 
@@ -2595,6 +2698,18 @@ class JsonDatabase:
                     if event_type == "died" and not event["person_ids"]:
                         continue
 
+                    if (
+                        event_type == GHOST_EVENT_TYPE
+                        and not event["person_ids"]
+                    ):
+                        continue
+
+                if "witness_person_ids" in event:
+                    event["witness_person_ids"] = witness_ids
+
+                if "affected_person_ids" in event:
+                    event["affected_person_ids"] = affected_ids
+
                 event["eminence_person_ids"] = [
                     person_id
                     for person_id in event.get(
@@ -2679,6 +2794,7 @@ class JsonDatabase:
                 )
 
             self.dirty = True
+            self.revision += 1
 
             return deepcopy(deleted_person)
 
@@ -2714,6 +2830,7 @@ class JsonDatabase:
         record["last_updated"] = current_time
         self.data[collection_name].append(record)
         self.dirty = True
+        self.revision += 1
         return deepcopy(record)
 
     def update_record(self, collection_name, record_id, values):
@@ -2730,6 +2847,7 @@ class JsonDatabase:
             record.update(deepcopy(values))
             record["last_updated"] = datetime.now(timezone.utc).isoformat()
             self.dirty = True
+            self.revision += 1
             return deepcopy(record)
 
         raise KeyError(f"Unknown {collection_name} record_id: {record_id}")
@@ -2741,9 +2859,134 @@ class JsonDatabase:
 
             deleted_record = self.data[collection_name].pop(index)
             self.dirty = True
+            self.revision += 1
             return deepcopy(deleted_record)
 
         raise KeyError(f"Unknown {collection_name} record_id: {record_id}")
+
+    def prune_backups(self):
+        if not self.backup_directory.exists():
+            return
+
+        backup_records = []
+
+        for backup_path in self.backup_directory.glob("mage_maker-*.json"):
+            name_parts = backup_path.stem.split("-")
+
+            if (
+                len(name_parts) < 4
+                or name_parts[0] != "mage_maker"
+                or len(name_parts[1]) != 8
+                or len(name_parts[2]) != 6
+                or len(name_parts[3]) != 6
+                or not "".join(name_parts[1:4]).isdigit()
+            ):
+                continue
+
+            try:
+                backup_time = datetime.strptime(
+                    "".join(name_parts[1:4]),
+                    "%Y%m%d%H%M%S%f",
+                )
+            except ValueError:
+                continue
+
+            backup_records.append(
+                (
+                    backup_time,
+                    backup_path,
+                    "-".join(name_parts[:4]),
+                )
+            )
+
+        if not backup_records:
+            return
+
+        backup_records.sort()
+        daily_groups = {}
+        weekly_groups = {}
+
+        for backup_record in backup_records:
+            backup_time = backup_record[0]
+            daily_groups.setdefault(
+                backup_time.date(),
+                [],
+            ).append(backup_record)
+            iso_calendar = backup_time.isocalendar()
+            weekly_groups.setdefault(
+                (iso_calendar.year, iso_calendar.week),
+                [],
+            ).append(backup_record)
+
+        daily_dates = sorted(daily_groups, reverse=True)[
+            : self.DAILY_BACKUP_LIMIT
+        ]
+        weekly_dates = sorted(weekly_groups, reverse=True)[
+            : self.WEEKLY_BACKUP_LIMIT
+        ]
+        daily_markers = {
+            daily_groups[backup_date][0][1]
+            for backup_date in daily_dates
+        }
+        weekly_markers = {
+            weekly_groups[backup_week][0][1]
+            for backup_week in weekly_dates
+        }
+        marker_backups = daily_markers | weekly_markers
+        rolling_backups = []
+
+        for backup_record in reversed(backup_records):
+            backup_path = backup_record[1]
+
+            if backup_path in marker_backups:
+                continue
+
+            rolling_backups.append(backup_path)
+
+            if len(rolling_backups) == self.ROLLING_BACKUP_LIMIT:
+                break
+
+        retained_backups = marker_backups | set(rolling_backups)
+
+        for backup_record in backup_records:
+            backup_path = backup_record[1]
+
+            if backup_path in retained_backups:
+                continue
+
+            try:
+                backup_path.unlink()
+            except OSError:
+                continue
+
+        for backup_record in backup_records:
+            backup_path = backup_record[1]
+
+            if backup_path not in retained_backups or not backup_path.exists():
+                continue
+
+            marker_names = []
+
+            if backup_path in daily_markers:
+                marker_names.append("daily")
+
+            if backup_path in weekly_markers:
+                marker_names.append("weekly")
+
+            desired_stem = backup_record[2]
+
+            if marker_names:
+                desired_stem = f"{desired_stem}-{'-'.join(marker_names)}"
+
+            desired_path = backup_path.with_name(f"{desired_stem}.json")
+
+            if desired_path == backup_path or desired_path.exists():
+                continue
+
+            try:
+                backup_path.rename(desired_path)
+            except OSError:
+                continue
 
     def save(self):
         self.validate_database(self.data)
@@ -2769,4 +3012,5 @@ class JsonDatabase:
             database_file.write("\n")
 
         os.replace(temporary_path, self.database_path)
+        self.prune_backups()
         self.dirty = False

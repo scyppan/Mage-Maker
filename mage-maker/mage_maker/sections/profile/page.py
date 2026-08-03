@@ -6,6 +6,7 @@ from tkinter import messagebox
 from mage_maker.core.dates import (
     format_date_parts,
     format_historical_display_date,
+    person_age_at_death,
     person_death_age_text,
     split_partial_date,
 )
@@ -576,7 +577,7 @@ class PersonForm(tk.Frame):
         connections_panel = SectionPanel(
             overview,
             "Connections",
-            "Family links to people marked as famous.",
+            "Family and relationship links to people marked as famous.",
         )
         connections_panel.grid(
             row=0,
@@ -1022,7 +1023,8 @@ class PersonForm(tk.Frame):
                     if self.event_controller is not None
                     else []
                 ),
-            )
+            ),
+            refresh=False,
         )
         self.timeline.set_linked_events(self.linked_events_snapshot)
         self.loaded_section_record_ids["timeline"] = self.current_record_id
@@ -2139,12 +2141,27 @@ class PersonForm(tk.Frame):
             unknown="Not recorded",
         )
         death_display = (
-            f"Died: {format_historical_display_date(death_date)}"
+            f"Died {format_historical_display_date(death_date)}"
             if death_date
             else "alive"
         )
+        age_at_death, _exact_age = person_age_at_death(
+            {
+                "birth_year": self.variables["birth_year"].get(),
+                "birth_month": self.variables["birth_month"].get(),
+                "birth_day": self.variables["birth_day"].get(),
+                "death_year": self.variables["death_year"].get(),
+                "death_month": self.variables["death_month"].get(),
+                "death_day": self.variables["death_day"].get(),
+            }
+        )
+        age_display = (
+            f" (Age {age_at_death})"
+            if death_date and age_at_death is not None
+            else ""
+        )
         self.life_dates_display_value.set(
-            f"Born: {birth_display}  ·  {death_display}"
+            f"Born: {birth_display}  ·  {death_display}{age_display}"
         )
 
     def update_death_overview(self):
@@ -2181,6 +2198,13 @@ class PersonForm(tk.Frame):
         connection_map = FamousConnectionMap(
             self.people_provider(),
             current_person,
+            (
+                self.event_controller.events_for_person(
+                    self.current_record_id
+                )
+                if self.event_controller is not None
+                else []
+            ),
         )
         self.famous_connections.set_connections(
             connection_map.labels_for(self.current_record_id)

@@ -26,8 +26,8 @@ class EventEminencePicker(tk.Frame):
             bg=background,
             highlightbackground=BORDER_SOFT,
             highlightthickness=1,
-            padx=8,
-            pady=6,
+            padx=6,
+            pady=3,
         )
         self.controller = controller
         self.background = background
@@ -64,7 +64,7 @@ class EventEminencePicker(tk.Frame):
             row=1,
             column=0,
             sticky="ew",
-            pady=(1, 4),
+            pady=(0, 2),
         )
         self.rows = tk.Frame(self, bg=background)
         self.rows.grid(row=2, column=0, sticky="ew")
@@ -218,8 +218,8 @@ class EventEminencePicker(tk.Frame):
             row = tk.Frame(
                 self.rows,
                 bg=row_background,
-                padx=6,
-                pady=3,
+                padx=5,
+                pady=1,
             )
             self.rendered_rows.append(row)
             row.grid(row=row_index, column=0, sticky="ew")
@@ -291,7 +291,7 @@ class EventEminencePicker(tk.Frame):
                 DEVELOPMENT_SKILL_OPTIONS,
                 background=row_background,
                 width=132,
-                height=28,
+                height=24,
                 font=app_font(8),
             )
             skill_select.grid(

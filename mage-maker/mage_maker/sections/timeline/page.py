@@ -26,6 +26,7 @@ from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_TYPE_LABELS,
     birth_timeline_summary,
+    marriage_timeline_summary,
     murder_timeline_summary,
     normalize_timeline_event,
     normalize_timeline_events,
@@ -58,14 +59,18 @@ EVENT_COLORS = {
     "gave_birth": "#F1D9E4",
     "had_child": "#E7D5F0",
     "got_married": "#D5EAD9",
+    "romance": "#F7E7EE",
+    "breakup": "#F7E7EE",
     "died": "#EBCFD6",
     "murder": "#E4C6CF",
+    "returns_as_ghost": "#D8D5E8",
     "started_school": "#D9E3F1",
     "opened_business": "#E8D9C4",
     "started_job": "#D8E3EC",
     "received_raise": "#D5EAD9",
     "work_change": "#DDD9EC",
-    "relocated": "#EFE3C7",
+    "relocated": "#D7E9F7",
+    "travel": "#EAF4FB",
     "name_change": "#DDD2EA",
     "custom": "#E0D2E8",
     "other": "#E0D2E8",
@@ -121,6 +126,9 @@ class TimelineView(tk.Frame):
         self.event_editor_visible = False
         self.loading = False
         self.remove_armed_event_id = ""
+        self.render_people = []
+        self.render_person_id = ""
+        self.render_current_person = {}
         self.search_value = tk.StringVar()
         self.search_value.trace_add("write", self.filter_events)
         self.grid_rowconfigure(1, weight=1)
@@ -392,10 +400,12 @@ class TimelineView(tk.Frame):
         self.name_details_command()
 
     def current_person_id(self):
-        if self.person_id_provider is None:
+        person_id_provider = getattr(self, "person_id_provider", None)
+
+        if person_id_provider is None:
             return ""
 
-        return str(self.person_id_provider() or "").strip()
+        return str(person_id_provider() or "").strip()
 
     def current_person(self):
         person_id = self.current_person_id()
@@ -403,6 +413,12 @@ class TimelineView(tk.Frame):
 
         if not person_id or people_provider is None:
             return {}
+
+        if getattr(self, "render_person_id", None) == person_id:
+            rendered_person = getattr(self, "render_current_person", None)
+
+            if isinstance(rendered_person, dict):
+                return rendered_person
 
         return next(
             (
@@ -485,7 +501,10 @@ class TimelineView(tk.Frame):
         school_start_key,
         adulthood_key,
     ):
-        event_key = self.event_date_parts(event.get("date"))
+        event_key = event.get("_display_date_parts")
+
+        if event_key is None:
+            event_key = self.event_date_parts(event.get("date"))
 
         if event_key[0] >= 10000:
             return "childhood"
@@ -504,7 +523,7 @@ class TimelineView(tk.Frame):
 
         return "childhood"
 
-    def set_events(self, events):
+    def set_events(self, events, refresh=True):
         self.loading = True
 
         if (
@@ -531,13 +550,14 @@ class TimelineView(tk.Frame):
         if self.selected_event_id not in available_ids:
             self.selected_event_id = None
 
-        self.filter_events()
+        if refresh:
+            self.filter_events()
         self.loading = False
 
     def get_events(self):
         return deepcopy(self.events)
 
-    def set_linked_events(self, events):
+    def set_linked_events(self, events, refresh=True):
         self.linked_events = [
             deepcopy(event)
             for event in events
@@ -560,7 +580,8 @@ class TimelineView(tk.Frame):
         if self.selected_event_id not in available_ids:
             self.selected_event_id = None
 
-        self.filter_events()
+        if refresh:
+            self.filter_events()
 
     def filter_events(self, *arguments):
         unsaved_changes_command = getattr(
@@ -580,11 +601,37 @@ class TimelineView(tk.Frame):
             )
         )
         query = self.search_value.get().strip().casefold()
+        current_person_id_command = getattr(
+            self,
+            "current_person_id",
+            None,
+        )
+        current_person_id = (
+            str(current_person_id_command() or "").strip()
+            if callable(current_person_id_command)
+            else TimelineView.current_person_id(self)
+        )
+        people_provider = getattr(self, "people_provider", None)
+        self.render_person_id = current_person_id
+        self.render_people = (
+            list(people_provider())
+            if people_provider is not None
+            else []
+        )
+        self.render_current_person = next(
+            (
+                person
+                for person in self.render_people
+                if isinstance(person, dict)
+                and str(person.get("record_id", "") or "").strip()
+                == current_person_id
+            ),
+            {},
+        )
         candidate_events = [deepcopy(event) for event in self.events]
         linked_birth_for_current_person = any(
             linked_event.get("event_type") == "born"
-            and self.current_person_id()
-            in linked_event.get("baby_person_ids", [])
+            and current_person_id in linked_event.get("baby_person_ids", [])
             for linked_event in self.linked_events
         )
 
@@ -613,6 +660,10 @@ class TimelineView(tk.Frame):
 
         for event in candidate_events:
             summary = self.event_summary_text(event)
+            event["_display_summary"] = summary
+            event["_display_date_parts"] = self.event_date_parts(
+                event.get("date")
+            )
 
             if (
                 not event.get("_draft_event")
@@ -670,6 +721,22 @@ class TimelineView(tk.Frame):
             section_definitions.append(("school", "School"))
 
         section_definitions.append(("adulthood", "Adulthood"))
+        events_by_section = {
+            "childhood": [],
+            "school": [],
+            "adulthood": [],
+        }
+
+        for event in dated_events:
+            section_name = self.timeline_section_name(
+                event,
+                attends_school,
+                school_start_key,
+                adulthood_key,
+            )
+
+            if section_name in events_by_section:
+                events_by_section[section_name].append(event)
 
         for section_name, section_label in section_definitions:
             header_index = len(self.list_rows)
@@ -689,33 +756,28 @@ class TimelineView(tk.Frame):
                 selectforeground=TEXT_DARK,
             )
 
-            for event in dated_events:
-                if (
-                    self.timeline_section_name(
-                        event,
-                        attends_school,
-                        school_start_key,
-                        adulthood_key,
-                    )
-                    != section_name
-                ):
-                    continue
-
+            for event in events_by_section[section_name]:
                 row_index = len(self.list_rows)
                 self.list_rows.append(event)
                 event_date = format_timeline_date(event.get("date"))
                 self.listbox.insert(
                     "end",
-                    f"{event_date}: {self.event_summary_text(event)}",
+                    f"{event_date}: {event['_display_summary']}",
                 )
                 self.listbox.itemconfigure(
                     row_index,
                     background=(
-                        EVENT_COLORS["died"]
+                        EVENT_COLORS[event.get("event_type")]
+                        if event.get("event_type")
+                        in ("romance", "breakup", "relocated", "travel")
+                        else EVENT_COLORS["died"]
                         if (
-                            event.get("event_type") == "murder"
-                            and self.current_person_id()
-                            in event.get("victim_person_ids", [])
+                            event.get("event_type") == "died"
+                            or (
+                                event.get("event_type") == "murder"
+                                and current_person_id
+                                in event.get("victim_person_ids", [])
+                            )
                         )
                         else (
                             LIST_ALTERNATE
@@ -740,31 +802,77 @@ class TimelineView(tk.Frame):
         if event.get("_draft_event"):
             return "New event (unsaved)"
 
-        if event.get("event_type") == "born" and event.get(
-            "_stored_event"
-        ):
-            people = (
-                self.people_provider()
-                if self.people_provider is not None
+        current_person_id_command = getattr(
+            self,
+            "current_person_id",
+            None,
+        )
+        current_person_id = (
+            str(current_person_id_command() or "").strip()
+            if callable(current_person_id_command)
+            else TimelineView.current_person_id(self)
+        )
+        people_provider = getattr(self, "people_provider", None)
+        people = (
+            getattr(self, "render_people", [])
+            if getattr(self, "render_person_id", None) == current_person_id
+            else (
+                people_provider()
+                if people_provider is not None
                 else []
             )
-            return birth_timeline_summary(
+        )
+
+        if event.get("event_type") == "murder":
+            return murder_timeline_summary(
                 event,
-                self.current_person_id(),
+                current_person_id,
                 people,
             )
 
-        if event.get("event_type") == "murder":
-            people = (
-                self.people_provider()
-                if self.people_provider is not None
-                else []
-            )
-            return murder_timeline_summary(
+        if event.get("_stored_event"):
+            event_title = str(
+                event.get("title", "") or event_type_label(event)
+            ).strip()
+
+            if current_person_id in event.get(
+                "witness_person_ids",
+                [],
+            ):
+                return f"Witnessed: {event_title}"
+
+            if current_person_id in event.get(
+                "affected_person_ids",
+                [],
+            ):
+                return f"Affected by: {event_title}"
+
+        if event.get("event_type") == "born" and event.get(
+            "_stored_event"
+        ):
+            return birth_timeline_summary(
                 event,
-                self.current_person_id(),
+                current_person_id,
                 people,
             )
+
+        if (
+            event.get("_stored_event")
+            and event.get("event_type") == "got_married"
+        ):
+            return marriage_timeline_summary(
+                event,
+                current_person_id,
+                people,
+            )
+
+        if (
+            event.get("_stored_event")
+            and event.get("event_type") == "returns_as_ghost"
+        ):
+            return str(
+                event.get("title", "") or "Returns as ghost"
+            ).strip()
 
         if event.get("_stored_event"):
             summary = (
@@ -790,6 +898,16 @@ class TimelineView(tk.Frame):
             return -1, 0, 0, 0, 0, ""
 
         event_type = str(event.get("event_type", "") or "")
+        current_person_id_command = getattr(
+            self,
+            "current_person_id",
+            None,
+        )
+        current_person_id = (
+            str(current_person_id_command() or "").strip()
+            if callable(current_person_id_command)
+            else TimelineView.current_person_id(self)
+        )
 
         if (
             not event.get("_stored_event")
@@ -797,8 +915,7 @@ class TimelineView(tk.Frame):
         ) or (
             event.get("_stored_event")
             and event_type == "born"
-            and self.current_person_id()
-            in event.get("baby_person_ids", [])
+            and current_person_id in event.get("baby_person_ids", [])
         ):
             return (
                 0,
@@ -809,17 +926,23 @@ class TimelineView(tk.Frame):
                 "",
             )
 
-        year, month, day = self.event_date_parts(event.get("date"))
+        date_parts = event.get("_display_date_parts")
+
+        if date_parts is None:
+            date_parts = self.event_date_parts(event.get("date"))
+
+        year, month, day = date_parts
         terminal_priority = 0
 
         if event_type == "died":
             terminal_priority = 1
         elif (
             event_type == "murder"
-            and self.current_person_id()
-            in event.get("victim_person_ids", [])
+            and current_person_id in event.get("victim_person_ids", [])
         ):
             terminal_priority = 1
+        elif event_type == "returns_as_ghost":
+            terminal_priority = 2
 
         return (
             1,
@@ -827,7 +950,10 @@ class TimelineView(tk.Frame):
             month,
             day,
             terminal_priority,
-            self.event_summary_text(event).casefold(),
+            str(
+                event.get("_display_summary")
+                or self.event_summary_text(event)
+            ).casefold(),
         )
 
     def event_date_parts(self, value):
@@ -1022,14 +1148,29 @@ class TimelineView(tk.Frame):
                 self.event_editor.clear("This event no longer exists.")
                 return
 
+            current_person_is_ancillary = bool(
+                person_id
+                and (
+                    person_id
+                    in stored_event.get("witness_person_ids", [])
+                    or person_id
+                    in stored_event.get("affected_person_ids", [])
+                )
+            )
+
             self.event_editor.load_event(
                 stored_event,
                 storage_kind="shared",
                 context="person",
-                person_ids=(person_id,),
+                person_ids=(
+                    ()
+                    if current_person_is_ancillary
+                    else (person_id,)
+                ),
                 locked_person_ids=(
                     ()
-                    if stored_event.get("event_type")
+                    if current_person_is_ancillary
+                    or stored_event.get("event_type")
                     in ("born", "murder")
                     else (person_id,)
                 ),
@@ -1619,6 +1760,9 @@ class TimelineView(tk.Frame):
             )
             return
 
+        deleted_event = None
+        timeline_changed = False
+
         if removable_automatic_death:
             synchronized_events = self.death_event_delete_command(
                 deepcopy(selected_event)
@@ -1626,14 +1770,12 @@ class TimelineView(tk.Frame):
             self.events = normalize_timeline_events(
                 synchronized_events
             )
-
-            if not self.loading:
-                self.change_command()
+            timeline_changed = True
         elif selected_event.get("_stored_event"):
             if self.event_controller is None:
                 return
 
-            deleted = self.event_controller.delete_event(
+            deleted_event = self.event_controller.delete_event(
                 selected_event.get("record_id", "")
             )
             person_id = self.current_person_id()
@@ -1642,21 +1784,29 @@ class TimelineView(tk.Frame):
                 if person_id
                 else []
             )
-
-            if self.linked_events_changed_command is not None:
-                self.linked_events_changed_command(deleted)
         else:
             self.events = [
                 event
                 for event in self.events
                 if event.get("event_id") != event_id
             ]
-
-            if not self.loading:
-                self.change_command()
+            timeline_changed = True
 
         self.selected_event_id = None
+        self.event_editor.clear(
+            "Select an event to view it, or click Add event."
+        )
         self.reset_remove_confirmation()
+
+        if timeline_changed and not self.loading:
+            self.change_command()
+
+        if (
+            deleted_event is not None
+            and self.linked_events_changed_command is not None
+        ):
+            self.linked_events_changed_command(deleted_event)
+
         self.filter_events()
 
     def reset_remove_confirmation(self):

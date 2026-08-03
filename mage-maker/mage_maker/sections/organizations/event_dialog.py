@@ -12,6 +12,9 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
+from mage_maker.sections.events.editor import (
+    MurderAdditionalPeopleDialog,
+)
 from mage_maker.sections.events.models import split_world_event_date
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
@@ -73,6 +76,16 @@ class OrganizationEventDialog(tk.Toplevel):
         self.day_value = tk.StringVar(value=event_day)
         self.selected_person_ids = list(
             normalized_event.get("person_ids", [])
+            if normalized_event
+            else []
+        )
+        self.selected_witness_person_ids = list(
+            normalized_event.get("witness_person_ids", [])
+            if normalized_event
+            else []
+        )
+        self.selected_affected_person_ids = list(
+            normalized_event.get("affected_person_ids", [])
             if normalized_event
             else []
         )
@@ -352,20 +365,72 @@ class OrganizationEventDialog(tk.Toplevel):
             padx=(6, 0),
         )
         self.refresh_people_list()
-        self.eminence_picker = EventEminencePicker(
+        ancillary_people_frame = tk.Frame(
             body,
-            self.event_controller,
-            SURFACE,
+            bg=SURFACE,
+            highlightbackground=TEXT_MUTED,
+            highlightthickness=1,
+            padx=7,
+            pady=5,
         )
-        self.eminence_picker.grid(
+        ancillary_people_frame.grid(
             row=6,
             column=0,
             columnspan=2,
             sticky="ew",
             pady=(8, 0),
         )
+        ancillary_people_frame.grid_columnconfigure(0, weight=1)
+        self.witnesses_summary_value = tk.StringVar()
+        self.affected_summary_value = tk.StringVar()
+        witnesses_summary = tk.Label(
+            ancillary_people_frame,
+            textvariable=self.witnesses_summary_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(8),
+            anchor="w",
+        )
+        witnesses_summary.grid(row=0, column=0, sticky="ew")
+        affected_summary = tk.Label(
+            ancillary_people_frame,
+            textvariable=self.affected_summary_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            font=app_font(8),
+            anchor="w",
+        )
+        affected_summary.grid(row=1, column=0, sticky="ew")
+        ancillary_people_button = SoftButton(
+            ancillary_people_frame,
+            text="Edit witnesses / affected by",
+            command=self.open_ancillary_people_dialog,
+            background=SURFACE,
+            width=176,
+            height=28,
+            font=app_font(8, "bold"),
+        )
+        ancillary_people_button.grid(
+            row=0,
+            column=1,
+            rowspan=2,
+            padx=(8, 0),
+        )
+        self.refresh_ancillary_people_summary()
+        self.eminence_picker = EventEminencePicker(
+            body,
+            self.event_controller,
+            SURFACE,
+        )
+        self.eminence_picker.grid(
+            row=7,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(8, 0),
+        )
         self.eminence_picker.set_values(
-            self.selected_person_ids,
+            self.selected_linked_person_ids(),
             self.selected_eminence_person_ids,
             self.selected_eminence_skills,
             (
@@ -443,6 +508,81 @@ class OrganizationEventDialog(tk.Toplevel):
                 ),
             )
 
+    def selected_linked_person_ids(self):
+        return list(
+            dict.fromkeys(
+                [
+                    *self.selected_person_ids,
+                    *self.selected_witness_person_ids,
+                    *self.selected_affected_person_ids,
+                ]
+            )
+        )
+
+    def refresh_ancillary_people_summary(self):
+        if not hasattr(self, "witnesses_summary_value"):
+            return
+
+        labels_by_id = {
+            option["value"]: option["label"]
+            for option in self.people_options()
+        }
+        witness_labels = [
+            labels_by_id.get(person_id, "Unknown person")
+            for person_id in self.selected_witness_person_ids
+        ]
+        affected_labels = [
+            labels_by_id.get(person_id, "Unknown person")
+            for person_id in self.selected_affected_person_ids
+        ]
+        self.witnesses_summary_value.set(
+            "Witnessed: " + (", ".join(witness_labels) or "None")
+        )
+        self.affected_summary_value.set(
+            "Affected by: " + (", ".join(affected_labels) or "None")
+        )
+
+    def open_ancillary_people_dialog(self):
+        if self.event_controller is None:
+            return
+
+        MurderAdditionalPeopleDialog(
+            self,
+            self.event_controller,
+            self.selected_witness_person_ids,
+            self.selected_affected_person_ids,
+            self.ancillary_people_chosen,
+        )
+
+    def ancillary_people_chosen(
+        self,
+        witness_person_ids,
+        affected_person_ids,
+    ):
+        selected_witness_ids = list(witness_person_ids)
+        selected_affected_ids = list(affected_person_ids)
+        all_role_ids = [
+            *self.selected_person_ids,
+            *selected_witness_ids,
+            *selected_affected_ids,
+        ]
+
+        if len(all_role_ids) != len(set(all_role_ids)):
+            messagebox.showerror(
+                "Choose different people",
+                "Each person can belong to only one event category.",
+                parent=self,
+            )
+            return False
+
+        self.selected_witness_person_ids = selected_witness_ids
+        self.selected_affected_person_ids = selected_affected_ids
+        self.refresh_ancillary_people_summary()
+        self.eminence_picker.update_people(
+            self.selected_linked_person_ids()
+        )
+        return True
+
     def open_person_picker(self):
         if self.event_controller is None:
             return
@@ -468,6 +608,18 @@ class OrganizationEventDialog(tk.Toplevel):
     def add_selected_person(self, person_id):
         normalized_person_id = str(person_id or "").strip()
 
+        if normalized_person_id in {
+            *self.selected_witness_person_ids,
+            *self.selected_affected_person_ids,
+        }:
+            messagebox.showerror(
+                "Choose a different role",
+                "This person is already witnessed or affected by the "
+                "event.",
+                parent=self,
+            )
+            return
+
         if (
             normalized_person_id
             and normalized_person_id not in self.selected_person_ids
@@ -480,7 +632,7 @@ class OrganizationEventDialog(tk.Toplevel):
 
         if hasattr(self, "eminence_picker"):
             self.eminence_picker.update_people(
-                self.selected_person_ids
+                self.selected_linked_person_ids()
             )
 
     def remove_selected_person(self):
@@ -498,7 +650,7 @@ class OrganizationEventDialog(tk.Toplevel):
         ]
         self.refresh_people_list()
         self.eminence_picker.update_people(
-            self.selected_person_ids
+            self.selected_linked_person_ids()
         )
 
     def save_event(self):
@@ -548,6 +700,12 @@ class OrganizationEventDialog(tk.Toplevel):
                         "day": day_text,
                         "description": description,
                         "person_ids": self.selected_person_ids,
+                        "witness_person_ids": (
+                            self.selected_witness_person_ids
+                        ),
+                        "affected_person_ids": (
+                            self.selected_affected_person_ids
+                        ),
                         "eminence_person_ids": (
                             self.eminence_picker.get_values()
                         ),
@@ -566,6 +724,12 @@ class OrganizationEventDialog(tk.Toplevel):
                     self.eminence_picker.get_skill_values(),
                     month=month_text,
                     day=day_text,
+                    witness_person_ids=(
+                        self.selected_witness_person_ids
+                    ),
+                    affected_person_ids=(
+                        self.selected_affected_person_ids
+                    ),
                 )
 
                 if self.event is not None:

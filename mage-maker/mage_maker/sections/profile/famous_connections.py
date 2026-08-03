@@ -1,7 +1,11 @@
 import tkinter as tk
 from copy import deepcopy
 
+from mage_maker.sections.events.types import canonical_event_type
 from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap
+from mage_maker.sections.family_tree.spouse_relationships import (
+    normalize_spouse_relationships,
+)
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BORDER,
@@ -15,12 +19,17 @@ from mage_maker.ui.theme import (
 
 
 class FamousConnectionMap:
-    def __init__(self, people, current_person=None):
+    def __init__(self, people, current_person=None, events=None):
         self.relationships = FamilyRelationshipMap(people, current_person)
+        self.events = [
+            deepcopy(event)
+            for event in events or []
+            if isinstance(event, dict)
+        ]
 
     def labels_for(self, record_id):
         normalized_id = str(record_id or "")
-        labels = []
+        ranked_labels = []
         famous_people = [
             person
             for person in self.relationships.people_by_id.values()
@@ -37,14 +46,80 @@ class FamousConnectionMap:
                 famous_name = str(
                     famous_person.get("displayed_name", "Unnamed") or "Unnamed"
                 )
-                labels.append(f"{relationship} of {famous_name}")
+                if relationship in (
+                    "Married",
+                    "Married and divorced",
+                    "Had a child with",
+                    "Had a romance with",
+                ):
+                    label = f"{relationship} {famous_name}"
+                else:
+                    label = f"{relationship} of {famous_name}"
 
-        return labels
+                priority = {
+                    "Married": 0,
+                    "Married and divorced": 0,
+                    "Had a child with": 1,
+                    "Had a romance with": 2,
+                }.get(relationship, 3)
+                ranked_labels.append(
+                    (priority, famous_name.casefold(), label)
+                )
+
+        ranked_labels.sort()
+        return [label for priority, name, label in ranked_labels]
 
     def person_name_sort_key(self, person):
         return str(person.get("displayed_name", "")).casefold()
 
     def relationship_to_famous(self, record_id, famous_id):
+        person = self.relationships.person(record_id) or {}
+        spouse_relationship = next(
+            (
+                relationship
+                for relationship in normalize_spouse_relationships(
+                    person.get("spouse_relationships", [])
+                )
+                if relationship["person_id"] == famous_id
+                and relationship["married"]
+            ),
+            None,
+        )
+        marriage_event_exists = any(
+            canonical_event_type(event.get("event_type")) == "got_married"
+            and record_id in event.get("person_ids", [])
+            and famous_id in event.get("person_ids", [])
+            for event in self.events
+        )
+
+        if spouse_relationship is not None:
+            return (
+                "Married and divorced"
+                if spouse_relationship["divorced"]
+                else "Married"
+            )
+
+        if marriage_event_exists:
+            return "Married"
+
+        shared_children = set(
+            self.relationships.children_of(record_id)
+        ).intersection(self.relationships.children_of(famous_id))
+
+        if shared_children:
+            return "Had a child with"
+
+        romance_exists = any(
+            canonical_event_type(event.get("event_type"))
+            in ("romance", "breakup")
+            and record_id in event.get("person_ids", [])
+            and famous_id in event.get("person_ids", [])
+            for event in self.events
+        )
+
+        if romance_exists:
+            return "Had a romance with"
+
         downward_distance = self.generation_distance(famous_id, record_id)
 
         if downward_distance == 1:

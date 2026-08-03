@@ -23,6 +23,7 @@ from mage_maker.sections.locations.models import (
     recent_location_label,
 )
 from mage_maker.sections.events.models import (
+    event_linked_person_ids,
     normalize_association_values,
     normalize_eminence_skill_values,
     normalize_world_event,
@@ -143,12 +144,27 @@ def normalize_organization_event(value):
     person_ids = normalize_association_values(
         value.get("person_ids", [])
     )
+    witness_person_ids = normalize_association_values(
+        value.get("witness_person_ids", [])
+    )
+    affected_person_ids = normalize_association_values(
+        value.get("affected_person_ids", [])
+    )
+    linked_person_ids = set(
+        normalize_association_values(
+            [
+                *person_ids,
+                *witness_person_ids,
+                *affected_person_ids,
+            ]
+        )
+    )
     eminence_person_ids = [
         person_id
         for person_id in normalize_association_values(
             value.get("eminence_person_ids", [])
         )
-        if person_id in person_ids
+        if person_id in linked_person_ids
     ]
     eminence_skills = normalize_eminence_skill_values(
         value.get("eminence_skills"),
@@ -172,7 +188,7 @@ def normalize_organization_event(value):
             identity_text.encode("utf-8")
         ).hexdigest()[:20]
 
-    return {
+    normalized_event = {
         "record_id": record_id,
         "event_type": event_type or "event",
         "title": title,
@@ -183,6 +199,14 @@ def normalize_organization_event(value):
         "eminence_person_ids": eminence_person_ids,
         "eminence_skills": eminence_skills,
     }
+
+    if "witness_person_ids" in value:
+        normalized_event["witness_person_ids"] = witness_person_ids
+
+    if "affected_person_ids" in value:
+        normalized_event["affected_person_ids"] = affected_person_ids
+
+    return normalized_event
 
 
 def normalize_organization_events(value):
@@ -234,6 +258,8 @@ def new_organization_event(
     eminence_skills=None,
     month=None,
     day=None,
+    witness_person_ids=(),
+    affected_person_ids=(),
 ):
     return normalize_organization_event(
         {
@@ -245,6 +271,8 @@ def new_organization_event(
             "day": day,
             "description": description,
             "person_ids": list(person_ids),
+            "witness_person_ids": list(witness_person_ids),
+            "affected_person_ids": list(affected_person_ids),
             "eminence_person_ids": list(
                 eminence_person_ids
             ),
@@ -301,6 +329,24 @@ def organization_event_as_world_event(
             "date": normalized_event["date"],
             "description": normalized_event["description"],
             "person_ids": normalized_event["person_ids"],
+            **(
+                {
+                    "witness_person_ids": normalized_event[
+                        "witness_person_ids"
+                    ]
+                }
+                if "witness_person_ids" in normalized_event
+                else {}
+            ),
+            **(
+                {
+                    "affected_person_ids": normalized_event[
+                        "affected_person_ids"
+                    ]
+                }
+                if "affected_person_ids" in normalized_event
+                else {}
+            ),
             "eminence_person_ids": normalized_event[
                 "eminence_person_ids"
             ],
@@ -332,6 +378,14 @@ def organization_event_from_world_event(
             "date": normalized_world_event["date"],
             "description": normalized_world_event["description"],
             "person_ids": normalized_world_event["person_ids"],
+            "witness_person_ids": normalized_world_event.get(
+                "witness_person_ids",
+                [],
+            ),
+            "affected_person_ids": normalized_world_event.get(
+                "affected_person_ids",
+                [],
+            ),
             "eminence_person_ids": normalized_world_event[
                 "eminence_person_ids"
             ],
@@ -1485,11 +1539,22 @@ class OrganizationController:
         for event in events:
             if any(
                 person_id not in known_person_ids
-                for person_id in event.get("person_ids", [])
+                for person_id in event_linked_person_ids(event)
             ):
                 raise ValueError(
                     "Every person linked to an organization event "
                     "must exist."
+                )
+
+            event_role_ids = [
+                *event.get("person_ids", []),
+                *event.get("witness_person_ids", []),
+                *event.get("affected_person_ids", []),
+            ]
+
+            if len(event_role_ids) != len(set(event_role_ids)):
+                raise ValueError(
+                    "Each person can belong to only one event category."
                 )
 
             if non_magical_person_ids.intersection(

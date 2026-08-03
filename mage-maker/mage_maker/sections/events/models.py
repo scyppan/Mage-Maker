@@ -25,10 +25,15 @@ JOB_EVENT_TYPES = frozenset(("started_job", "received_raise"))
 DEATH_EVENT_TYPES = frozenset(("died", "murder"))
 BIRTH_EVENT_TYPE = "born"
 BIRTH_EVENT_SOURCE = "birth_event"
+GHOST_EVENT_TYPE = "returns_as_ghost"
 BIRTH_ROLE_FIELDS = (
     "baby_person_ids",
     "birthing_parent_person_ids",
     "non_birthing_parent_person_ids",
+)
+ANCILLARY_PERSON_ROLE_FIELDS = (
+    "witness_person_ids",
+    "affected_person_ids",
 )
 JOB_EVENT_ONLY_FIELDS = (
     "organization_job_id",
@@ -115,6 +120,28 @@ def normalize_world_event(event):
     normalized["person_ids"] = normalize_association_values(
         normalized.get("person_ids")
     )
+    has_witness_role = (
+        "witness_person_ids" in normalized
+        or normalized["event_type"] == "murder"
+    )
+    has_affected_role = (
+        "affected_person_ids" in normalized
+        or normalized["event_type"] == "murder"
+    )
+
+    if has_witness_role:
+        normalized["witness_person_ids"] = (
+            normalize_association_values(
+                normalized.get("witness_person_ids")
+            )
+        )
+
+    if has_affected_role:
+        normalized["affected_person_ids"] = (
+            normalize_association_values(
+                normalized.get("affected_person_ids")
+            )
+        )
     if normalized["event_type"] == BIRTH_EVENT_TYPE:
         fallback_baby_ids = normalize_association_values(
             normalized.get("person_ids")
@@ -158,8 +185,6 @@ def normalize_world_event(event):
         normalized.pop("non_birthing_parent_person_id", None)
         normalized.pop("perpetrator_person_ids", None)
         normalized.pop("victim_person_ids", None)
-        normalized.pop("witness_person_ids", None)
-        normalized.pop("affected_person_ids", None)
     elif normalized["event_type"] == "murder":
         normalized["perpetrator_person_ids"] = (
             normalize_association_values(
@@ -189,15 +214,14 @@ def normalize_world_event(event):
 
         normalized.pop("perpetrator_person_ids", None)
         normalized.pop("victim_person_ids", None)
-        normalized.pop("witness_person_ids", None)
-        normalized.pop("affected_person_ids", None)
     requested_eminence_person_ids = normalize_association_values(
         normalized.get("eminence_person_ids")
     )
+    linked_person_ids = set(event_linked_person_ids(normalized))
     normalized["eminence_person_ids"] = [
         person_id
         for person_id in requested_eminence_person_ids
-        if person_id in normalized["person_ids"]
+        if person_id in linked_person_ids
     ]
     normalized["eminence_skills"] = normalize_eminence_skill_values(
         normalized.get("eminence_skills"),
@@ -307,6 +331,23 @@ def normalize_association_values(values):
         normalized_values.append(normalized)
 
     return normalized_values
+
+
+def event_linked_person_ids(event):
+    event_values = event if isinstance(event, dict) else {}
+    return normalize_association_values(
+        [
+            *normalize_association_values(
+                event_values.get("person_ids")
+            ),
+            *normalize_association_values(
+                event_values.get("witness_person_ids")
+            ),
+            *normalize_association_values(
+                event_values.get("affected_person_ids")
+            ),
+        ]
+    )
 
 
 def birth_event_baby_ids(event):
@@ -570,6 +611,32 @@ def split_world_event_date(value):
         match.group(2) or "",
         match.group(3) or "",
     )
+
+
+def world_event_date_is_on_or_after(event_date, reference_date):
+    event_year, event_month, event_day = split_world_event_date(
+        event_date
+    )
+    reference_year, reference_month, reference_day = (
+        split_world_event_date(reference_date)
+    )
+    normalized_event_year = int(event_year)
+    normalized_reference_year = int(reference_year)
+
+    if normalized_event_year != normalized_reference_year:
+        return normalized_event_year > normalized_reference_year
+
+    if event_month and reference_month:
+        normalized_event_month = int(event_month)
+        normalized_reference_month = int(reference_month)
+
+        if normalized_event_month != normalized_reference_month:
+            return normalized_event_month > normalized_reference_month
+
+    if event_day and reference_day:
+        return int(event_day) >= int(reference_day)
+
+    return True
 
 
 def world_event_year(value):

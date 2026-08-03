@@ -77,6 +77,16 @@ def normalize_timeline_event(event):
             normalized.get("person_ids")
         )
 
+    if "witness_person_ids" in normalized:
+        normalized["witness_person_ids"] = normalize_association_values(
+            normalized.get("witness_person_ids")
+        )
+
+    if "affected_person_ids" in normalized:
+        normalized["affected_person_ids"] = normalize_association_values(
+            normalized.get("affected_person_ids")
+        )
+
     if normalized["event_type"] == "murder":
         normalized["perpetrator_person_ids"] = (
             normalize_association_values(
@@ -103,8 +113,6 @@ def normalize_timeline_event(event):
     else:
         normalized.pop("perpetrator_person_ids", None)
         normalized.pop("victim_person_ids", None)
-        normalized.pop("witness_person_ids", None)
-        normalized.pop("affected_person_ids", None)
 
     if (
         "location_ids" in normalized
@@ -191,11 +199,23 @@ def timeline_event_summary(event):
     if event_type == "got_married":
         return f"Marriage to {detail}" if detail else "Marriage"
 
+    if event_type == "romance":
+        return f"Romance: {detail}" if detail else "Romance"
+
+    if event_type == "breakup":
+        return f"Breakup: {detail}" if detail else "Breakup"
+
+    if event_type == "travel":
+        return f"Travel: {detail}" if detail else "Travel"
+
     if event_type == "died":
         return f"Death: {detail}" if detail else "Death"
 
     if event_type == "murder":
         return detail or "Murder"
+
+    if event_type == "returns_as_ghost":
+        return detail or "Returns as ghost"
 
     if event_type == "started_school":
         if event.get("automatic_source") == SCHOOL_START_EVENT_SOURCE:
@@ -261,14 +281,18 @@ def timeline_detail_label(event_type):
         "gave_birth": "Child or event detail",
         "had_child": "Child's name",
         "got_married": "Spouse or event detail",
+        "romance": "Romance detail",
+        "breakup": "Breakup detail",
         "died": "Death detail",
         "murder": "Murder detail",
+        "returns_as_ghost": "Ghost return detail",
         "started_school": "School name",
         "opened_business": "Business name",
         "started_job": "Job",
         "received_raise": "Job",
         "work_change": "New role, employer, or work change",
         "relocated": "New location",
+        "travel": "Destination or travel detail",
         "name_change": "New name",
         "custom": "Event description",
     }
@@ -322,6 +346,23 @@ def birth_timeline_summary(event, current_person_id, people):
         return f"sired a child: {baby_label}"
 
     return str(event_values.get("title", "") or "Birth").strip()
+
+
+def marriage_timeline_summary(event, current_person_id, people):
+    event_values = event if isinstance(event, dict) else {}
+    selected_person_id = str(current_person_id or "").strip()
+    spouse_ids = [
+        person_id
+        for person_id in normalize_association_values(
+            event_values.get("person_ids")
+        )
+        if person_id != selected_person_id
+    ]
+
+    if spouse_ids:
+        return f"Married {murder_people_label(spouse_ids, people)}"
+
+    return str(event_values.get("title", "") or "Marriage").strip()
 
 
 def murder_timeline_summary(event, current_person_id, people):

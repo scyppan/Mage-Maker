@@ -216,7 +216,12 @@ def born_long_distance_parent_ids(events):
     )
 
 
-def child_parent_location_context(child, people):
+def child_parent_location_context(
+    child,
+    people,
+    shared_events=None,
+    locations=None,
+):
     child_values = child if isinstance(child, dict) else {}
     people_by_id = {
         str(person.get("record_id", "") or "").strip(): person
@@ -232,10 +237,17 @@ def child_parent_location_context(child, people):
     birthing_parent = people_by_id.get(birthing_parent_id)
     non_birthing_parent = people_by_id.get(non_birthing_parent_id)
     child_birth_date = person_birth_timeline_date(child_values)
-    birthing_location = location_at_date(birthing_parent, child_birth_date)
+    birthing_location = location_at_date(
+        birthing_parent,
+        child_birth_date,
+        shared_events,
+        locations,
+    )
     non_birthing_location = location_at_date(
         non_birthing_parent,
         child_birth_date,
+        shared_events,
+        locations,
     )
     conflict = bool(
         birthing_location
@@ -273,11 +285,68 @@ def child_parent_location_context(child, people):
     }
 
 
-def location_at_date(person, target_date):
+def location_at_date(
+    person,
+    target_date,
+    shared_events=None,
+    locations=None,
+):
     if not isinstance(person, dict):
         return ""
 
     events = normalize_timeline_events(person.get("timeline_events", []))
+    person_id = str(person.get("record_id", "") or "").strip()
+    location_names_by_id = {
+        str(location.get("record_id", "") or "").strip(): str(
+            location.get("name", "") or ""
+        ).strip()
+        for location in locations or []
+        if isinstance(location, dict)
+        and str(location.get("record_id", "") or "").strip()
+    }
+
+    for shared_event in shared_events or []:
+        if (
+            not isinstance(shared_event, dict)
+            or shared_event.get("event_type") != "relocated"
+            or person_id not in shared_event.get("person_ids", [])
+        ):
+            continue
+
+        location_ids = [
+            str(location_id or "").strip()
+            for location_id in shared_event.get("location_ids", [])
+            if str(location_id or "").strip()
+        ]
+        location_name = (
+            location_names_by_id.get(location_ids[-1], "")
+            if location_ids
+            else ""
+        )
+
+        if not location_name:
+            location_name = str(
+                shared_event.get("title", "") or ""
+            ).strip()
+
+            for prefix in ("Relocated to ", "Relocated: ", "Relocated "):
+                if location_name.casefold().startswith(prefix.casefold()):
+                    location_name = location_name[len(prefix):].strip()
+                    break
+
+        if location_name:
+            events.append(
+                {
+                    "event_id": str(
+                        shared_event.get("record_id", "") or ""
+                    ),
+                    "event_type": "relocated",
+                    "detail": location_name,
+                    "date": str(shared_event.get("date", "") or ""),
+                    "note": "",
+                }
+            )
+
     location_events = [
         event
         for event in events

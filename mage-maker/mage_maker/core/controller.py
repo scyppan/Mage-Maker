@@ -1,6 +1,10 @@
 from copy import deepcopy
 
-from mage_maker.core.dates import is_at_least_age, normalize_date_parts
+from mage_maker.core.dates import (
+    format_date_parts,
+    is_at_least_age,
+    normalize_date_parts,
+)
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
     new_development_plan,
@@ -35,9 +39,11 @@ from mage_maker.sections.names.history import empty_name_details, normalize_name
 from mage_maker.sections.names.timeline import synchronize_name_change_events
 from mage_maker.sections.events.models import (
     death_event_person_ids,
+    normalize_world_event,
     synchronize_birth_events_from_people,
     synchronize_people_death_records,
 )
+from mage_maker.sections.events.types import canonical_event_type
 from mage_maker.sections.settings.mage_groups import (
     MAGE_GROUPS_SETTING_KEY,
     default_mage_group_id,
@@ -63,6 +69,7 @@ from mage_maker.sections.timeline.locations import (
 
 RECENT_PERSON_STORAGE_KEY = "_recent_people"
 RECENT_PERSON_STORAGE_LIMIT = 12
+MARRIAGE_EVENT_SOURCE = "spouse_relationship"
 
 
 class PeopleController:
@@ -535,6 +542,11 @@ class PeopleController:
             old_spouse_relationships,
             updated_person.get("spouse_relationships", []),
         )
+        self.synchronize_marriage_events(
+            record_id,
+            old_spouse_relationships,
+            updated_person.get("spouse_relationships", []),
+        )
         self.synchronize_coparents(updated_person)
         self.synchronize_family_parental_values(
             updated_person,
@@ -881,6 +893,8 @@ class PeopleController:
         location_context = child_parent_location_context(
             synchronized,
             self.database.list_people(),
+            self.database.list_records("events"),
+            self.database.list_records("locations"),
         )
         override_parent_ids = []
 
@@ -1133,6 +1147,120 @@ class PeopleController:
                     "spouse_relationships": reciprocal_relationships,
                 },
             )
+
+    def synchronize_marriage_events(
+        self,
+        record_id,
+        old_spouse_relationships,
+        new_spouse_relationships,
+    ):
+        selected_person_id = str(record_id or "").strip()
+
+        if not selected_person_id:
+            return False
+
+        old_relationships_by_id = {
+            relationship["person_id"]: relationship
+            for relationship in normalize_spouse_relationships(
+                old_spouse_relationships
+            )
+        }
+        stored_events = self.database.list_records("events")
+        marriage_events_by_pair = {}
+        automatic_events_by_pair = {}
+
+        for event in stored_events:
+            if canonical_event_type(event.get("event_type")) != "got_married":
+                continue
+
+            person_ids = list(
+                dict.fromkeys(
+                    str(person_id or "").strip()
+                    for person_id in event.get("person_ids", [])
+                    if str(person_id or "").strip()
+                )
+            )
+
+            if len(person_ids) != 2 or selected_person_id not in person_ids:
+                continue
+
+            pair = tuple(sorted(person_ids))
+            marriage_events_by_pair.setdefault(pair, event)
+
+            if (
+                str(event.get("automatic_source", "") or "").strip()
+                == MARRIAGE_EVENT_SOURCE
+            ):
+                automatic_events_by_pair[pair] = event
+
+        changed = False
+
+        for relationship in normalize_spouse_relationships(
+            new_spouse_relationships
+        ):
+            if not relationship["married"]:
+                continue
+
+            mate_id = relationship["person_id"]
+            pair = tuple(sorted((selected_person_id, mate_id)))
+            marriage_date = format_date_parts(
+                relationship.get("marriage_year"),
+                relationship.get("marriage_month"),
+                relationship.get("marriage_day"),
+                unknown="",
+            )
+            automatic_event = automatic_events_by_pair.get(pair)
+            relationship_changed = (
+                old_relationships_by_id.get(mate_id) != relationship
+            )
+
+            if automatic_event is not None:
+                if relationship_changed:
+                    self.database.update_record(
+                        "events",
+                        automatic_event["record_id"],
+                        {
+                            "event_type": "got_married",
+                            "title": "Marriage",
+                            "date": marriage_date,
+                            "person_ids": list(pair),
+                            "automatic_source": MARRIAGE_EVENT_SOURCE,
+                        },
+                    )
+                    changed = True
+
+                continue
+
+            if pair in marriage_events_by_pair:
+                continue
+
+            created_event = self.database.create_record(
+                "events",
+                normalize_world_event(
+                    {
+                        "event_type": "got_married",
+                        "title": "Marriage",
+                        "date": marriage_date,
+                        "description": "",
+                        "person_ids": list(pair),
+                        "witness_person_ids": [],
+                        "affected_person_ids": [],
+                        "eminence_person_ids": [],
+                        "eminence_skills": {},
+                        "period_names": [],
+                        "location_ids": [],
+                        "locked_location_ids": [],
+                        "organization_id": "",
+                        "organization_name": "",
+                        "automatic_source": MARRIAGE_EVENT_SOURCE,
+                    }
+                ),
+            )
+            marriage_events_by_pair[pair] = created_event
+            automatic_events_by_pair[pair] = created_event
+            changed = True
+
+        return changed
 
     def synchronize_mates(self, record_id, old_mate_ids, new_mate_ids):
         old_relationships = merge_mate_ids([], old_mate_ids)

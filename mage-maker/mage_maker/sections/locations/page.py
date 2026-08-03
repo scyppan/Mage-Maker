@@ -113,6 +113,8 @@ class LocationPage(tk.Frame):
         self.region_lock_id = ""
         self.selected_parent_location_id = ""
         self.loaded_parent_location_id = ""
+        self.loaded_location_values = None
+        self.location_before_create_id = ""
         self.active_view_name = "details"
         self.content = None
         self.editor_heading_value = tk.StringVar(value="Location details")
@@ -359,13 +361,13 @@ class LocationPage(tk.Frame):
         self.location_organizations_button.pack(side="left")
 
     def show_location_details(self):
-        self.show_location_view("details")
+        return self.show_location_view("details")
 
     def show_location_events(self):
-        self.show_location_view("events")
+        return self.show_location_view("events")
 
     def show_location_organizations(self):
-        self.show_location_view("organizations")
+        return self.show_location_view("organizations")
 
     def show_location_view(self, view_name):
         requested_view = str(view_name or "").strip()
@@ -374,6 +376,18 @@ class LocationPage(tk.Frame):
             if requested_view in ("details", "events", "organizations")
             else "details"
         )
+        current_view = getattr(
+            self,
+            "active_view_name",
+            normalized_view,
+        )
+
+        if (
+            normalized_view != current_view
+            and not self.confirm_unsaved_location_changes()
+        ):
+            return False
+
         self.active_view_name = normalized_view
         self.location_details_page.grid_remove()
         self.location_events_page.grid_remove()
@@ -407,7 +421,7 @@ class LocationPage(tk.Frame):
                 TEXT_DARK,
             )
             self.refresh_timeline()
-            return
+            return True
 
         if normalized_view == "organizations":
             self.location_organizations_page.grid()
@@ -418,7 +432,7 @@ class LocationPage(tk.Frame):
                 TEXT_DARK,
             )
             self.refresh_assigned_organizations()
-            return
+            return True
 
         self.location_details_page.grid()
         self.location_details_page.tkraise()
@@ -427,6 +441,156 @@ class LocationPage(tk.Frame):
             PRIMARY_HOVER,
             TEXT_DARK,
         )
+        return True
+
+    def location_form_values(self):
+        name_value = getattr(self, "name_value", None)
+        notes_control = getattr(self, "notes_control", None)
+        notes_widget = getattr(notes_control, "text", None)
+
+        if (
+            name_value is None
+            or not hasattr(name_value, "get")
+            or notes_widget is None
+            or not hasattr(notes_widget, "get")
+        ):
+            return None
+
+        return {
+            "name": str(name_value.get() or ""),
+            "parent_location_id": str(
+                getattr(self, "selected_parent_location_id", "") or ""
+            ).strip(),
+            "notes": str(notes_widget.get("1.0", "end-1c") or ""),
+        }
+
+    def remember_loaded_location_values(self):
+        self.loaded_location_values = self.location_form_values()
+        return self.loaded_location_values
+
+    def has_unsaved_location_changes(self):
+        loaded_values = getattr(self, "loaded_location_values", None)
+        current_values = self.location_form_values()
+
+        if loaded_values is None or current_values is None:
+            return False
+
+        return current_values != loaded_values
+
+    def confirm_unsaved_event_changes(self):
+        if not getattr(self, "location_timeline_built", False):
+            return True
+
+        event_editor = getattr(self, "event_editor", None)
+        association_guard_command = getattr(
+            event_editor,
+            "association_selection_guard_active",
+            None,
+        )
+
+        if (
+            callable(association_guard_command)
+            and association_guard_command()
+        ):
+            return False
+
+        unsaved_changes_command = getattr(
+            event_editor,
+            "has_unsaved_changes",
+            None,
+        )
+
+        if (
+            not callable(unsaved_changes_command)
+            or not unsaved_changes_command()
+        ):
+            return True
+
+        save_choice = messagebox.askyesnocancel(
+            "Unsaved event changes",
+            "Save this event before continuing?",
+            parent=self,
+        )
+
+        if save_choice is None:
+            return False
+
+        if save_choice:
+            return event_editor.save()
+
+        event_editor.cancel()
+        return True
+
+    def discard_location_changes(self):
+        current_location_id = str(
+            getattr(self, "current_location_id", "") or ""
+        ).strip()
+        previous_location_id = str(
+            getattr(self, "location_before_create_id", "") or ""
+        ).strip()
+        parent_location_id = str(
+            getattr(self, "selected_parent_location_id", "") or ""
+        ).strip()
+
+        if (
+            current_location_id
+            and self.controller.get_location(current_location_id) is not None
+        ):
+            self.load_location(current_location_id)
+            self.location_tree.select_location(current_location_id)
+            return True
+
+        if (
+            previous_location_id
+            and self.controller.get_location(previous_location_id) is not None
+        ):
+            self.load_location(previous_location_id)
+            self.location_tree.select_location(previous_location_id)
+            return True
+
+        if (
+            parent_location_id
+            and self.controller.get_location(parent_location_id) is not None
+        ):
+            self.load_location(parent_location_id)
+            self.location_tree.select_location(parent_location_id)
+            return True
+
+        self.clear_form(parent_location_id, creating=True)
+        self.location_tree.select_location(parent_location_id)
+        return True
+
+    def confirm_unsaved_location_changes(self):
+        if not self.confirm_unsaved_event_changes():
+            return False
+
+        if not self.has_unsaved_location_changes():
+            return True
+
+        save_choice = messagebox.askyesnocancel(
+            "Unsaved location changes",
+            "Save changes to this location before continuing?",
+            parent=self,
+        )
+
+        if save_choice is None:
+            return False
+
+        if save_choice:
+            return self.save_location()
+
+        self.discard_location_changes()
+        return True
+
+    def restore_location_tree_selection(self):
+        selected_location_id = str(
+            getattr(self, "current_location_id", "")
+            or getattr(self, "location_before_create_id", "")
+            or getattr(self, "selected_parent_location_id", "")
+            or ""
+        ).strip()
+        self.location_tree.select_location(selected_location_id)
+        return selected_location_id
 
     def save_shortcut(self):
         return self.save_location()
@@ -682,7 +846,9 @@ class LocationPage(tk.Frame):
                 "to change this location's extinction state.",
                 parent=self,
             )
-            self.show_location_events()
+            if not self.show_location_events():
+                return
+
             self.selected_timeline_event_id = str(
                 state.get("event_id", "") or ""
             )
@@ -692,17 +858,21 @@ class LocationPage(tk.Frame):
         self.refresh_extinction_display()
 
     def start_extinction_event(self):
+        if not self.show_location_events():
+            self.extinct_value.set(False)
+            return False
+
         location = self.controller.get_location(
             self.current_location_id
         )
         location_name = str(
             (location or {}).get("name", "") or "this location"
         ).strip()
-        self.show_location_events()
         self.add_event(
             event_type="extinction",
             title=f"Extinction of {location_name}",
         )
+        return True
 
     def build_assigned_organizations(self, parent):
         panel = tk.Frame(
@@ -1247,6 +1417,21 @@ class LocationPage(tk.Frame):
             requested_id = self.region_lock_id
             self.location_tree.select_location(requested_id)
 
+        current_location_id = str(
+            getattr(self, "current_location_id", "") or ""
+        ).strip()
+
+        if (
+            requested_id == current_location_id
+            and not getattr(self, "creating_location", False)
+        ):
+            self.controller.remember_location_interaction(requested_id)
+            return True
+
+        if not self.confirm_unsaved_location_changes():
+            self.restore_location_tree_selection()
+            return False
+
         self.controller.remember_location_interaction(requested_id)
 
         if requested_id:
@@ -1254,6 +1439,8 @@ class LocationPage(tk.Frame):
         else:
             self.clear_form()
             self.status_command(f"Selected {WORLD_LOCATION_LABEL}")
+
+        return True
 
     def load_location(self, record_id):
         location = self.controller.get_location(record_id)
@@ -1267,6 +1454,7 @@ class LocationPage(tk.Frame):
 
         self.current_location_id = record_id
         self.creating_location = False
+        self.location_before_create_id = ""
         self.editor_heading_value.set("Location details")
         self.name_value.set(str(location.get("name", "") or ""))
         self.loaded_parent_location_id = str(
@@ -1279,6 +1467,7 @@ class LocationPage(tk.Frame):
             "1.0",
             str(location.get("notes", "") or ""),
         )
+        self.remember_loaded_location_values()
         self.save_location_button.set_enabled(True)
         self.refresh_location_distinctions()
 
@@ -1359,6 +1548,19 @@ class LocationPage(tk.Frame):
         return self.region_lock_id
 
     def region_lock_changed(self, location_id):
+        requested_id = str(location_id or "").strip()
+
+        if (
+            requested_id != self.region_lock_id
+            and not self.confirm_unsaved_location_changes()
+        ):
+            self.location_tree.set_scope(
+                self.region_lock_id,
+                notify=False,
+            )
+            self.restore_location_tree_selection()
+            return False
+
         return self.set_region_lock(location_id, notify=True)
 
     def open_location(self, location_id):
@@ -1375,9 +1577,7 @@ class LocationPage(tk.Frame):
             return False
 
         self.location_tree.select_location(requested_id)
-        self.controller.remember_location_interaction(requested_id)
-        self.load_location(requested_id)
-        return True
+        return self.location_selected(requested_id)
 
     def refresh_timeline(self):
         self.refresh_location_distinctions()
@@ -1411,6 +1611,27 @@ class LocationPage(tk.Frame):
 
         if self.selected_timeline_event_id not in visible_event_ids:
             self.selected_timeline_event_id = ""
+
+        people_labels_by_id = {}
+
+        if (
+            getattr(self, "event_controller", None) is not None
+            and any(
+                event.get("event_kind") == "global"
+                and (
+                    event.get("person_ids")
+                    or event.get("related_person_id")
+                )
+                for event in self.visible_events
+            )
+        ):
+            people_labels_by_id = {
+                str(option.get("value", "") or "").strip(): str(
+                    option.get("label", "") or "Missing person"
+                ).strip()
+                for option in self.event_controller.people_options()
+                if str(option.get("value", "") or "").strip()
+            }
 
         for index, event in enumerate(self.visible_events):
             if event.get("_draft_event"):
@@ -1449,9 +1670,37 @@ class LocationPage(tk.Frame):
                 == "founding"
                 else f"{event_type_label(event)}  ·  {event_title}"
             )
+            people_text = ""
+
+            if event.get("event_kind") == "global":
+                person_ids = [
+                    str(person_id or "").strip()
+                    for person_id in event.get("person_ids", [])
+                    if str(person_id or "").strip()
+                ]
+
+                if not person_ids and event.get("related_person_id"):
+                    person_ids = [
+                        str(event.get("related_person_id") or "").strip()
+                    ]
+
+                person_names = [
+                    people_labels_by_id.get(
+                        person_id,
+                        "Missing person",
+                    )
+                    for person_id in dict.fromkeys(person_ids)
+                ]
+
+                if person_names:
+                    people_text = "  ·  " + ", ".join(person_names)
+
             self.timeline_list.insert(
                 "end",
-                f"{date_text}  ·  {event_summary}{source_text}",
+                (
+                    f"{date_text}  ·  {event_summary}"
+                    f"{people_text}{source_text}"
+                ),
             )
 
             if event.get("propagation_distance", 0):
@@ -1491,11 +1740,35 @@ class LocationPage(tk.Frame):
         if not selected:
             return
 
-        self.selected_timeline_event_id = str(
+        requested_event_id = str(
             self.visible_events[selected[0]].get("event_id", "") or ""
         )
+
+        if (
+            requested_event_id != self.selected_timeline_event_id
+            and not self.confirm_unsaved_event_changes()
+        ):
+            self.restore_selected_timeline_event_row()
+            return "break"
+
+        self.selected_timeline_event_id = requested_event_id
         self.reset_event_remove_confirmation()
         self.update_timeline_details()
+
+    def restore_selected_timeline_event_row(self):
+        self.timeline_list.selection_clear(0, "end")
+
+        for index, event in enumerate(self.visible_events):
+            if str(event.get("event_id", "") or "") != str(
+                self.selected_timeline_event_id or ""
+            ):
+                continue
+
+            self.timeline_list.selection_set(index)
+            self.timeline_list.see(index)
+            return True
+
+        return False
 
     def update_timeline_details(self):
         event = self.selected_timeline_event()
@@ -1687,6 +1960,7 @@ class LocationPage(tk.Frame):
         self.current_location_id = None
         self.draft_event = None
         self.creating_location = True
+        self.location_before_create_id = ""
         self.loaded_parent_location_id = ""
         self.editor_heading_value.set("New location")
         self.name_value.set("")
@@ -1709,9 +1983,18 @@ class LocationPage(tk.Frame):
             self.timeline_add_button.set_enabled(False)
 
         self.save_location_button.set_enabled(True)
+        self.remember_loaded_location_values()
 
     def create_location(self):
-        self.show_location_details()
+        if not self.confirm_unsaved_location_changes():
+            return False
+
+        if not self.show_location_details():
+            return False
+
+        previous_location_id = str(
+            self.current_location_id or ""
+        ).strip()
         parent_id = (
             self.current_location_id
             if location_id_is_in_scope(
@@ -1722,12 +2005,14 @@ class LocationPage(tk.Frame):
             else self.region_lock_id
         )
         self.clear_form(parent_id, creating=True)
+        self.location_before_create_id = previous_location_id
         self.location_tree.select_location(parent_id)
         self.name_field.control.focus_set()
         parent_name = self.parent_path_value.get()
         self.status_command(
             f"Creating a new location within {parent_name}"
         )
+        return True
 
     def save_location(self):
         creating_new_location = not bool(self.current_location_id)
@@ -1807,27 +2092,31 @@ class LocationPage(tk.Frame):
         return True
 
     def delete_location(self):
+        if not self.confirm_unsaved_location_changes():
+            return False
+
         location = self.controller.get_location(self.current_location_id)
 
         if location is None:
-            return
+            return False
 
         if not messagebox.askyesno(
             "Delete location",
             f"Permanently delete {location.get('name', 'this location')}?",
             parent=self,
         ):
-            return
+            return False
 
         try:
             self.controller.delete_location(self.current_location_id)
         except (KeyError, ValueError) as error:
             messagebox.showerror("Cannot delete location", str(error), parent=self)
-            return
+            return False
 
         self.current_location_id = None
         self.refresh()
         self.status_command(f"Deleted location {location.get('name', 'Unnamed')}")
+        return True
 
     def add_event(self, event_type="other", title="New event"):
         if not self.current_location_id:
@@ -1839,6 +2128,9 @@ class LocationPage(tk.Frame):
         if self.event_controller is None:
             self.status_command("The event collection is unavailable.")
             return
+
+        if not self.confirm_unsaved_event_changes():
+            return False
 
         self.draft_event = {
             "event_id": NEW_EVENT_DRAFT_ID,
@@ -1866,6 +2158,7 @@ class LocationPage(tk.Frame):
             )
 
         self.event_editor.ensure_new_event_editable()
+        return True
 
     def shared_event_saved(self, event):
         self.draft_event = None
@@ -2080,9 +2373,6 @@ class LocationPage(tk.Frame):
             )
             self.controller.invalidate_caches()
             removed_title = deleted.get("title", "Event")
-
-            if self.events_changed_command is not None:
-                self.events_changed_command()
         else:
             self.controller.delete_event(
                 self.current_location_id,
@@ -2091,7 +2381,17 @@ class LocationPage(tk.Frame):
             removed_title = event.get("title", "Event")
 
         self.selected_timeline_event_id = ""
+        self.event_editor.clear(
+            "Select an event to view it, or click Add event."
+        )
         self.reset_event_remove_confirmation()
+
+        if (
+            event.get("event_kind") == "global"
+            and self.events_changed_command is not None
+        ):
+            self.events_changed_command()
+
         self.refresh_timeline()
         self.status_command(f"Removed event {removed_title}")
 

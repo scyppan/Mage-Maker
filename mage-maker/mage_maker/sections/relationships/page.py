@@ -6,7 +6,10 @@ from mage_maker.sections.events.types import canonical_event_type
 from mage_maker.sections.family_tree.spouse_relationships import (
     normalize_spouse_relationships,
 )
-from mage_maker.sections.timeline.page import format_timeline_date
+from mage_maker.sections.timeline.page import (
+    EVENT_COLORS,
+    format_timeline_date,
+)
 from mage_maker.ui.theme import (
     BORDER_SOFT,
     FIELD_BACKGROUND,
@@ -120,9 +123,12 @@ class RelationshipsView(tk.Frame):
             self.relationship_list.itemconfigure(
                 index,
                 background=(
-                    FIELD_BACKGROUND
-                    if index % 2 == 0
-                    else LIST_ALTERNATE
+                    relationship.get("background")
+                    or (
+                        FIELD_BACKGROUND
+                        if index % 2 == 0
+                        else LIST_ALTERNATE
+                    )
                 ),
             )
 
@@ -136,7 +142,7 @@ class RelationshipsView(tk.Frame):
         if not self.visible_relationships and self.person:
             self.relationship_list.insert(
                 "end",
-                "No marriages or recorded friendships.",
+                "No marriages, romances, breakups, or recorded friendships.",
             )
 
     def relationship_rows(self):
@@ -197,7 +203,15 @@ class RelationshipsView(tk.Frame):
         for event in events:
             event_type = canonical_event_type(event.get("event_type"))
 
-            if event_type not in ("began_friendship", "got_married"):
+            if event_type not in (
+                "began_friendship",
+                "got_married",
+                "romance",
+                "breakup",
+            ):
+                continue
+
+            if person_id not in event.get("person_ids", []):
                 continue
 
             other_ids = [
@@ -226,16 +240,18 @@ class RelationshipsView(tk.Frame):
                 for other_id in other_ids
             ]
             date_text = format_timeline_date(event.get("date"))
-            relationship_text = (
-                "Marriage to "
-                if event_type == "got_married"
-                else "Began friendship with "
-            )
+            relationship_text = {
+                "got_married": "Marriage to ",
+                "began_friendship": "Began friendship with ",
+                "romance": "Romance with ",
+                "breakup": "Breakup with ",
+            }[event_type]
             rows.append(
                 {
                     "kind": event_type,
                     "date": str(event.get("date", "") or ""),
                     "person_ids": other_ids,
+                    "background": EVENT_COLORS.get(event_type),
                     "label": (
                         f"{date_text} · {relationship_text}"
                         + ", ".join(other_names)

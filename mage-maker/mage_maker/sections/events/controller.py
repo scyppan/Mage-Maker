@@ -24,14 +24,17 @@ from mage_maker.sections.events.models import (
     BIRTH_EVENT_SOURCE,
     BIRTH_EVENT_TYPE,
     DEATH_EVENT_TYPES,
+    GHOST_EVENT_TYPE,
     birth_event_baby_ids,
     birth_event_person_ids,
     death_event_person_ids,
+    event_linked_person_ids,
     normalize_world_event,
     normalize_world_events,
     split_world_event_date,
     synchronize_birth_events_from_people,
     synchronize_people_death_records,
+    world_event_date_is_on_or_after,
     world_event_sort_key,
     world_event_year,
 )
@@ -101,59 +104,105 @@ class EventController:
         self.location_creator = location_creator
         self.people_creator = people_creator
         self.mage_groups_provider = mage_groups_provider
+        self._event_cache = None
+        self._event_cache_revision = None
+        self._events_by_record_id = {}
+        self._events_by_person_id = {}
+        self._events_by_location_id = {}
+        self._eminence_points_by_person_id = {}
 
-    def list_events(self):
-        titled_events = [
-            self.apply_title_rules(event)
-            for event in self.database.list_records("events")
-        ]
+    def invalidate_event_cache(self):
+        self._event_cache = None
+        self._event_cache_revision = None
+        self._events_by_record_id = {}
+        self._events_by_person_id = {}
+        self._events_by_location_id = {}
+        self._eminence_points_by_person_id = {}
+
+    def ensure_event_cache(self):
+        database_revision = getattr(self.database, "revision", None)
+        cacheable = isinstance(database_revision, int)
+
+        if (
+            self._event_cache is not None
+            and cacheable
+            and database_revision == self._event_cache_revision
+        ):
+            return
+
+        stored_events = self.database.list_records("events")
         organization_events = organization_events_as_world_events(
             self.database.list_records("organizations")
         )
         eligible_person_ids = self.eminence_eligible_person_ids()
-        return [
-            self.with_eligible_eminence(
-                normalize_world_event(
-                    self.apply_title_rules(event)
-                ),
-                eligible_person_ids,
-            )
-            for event in normalize_world_events(
-                [*titled_events, *organization_events]
-            )
-        ]
+        normalized_events = normalize_world_events(
+            [
+                self.apply_title_rules(event)
+                for event in [*stored_events, *organization_events]
+            ]
+        )
+        events_by_record_id = {}
+        events_by_person_id = {}
+        events_by_location_id = {}
+        eminence_points_by_person_id = {}
+
+        for event in normalized_events:
+            awarded_person_ids = [
+                person_id
+                for person_id in event.get("eminence_person_ids", [])
+                if person_id in eligible_person_ids
+            ]
+            event["eminence_person_ids"] = awarded_person_ids
+            event["eminence_skills"] = {
+                person_id: skill
+                for person_id, skill in event.get(
+                    "eminence_skills",
+                    {},
+                ).items()
+                if person_id in awarded_person_ids
+            }
+            events_by_record_id[event["record_id"]] = event
+
+            for person_id in event_linked_person_ids(event):
+                events_by_person_id.setdefault(person_id, []).append(event)
+
+            for person_id in awarded_person_ids:
+                eminence_points_by_person_id[person_id] = (
+                    eminence_points_by_person_id.get(person_id, 0) + 1
+                )
+
+            for location_id in event.get("location_ids", []):
+                events_by_location_id.setdefault(location_id, []).append(event)
+
+        self._event_cache = normalized_events
+        self._events_by_record_id = events_by_record_id
+        self._events_by_person_id = events_by_person_id
+        self._events_by_location_id = events_by_location_id
+        self._eminence_points_by_person_id = eminence_points_by_person_id
+        self._event_cache_revision = database_revision
+
+    def list_events(self):
+        self.ensure_event_cache()
+        return deepcopy(self._event_cache)
 
     def get_event(self, record_id):
-        event = self.database.read_record("events", record_id)
-
-        if event is not None:
-            return self.with_eligible_eminence(
-                normalize_world_event(
-                    self.apply_title_rules(event)
-                )
-            )
-
         selected_id = str(record_id or "").strip()
-        selected_event = next(
-            (
-                event
-                for event in organization_events_as_world_events(
-                    self.database.list_records("organizations")
-                )
-                if event["record_id"] == selected_id
-            ),
-            None,
-        )
+        database_revision = getattr(self.database, "revision", None)
+        record_reader = getattr(self.database, "read_record", None)
 
-        return (
-            self.with_eligible_eminence(
-                normalize_world_event(
-                    self.apply_title_rules(selected_event)
+        if not isinstance(database_revision, int) and callable(record_reader):
+            selected_event = record_reader("events", selected_id)
+
+            if selected_event is not None:
+                return self.with_eligible_eminence(
+                    normalize_world_event(
+                        self.apply_title_rules(selected_event)
+                    )
                 )
-            )
-            if selected_event is not None
-            else None
-        )
+
+        self.ensure_event_cache()
+        selected_event = self._events_by_record_id.get(selected_id)
+        return deepcopy(selected_event) if selected_event is not None else None
 
     def create_event(self, values, replace_existing_death=False):
         self.require_single_death_location(values)
@@ -308,6 +357,11 @@ class EventController:
                 "A Birth event is a required part of the baby's Timeline "
                 "and cannot be removed."
             )
+
+        self.validate_ghost_event_dependencies(
+            current_event=current,
+            deleting=True,
+        )
 
         eminence_updates = prepare_event_eminence_updates(
             self.database,
@@ -559,9 +613,23 @@ class EventController:
             organization_id = str(
                 titled_event.get("organization_id", "") or ""
             ).strip()
-            organization = self.database.read_record(
-                "organizations",
-                organization_id,
+            record_reader = getattr(self.database, "read_record", None)
+            organization = (
+                record_reader("organizations", organization_id)
+                if callable(record_reader)
+                else next(
+                    (
+                        candidate
+                        for candidate in self.database.list_records(
+                            "organizations"
+                        )
+                        if str(
+                            candidate.get("record_id", "") or ""
+                        ).strip()
+                        == organization_id
+                    ),
+                    None,
+                )
             )
             organization_name = str(
                 (organization or {}).get("name", "")
@@ -653,6 +721,20 @@ class EventController:
                 ).items()
                 if person_id in prepared["eminence_person_ids"]
             }
+        elif (
+            event_type in ("romance", "breakup", "travel")
+            and not str(prepared.get("title", "") or "").strip()
+        ):
+            prepared["title"] = {
+                "romance": "Romance",
+                "breakup": "Breakup",
+                "travel": "Travel",
+            }[event_type]
+        elif (
+            event_type == GHOST_EVENT_TYPE
+            and not str(prepared.get("title", "") or "").strip()
+        ):
+            prepared["title"] = "Returns as ghost"
 
         if (
             event_type in DEATH_EVENT_TYPES
@@ -1331,8 +1413,9 @@ class EventController:
         normalized_start = int(start_year)
         normalized_end = int(end_year)
         matching_events = []
+        self.ensure_event_cache()
 
-        for event in self.list_events():
+        for event in self._event_cache:
             event_year = world_event_year(event.get("date"))
 
             if (
@@ -1342,52 +1425,31 @@ class EventController:
                 matching_events.append(event)
 
         matching_events.sort(key=world_event_sort_key)
-        return matching_events
+        return deepcopy(matching_events)
 
     def events_for_person(self, person_id):
         normalized_person_id = str(person_id or "").strip()
-        return [
-            event
-            for event in self.list_events()
-            if normalized_person_id in event["person_ids"]
-        ]
+        self.ensure_event_cache()
+        return deepcopy(
+            self._events_by_person_id.get(normalized_person_id, [])
+        )
 
     def eminence_points_for_person(self, person_id):
         normalized_person_id = str(person_id or "").strip()
 
-        if (
-            not normalized_person_id
-            or normalized_person_id
-            not in self.eminence_eligible_person_ids()
-        ):
+        if not normalized_person_id:
             return 0
 
-        stored_events = self.database.list_records("events")
-
-        for organization in self.database.list_records(
-            "organizations"
-        ):
-            if not isinstance(organization, dict):
-                continue
-
-            stored_events.extend(
-                event
-                for event in organization.get("events", [])
-                if isinstance(event, dict)
-            )
-
-        return sum(
-            normalized_person_id in event.get("person_ids", [])
-            and normalized_person_id
-            in event.get("eminence_person_ids", [])
-            for event in stored_events
-            if isinstance(event, dict)
+        self.ensure_event_cache()
+        return self._eminence_points_by_person_id.get(
+            normalized_person_id,
+            0,
         )
 
     def event_has_famous_person(self, event):
         linked_person_ids = {
             str(person_id or "").strip()
-            for person_id in (event or {}).get("person_ids", [])
+            for person_id in event_linked_person_ids(event)
             if str(person_id or "").strip()
         }
 
@@ -1423,11 +1485,22 @@ class EventController:
                 )
             )
 
-        return [
-            event
-            for event in self.list_events()
-            if visible_location_ids.intersection(event["location_ids"])
-        ]
+        self.ensure_event_cache()
+        matching_event_ids = {
+            event["record_id"]
+            for visible_location_id in visible_location_ids
+            for event in self._events_by_location_id.get(
+                visible_location_id,
+                [],
+            )
+        }
+        return deepcopy(
+            [
+                event
+                for event in self._event_cache
+                if event["record_id"] in matching_event_ids
+            ]
+        )
 
     def people_options(self):
         groups = self.mage_groups()
@@ -1895,7 +1968,11 @@ class EventController:
             previous_ids = self.recent_association_ids(field_name)
             event_ids = [
                 str(association_id or "").strip()
-                for association_id in event.get(field_name, [])
+                for association_id in (
+                    event_linked_person_ids(event)
+                    if field_name == "person_ids"
+                    else event.get(field_name, [])
+                )
                 if str(association_id or "").strip()
             ]
             history[field_name] = (
@@ -2009,6 +2086,11 @@ class EventController:
             current_event,
             allow_death_replacement,
         )
+        self.validate_ghost_event_dependencies(
+            event,
+            current_event,
+            allow_death_replacement,
+        )
 
         if (
             event.get("event_type") == "relocated"
@@ -2079,11 +2161,17 @@ class EventController:
             )
 
         if (
-            event.get("event_type") == "began_friendship"
+            event.get("event_type")
+            in ("began_friendship", "romance", "breakup")
             and len(event.get("person_ids", [])) < 2
         ):
+            event_label = {
+                "began_friendship": "friendship",
+                "romance": "romance",
+                "breakup": "breakup",
+            }[event.get("event_type")]
             raise ValueError(
-                "A friendship event needs at least two people."
+                f"A {event_label} event needs at least two people."
             )
 
         known_person_ids = {
@@ -2106,9 +2194,21 @@ class EventController:
                 else []
             )
         }
+        if event.get("event_type") != "murder":
+            event_role_ids = [
+                *event.get("person_ids", []),
+                *event.get("witness_person_ids", []),
+                *event.get("affected_person_ids", []),
+            ]
+
+            if len(event_role_ids) != len(set(event_role_ids)):
+                raise ValueError(
+                    "Each person can belong to only one event category."
+                )
+
         missing_people = [
             person_id
-            for person_id in event["person_ids"]
+            for person_id in event_linked_person_ids(event)
             if person_id not in known_person_ids
         ]
         missing_periods = [
@@ -2382,6 +2482,151 @@ class EventController:
                 current_event,
                 allow_death_replacement,
             )
+
+    def validate_ghost_event_dependencies(
+        self,
+        event=None,
+        current_event=None,
+        allow_death_replacement=False,
+        deleting=False,
+    ):
+        stored_events = (
+            self.database.list_records("events")
+            if self.database is not None
+            else []
+        )
+        prospective_event_type = canonical_event_type(
+            (event or {}).get("event_type")
+        )
+        has_stored_ghost_event = any(
+            canonical_event_type(stored_event.get("event_type"))
+            == GHOST_EVENT_TYPE
+            for stored_event in stored_events
+            if isinstance(stored_event, dict)
+        )
+
+        if (
+            prospective_event_type != GHOST_EVENT_TYPE
+            and not has_stored_ghost_event
+        ):
+            return
+
+        current_event_id = str(
+            (current_event or {}).get("record_id", "") or ""
+        ).strip()
+        prospective_event = (
+            normalize_world_event(event)
+            if isinstance(event, dict) and not deleting
+            else None
+        )
+        prospective_events = []
+        replaced_current = False
+
+        for stored_event in stored_events:
+            stored_event_id = str(
+                stored_event.get("record_id", "") or ""
+            ).strip()
+
+            if current_event_id and stored_event_id == current_event_id:
+                replaced_current = True
+
+                if prospective_event is not None:
+                    prospective_events.append(prospective_event)
+
+                continue
+
+            prospective_events.append(normalize_world_event(stored_event))
+
+        if prospective_event is not None and not replaced_current:
+            prospective_events.append(prospective_event)
+
+        replacement_person_ids = (
+            set(death_event_person_ids(prospective_event))
+            if allow_death_replacement
+            and prospective_event is not None
+            else set()
+        )
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): person
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+
+        for ghost_event in prospective_events:
+            if canonical_event_type(
+                ghost_event.get("event_type")
+            ) != GHOST_EVENT_TYPE:
+                continue
+
+            ghost_person_ids = list(
+                ghost_event.get("person_ids", []) or []
+            )
+
+            if len(ghost_person_ids) != 1:
+                raise ValueError(
+                    "A Returns as ghost event must belong to exactly one "
+                    "person."
+                )
+
+            ghost_person_id = ghost_person_ids[0]
+            shared_death_events = [
+                candidate_event
+                for candidate_event in prospective_events
+                if ghost_person_id
+                in death_event_person_ids(candidate_event)
+            ]
+
+            if ghost_person_id in replacement_person_ids:
+                shared_death_events = [
+                    prospective_event
+                ]
+
+            profile_death_events = []
+            person = people_by_id.get(ghost_person_id)
+
+            if (
+                person is not None
+                and ghost_person_id not in replacement_person_ids
+            ):
+                profile_death_events = [
+                    timeline_event
+                    for timeline_event in person.get(
+                        "timeline_events",
+                        [],
+                    )
+                    or []
+                    if canonical_event_type(
+                        (timeline_event or {}).get("event_type")
+                    )
+                    == "died"
+                    and str(
+                        (timeline_event or {}).get("date", "") or ""
+                    ).strip()
+                ]
+
+            death_events = [
+                *shared_death_events,
+                *profile_death_events,
+            ]
+
+            if not death_events:
+                raise ValueError(
+                    "A Returns as ghost event requires a Death or Murder "
+                    "event for that person."
+                )
+
+            if not any(
+                world_event_date_is_on_or_after(
+                    ghost_event.get("date"),
+                    death_event.get("date"),
+                )
+                for death_event in death_events
+            ):
+                raise ValueError(
+                    "Returns as ghost cannot occur before that person's "
+                    "Death or Murder event."
+                )
 
     def require_person_without_other_death_event(
         self,
