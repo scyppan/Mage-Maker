@@ -1,10 +1,14 @@
 from copy import deepcopy
 
+from mage_maker.sections.family_tree.relationships import (
+    person_can_give_birth,
+)
+
 
 def spouse_candidates(focus_person, people, excluded_ids=None):
     focus = focus_person if isinstance(focus_person, dict) else {}
     focus_id = str(focus.get("record_id", "") or "")
-    focus_can_give_birth = bool(focus.get("can_give_birth"))
+    focus_can_give_birth = person_can_give_birth(focus)
     focus_year = integer_year(focus.get("birth_year"))
     excluded = {str(record_id or "") for record_id in (excluded_ids or [])}
     excluded.add(focus_id)
@@ -24,7 +28,7 @@ def spouse_candidates(focus_person, people, excluded_ids=None):
         if (
             not person_id
             or person_id in excluded
-            or bool(person.get("can_give_birth")) == focus_can_give_birth
+            or person_can_give_birth(person) == focus_can_give_birth
             or candidate_year is None
             or abs(candidate_year - focus_year) > 7
         ):

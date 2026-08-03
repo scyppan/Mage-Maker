@@ -40,6 +40,7 @@ from mage_maker.sections.events.models import (
 )
 from mage_maker.sections.family_tree.relationships import (
     FamilyRelationshipMap,
+    person_can_give_birth,
 )
 from mage_maker.sections.events.types import (
     canonical_event_type,
@@ -741,7 +742,7 @@ class EventController:
             and not str(prepared.get("title", "") or "").strip()
         ):
             prepared["title"] = (
-                "Murder" if event_type == "murder" else "Death"
+                "Murder" if event_type == "murder" else "death"
             )
 
         if event_type not in ("started_job", "received_raise"):
@@ -2377,7 +2378,7 @@ class EventController:
                     "children."
                 )
 
-            if bool(parent.get("can_give_birth")) != required_capability:
+            if person_can_give_birth(parent) != required_capability:
                 requirement = "checked" if required_capability else "unchecked"
                 raise ValueError(
                     f"A {role_label} must have Can give birth {requirement}."

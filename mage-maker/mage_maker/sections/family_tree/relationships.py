@@ -1,11 +1,32 @@
 from copy import deepcopy
 
-from mage_maker.core.dates import is_at_least_age
+from mage_maker.core.dates import (
+    format_date_parts,
+    format_line_item_date,
+    is_at_least_age,
+)
 from mage_maker.sections.development.initial_values import (
     allowed_parent_magic_states,
-    blood_status_is_compatible,
     person_magic_state,
 )
+
+
+def person_can_give_birth(person):
+    if not isinstance(person, dict):
+        return False
+
+    value = person.get("can_give_birth", False)
+
+    if isinstance(value, bool):
+        return value
+
+    return str(value or "").strip().casefold() in (
+        "yes",
+        "true",
+        "1",
+        "on",
+        "checked",
+    )
 
 
 class FamilyRelationshipMap:
@@ -187,7 +208,7 @@ class FamilyRelationshipMap:
             if bool(person.get("does_not_have_children")):
                 continue
 
-            if bool(person.get("can_give_birth")) != required_birth_capability:
+            if person_can_give_birth(person) != required_birth_capability:
                 continue
 
             if person_magic_state(person) not in allowed_magic_states:
@@ -216,7 +237,7 @@ class FamilyRelationshipMap:
         if focus is None:
             return []
 
-        focus_can_give_birth = bool(focus.get("can_give_birth"))
+        focus_can_give_birth = person_can_give_birth(focus)
         required_birth_capability = not focus_can_give_birth
         excluded_ids = {str(focus_id)}
         excluded_ids.update(self.ancestors_of(focus_id))
@@ -244,7 +265,7 @@ class FamilyRelationshipMap:
             if bool(person.get("does_not_have_children")):
                 continue
 
-            if bool(person.get("can_give_birth")) != required_birth_capability:
+            if person_can_give_birth(person) != required_birth_capability:
                 continue
 
             if alternate_role and self.mates_of(record_id):
@@ -303,23 +324,9 @@ class FamilyRelationshipMap:
         if minimum_child_birth_year is None:
             return []
 
-        focus = self.person(focus_id)
-
-        if focus is None:
+        if self.person(focus_id) is None:
             return []
 
-        focus_is_birthing_parent = bool(
-            focus.get("can_give_birth")
-        )
-        current_parent_role = (
-            "mother" if focus_is_birthing_parent else "father"
-        )
-        other_parent_role = (
-            "father" if focus_is_birthing_parent else "mother"
-        )
-        normalized_other_status = str(
-            other_parent_status or "unknown"
-        ).strip().casefold()
         candidates = []
 
         for person in self.people_by_id.values():
@@ -331,34 +338,6 @@ class FamilyRelationshipMap:
             birth_year = self.integer_year(person.get("birth_year"))
 
             if birth_year is None or birth_year < minimum_child_birth_year:
-                continue
-
-            prospective_child = deepcopy(person)
-            prospective_child[
-                f"biological_{current_parent_role}_id"
-            ] = focus_id
-            prospective_child[
-                f"biological_{current_parent_role}_status"
-            ] = "person"
-            prospective_child[
-                f"biological_{other_parent_role}_id"
-            ] = other_parent_id
-            prospective_child[
-                f"biological_{other_parent_role}_status"
-            ] = (
-                "person"
-                if other_parent_id
-                else (
-                    "muggle"
-                    if normalized_other_status == "muggle"
-                    else "unknown"
-                )
-            )
-
-            if not blood_status_is_compatible(
-                prospective_child,
-                self.people_by_id.values(),
-            ):
                 continue
 
             candidates.append(person)
@@ -623,15 +602,9 @@ def format_person_date(person):
     if year in (None, ""):
         return "nd."
 
-    date_parts = [str(year)]
-
-    if month not in (None, ""):
-        date_parts.append(str(month).zfill(2))
-
-    if day not in (None, ""):
-        date_parts.append(str(day).zfill(2))
-
-    return "-".join(date_parts)
+    return format_line_item_date(
+        format_date_parts(year, month, day)
+    )
 
 
 def person_name_sort_key(person):

@@ -62,16 +62,14 @@ class AddChildDialog(tk.Toplevel):
         self.other_parent_kind = "unknown"
         self.other_parent_is_alternate = False
         self.parent_tab_name = None
+        self.other_parent_picker_dialog = None
+        self.new_child_dialog = None
         self.search_value = tk.StringVar()
-        self.show_birthing_value = tk.BooleanVar(value=True)
-        self.show_non_birthing_value = tk.BooleanVar(value=True)
         self.partner_summary_value = tk.StringVar(value="Other parent: Unknown")
         self.new_parent_value = tk.StringVar(value="No new person selected.")
         self.new_child_value = tk.StringVar(value="No new child entered")
         self.age_rule_value = tk.StringVar()
         self.search_value.trace_add("write", self.filter_children)
-        self.show_birthing_value.trace_add("write", self.filter_children)
-        self.show_non_birthing_value.trace_add("write", self.filter_children)
 
         self.title("Add child")
         self.geometry("760x700")
@@ -79,6 +77,7 @@ class AddChildDialog(tk.Toplevel):
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent.winfo_toplevel())
         self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self.close_dialog)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -224,7 +223,7 @@ class AddChildDialog(tk.Toplevel):
         cancel_button = SoftButton(
             footer,
             text="Cancel",
-            command=self.destroy,
+            command=self.close_dialog,
             background=SURFACE,
             width=88,
             height=36,
@@ -347,7 +346,7 @@ class AddChildDialog(tk.Toplevel):
     def build_child_screen(self):
         self.child_screen = tk.Frame(self.card, bg=SURFACE)
         self.child_screen.grid(row=0, column=0, sticky="nsew")
-        self.child_screen.grid_rowconfigure(7, weight=1)
+        self.child_screen.grid_rowconfigure(6, weight=1)
         self.child_screen.grid_columnconfigure(0, weight=1)
 
         step_label = tk.Label(
@@ -417,39 +416,6 @@ class AddChildDialog(tk.Toplevel):
         search.grid(row=4, column=0, sticky="ew")
         self.search_entry = search
 
-        filter_row = tk.Frame(self.child_screen, bg=SURFACE)
-        filter_row.grid(row=5, column=0, sticky="ew", pady=(7, 0))
-
-        birthing_check = tk.Checkbutton(
-            filter_row,
-            text="See birthing options",
-            variable=self.show_birthing_value,
-            bg=SURFACE,
-            fg=TEXT_DARK,
-            activebackground=SURFACE,
-            activeforeground=TEXT_DARK,
-            selectcolor=FIELD_BACKGROUND,
-            font=app_font(9, "bold"),
-            borderwidth=0,
-            highlightthickness=0,
-        )
-        birthing_check.pack(side="left")
-
-        non_birthing_check = tk.Checkbutton(
-            filter_row,
-            text="See non-birthing options",
-            variable=self.show_non_birthing_value,
-            bg=SURFACE,
-            fg=TEXT_DARK,
-            activebackground=SURFACE,
-            activeforeground=TEXT_DARK,
-            selectcolor=FIELD_BACKGROUND,
-            font=app_font(9, "bold"),
-            borderwidth=0,
-            highlightthickness=0,
-        )
-        non_birthing_check.pack(side="left", padx=(14, 0))
-
         new_child_summary = tk.Label(
             self.child_screen,
             textvariable=self.new_child_value,
@@ -460,10 +426,10 @@ class AddChildDialog(tk.Toplevel):
             padx=10,
             pady=7,
         )
-        new_child_summary.grid(row=6, column=0, sticky="ew", pady=(7, 8))
+        new_child_summary.grid(row=5, column=0, sticky="ew", pady=(7, 8))
 
         list_frame = tk.Frame(self.child_screen, bg=SURFACE)
-        list_frame.grid(row=7, column=0, sticky="nsew")
+        list_frame.grid(row=6, column=0, sticky="nsew")
         list_frame.grid_rowconfigure(0, weight=1)
         list_frame.grid_columnconfigure(0, weight=1)
 
@@ -490,7 +456,7 @@ class AddChildDialog(tk.Toplevel):
         self.child_listbox.configure(yscrollcommand=scrollbar.set)
 
         footer = tk.Frame(self.child_screen, bg=SURFACE)
-        footer.grid(row=8, column=0, sticky="ew", pady=(14, 0))
+        footer.grid(row=7, column=0, sticky="ew", pady=(14, 0))
 
         enter_new_button = SoftButton(
             footer,
@@ -518,7 +484,7 @@ class AddChildDialog(tk.Toplevel):
         cancel_button = SoftButton(
             footer,
             text="Cancel",
-            command=self.destroy,
+            command=self.close_dialog,
             background=SURFACE,
             width=88,
             height=36,
@@ -625,7 +591,27 @@ class AddChildDialog(tk.Toplevel):
         self.show_child_screen()
 
     def open_other_parent_picker(self):
-        self.open_other_parent_command(self, self.set_other_parent, "")
+        if self.other_parent_picker_dialog is not None:
+            try:
+                if self.other_parent_picker_dialog.winfo_exists():
+                    self.other_parent_picker_dialog.deiconify()
+                    self.other_parent_picker_dialog.lift()
+                    return self.other_parent_picker_dialog
+            except tk.TclError:
+                pass
+
+            self.other_parent_picker_dialog = None
+
+        self.other_parent_picker_dialog = self.open_other_parent_command(
+            self,
+            self.set_other_parent,
+            "",
+        )
+
+        if self.other_parent_picker_dialog is not None:
+            self.other_parent_picker_dialog.lift()
+
+        return self.other_parent_picker_dialog
 
     def set_other_parent(self, record_id, is_alternate=False):
         selected_person = None
@@ -767,17 +753,11 @@ class AddChildDialog(tk.Toplevel):
             return
 
         query = self.search_value.get().strip().casefold()
-        show_birthing = self.show_birthing_value.get()
-        show_non_birthing = self.show_non_birthing_value.get()
         selected_child_id = self.selected_child_record_id()
         self.visible_children = [
             person
             for person in self.eligible_children
             if (
-                (bool(person.get("can_give_birth")) and show_birthing)
-                or (not bool(person.get("can_give_birth")) and show_non_birthing)
-            )
-            and (
                 not query
                 or query in str(person.get("displayed_name", "")).casefold()
             )
@@ -785,13 +765,10 @@ class AddChildDialog(tk.Toplevel):
         self.child_listbox.delete(0, "end")
 
         for index, person in enumerate(self.visible_children):
-            role_text = (
-                "birthing" if bool(person.get("can_give_birth")) else "non-birthing"
-            )
             self.child_listbox.insert(
                 "end",
                 f"{format_person_date(person)}: "
-                f"{person.get('displayed_name', 'Unnamed')} ({role_text})",
+                f"{person.get('displayed_name', 'Unnamed')}",
             )
             self.child_listbox.itemconfigure(
                 index,
@@ -811,7 +788,23 @@ class AddChildDialog(tk.Toplevel):
         self.new_child_value.set("Using the selected existing child")
 
     def open_new_child_dialog(self):
-        BasicChildDialog(self, self.set_new_child)
+        if self.new_child_dialog is not None:
+            try:
+                if self.new_child_dialog.winfo_exists():
+                    self.new_child_dialog.deiconify()
+                    self.new_child_dialog.lift()
+                    return self.new_child_dialog
+            except tk.TclError:
+                pass
+
+            self.new_child_dialog = None
+
+        self.new_child_dialog = BasicChildDialog(
+            self,
+            self.set_new_child,
+        )
+        self.new_child_dialog.lift()
+        return self.new_child_dialog
 
     def set_new_child(self, profile_values):
         values = dict(profile_values or {})
@@ -826,17 +819,20 @@ class AddChildDialog(tk.Toplevel):
             "death_month": values.get("death_month"),
             "death_day": values.get("death_day"),
         }
-        role_text = (
-            "birthing" if self.new_child_can_give_birth else "non-birthing"
+        birth_capability_text = (
+            "can give birth"
+            if self.new_child_can_give_birth
+            else "cannot give birth"
         )
         date_text = format_person_date(self.new_child_profile)
         date_suffix = f" · {date_text}" if date_text != "nd." else ""
         death_suffix = " · dead" if self.new_child_profile["deceased"] else ""
         self.new_child_value.set(
-            f"New child: {self.new_child_name} ({role_text})"
+            f"New child: {self.new_child_name} ({birth_capability_text})"
             f"{date_suffix}{death_suffix}"
         )
         self.child_listbox.selection_clear(0, "end")
+        self.after_idle(self.save_child)
         return True
 
     def selected_child_record_id(self):
@@ -889,9 +885,26 @@ class AddChildDialog(tk.Toplevel):
             return
 
         if saved_child is not None:
-            self.destroy()
+            self.close_dialog()
 
     def close_dialog(self, event=None):
+        nested_dialogs = (
+            self.other_parent_picker_dialog,
+            self.new_child_dialog,
+        )
+        self.other_parent_picker_dialog = None
+        self.new_child_dialog = None
+
+        for nested_dialog in nested_dialogs:
+            if nested_dialog is None:
+                continue
+
+            try:
+                if nested_dialog.winfo_exists():
+                    nested_dialog.destroy()
+            except tk.TclError:
+                pass
+
         self.destroy()
         return "break"
 
@@ -899,6 +912,11 @@ class AddChildDialog(tk.Toplevel):
 class BasicChildDialog(tk.Toplevel):
     def __init__(self, parent, save_command):
         super().__init__(parent)
+        try:
+            self.previous_grab = parent.grab_current()
+        except tk.TclError:
+            self.previous_grab = None
+
         self.save_command = save_command
         self.displayed_name_value = tk.StringVar()
         self.can_give_birth_value = tk.BooleanVar(value=False)
@@ -1099,7 +1117,7 @@ class BasicChildDialog(tk.Toplevel):
         cancel_button = SoftButton(
             footer,
             text="Cancel",
-            command=self.destroy,
+            command=self.close_dialog,
             background=SURFACE,
             width=88,
             height=36,
@@ -1168,7 +1186,7 @@ class BasicChildDialog(tk.Toplevel):
         }
 
         if self.save_command(profile_values):
-            self.destroy()
+            self.close_dialog()
 
     def deceased_changed(self, *arguments):
         if self.deceased_value.get():
@@ -1178,4 +1196,12 @@ class BasicChildDialog(tk.Toplevel):
 
     def close_dialog(self, event=None):
         self.destroy()
+
+        if self.previous_grab is not None:
+            try:
+                if self.previous_grab.winfo_exists():
+                    self.previous_grab.grab_set()
+            except tk.TclError:
+                pass
+
         return "break"

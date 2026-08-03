@@ -59,6 +59,88 @@ SORT_OPTIONS = (
     SORT_GROUP,
     SORT_AGE,
 )
+GENERATION_MAX_SPAN_YEARS = 20
+GENERATION_FILTER_PREFIX = "Generation "
+
+
+def approximate_generation_map(people):
+    people_by_id = {
+        str(person.get("record_id", "") or "").strip(): person
+        for person in people or []
+        if isinstance(person, dict)
+        and str(person.get("record_id", "") or "").strip()
+    }
+    generations = {}
+    dated_people = []
+
+    for record_id, person in people_by_id.items():
+        value = person.get("birth_year")
+
+        if isinstance(value, bool) or value in (None, ""):
+            continue
+
+        try:
+            birth_year = int(value)
+        except (TypeError, ValueError):
+            continue
+
+        birth_month = person.get("birth_month")
+        birth_day = person.get("birth_day")
+
+        try:
+            birth_month = int(birth_month)
+        except (TypeError, ValueError):
+            birth_month = 13
+
+        try:
+            birth_day = int(birth_day)
+        except (TypeError, ValueError):
+            birth_day = 32
+
+        dated_people.append(
+            (
+                birth_year,
+                birth_month,
+                birth_day,
+                record_id,
+                person,
+            )
+        )
+
+    dated_people.sort()
+    current_generation = 0
+    oldest_birth_year_in_generation = None
+
+    for birth_year, _, _, record_id, person in dated_people:
+        parent_ids = {
+            str(person.get(field_name, "") or "").strip()
+            for field_name in (
+                "biological_mother_id",
+                "biological_father_id",
+            )
+            if str(person.get(field_name, "") or "").strip()
+        }
+        parent_in_last_generation = any(
+            generations.get(parent_id) == current_generation
+            for parent_id in parent_ids
+        )
+        exceeds_last_generation_span = bool(
+            oldest_birth_year_in_generation is not None
+            and birth_year - oldest_birth_year_in_generation
+            > GENERATION_MAX_SPAN_YEARS
+        )
+
+        if (
+            current_generation == 0
+            or parent_in_last_generation
+            or exceeds_last_generation_span
+        ):
+            current_generation += 1
+            oldest_birth_year_in_generation = birth_year
+
+        generations[record_id] = current_generation
+
+    return generations
 
 
 class PeopleList(tk.Frame):
@@ -68,11 +150,16 @@ class PeopleList(tk.Frame):
         selection_command,
         create_command,
         period_provider=None,
+        initial_period_filter="",
+        period_filter_change_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.selection_command = selection_command
         self.create_command = create_command
         self.period_provider = period_provider
+        self.period_filter_change_command = (
+            period_filter_change_command
+        )
         self.people = []
         self.periods = []
         self.periods_by_name = {}
@@ -87,9 +174,12 @@ class PeopleList(tk.Frame):
         self.group_names_by_id = {}
         self.initial_values_complete_by_id = {}
         self.unfinished_by_id = {}
+        self.generation_by_id = {}
+        self.generation_filter_options = [FILTER_SHOW_ALL]
         self.selected_record_id = None
         self.hovered_record_id = None
         self.filter_updates_paused = False
+        self.refresh_periods(rebuild=False)
 
         self.grid_rowconfigure(4, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -136,9 +226,25 @@ class PeopleList(tk.Frame):
         self.age_filter_value = tk.StringVar(
             value=FILTER_SHOW_ALL
         )
+        requested_initial_period = str(
+            initial_period_filter or ""
+        ).strip()
+        initial_period_label = FILTER_SHOW_ALL
+
+        if requested_initial_period in self.periods_by_name:
+            initial_period_label = self.period_filter_label(
+                requested_initial_period
+            )
+        elif requested_initial_period in self.period_names_by_filter_label:
+            initial_period_label = requested_initial_period
+
         self.period_filter_value = tk.StringVar(
+            value=initial_period_label
+        )
+        self.generation_filter_value = tk.StringVar(
             value=FILTER_SHOW_ALL
         )
+        self.unfinished_only_value = tk.BooleanVar(value=False)
         self.sort_value = tk.StringVar(
             value=SORT_BIRTH_YEAR
         )
@@ -205,7 +311,6 @@ class PeopleList(tk.Frame):
             borderwidth=1,
             font=app_font(10),
         )
-        self.refresh_periods(rebuild=False)
         self.rebuild_filter_menu()
         self.group_filter_value.trace_add(
             "write",
@@ -216,6 +321,14 @@ class PeopleList(tk.Frame):
             self.filter_people,
         )
         self.period_filter_value.trace_add(
+            "write",
+            self.period_filter_changed,
+        )
+        self.generation_filter_value.trace_add(
+            "write",
+            self.filter_people,
+        )
+        self.unfinished_only_value.trace_add(
             "write",
             self.filter_people,
         )
@@ -235,7 +348,7 @@ class PeopleList(tk.Frame):
         period_filter.grid_columnconfigure(1, weight=1)
         period_filter_label = tk.Label(
             period_filter,
-            text="Alive in",
+            text="Born in",
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
@@ -259,6 +372,55 @@ class PeopleList(tk.Frame):
             row=0,
             column=1,
             sticky="ew",
+        )
+        generation_filter_label = tk.Label(
+            period_filter,
+            text="Generation",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        generation_filter_label.grid(
+            row=1,
+            column=0,
+            sticky="w",
+            padx=(0, 8),
+            pady=(7, 0),
+        )
+        self.generation_filter_select = RoundedSelect(
+            period_filter,
+            self.generation_filter_value,
+            self.generation_filter_options,
+            background=SURFACE,
+            height=34,
+            font=app_font(9),
+        )
+        self.generation_filter_select.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            pady=(7, 0),
+        )
+        self.unfinished_only_check = tk.Checkbutton(
+            period_filter,
+            text="Only show unfinished",
+            variable=self.unfinished_only_value,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        self.unfinished_only_check.grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(7, 0),
         )
 
         list_container = tk.Frame(self, bg=SURFACE)
@@ -406,6 +568,7 @@ class PeopleList(tk.Frame):
             self.filter_updates_paused = previous_filter_pause
 
         self.selected_record_id = selected_record_id
+        self.refresh_generation_assignments()
         self.rebuild_rows()
 
     def refresh_periods(self, rebuild=True):
@@ -485,6 +648,9 @@ class PeopleList(tk.Frame):
                 self.period_filter_options
             )
 
+        if hasattr(self, "generation_filter_value"):
+            self.refresh_generation_assignments()
+
         if rebuild and hasattr(self, "canvas"):
             self.rebuild_rows()
 
@@ -552,6 +718,25 @@ class PeopleList(tk.Frame):
                 value=period_label,
             )
 
+        generation_menu = tk.Menu(
+            self.filter_menu,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+
+        for generation_label in self.generation_filter_options:
+            generation_menu.add_radiobutton(
+                label=generation_label,
+                variable=self.generation_filter_value,
+                value=generation_label,
+            )
+
         sort_menu = tk.Menu(
             self.filter_menu,
             tearoff=False,
@@ -584,6 +769,10 @@ class PeopleList(tk.Frame):
             menu=period_menu,
         )
         self.filter_menu.add_cascade(
+            label="Generation",
+            menu=generation_menu,
+        )
+        self.filter_menu.add_cascade(
             label="Sort by",
             menu=sort_menu,
         )
@@ -612,6 +801,7 @@ class PeopleList(tk.Frame):
         selected_group = self.group_filter_value.get()
         selected_age = self.age_filter_value.get()
         selected_period = self.period_filter_value.get()
+        selected_generation = self.generation_filter_value.get()
 
         if selected_group != FILTER_SHOW_ALL:
             selected_parts.append(selected_group)
@@ -622,11 +812,93 @@ class PeopleList(tk.Frame):
         if selected_period != FILTER_SHOW_ALL:
             selected_parts.append(selected_period)
 
+        if selected_generation != FILTER_SHOW_ALL:
+            selected_parts.append(selected_generation)
+
+        if self.unfinished_only_value.get():
+            selected_parts.append("Unfinished only")
+
         if not selected_parts:
             selected_parts.append("All people")
 
         selected_parts.append(self.sort_value.get())
         self.filter_summary_value.set(" · ".join(selected_parts))
+
+    def period_filter_changed(self, *arguments):
+        if self.filter_updates_paused:
+            return
+
+        self.remember_period_filter()
+        self.refresh_generation_assignments()
+        self.filter_people()
+
+    def remember_period_filter(self):
+        period_filter_change_command = getattr(
+            self,
+            "period_filter_change_command",
+            None,
+        )
+
+        if not callable(period_filter_change_command):
+            return False
+
+        selected_label = self.period_filter_value.get()
+        selected_period_name = self.period_names_by_filter_label.get(
+            selected_label,
+            selected_label,
+        )
+
+        if selected_period_name == FILTER_SHOW_ALL:
+            selected_period_name = ""
+
+        return bool(
+            period_filter_change_command(selected_period_name)
+        )
+
+    def refresh_generation_assignments(self):
+        selected_period = (
+            self.period_filter_value.get()
+            if hasattr(self, "period_filter_value")
+            else FILTER_SHOW_ALL
+        )
+        generation_people = [
+            person
+            for person in getattr(self, "people", [])
+            if self.matches_period_filter(person, selected_period)
+        ]
+        self.generation_by_id = approximate_generation_map(
+            generation_people
+        )
+        generation_numbers = sorted(
+            set(self.generation_by_id.values())
+        )
+        self.generation_filter_options = [
+            FILTER_SHOW_ALL,
+            *[
+                f"{GENERATION_FILTER_PREFIX}{generation_number}"
+                for generation_number in generation_numbers
+            ],
+        ]
+
+        if (
+            hasattr(self, "generation_filter_value")
+            and self.generation_filter_value.get()
+            not in self.generation_filter_options
+        ):
+            previous_filter_pause = self.filter_updates_paused
+            self.filter_updates_paused = True
+            self.generation_filter_value.set(FILTER_SHOW_ALL)
+            self.filter_updates_paused = previous_filter_pause
+
+        if hasattr(self, "generation_filter_select"):
+            self.generation_filter_select.set_values(
+                self.generation_filter_options
+            )
+
+        if hasattr(self, "filter_menu"):
+            self.rebuild_filter_menu()
+
+        return dict(self.generation_by_id)
 
     def format_birth_date(self, person):
         year = person.get("birth_year")
@@ -714,7 +986,19 @@ class PeopleList(tk.Frame):
         if hasattr(self, "period_filter_value"):
             self.period_filter_value.set(FILTER_SHOW_ALL)
 
+        if hasattr(self, "generation_filter_value"):
+            self.generation_filter_value.set(FILTER_SHOW_ALL)
+
+        if hasattr(self, "unfinished_only_value"):
+            self.unfinished_only_value.set(False)
+
         self.filter_updates_paused = False
+
+        if hasattr(self, "period_filter_value"):
+            self.remember_period_filter()
+
+        if hasattr(self, "generation_filter_value"):
+            self.refresh_generation_assignments()
 
         if hasattr(self, "filter_summary_value"):
             self.update_filter_summary()
@@ -827,16 +1111,33 @@ class PeopleList(tk.Frame):
         period_start = int(period["calculation_start_year"])
         period_end = int(period["calculation_end_year"])
 
-        if birth_year > period_end:
-            return False
+        return period_start <= birth_year <= period_end
 
-        death_year = self.integer_value(person.get("death_year"))
-        has_death_date = bool(person.get("deceased")) or death_year is not None
-
-        if not has_death_date or death_year is None:
+    def matches_generation_filter(
+        self,
+        person,
+        selected_generation,
+    ):
+        if selected_generation == FILTER_SHOW_ALL:
             return True
 
-        return death_year >= period_start
+        generation_text = str(selected_generation or "").strip()
+
+        if not generation_text.startswith(GENERATION_FILTER_PREFIX):
+            return True
+
+        try:
+            requested_generation = int(
+                generation_text[len(GENERATION_FILTER_PREFIX):]
+            )
+        except (TypeError, ValueError):
+            return True
+
+        record_id = str(person.get("record_id", "") or "").strip()
+        return (
+            getattr(self, "generation_by_id", {}).get(record_id)
+            == requested_generation
+        )
 
     def person_sort_key(self, person):
         selected_sort = (
@@ -897,6 +1198,16 @@ class PeopleList(tk.Frame):
             if hasattr(self, "period_filter_value")
             else FILTER_SHOW_ALL
         )
+        selected_generation = (
+            self.generation_filter_value.get()
+            if hasattr(self, "generation_filter_value")
+            else FILTER_SHOW_ALL
+        )
+        unfinished_only = (
+            self.unfinished_only_value.get()
+            if hasattr(self, "unfinished_only_value")
+            else False
+        )
         matched_people = []
 
         for person in self.people:
@@ -919,6 +1230,19 @@ class PeopleList(tk.Frame):
                 continue
 
             if not self.matches_period_filter(person, selected_period):
+                continue
+
+            if not self.matches_generation_filter(
+                person,
+                selected_generation,
+            ):
+                continue
+
+            if unfinished_only and not getattr(
+                self,
+                "unfinished_by_id",
+                {},
+            ).get(record_id, False):
                 continue
 
             matched_people.append(person)

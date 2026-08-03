@@ -23,6 +23,9 @@ from mage_maker.sections.settings.simulation import (
 )
 
 
+PEOPLE_PERIOD_FILTER_SETTING_KEY = "people_period_filter"
+
+
 class ApplicationSettingsController:
     def __init__(self, database):
         self.database = database
@@ -43,6 +46,35 @@ class ApplicationSettingsController:
         return normalize_development_assignment_policy(
             settings.get(DEVELOPMENT_ASSIGNMENT_SETTING_KEY)
         )
+
+    def people_period_filter(self):
+        settings = self.application_settings()
+        return str(
+            settings.get(PEOPLE_PERIOD_FILTER_SETTING_KEY, "") or ""
+        ).strip()
+
+    def set_people_period_filter(self, period_name):
+        normalized_period_name = str(period_name or "").strip()
+        settings = self.application_settings()
+
+        if (
+            str(
+                settings.get(
+                    PEOPLE_PERIOD_FILTER_SETTING_KEY,
+                    "",
+                )
+                or ""
+            ).strip()
+            == normalized_period_name
+        ):
+            return False
+
+        settings[PEOPLE_PERIOD_FILTER_SETTING_KEY] = (
+            normalized_period_name
+        )
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True
 
     def set_development_assignment_policy(self, policy):
         normalized_policy = normalize_development_assignment_policy(

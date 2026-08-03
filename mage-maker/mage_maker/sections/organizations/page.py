@@ -2,7 +2,10 @@ import tkinter as tk
 from copy import deepcopy
 from tkinter import messagebox, simpledialog, ttk
 
-from mage_maker.core.dates import format_historical_display_date
+from mage_maker.core.dates import (
+    format_historical_display_date,
+    format_line_item_date,
+)
 from mage_maker.core.wizarding_currency import (
     currency_component_input_is_valid,
 )
@@ -4298,7 +4301,7 @@ class OrganizationPage(tk.Frame):
         }
 
         for index, event in enumerate(self.organization_events):
-            date_text = format_historical_display_date(
+            date_text = format_line_item_date(
                 event.get("date")
                 or (
                     str(event.get("year"))

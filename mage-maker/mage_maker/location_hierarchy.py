@@ -3,6 +3,7 @@ from tkinter import messagebox
 
 from mage_maker.core.dates import (
     format_historical_display_date,
+    format_line_item_date,
     split_partial_date,
 )
 from mage_maker.sections.locations.location_hierarchy import (
@@ -839,7 +840,7 @@ class LocationPage(tk.Frame):
         self.visible_events = self.controller.timeline_for(self.current_location_id)
 
         for index, event in enumerate(self.visible_events):
-            date_text = format_historical_display_date(
+            date_text = format_line_item_date(
                 event.get("date")
             )
             source_text = ""

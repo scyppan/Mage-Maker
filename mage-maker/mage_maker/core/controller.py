@@ -27,7 +27,10 @@ from mage_maker.sections.development.initial_values import (
     resolved_developmental_environment,
     synchronized_family_parental_values,
 )
-from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap
+from mage_maker.sections.family_tree.relationships import (
+    FamilyRelationshipMap,
+    person_can_give_birth,
+)
 from mage_maker.sections.family_tree.spouse_relationships import (
     empty_spouse_relationship,
     merge_mate_ids,
@@ -406,15 +409,45 @@ class PeopleController:
         prospective_person = deepcopy(current_person)
         prospective_person.update(normalized)
         prospective_person = self.canonicalize_parent_states(prospective_person)
-        prospective_person["blood_status"] = normalize_blood_status(
-            prospective_person.get("blood_status")
-        )
-        prospective_person["developmental_environment"] = (
-            normalize_developmental_environment(
-                prospective_person.get("developmental_environment"),
-                prospective_person["blood_status"],
+        parentage_changed = any(
+            prospective_person.get(field_name)
+            != current_person.get(field_name)
+            for field_name in (
+                "biological_mother_id",
+                "biological_mother_status",
+                "biological_father_id",
+                "biological_father_status",
             )
         )
+
+        if parentage_changed and "blood_status" not in normalized:
+            people = self.database.list_people()
+            prospective_person["blood_status"] = resolved_blood_status(
+                prospective_person,
+                people,
+            )
+            prospective_person["developmental_environment"] = (
+                resolved_developmental_environment(
+                    prospective_person,
+                    people,
+                )
+            )
+            normalized["blood_status"] = prospective_person[
+                "blood_status"
+            ]
+            normalized["developmental_environment"] = (
+                prospective_person["developmental_environment"]
+            )
+        else:
+            prospective_person["blood_status"] = normalize_blood_status(
+                prospective_person.get("blood_status")
+            )
+            prospective_person["developmental_environment"] = (
+                normalize_developmental_environment(
+                    prospective_person.get("developmental_environment"),
+                    prospective_person["blood_status"],
+                )
+            )
         prospective_person["parental_values"] = (
             normalize_parental_values(
                 prospective_person.get("parental_values")
@@ -972,7 +1005,7 @@ class PeopleController:
                     "children and cannot be added as a parent."
                 )
 
-            if bool(parent.get("can_give_birth")) != required_capability:
+            if person_can_give_birth(parent) != required_capability:
                 requirement = "checked" if required_capability else "unchecked"
                 raise ValueError(
                     f"A {role_label} must have Can give birth {requirement}."
@@ -989,7 +1022,7 @@ class PeopleController:
             if record_id and parent_id in relationship_map.descendants_of(record_id):
                 raise ValueError("A descendant cannot also be a biological parent.")
 
-        current_can_give_birth = bool(values.get("can_give_birth"))
+        current_can_give_birth = person_can_give_birth(values)
 
         for mate_id in mate_ids:
             if mate_id == record_id:
@@ -1000,7 +1033,7 @@ class PeopleController:
             if mate is None:
                 raise ValueError("A selected mate no longer exists.")
 
-            if bool(mate.get("can_give_birth")) == current_can_give_birth:
+            if person_can_give_birth(mate) == current_can_give_birth:
                 raise ValueError(
                     "Mates must have opposite Can give birth assignments."
                 )

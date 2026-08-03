@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import messagebox
 
-from mage_maker.core.dates import format_historical_display_date
+from mage_maker.core.dates import (
+    format_historical_display_date,
+    format_line_item_date,
+)
 from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
@@ -1650,7 +1653,7 @@ class LocationPage(tk.Frame):
 
                 continue
 
-            date_text = format_historical_display_date(
+            date_text = format_line_item_date(
                 event.get("date")
             )
             source_text = ""

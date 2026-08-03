@@ -74,7 +74,12 @@ class MagesPage(tk.Frame):
         self.refresh_people()
 
         if self.people:
-            self.load_person(self.people[0]["record_id"])
+            initial_record_id = (
+                self.people_list.visible_record_ids[0]
+                if self.people_list.visible_record_ids
+                else self.people[0]["record_id"]
+            )
+            self.load_person(initial_record_id)
 
     def build_workspace(self):
         workspace = tk.PanedWindow(
@@ -101,11 +106,38 @@ class MagesPage(tk.Frame):
         )
         list_card.grid_rowconfigure(0, weight=1)
         list_card.grid_columnconfigure(0, weight=1)
+        initial_period_filter = ""
+        period_filter_change_command = None
+
+        if self.settings_provider is not None:
+            period_filter_provider = getattr(
+                self.settings_provider,
+                "people_period_filter",
+                None,
+            )
+            stored_period_change_command = getattr(
+                self.settings_provider,
+                "set_people_period_filter",
+                None,
+            )
+
+            if callable(period_filter_provider):
+                initial_period_filter = period_filter_provider()
+
+            if callable(stored_period_change_command):
+                period_filter_change_command = (
+                    stored_period_change_command
+                )
+
         self.people_list = PeopleList(
             list_card,
             selection_command=self.select_person,
             create_command=self.open_creation_wizard,
             period_provider=load_period_definitions,
+            initial_period_filter=initial_period_filter,
+            period_filter_change_command=(
+                period_filter_change_command
+            ),
         )
         self.people_list.grid(row=0, column=0, sticky="nsew")
         editor_card = tk.Frame(
@@ -433,9 +465,10 @@ class MagesPage(tk.Frame):
             (
                 f"{error}\n\n"
                 "Make the parent locations match before saving, or choose Yes "
-                "to use the birthing parent's location and add the long-distance "
-                "relationship note to Born.\n\n"
-                "Use the long-distance override?"
+                "to use the birthing parent's location, remember that choice "
+                "for these parents, and add ‘Father not present at time of "
+                "birth.’ to Born.\n\n"
+                "Use the birth-location override?"
             ),
             parent=self,
             icon="warning",

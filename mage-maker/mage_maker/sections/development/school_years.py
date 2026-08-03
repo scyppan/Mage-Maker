@@ -8,6 +8,7 @@ from mage_maker.sections.development.characteristics import (
     normalize_characteristic_name,
 )
 from mage_maker.sections.development.initial_bonuses import (
+    SCHEMA_ABILITIES,
     STRATEGY_PREFERENCE_PROBABILITY,
     preferred_development_skills,
 )
@@ -72,6 +73,14 @@ def preferred_development_abilities(development_plan):
             preferred_abilities.append(
                 normalize_development_ability(focused_ability)
             )
+
+    schema_abilities = SCHEMA_ABILITIES.get(plan["schema"], ())
+
+    if schema_abilities:
+        return [
+            normalize_development_ability(ability)
+            for ability in schema_abilities
+        ]
 
     for skill in preferred_development_skills(plan):
         ability = DEVELOPMENT_ABILITY_BY_SKILL.get(skill)

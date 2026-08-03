@@ -4,7 +4,10 @@ from copy import deepcopy
 from functools import partial
 from tkinter import messagebox
 
-from mage_maker.core.dates import format_historical_display_date
+from mage_maker.core.dates import (
+    format_historical_display_date,
+    format_line_item_date,
+)
 from mage_maker.sections.events.period_view import (
     PeriodEventsView as UnifiedPeriodEventsView,
 )
@@ -1244,7 +1247,7 @@ class LegacyPeriodEventsView(tk.Frame):
         self.title_value.set(f"Events ({len(self.events)})")
 
         for index, event in enumerate(self.events):
-            date_text = format_historical_display_date(
+            date_text = format_line_item_date(
                 event.get("date")
             )
             event_type = self.event_type_text(event)

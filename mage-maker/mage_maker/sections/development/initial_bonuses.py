@@ -42,11 +42,25 @@ SCHEMA_SKILLS = {
     ),
     "Ingredient Crafting": (
         "Herbology",
-        "Creatures",
         "Potions",
+        "Creatures",
     ),
     "Spell-crafting": (
-        "Runes",
+        "Charms",
+        "Transfiguration",
+        "Defense",
+        "Dark Arts",
+    ),
+}
+SCHEMA_ABILITIES = {
+    "Material Crafting": (
+        "Panache",
+    ),
+    "Ingredient Crafting": (
+        "Naturalism",
+    ),
+    "Spell-crafting": (
+        "Power",
     ),
 }
 SOCIAL_SKILLS = (
@@ -66,7 +80,6 @@ SCHEMA_TRAITS = {
         "Environmentalist",
     ),
     "Spell-crafting": (
-        "Runologist",
         "Crafty",
     ),
     "Social": (

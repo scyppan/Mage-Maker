@@ -4,7 +4,7 @@ from tkinter import messagebox
 from uuid import uuid4
 
 from mage_maker.core.dates import (
-    format_historical_display_date,
+    format_line_item_date,
     historical_days_in_month,
     historical_year_after,
     historical_year_shift,
@@ -56,8 +56,8 @@ EVENT_COLORS = {
     "starting_location": "#DDD2EA",
     "born": "#EAD7E7",
     "birth_name": "#E2D6ED",
-    "gave_birth": "#F1D9E4",
-    "had_child": "#E7D5F0",
+    "gave_birth": "#F7F0C9",
+    "had_child": "#F7F0C9",
     "got_married": "#D5EAD9",
     "romance": "#F7E7EE",
     "breakup": "#F7E7EE",
@@ -84,7 +84,66 @@ TIMELINE_SECTION_DASHES = "-" * 32
 
 
 def format_timeline_date(value):
-    return format_historical_display_date(value)
+    return format_line_item_date(value)
+
+
+def timeline_event_background(
+    event,
+    current_person_id="",
+):
+    event_values = event if isinstance(event, dict) else {}
+    event_type = str(
+        event_values.get("event_type", "") or ""
+    ).strip().casefold()
+    selected_person_id = str(current_person_id or "").strip()
+
+    if event_type in (
+        "romance",
+        "breakup",
+        "relocated",
+        "travel",
+    ):
+        return EVENT_COLORS[event_type]
+
+    if event_type == "born":
+        baby_ids = {
+            str(person_id or "").strip()
+            for person_id in event_values.get("baby_person_ids", [])
+            if str(person_id or "").strip()
+        }
+        parent_ids = {
+            str(person_id or "").strip()
+            for field_name in (
+                "birthing_parent_person_ids",
+                "non_birthing_parent_person_ids",
+            )
+            for person_id in event_values.get(field_name, [])
+            if str(person_id or "").strip()
+        }
+
+        if selected_person_id in parent_ids:
+            return EVENT_COLORS["had_child"]
+
+        if selected_person_id in baby_ids:
+            return EVENT_COLORS["born"]
+
+    if event_type in ("gave_birth", "had_child"):
+        return EVENT_COLORS["had_child"]
+
+    if (
+        event_type == "died"
+        or (
+            event_type == "murder"
+            and selected_person_id
+            in event_values.get("victim_person_ids", [])
+        )
+    ):
+        return EVENT_COLORS["died"]
+
+    if event_values.get("_stored_event"):
+        return LIST_ALTERNATE
+
+    return EVENT_COLORS.get(event_type, FIELD_BACKGROUND)
 
 
 class TimelineView(tk.Frame):
@@ -766,27 +825,9 @@ class TimelineView(tk.Frame):
                 )
                 self.listbox.itemconfigure(
                     row_index,
-                    background=(
-                        EVENT_COLORS[event.get("event_type")]
-                        if event.get("event_type")
-                        in ("romance", "breakup", "relocated", "travel")
-                        else EVENT_COLORS["died"]
-                        if (
-                            event.get("event_type") == "died"
-                            or (
-                                event.get("event_type") == "murder"
-                                and current_person_id
-                                in event.get("victim_person_ids", [])
-                            )
-                        )
-                        else (
-                            LIST_ALTERNATE
-                            if event.get("_stored_event")
-                            else EVENT_COLORS.get(
-                                event.get("event_type"),
-                                FIELD_BACKGROUND,
-                            )
-                        )
+                    background=timeline_event_background(
+                        event,
+                        current_person_id,
                     ),
                 )
 

@@ -8,7 +8,11 @@ from mage_maker.sections.timeline.events import (
 )
 
 
-LONG_DISTANCE_NOTE = "Their parents were in a long distance relationship."
+LONG_DISTANCE_NOTE = "Father not present at time of birth."
+LEGACY_LONG_DISTANCE_NOTE = (
+    "Their parents were in a long distance relationship."
+)
+PRESERVE_PARENT_LOCATION_OVERRIDE = object()
 LIFE_START_SOURCE = "life_start"
 STARTING_LOCATION_EVENT_ID = "life-start:starting-location"
 BORN_EVENT_ID = "life-start:born"
@@ -55,7 +59,7 @@ def ensure_life_start_events(
     person,
     starting_location=None,
     born_note=None,
-    long_distance_parent_ids=None,
+    long_distance_parent_ids=PRESERVE_PARENT_LOCATION_OVERRIDE,
     starting_location_id=None,
 ):
     person_values = person if isinstance(person, dict) else {}
@@ -158,15 +162,26 @@ def ensure_life_start_events(
         }
     )
 
-    if long_distance_parent_ids:
-        born_values["long_distance_parent_ids"] = sorted(
+    if long_distance_parent_ids is PRESERVE_PARENT_LOCATION_OVERRIDE:
+        resolved_parent_location_override_ids = (
+            born_long_distance_parent_ids([born_values])
+        )
+    else:
+        resolved_parent_location_override_ids = sorted(
             {
                 str(parent_id or "").strip()
                 for parent_id in long_distance_parent_ids
                 if str(parent_id or "").strip()
             }
         )
+
+    if resolved_parent_location_override_ids:
+        born_values["parent_location_override_ids"] = (
+            resolved_parent_location_override_ids
+        )
+        born_values.pop("long_distance_parent_ids", None)
     else:
+        born_values.pop("parent_location_override_ids", None)
         born_values.pop("long_distance_parent_ids", None)
 
     return normalize_timeline_events(
@@ -202,7 +217,10 @@ def born_note_from_events(events):
 
 def born_long_distance_parent_ids(events):
     event = first_event_of_type(normalize_timeline_events(events), "born")
-    values = (event or {}).get("long_distance_parent_ids", [])
+    values = (event or {}).get("parent_location_override_ids")
+
+    if values is None:
+        values = (event or {}).get("long_distance_parent_ids", [])
 
     if not isinstance(values, list):
         return []
@@ -412,10 +430,7 @@ def normalize_location(value):
 
 
 def add_long_distance_note(note):
-    existing_note = str(note or "").strip()
-
-    if LONG_DISTANCE_NOTE.casefold() in existing_note.casefold():
-        return existing_note
+    existing_note = remove_long_distance_note(note)
 
     if not existing_note:
         return LONG_DISTANCE_NOTE
@@ -432,6 +447,10 @@ def remove_long_distance_note(note):
     retained_parts = [
         part.strip()
         for part in note_text.split("\n\n")
-        if part.strip().casefold() != LONG_DISTANCE_NOTE.casefold()
+        if part.strip().casefold()
+        not in (
+            LONG_DISTANCE_NOTE.casefold(),
+            LEGACY_LONG_DISTANCE_NOTE.casefold(),
+        )
     ]
     return "\n\n".join(retained_parts)

@@ -1,7 +1,7 @@
 import tkinter as tk
 from copy import deepcopy
 
-from mage_maker.core.dates import format_historical_display_date
+from mage_maker.core.dates import format_line_item_date
 from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
@@ -70,7 +70,7 @@ def period_event_sort_key(event):
 
 
 def period_event_display_text(event):
-    date_text = format_historical_display_date(event.get("date"))
+    date_text = format_line_item_date(event.get("date"))
     title = str(event.get("title", "") or "Event")
     event_summary = (
         title

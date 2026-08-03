@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import messagebox
 
-from mage_maker.sections.family_tree.relationships import format_person_date
+from mage_maker.sections.family_tree.relationships import (
+    format_person_date,
+    person_can_give_birth,
+)
 from mage_maker.sections.family_tree.spouse_relationships import (
     empty_spouse_relationship,
     normalize_spouse_relationships,
@@ -531,7 +534,7 @@ class NewSpousePersonDialog(tk.Toplevel):
         ]
         self.displayed_name_value = tk.StringVar()
         self.can_give_birth_value = tk.BooleanVar(
-            value=not bool(self.focus_person.get("can_give_birth"))
+            value=not person_can_give_birth(self.focus_person)
         )
         self.birth_year_value = tk.StringVar()
         self.birth_month_value = tk.StringVar()

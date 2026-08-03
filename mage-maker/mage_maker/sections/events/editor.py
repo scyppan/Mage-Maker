@@ -2594,7 +2594,7 @@ class EventEditor(tk.Frame):
             selected_type == "died"
             and self.title_value.get().strip() in ("", "New event")
         ):
-            self.title_value.set("Death")
+            self.title_value.set("death")
         elif (
             selected_type == "returns_as_ghost"
             and self.title_value.get().strip() in ("", "New event")

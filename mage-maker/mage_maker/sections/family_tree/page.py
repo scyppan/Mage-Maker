@@ -14,6 +14,7 @@ from mage_maker.sections.family_tree.relationships import (
     FamilyRelationshipMap,
     format_person_date,
     maiden_name_for,
+    person_can_give_birth,
 )
 from mage_maker.sections.family_tree.relationship_picker import RelationshipPickerDialog
 from mage_maker.sections.family_tree.spouse_candidates import (
@@ -505,36 +506,154 @@ class FamilyTreeView(tk.Frame):
 
         if row_index == 2:
             focus_node = None
-            other_nodes = []
+            full_sibling_nodes = []
+            birthing_half_sibling_nodes = []
+            non_birthing_half_sibling_nodes = []
+            birthing_relative_nodes = []
+            non_birthing_relative_nodes = []
+            ungrouped_nodes = []
+            focus_person = self.relationship_map.person(focus_id) or {}
+            birthing_parent_id = str(
+                focus_person.get("biological_mother_id", "") or ""
+            ).strip()
+            non_birthing_parent_id = str(
+                focus_person.get("biological_father_id", "") or ""
+            ).strip()
 
             for node in nodes:
-                if str(node["person"].get("record_id", "")) == focus_id:
-                    focus_node = node
-                else:
-                    other_nodes.append(node)
-
-            positions = []
-
-            if focus_node is not None:
-                positions.append((focus_node, center_x, y_position))
-
-            left_nodes = other_nodes[: (len(other_nodes) + 1) // 2]
-            right_nodes = other_nodes[(len(other_nodes) + 1) // 2 :]
-            left_space = max(138, center_x - graph_left - 96)
-            right_space = max(138, graph_right - center_x - 208)
-
-            for index, node in enumerate(reversed(left_nodes), start=1):
-                x_position = center_x - min(left_space, index * 144)
-                positions.append((node, x_position, y_position))
-
-            for index, node in enumerate(right_nodes, start=1):
-                x_position = center_x + 208 + min(
-                    max(0, right_space - 144),
-                    (index - 1) * 144,
+                record_id = str(
+                    node["person"].get("record_id", "") or ""
                 )
-                positions.append((node, x_position, y_position))
+                relation = str(node.get("relation", "") or "")
 
-            return positions
+                if record_id == focus_id:
+                    focus_node = node
+                elif relation == "Sibling":
+                    full_sibling_nodes.append(node)
+                elif relation == "1/2 Sibling":
+                    parent_ids = set(
+                        self.relationship_map.parents_of(record_id)
+                    )
+
+                    if birthing_parent_id in parent_ids:
+                        birthing_half_sibling_nodes.append(node)
+                    elif non_birthing_parent_id in parent_ids:
+                        non_birthing_half_sibling_nodes.append(node)
+                    else:
+                        ungrouped_nodes.append(node)
+                elif relation == "Birthing parent's cousin":
+                    birthing_relative_nodes.append(node)
+                elif relation == "Non-birthing parent's cousin":
+                    non_birthing_relative_nodes.append(node)
+                else:
+                    ungrouped_nodes.append(node)
+
+            if focus_node is None:
+                spacing = min(
+                    150,
+                    (graph_right - graph_left) / max(1, len(nodes)),
+                )
+                total_width = spacing * (len(nodes) - 1)
+                start_x = center_x - total_width / 2
+                return [
+                    (node, start_x + index * spacing, y_position)
+                    for index, node in enumerate(nodes)
+                ]
+
+            left_full_count = (len(full_sibling_nodes) + 1) // 2
+            left_full_nodes = full_sibling_nodes[:left_full_count]
+            right_full_nodes = full_sibling_nodes[left_full_count:]
+
+            for node in ungrouped_nodes:
+                left_count = (
+                    len(left_full_nodes)
+                    + len(birthing_half_sibling_nodes)
+                    + len(birthing_relative_nodes)
+                )
+                right_count = (
+                    len(right_full_nodes)
+                    + len(non_birthing_half_sibling_nodes)
+                    + len(non_birthing_relative_nodes)
+                )
+
+                if left_count <= right_count:
+                    birthing_relative_nodes.append(node)
+                else:
+                    non_birthing_relative_nodes.append(node)
+
+            sibling_spacing = 144
+            group_gap = 24
+            positioned_nodes = [(focus_node, 0)]
+            left_distance = 0
+            right_distance = 0
+
+            for node in reversed(left_full_nodes):
+                left_distance += sibling_spacing
+                positioned_nodes.append((node, -left_distance))
+
+            if birthing_half_sibling_nodes:
+                left_distance += group_gap
+
+                for node in reversed(birthing_half_sibling_nodes):
+                    left_distance += sibling_spacing
+                    positioned_nodes.append((node, -left_distance))
+
+            if birthing_relative_nodes:
+                left_distance += group_gap
+
+                for node in reversed(birthing_relative_nodes):
+                    left_distance += sibling_spacing
+                    positioned_nodes.append((node, -left_distance))
+
+            for node in right_full_nodes:
+                right_distance += sibling_spacing
+                positioned_nodes.append((node, right_distance))
+
+            if non_birthing_half_sibling_nodes:
+                right_distance += group_gap
+
+                for node in non_birthing_half_sibling_nodes:
+                    right_distance += sibling_spacing
+                    positioned_nodes.append((node, right_distance))
+
+            if non_birthing_relative_nodes:
+                right_distance += group_gap
+
+                for node in non_birthing_relative_nodes:
+                    right_distance += sibling_spacing
+                    positioned_nodes.append((node, right_distance))
+
+            node_half_width = 66
+            left_capacity = max(
+                0,
+                center_x - graph_left - node_half_width,
+            )
+            right_capacity = max(
+                0,
+                graph_right - center_x - node_half_width,
+            )
+            position_scale = 1.0
+
+            if left_distance > left_capacity and left_distance > 0:
+                position_scale = min(
+                    position_scale,
+                    left_capacity / left_distance,
+                )
+
+            if right_distance > right_capacity and right_distance > 0:
+                position_scale = min(
+                    position_scale,
+                    right_capacity / right_distance,
+                )
+
+            return [
+                (
+                    node,
+                    center_x + offset * position_scale,
+                    y_position,
+                )
+                for node, offset in positioned_nodes
+            ]
 
         spacing = min(150, (graph_right - graph_left) / max(1, len(nodes)))
         total_width = spacing * (len(nodes) - 1)
@@ -546,13 +665,36 @@ class FamilyTreeView(tk.Frame):
 
     def draw_relationship_lines(self, visible_generations):
         visible_ids = []
+        visible_nodes = {}
 
-        for nodes in visible_generations:
+        for row_index, nodes in enumerate(visible_generations):
             visible_ids.extend(
                 str(node["person"].get("record_id", ""))
                 for node in nodes
                 if not node.get("placeholder")
             )
+
+            for node in nodes:
+                if node.get("placeholder"):
+                    continue
+
+                record_id = str(
+                    node["person"].get("record_id", "") or ""
+                )
+                visible_nodes[record_id] = (row_index, node)
+
+        focus_id = str(
+            self.current_person.get("record_id", "") or ""
+        )
+        focus_parent_ids = set(
+            self.relationship_map.parents_of(focus_id)
+        )
+        birthing_parent_id = str(
+            self.current_person.get("biological_mother_id", "") or ""
+        ).strip()
+        non_birthing_parent_id = str(
+            self.current_person.get("biological_father_id", "") or ""
+        ).strip()
 
         for parent_id, child_id in self.relationship_map.visible_parent_child_edges(
             visible_ids
@@ -570,6 +712,36 @@ class FamilyTreeView(tk.Frame):
 
             if self.child_is_faded(child_id):
                 line_fill = FAMILY_CHILD_FADED_LINE
+
+            child_node = visible_nodes.get(child_id)
+
+            if (
+                child_node is not None
+                and child_node[0] == 2
+                and child_node[1].get("relation") == "1/2 Sibling"
+                and parent_id in focus_parent_ids
+            ):
+                if parent_id == birthing_parent_id:
+                    parent_side_x = parent_x - parent_width / 2
+                elif parent_id == non_birthing_parent_id:
+                    parent_side_x = parent_x + parent_width / 2
+                elif child_x < parent_x:
+                    parent_side_x = parent_x - parent_width / 2
+                else:
+                    parent_side_x = parent_x + parent_width / 2
+
+                self.canvas.create_line(
+                    parent_side_x,
+                    parent_y,
+                    child_x,
+                    parent_y,
+                    child_x,
+                    child_y - child_height / 2,
+                    fill=line_fill,
+                    width=2,
+                    smooth=False,
+                )
+                continue
 
             self.canvas.create_line(
                 parent_x,
@@ -1168,8 +1340,8 @@ class FamilyTreeView(tk.Frame):
             self.update_person_command(
                 record_id,
                 {
-                    "can_give_birth": not bool(
-                        self.current_person.get("can_give_birth")
+                    "can_give_birth": not person_can_give_birth(
+                        self.current_person
                     )
                 },
             )
@@ -1180,8 +1352,8 @@ class FamilyTreeView(tk.Frame):
         created_person = self.create_person_command(
             {
                 "displayed_name": displayed_name,
-                "can_give_birth": not bool(
-                    self.current_person.get("can_give_birth")
+                "can_give_birth": not person_can_give_birth(
+                    self.current_person
                 ),
             }
         )
@@ -1257,6 +1429,11 @@ class FamilyTreeView(tk.Frame):
             )
             return
 
+        self.reload_people(redraw=False)
+        current_can_give_birth = person_can_give_birth(
+            self.current_person
+        )
+
         ancestors = set(self.relationship_map.ancestors_of(current_id))
         candidates = [
             person
@@ -1273,6 +1450,9 @@ class FamilyTreeView(tk.Frame):
                     "does_not_have_children"
                 )
             )
+            and person_can_give_birth(
+                self.relationship_map.person(mate_id)
+            ) != current_can_give_birth
         ]
         AddChildDialog(
             self,
@@ -1296,17 +1476,19 @@ class FamilyTreeView(tk.Frame):
         child_record_id,
     ):
         current_id = str(self.current_person.get("record_id", "") or "")
-        current_can_give_birth = bool(self.current_person.get("can_give_birth"))
+        current_can_give_birth = person_can_give_birth(
+            self.current_person
+        )
         excluded_ids = [child_record_id] if child_record_id else []
         primary_candidates = self.relationship_map.partner_candidates(
             current_id,
-            include_existing_mates=False,
+            include_existing_mates=True,
             extra_excluded_ids=excluded_ids,
         )
         alternate_candidates = self.relationship_map.partner_candidates(
             current_id,
             alternate_role=True,
-            include_existing_mates=False,
+            include_existing_mates=True,
             extra_excluded_ids=excluded_ids,
         )
         required_role_label = (
@@ -1321,13 +1503,13 @@ class FamilyTreeView(tk.Frame):
             if current_can_give_birth
             else "See non-birthing parent options"
         )
-        RelationshipPickerDialog(
+        return RelationshipPickerDialog(
             dialog_parent,
             title="Choose other parent",
             heading=f"Choose the child's {required_role_label}",
             explanation=(
-                f"Choose a {required_role_label} who is not already listed as a "
-                "mate, or use Enter new for a name-only character entry."
+                f"Choose a {required_role_label}, or use Enter new for a "
+                "name-only character entry."
             ),
             primary_people=primary_candidates,
             alternate_people=alternate_candidates,
@@ -1353,8 +1535,8 @@ class FamilyTreeView(tk.Frame):
         created_person = self.create_person_command(
             {
                 "displayed_name": displayed_name,
-                "can_give_birth": not bool(
-                    self.current_person.get("can_give_birth")
+                "can_give_birth": not person_can_give_birth(
+                    self.current_person
                 ),
             }
         )
@@ -1379,7 +1561,9 @@ class FamilyTreeView(tk.Frame):
                 "be added as a parent."
             )
 
-        current_can_give_birth = bool(self.current_person.get("can_give_birth"))
+        current_can_give_birth = person_can_give_birth(
+            self.current_person
+        )
         current_parent_field = (
             "biological_mother_id"
             if current_can_give_birth
@@ -1409,7 +1593,7 @@ class FamilyTreeView(tk.Frame):
 
             if (
                 other_parent is None
-                or bool(other_parent.get("can_give_birth"))
+                or person_can_give_birth(other_parent)
                 == current_can_give_birth
             ):
                 raise ValueError(
@@ -1457,6 +1641,15 @@ class FamilyTreeView(tk.Frame):
             if child is None:
                 raise ValueError("Select an existing child or enter a new child's name.")
 
+            desired_parent_ids = {
+                str(relationship_values.get(field_name, "") or "")
+                for field_name in (
+                    "biological_mother_id",
+                    "biological_father_id",
+                )
+                if str(relationship_values.get(field_name, "") or "")
+            }
+
             for field_name in (current_parent_field, other_parent_field):
                 parent_id = str(relationship_values.get(field_name, "") or "")
                 existing_parent_id = str(child.get(field_name, "") or "")
@@ -1473,6 +1666,9 @@ class FamilyTreeView(tk.Frame):
                 if (
                     existing_parent_id != parent_id
                     or existing_status != new_status
+                ) and (
+                    existing_parent_id not in desired_parent_ids
+                    or existing_status == "muggle"
                 ) and (existing_parent_id or existing_status == "muggle"):
                     existing_parent = self.relationship_map.person(existing_parent_id)
                     existing_name = (
@@ -1480,12 +1676,24 @@ class FamilyTreeView(tk.Frame):
                         if existing_parent
                         else "another person"
                     )
+                    replacement_parent = self.relationship_map.person(parent_id)
+                    replacement_name = (
+                        replacement_parent.get("displayed_name", "another person")
+                        if replacement_parent
+                        else "Unknown or Muggle"
+                    )
+                    role_label = (
+                        "birthing parent"
+                        if field_name == "biological_mother_id"
+                        else "non-birthing parent"
+                    )
 
                     if not messagebox.askyesno(
                         "Replace parent",
                         (
                             f"{child.get('displayed_name', 'This person')} already lists "
-                            f"{existing_name} in that parent role. Replace that link?"
+                            f"{existing_name} as the {role_label}. Replace that link "
+                            f"with {replacement_name}?"
                         ),
                         parent=self,
                     ):
@@ -1542,9 +1750,10 @@ class FamilyTreeView(tk.Frame):
             (
                 f"{error}\n\n"
                 "Make the parent locations match before assigning this child, "
-                "or choose Yes to use the birthing parent's location and add "
-                "the long-distance relationship note to Born.\n\n"
-                "Use the long-distance override?"
+                "or choose Yes to use the birthing parent's location, remember "
+                "that choice for these parents, and add ‘Father not present at "
+                "time of birth.’ to Born.\n\n"
+                "Use the birth-location override?"
             ),
             parent=self,
             icon="warning",
