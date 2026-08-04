@@ -901,22 +901,23 @@ class PeopleList(tk.Frame):
         return dict(self.generation_by_id)
 
     def format_birth_date(self, person):
-        year = person.get("birth_year")
-        month = person.get("birth_month")
-        day = person.get("birth_day")
+        birth_year = person.get("birth_year")
+        death_year = person.get("death_year")
+        birth_year_text = (
+            str(birth_year)
+            if birth_year not in (None, "")
+            else "Birth year unknown"
+        )
 
-        if year is None:
-            return "Birth date unknown"
+        if bool(person.get("deceased")) or death_year not in (None, ""):
+            death_year_text = (
+                str(death_year)
+                if death_year not in (None, "")
+                else "Death year unknown"
+            )
+            return f"({birth_year_text} - {death_year_text})"
 
-        date_parts = [str(year)]
-
-        if month is not None:
-            date_parts.append(f"{int(month):02d}")
-
-        if day is not None:
-            date_parts.append(f"{int(day):02d}")
-
-        return "Born " + "-".join(date_parts)
+        return f"Born: {birth_year_text}"
 
     def set_selected_record(self, record_id):
         self.selected_record_id = record_id
@@ -947,9 +948,9 @@ class PeopleList(tk.Frame):
                 unfinished
             )
 
-        show_red_border = (
-            not bool(complete)
-            or self.unfinished_by_id.get(normalized_record_id, False)
+        show_red_border = self.unfinished_by_id.get(
+            normalized_record_id,
+            False,
         )
         label = self.row_labels_by_id.get(
             normalized_record_id
@@ -1298,35 +1299,17 @@ class PeopleList(tk.Frame):
                 cursor="hand2",
                 highlightbackground=(
                     LOCKED_BORDER
-                    if (
-                        not self.initial_values_complete_by_id.get(
-                            record_id,
-                            False,
-                        )
-                        or self.unfinished_by_id.get(record_id, False)
-                    )
+                    if self.unfinished_by_id.get(record_id, False)
                     else FIELD_BACKGROUND
                 ),
                 highlightcolor=(
                     LOCKED_BORDER
-                    if (
-                        not self.initial_values_complete_by_id.get(
-                            record_id,
-                            False,
-                        )
-                        or self.unfinished_by_id.get(record_id, False)
-                    )
+                    if self.unfinished_by_id.get(record_id, False)
                     else FIELD_BACKGROUND
                 ),
                 highlightthickness=(
                     2
-                    if (
-                        not self.initial_values_complete_by_id.get(
-                            record_id,
-                            False,
-                        )
-                        or self.unfinished_by_id.get(record_id, False)
-                    )
+                    if self.unfinished_by_id.get(record_id, False)
                     else 0
                 ),
             )

@@ -49,6 +49,7 @@ class MagesPage(tk.Frame):
         settings_provider=None,
         organization_create_command=None,
         organization_location_provider=None,
+        item_controller=None,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
@@ -65,6 +66,7 @@ class MagesPage(tk.Frame):
         self.organization_location_provider = (
             organization_location_provider
         )
+        self.item_controller = item_controller
         self.people = []
         self.current_record_id = None
         self.form_dirty = False
@@ -170,6 +172,8 @@ class MagesPage(tk.Frame):
             organization_location_provider=(
                 self.organization_location_provider
             ),
+            item_controller=self.item_controller,
+            status_command=self.status_command,
         )
         self.person_form.grid(
             row=1,

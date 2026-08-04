@@ -92,6 +92,14 @@ from mage_maker.sections.ledger.models import (
     normalize_ledger_entries,
     reconcile_development_ledger_entries,
 )
+from mage_maker.sections.items.models import (
+    ITEM_CATEGORIES_SETTING_KEY,
+    ITEM_GROUPS_SETTING_KEY,
+    normalize_item_categories,
+    normalize_item_groups,
+    normalize_item_record,
+    normalize_item_records,
+)
 
 
 class JsonDatabase:
@@ -120,9 +128,49 @@ class JsonDatabase:
     def ensure_application_collections(self, database_data):
         changed = False
 
-        for collection_name in ("locations", "organizations", "events"):
+        for collection_name in (
+            "locations",
+            "organizations",
+            "events",
+            "items",
+        ):
             if collection_name not in database_data:
                 database_data[collection_name] = []
+                changed = True
+
+        normalized_items = normalize_item_records(
+            database_data.get("items", [])
+        )
+
+        if database_data.get("items", []) != normalized_items:
+            database_data["items"] = normalized_items
+            changed = True
+
+        settings = database_data.get("_application_settings")
+
+        if isinstance(settings, dict):
+            normalized_categories = normalize_item_categories(
+                settings.get(ITEM_CATEGORIES_SETTING_KEY)
+            )
+
+            if (
+                settings.get(ITEM_CATEGORIES_SETTING_KEY)
+                != normalized_categories
+            ):
+                settings[ITEM_CATEGORIES_SETTING_KEY] = (
+                    normalized_categories
+                )
+                changed = True
+
+            normalized_groups = normalize_item_groups(
+                settings.get(ITEM_GROUPS_SETTING_KEY)
+            )
+
+            if (
+                settings.get(ITEM_GROUPS_SETTING_KEY)
+                != normalized_groups
+            ):
+                settings[ITEM_GROUPS_SETTING_KEY] = normalized_groups
                 changed = True
 
         return changed
@@ -1523,7 +1571,12 @@ class JsonDatabase:
         if not isinstance(database_data.get("people"), list):
             raise TypeError("The database must contain a people collection.")
 
-        for collection_name in ("locations", "organizations", "events"):
+        for collection_name in (
+            "locations",
+            "organizations",
+            "events",
+            "items",
+        ):
             if not isinstance(database_data.get(collection_name), list):
                 raise TypeError(
                     f"The database must contain a {collection_name} collection."
@@ -1547,6 +1600,18 @@ class JsonDatabase:
         if MAGE_GROUPS_SETTING_KEY not in settings:
             raise ValueError(
                 "The application settings must contain mage groups."
+            )
+
+        normalized_item_categories = normalize_item_categories(
+            settings.get(ITEM_CATEGORIES_SETTING_KEY)
+        )
+
+        if (
+            settings.get(ITEM_CATEGORIES_SETTING_KEY)
+            != normalized_item_categories
+        ):
+            raise ValueError(
+                "Item categories must use canonical stored values."
             )
 
         normalized_database_date = normalize_database_date(
@@ -1783,7 +1848,12 @@ class JsonDatabase:
                         "Every Death or Murder event must have a year."
                     )
 
-        for collection_name in ("locations", "organizations", "events"):
+        for collection_name in (
+            "locations",
+            "organizations",
+            "events",
+            "items",
+        ):
             seen_record_ids = set()
 
             for record in database_data[collection_name]:
@@ -1825,6 +1895,37 @@ class JsonDatabase:
                             "Locations must use their canonical stored "
                             "structure."
                         )
+
+                if collection_name == "items":
+                    normalized_item = normalize_item_record(record)
+
+                    if record != normalized_item:
+                        raise ValueError(
+                            "Items must use their canonical stored structure."
+                        )
+
+                    if normalized_item["category"] not in (
+                        normalized_item_categories
+                    ):
+                        raise ValueError(
+                            "Every item must use an existing item category."
+                        )
+
+                    for passage in normalized_item["passage_history"]:
+                        if (
+                            passage["person_id"]
+                            and passage["person_id"] not in seen_ids
+                        ):
+                            raise ValueError(
+                                "Every item holder must reference an "
+                                "existing person."
+                            )
+
+        known_item_ids = {
+            str(item.get("record_id", "") or "").strip()
+            for item in database_data["items"]
+            if isinstance(item, dict)
+        }
 
         organizations = database_data["organizations"]
         organization_ids = {
@@ -1921,6 +2022,31 @@ class JsonDatabase:
                     raise ValueError(
                         "Every person linked to an organization event "
                         "must exist."
+                    )
+
+                if any(
+                    item_id not in known_item_ids
+                    for item_id in organization_event.get(
+                        "item_ids",
+                        [],
+                    )
+                ):
+                    raise ValueError(
+                        "Every item linked to an organization event "
+                        "must exist."
+                    )
+
+                if any(
+                    owner.get("person_id")
+                    and owner.get("person_id") not in seen_ids
+                    for owner in organization_event.get(
+                        "item_new_owners",
+                        {},
+                    ).values()
+                ):
+                    raise ValueError(
+                        "Every new item owner linked to an organization "
+                        "event must exist."
                     )
 
                 organization_event_role_ids = [
@@ -2032,6 +2158,26 @@ class JsonDatabase:
 
         for event in world_events:
             linked_person_ids = event_linked_person_ids(event)
+
+            if any(
+                item_id not in known_item_ids
+                for item_id in event.get("item_ids", [])
+            ):
+                raise ValueError(
+                    "Every item linked to an event must exist."
+                )
+
+            if any(
+                owner.get("person_id")
+                and owner.get("person_id") not in seen_ids
+                for owner in event.get(
+                    "item_new_owners",
+                    {},
+                ).values()
+            ):
+                raise ValueError(
+                    "Every new item owner linked to an event must exist."
+                )
 
             if any(
                 person_id not in seen_ids
@@ -2327,7 +2473,7 @@ class JsonDatabase:
 
         person = deepcopy(values)
         person.setdefault("record_id", str(uuid.uuid4()))
-        person.setdefault("unfinished", False)
+        person.setdefault("unfinished", True)
         person.setdefault("does_not_have_children", False)
 
         if not isinstance(person["unfinished"], bool):
@@ -2559,6 +2705,10 @@ class JsonDatabase:
                 continue
 
             deleted_person = self.data["people"].pop(index)
+            deleted_person_name = str(
+                deleted_person.get("displayed_name", "")
+                or "Unnamed person"
+            ).strip()
 
             for related_person in self.data["people"]:
                 if related_person.get("biological_mother_id") == record_id:
@@ -2730,6 +2880,24 @@ class JsonDatabase:
                     ).items()
                     if person_id != record_id
                 }
+                item_new_owners = dict(
+                    event.get("item_new_owners", {}) or {}
+                )
+
+                for item_id, owner in item_new_owners.items():
+                    if (
+                        isinstance(owner, dict)
+                        and owner.get("person_id") == record_id
+                    ):
+                        item_new_owners[item_id] = {
+                            "person_id": "",
+                            "person_name": (
+                                owner.get("person_name")
+                                or deleted_person_name
+                            ),
+                        }
+
+                event["item_new_owners"] = item_new_owners
 
                 retained_events.append(event)
 
@@ -2793,6 +2961,54 @@ class JsonDatabase:
                     )
                 )
 
+                for organization_event in organization["events"]:
+                    item_new_owners = dict(
+                        organization_event.get(
+                            "item_new_owners",
+                            {},
+                        )
+                        or {}
+                    )
+
+                    for item_id, owner in item_new_owners.items():
+                        if (
+                            isinstance(owner, dict)
+                            and owner.get("person_id") == record_id
+                        ):
+                            item_new_owners[item_id] = {
+                                "person_id": "",
+                                "person_name": (
+                                    owner.get("person_name")
+                                    or deleted_person_name
+                                ),
+                            }
+
+                    organization_event[
+                        "item_new_owners"
+                    ] = item_new_owners
+
+                organization["events"] = normalize_organization_events(
+                    organization["events"]
+                )
+
+            repaired_items = []
+
+            for stored_item in self.data.get("items", []):
+                item = normalize_item_record(stored_item)
+
+                for passage in item["passage_history"]:
+                    if passage["person_id"] != record_id:
+                        continue
+
+                    passage["person_id"] = ""
+                    passage["person_name"] = (
+                        passage["person_name"] or deleted_person_name
+                    )
+
+                repaired_items.append(normalize_item_record(item))
+
+            self.data["items"] = repaired_items
+
             self.dirty = True
             self.revision += 1
 
@@ -2801,7 +3017,12 @@ class JsonDatabase:
         raise KeyError(f"Unknown person record_id: {record_id}")
 
     def list_records(self, collection_name):
-        if collection_name not in ("locations", "organizations", "events"):
+        if collection_name not in (
+            "locations",
+            "organizations",
+            "events",
+            "items",
+        ):
             raise KeyError(f"Unknown application collection: {collection_name}")
 
         return deepcopy(self.data[collection_name])

@@ -55,13 +55,7 @@ from mage_maker.ui.widgets import (
 
 
 LOCAL_EVENT_COLORS = ("#FFFFFF", "#F1F1F1")
-PROPAGATED_EVENT_COLORS = (
-    "#E6D8F0",
-    "#D9E7F3",
-    "#DCEBDD",
-    "#F1E7CF",
-    "#E6DFD8",
-)
+REGIONAL_EVENT_BACKGROUND = "#E3E3E3"
 
 
 def location_scope_after_parent_change(
@@ -1170,7 +1164,8 @@ class LocationPage(tk.Frame):
             timeline_panel,
             text=(
                 "Green: founding or wizarding community established  ·  "
-                "White/gray: this location  ·  Other colors: inherited"
+                "White/light gray: this location  ·  "
+                "Gray and indented: regional"
             ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -1701,20 +1696,25 @@ class LocationPage(tk.Frame):
             self.timeline_list.insert(
                 "end",
                 (
+                    f"{'    ' if event.get('propagation_distance', 0) else ''}"
                     f"{date_text}  ·  {event_summary}"
                     f"{people_text}{source_text}"
                 ),
             )
 
             if event.get("propagation_distance", 0):
-                level = int(event.get("source_level", 0) or 0)
-                color = PROPAGATED_EVENT_COLORS[
-                    min(level, len(PROPAGATED_EVENT_COLORS) - 1)
-                ]
+                color = REGIONAL_EVENT_BACKGROUND
             else:
                 color = LOCAL_EVENT_COLORS[index % 2]
 
             self.timeline_list.itemconfigure(index, background=color)
+
+            if event.get("propagation_distance", 0):
+                self.timeline_list.itemconfigure(
+                    index,
+                    foreground=TEXT_MUTED,
+                    selectforeground=TEXT_MUTED,
+                )
 
             if (
                 location_event_is_foundation(event)

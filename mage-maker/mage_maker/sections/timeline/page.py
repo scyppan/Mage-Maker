@@ -1,6 +1,6 @@
 import tkinter as tk
 from copy import deepcopy
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from uuid import uuid4
 
 from mage_maker.core.dates import (
@@ -21,12 +21,16 @@ from mage_maker.sections.events.editor import (
 from mage_maker.sections.events.controller import (
     DeathEventReplacementRequired,
 )
-from mage_maker.sections.events.models import split_world_event_date
+from mage_maker.sections.events.models import (
+    death_event_person_ids,
+    split_world_event_date,
+)
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_TYPE_LABELS,
     birth_timeline_summary,
     marriage_timeline_summary,
+    murder_people_label,
     murder_timeline_summary,
     normalize_timeline_event,
     normalize_timeline_events,
@@ -38,6 +42,7 @@ from mage_maker.ui.theme import (
     BUTTON_SOFT,
     BUTTON_SOFT_HOVER,
     FIELD_BACKGROUND,
+    FAMILY_GREEN,
     LIST_ALTERNATE,
     LIST_SELECTED,
     PRIMARY,
@@ -71,6 +76,8 @@ EVENT_COLORS = {
     "work_change": "#DDD9EC",
     "relocated": "#D7E9F7",
     "travel": "#EAF4FB",
+    "destroyed": "#EBCFD6",
+    "founding": FAMILY_GREEN,
     "name_change": "#DDD2EA",
     "custom": "#E0D2E8",
     "other": "#E0D2E8",
@@ -102,6 +109,7 @@ def timeline_event_background(
         "breakup",
         "relocated",
         "travel",
+        "founding",
     ):
         return EVENT_COLORS[event_type]
 
@@ -235,6 +243,20 @@ class TimelineView(tk.Frame):
             padx=(6, 0),
             pady=4,
         )
+        self.duplicate_many_button = SoftButton(
+            toolbar,
+            text="Duplicate many...",
+            command=self.duplicate_many_events,
+            background=SURFACE,
+            width=126,
+            height=36,
+        )
+        self.duplicate_many_button.grid(
+            row=0,
+            column=3,
+            padx=(6, 0),
+            pady=4,
+        )
         self.remove_button = SoftButton(
             toolbar,
             text="Remove",
@@ -243,7 +265,7 @@ class TimelineView(tk.Frame):
             width=118,
             height=36,
         )
-        self.remove_button.grid(row=0, column=3, padx=(6, 0), pady=4)
+        self.remove_button.grid(row=0, column=4, padx=(6, 0), pady=4)
 
     def build_workspace(self):
         self.workspace = tk.Frame(self, bg=SURFACE)
@@ -886,6 +908,15 @@ class TimelineView(tk.Frame):
                 "affected_person_ids",
                 [],
             ):
+                if event.get("event_type") in ("died", "murder"):
+                    return (
+                        "Affected by death of "
+                        + murder_people_label(
+                            death_event_person_ids(event),
+                            people,
+                        )
+                    )
+
                 return f"Affected by: {event_title}"
 
         if event.get("event_type") == "born" and event.get(
@@ -1671,15 +1702,20 @@ class TimelineView(tk.Frame):
             and (not automatic or removable_automatic_death)
             and not selected_event.get("_draft_event")
         )
+        can_duplicate = bool(
+            has_selection
+            and not automatic
+            and not selected_event.get("_draft_event")
+            and not selected_event.get("organization_event")
+            and selected_event.get("event_type")
+            not in ("died", "murder")
+        )
+
         if hasattr(self, "duplicate_button"):
-            self.duplicate_button.set_enabled(
-                has_selection
-                and not automatic
-                and not selected_event.get("_draft_event")
-                and not selected_event.get("organization_event")
-                and selected_event.get("event_type")
-                not in ("died", "murder")
-            )
+            self.duplicate_button.set_enabled(can_duplicate)
+
+        if hasattr(self, "duplicate_many_button"):
+            self.duplicate_many_button.set_enabled(can_duplicate)
 
     def duplicate_event(self):
         selected_event = self.selected_event()
@@ -1687,8 +1723,35 @@ class TimelineView(tk.Frame):
         if selected_event is None or selected_event.get("_draft_event"):
             return False
 
-        if not self.confirm_unsaved_event_changes():
+        association_guard_command = getattr(
+            self.event_editor,
+            "association_selection_guard_active",
+            None,
+        )
+
+        if (
+            callable(association_guard_command)
+            and association_guard_command()
+        ):
             return False
+
+        unsaved_changes_command = getattr(
+            self.event_editor,
+            "has_unsaved_changes",
+            None,
+        )
+
+        if (
+            callable(unsaved_changes_command)
+            and unsaved_changes_command()
+        ):
+            if not self.event_editor.save():
+                return False
+
+            selected_event = self.selected_event()
+
+            if selected_event is None or selected_event.get("_draft_event"):
+                return False
 
         if selected_event.get("automatic_source"):
             self.event_editor.show_error(
@@ -1716,7 +1779,7 @@ class TimelineView(tk.Frame):
                 duplicated = self.event_controller.duplicate_event(
                     selected_event.get("record_id", "")
                 )
-            except (KeyError, TypeError, ValueError) as error:
+            except (KeyError, OSError, TypeError, ValueError) as error:
                 self.event_editor.show_error(str(error))
                 return False
 
@@ -1768,6 +1831,106 @@ class TimelineView(tk.Frame):
                 )
 
         self.save_event(duplicated)
+        return True
+
+    def duplicate_many_events(self):
+        selected_event = self.selected_event()
+
+        if selected_event is None or selected_event.get("_draft_event"):
+            return False
+
+        association_guard_command = getattr(
+            self.event_editor,
+            "association_selection_guard_active",
+            None,
+        )
+
+        if (
+            callable(association_guard_command)
+            and association_guard_command()
+        ):
+            return False
+
+        if selected_event.get("automatic_source"):
+            self.event_editor.show_error(
+                "Automatic events cannot be duplicated."
+            )
+            return False
+
+        if selected_event.get("event_type") in ("died", "murder"):
+            self.event_editor.show_error(
+                "Death and Murder events cannot be duplicated."
+            )
+            return False
+
+        if selected_event.get("organization_event"):
+            self.event_editor.show_error(
+                "Organization-owned events cannot be duplicated here."
+            )
+            return False
+
+        copy_count = simpledialog.askinteger(
+            "Duplicate event many times",
+            "How many copies should be created?",
+            parent=self,
+            initialvalue=5,
+            minvalue=2,
+            maxvalue=100,
+        )
+
+        if copy_count is None:
+            return False
+
+        unsaved_changes_command = getattr(
+            self.event_editor,
+            "has_unsaved_changes",
+            None,
+        )
+
+        if (
+            callable(unsaved_changes_command)
+            and unsaved_changes_command()
+        ):
+            if not self.event_editor.save():
+                return False
+
+            selected_event = self.selected_event()
+
+            if selected_event is None or selected_event.get("_draft_event"):
+                return False
+
+        if selected_event.get("_stored_event"):
+            if self.event_controller is None:
+                return False
+
+            try:
+                duplicated_events = self.event_controller.duplicate_events(
+                    selected_event.get("record_id", ""),
+                    copy_count,
+                )
+            except (KeyError, OSError, TypeError, ValueError) as error:
+                self.event_editor.show_error(str(error))
+                return False
+
+            person_id = self.current_person_id()
+            self.linked_events = (
+                self.event_controller.events_for_person(person_id)
+                if person_id
+                else []
+            )
+            latest_duplicate = duplicated_events[-1]
+            self.selected_event_id = latest_duplicate["record_id"]
+            self.filter_events()
+
+            if self.linked_events_changed_command is not None:
+                self.linked_events_changed_command(latest_duplicate)
+
+            return True
+
+        for _ in range(copy_count):
+            if not self.duplicate_event():
+                return False
+
         return True
 
     def remove_event(self):

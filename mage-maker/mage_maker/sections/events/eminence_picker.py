@@ -182,6 +182,15 @@ class EventEminencePicker(tk.Frame):
         if self.controller is None:
             return {}
 
+        label_provider = getattr(
+            self.controller,
+            "people_option_labels",
+            None,
+        )
+
+        if callable(label_provider):
+            return label_provider(self.person_ids)
+
         return {
             str(option.get("value", "") or "").strip(): str(
                 option.get("label", "") or "Unknown person"

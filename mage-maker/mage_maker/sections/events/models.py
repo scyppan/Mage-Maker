@@ -14,6 +14,10 @@ from mage_maker.sections.locations.period_definitions import (
     EARLIEST_CALCULATION_YEAR,
     LATEST_CALCULATION_YEAR,
 )
+from mage_maker.sections.items.links import (
+    normalize_item_event_link_types,
+    normalize_item_event_new_owners,
+)
 
 WORLD_EVENT_TYPES = event_type_options("period")
 WORLD_EVENT_TYPE_LABELS = EVENT_TYPE_LABELS
@@ -247,6 +251,19 @@ def normalize_world_event(event):
     )
     normalized["location_ids"] = normalize_association_values(
         normalized.get("location_ids")
+    )
+    normalized["item_ids"] = normalize_association_values(
+        normalized.get("item_ids")
+    )
+    normalized["item_link_types"] = normalize_item_event_link_types(
+        normalized.get("item_link_types"),
+        normalized["item_ids"],
+        normalized["event_type"],
+    )
+    normalized["item_new_owners"] = normalize_item_event_new_owners(
+        normalized.get("item_new_owners"),
+        normalized["item_ids"],
+        normalized["item_link_types"],
     )
     normalized["locked_location_ids"] = normalize_association_values(
         normalized.get("locked_location_ids")

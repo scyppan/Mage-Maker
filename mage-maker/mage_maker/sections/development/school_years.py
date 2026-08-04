@@ -787,6 +787,53 @@ def random_school_year_record(
     return normalize_school_year_record(record)
 
 
+def rebuild_school_year_records(
+    records,
+    development_plan,
+    randomizer=None,
+    initial_characteristics=None,
+):
+    normalized_records = normalize_school_year_records(records)
+    rebuilt_records = []
+
+    for existing_record in normalized_records:
+        year_number = existing_record["year"]
+        characteristic_options = (
+            available_characteristic_buys(
+                initial_characteristics,
+                rebuilt_records,
+                year_number,
+            )
+            if initial_characteristics not in (None, "", {})
+            else CHARACTERISTIC_NAMES
+        )
+        rebuilt_record = random_school_year_record(
+            year_number,
+            development_plan,
+            randomizer=randomizer,
+            school_name=existing_record.get("school", ""),
+            assigned_books=existing_record.get(
+                "assigned_books",
+                [],
+            ),
+            characteristic_options=characteristic_options,
+        )
+        rebuilt_record["skipped"] = bool(
+            existing_record.get("skipped", False)
+        )
+        rebuilt_record["books"] = deepcopy(
+            existing_record.get("books", [])
+        )
+        rebuilt_record["eminence"] = deepcopy(
+            existing_record.get("eminence", [])
+        )
+        rebuilt_records.append(
+            normalize_school_year_record(rebuilt_record)
+        )
+
+    return rebuilt_records
+
+
 def ensure_school_year_records(
     records,
     target_year_count,

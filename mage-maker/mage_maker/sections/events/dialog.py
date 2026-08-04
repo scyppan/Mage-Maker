@@ -770,6 +770,14 @@ class EventPersonPickerDialog(tk.Toplevel):
         save_command,
         create_person_command=None,
         mage_groups=None,
+        dialog_title="Add event person",
+        heading_text="Choose a person",
+        explanation_text=(
+            "Recently viewed people appear first. Type any part of a "
+            "name to search everyone."
+        ),
+        selection_prompt="Select a person to add.",
+        action_text="Add person",
     ):
         super().__init__(parent)
         self.people_options = [
@@ -790,6 +798,17 @@ class EventPersonPickerDialog(tk.Toplevel):
         ).strip()
         self.save_command = save_command
         self.create_person_command = create_person_command
+        self.dialog_title = str(
+            dialog_title or "Choose a person"
+        ).strip()
+        self.heading_text = str(
+            heading_text or "Choose a person"
+        ).strip()
+        self.explanation_text = str(explanation_text or "").strip()
+        self.selection_prompt = str(
+            selection_prompt or "Select a person."
+        ).strip()
+        self.action_text = str(action_text or "Choose person").strip()
         self.mage_groups = [
             deepcopy(group)
             for group in mage_groups or []
@@ -810,9 +829,9 @@ class EventPersonPickerDialog(tk.Toplevel):
         self.show_all_requested = False
         self.result_heading_value = tk.StringVar(value="Recently viewed")
         self.selection_value = tk.StringVar(
-            value="Select a person to add."
+            value=self.selection_prompt
         )
-        self.title("Add event person")
+        self.title(self.dialog_title)
         self.geometry("560x620")
         self.minsize(460, 500)
         self.configure(bg=APP_BACKGROUND)
@@ -849,7 +868,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         card.grid_columnconfigure(0, weight=1)
         heading = tk.Label(
             card,
-            text="Choose a person",
+            text=self.heading_text,
             bg=SURFACE,
             fg=TEXT_DARK,
             font=app_font(14, "bold"),
@@ -858,10 +877,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         heading.grid(row=0, column=0, sticky="ew")
         explanation = tk.Label(
             card,
-            text=(
-                "Recently viewed people appear first. Type any part of a "
-                "name to search everyone."
-            ),
+            text=self.explanation_text,
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9),
@@ -996,7 +1012,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         cancel_button.grid(row=0, column=2, padx=(0, 6))
         self.add_button = SoftButton(
             footer,
-            text="Add person",
+            text=self.action_text,
             command=self.choose_person,
             background=SURFACE,
             fill=PRIMARY,
@@ -1407,7 +1423,7 @@ class EventPersonPickerDialog(tk.Toplevel):
                 break
 
         self.selection_value.set(
-            selected_label or "Select a person to add."
+            selected_label or self.selection_prompt
         )
         self.add_button.set_enabled(bool(self.selected_person_id))
 

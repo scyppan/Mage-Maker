@@ -15,6 +15,14 @@ from mage_maker.sections.events.eminence_picker import (
 from mage_maker.sections.events.editor import (
     MurderAdditionalPeopleDialog,
 )
+from mage_maker.sections.items.link_dialog import RecordLinkDialog
+from mage_maker.sections.items.links import (
+    ITEM_EVENT_NEW_OWNER_LINK_TYPES,
+    item_event_link_type_label,
+    item_event_link_type_options,
+    normalize_item_event_link_types,
+    normalize_item_event_new_owners,
+)
 from mage_maker.sections.events.models import split_world_event_date
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
@@ -89,6 +97,34 @@ class OrganizationEventDialog(tk.Toplevel):
             if normalized_event
             else []
         )
+        self.selected_item_ids = list(
+            normalized_event.get("item_ids", [])
+            if normalized_event
+            else []
+        )
+        self.selected_item_link_types = normalize_item_event_link_types(
+            (
+                normalized_event.get("item_link_types")
+                if normalized_event
+                else None
+            ),
+            self.selected_item_ids,
+            (
+                normalized_event.get("event_type", "event")
+                if normalized_event
+                else "event"
+            ),
+        )
+        self.selected_item_new_owners = normalize_item_event_new_owners(
+            (
+                normalized_event.get("item_new_owners")
+                if normalized_event
+                else None
+            ),
+            self.selected_item_ids,
+            self.selected_item_link_types,
+        )
+        self.items_summary_value = tk.StringVar()
         self.selected_eminence_person_ids = list(
             normalized_event.get("eminence_person_ids", [])
             if normalized_event
@@ -449,6 +485,25 @@ class OrganizationEventDialog(tk.Toplevel):
             pady=(0, 16),
         )
         footer.grid_columnconfigure(0, weight=1)
+        items_summary = tk.Label(
+            footer,
+            textvariable=self.items_summary_value,
+            bg=APP_BACKGROUND,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="e",
+        )
+        items_summary.grid(row=0, column=0, sticky="e", padx=(0, 8))
+        self.link_items_button = SoftButton(
+            footer,
+            text="Link items",
+            command=self.open_item_links,
+            background=APP_BACKGROUND,
+            width=96,
+            height=36,
+        )
+        self.link_items_button.grid(row=0, column=1, padx=(0, 7))
+        self.link_items_button.set_enabled(self.event_controller is not None)
         cancel_button = SoftButton(
             footer,
             text="Cancel",
@@ -457,7 +512,7 @@ class OrganizationEventDialog(tk.Toplevel):
             width=92,
             height=36,
         )
-        cancel_button.grid(row=0, column=1, padx=(0, 7))
+        cancel_button.grid(row=0, column=2, padx=(0, 7))
         save_button = SoftButton(
             footer,
             text="Save event",
@@ -469,7 +524,8 @@ class OrganizationEventDialog(tk.Toplevel):
             width=112,
             height=36,
         )
-        save_button.grid(row=0, column=2)
+        save_button.grid(row=0, column=3)
+        self.refresh_items_summary()
 
     def focus_first_field(self):
         if self.is_founding:
@@ -518,6 +574,103 @@ class OrganizationEventDialog(tk.Toplevel):
                 ]
             )
         )
+
+    def item_options(self):
+        if self.event_controller is None:
+            return []
+
+        return self.event_controller.item_options()
+
+    def refresh_items_summary(self):
+        linked_item_count = len(self.selected_item_ids)
+
+        if linked_item_count == 0:
+            self.items_summary_value.set("Items: None")
+        elif linked_item_count == 1:
+            item_id = self.selected_item_ids[0]
+            self.items_summary_value.set(
+                "Items: 1 linked · "
+                + item_event_link_type_label(
+                    self.selected_item_link_types.get(item_id, ""),
+                    self.selected_item_new_owners.get(item_id),
+                )
+            )
+        else:
+            self.items_summary_value.set(
+                f"Items: {linked_item_count} linked"
+            )
+
+    def open_item_links(self):
+        if self.event_controller is None:
+            return False
+
+        RecordLinkDialog(
+            self,
+            "Link Items to Event",
+            "Link items to this event",
+            (
+                "Choose each item connected to this event, then select why it "
+                "is linked and what the event does to it."
+            ),
+            self.item_options(),
+            self.selected_item_ids,
+            self.item_links_chosen,
+            "Save item links",
+            link_type_options=item_event_link_type_options(),
+            selected_link_types=self.selected_item_link_types,
+            link_type_default="passed_down",
+            new_owner_options=self.people_options(),
+            recent_new_owner_options=(
+                self.event_controller.recent_people_options()
+                if hasattr(
+                    self.event_controller,
+                    "recent_people_options",
+                )
+                else ()
+            ),
+            selected_new_owners=self.selected_item_new_owners,
+            mage_groups=(
+                self.event_controller.mage_groups()
+                if hasattr(self.event_controller, "mage_groups")
+                else ()
+            ),
+        )
+        return True
+
+    def item_links_chosen(
+        self,
+        item_ids,
+        item_link_types=None,
+        item_new_owners=None,
+    ):
+        self.selected_item_ids = list(dict.fromkeys(item_ids or ()))
+        self.selected_item_link_types = normalize_item_event_link_types(
+            (
+                item_link_types
+                if isinstance(item_link_types, dict)
+                else self.selected_item_link_types
+            ),
+            self.selected_item_ids,
+            (
+                self.event.get("event_type", "event")
+                if self.event
+                else "event"
+            ),
+        )
+        requested_new_owners = dict(
+            self.selected_item_new_owners or {}
+        )
+
+        if isinstance(item_new_owners, dict):
+            requested_new_owners.update(item_new_owners)
+
+        self.selected_item_new_owners = normalize_item_event_new_owners(
+            requested_new_owners,
+            self.selected_item_ids,
+            self.selected_item_link_types,
+        )
+        self.refresh_items_summary()
+        return True
 
     def refresh_ancillary_people_summary(self):
         if not hasattr(self, "witnesses_summary_value"):
@@ -688,6 +841,33 @@ class OrganizationEventDialog(tk.Toplevel):
             "1.0",
             "end-1c",
         )
+        missing_item_owner_ids = [
+            item_id
+            for item_id in getattr(self, "selected_item_ids", [])
+            if getattr(
+                self,
+                "selected_item_link_types",
+                {},
+            ).get(item_id)
+            in ITEM_EVENT_NEW_OWNER_LINK_TYPES
+            and not getattr(
+                self,
+                "selected_item_new_owners",
+                {},
+            ).get(
+                item_id,
+                {},
+            ).get("person_id")
+        ]
+
+        if missing_item_owner_ids:
+            messagebox.showerror(
+                "New owner required",
+                "Choose the new owner for every Passed down, Gifted, or "
+                "Taken item link.",
+                parent=self,
+            )
+            return
 
         try:
             if self.is_founding:
@@ -705,6 +885,21 @@ class OrganizationEventDialog(tk.Toplevel):
                         ),
                         "affected_person_ids": (
                             self.selected_affected_person_ids
+                        ),
+                        "item_ids": getattr(
+                            self,
+                            "selected_item_ids",
+                            [],
+                        ),
+                        "item_link_types": getattr(
+                            self,
+                            "selected_item_link_types",
+                            {},
+                        ),
+                        "item_new_owners": getattr(
+                            self,
+                            "selected_item_new_owners",
+                            {},
                         ),
                         "eminence_person_ids": (
                             self.eminence_picker.get_values()
@@ -729,6 +924,21 @@ class OrganizationEventDialog(tk.Toplevel):
                     ),
                     affected_person_ids=(
                         self.selected_affected_person_ids
+                    ),
+                    item_ids=getattr(
+                        self,
+                        "selected_item_ids",
+                        [],
+                    ),
+                    item_link_types=getattr(
+                        self,
+                        "selected_item_link_types",
+                        {},
+                    ),
+                    item_new_owners=getattr(
+                        self,
+                        "selected_item_new_owners",
+                        {},
                     ),
                 )
 

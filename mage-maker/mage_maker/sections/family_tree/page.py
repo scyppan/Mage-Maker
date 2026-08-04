@@ -64,9 +64,9 @@ from mage_maker.ui.widgets import SoftButton, rounded_points
 class FamilyTreeView(tk.Frame):
     generation_labels = (
         "Grandparents",
-        "Parents · aunts · uncles",
+        "Parents · pibblings",
         "Selected · siblings · cousins",
-        "Children · nieces · nephews",
+        "Children · nibblings",
         "Grandchildren",
     )
 
@@ -367,13 +367,19 @@ class FamilyTreeView(tk.Frame):
                 focus_id,
             )
 
-            for node, x_position, y_position in positions:
+            for (
+                node,
+                x_position,
+                y_position,
+                node_width,
+                node_height,
+            ) in positions:
                 record_id = str(node["person"].get("record_id", ""))
                 self.node_coordinates[record_id] = (
                     x_position,
                     y_position,
-                    132,
-                    64,
+                    node_width,
+                    node_height,
                 )
 
             hidden_count = len(generations[row_index]) - len(visible_nodes)
@@ -442,11 +448,11 @@ class FamilyTreeView(tk.Frame):
 
     def order_parent_nodes(self, nodes):
         relation_order = {
-            "Birthing parent's sibling": 0,
+            "Birthing parent's pibbling": 0,
             "Birthing parent": 1,
             "Non-birthing parent": 2,
-            "Non-birthing parent's sibling": 3,
-            "Aunt/uncle": 4,
+            "Non-birthing parent's pibbling": 3,
+            "Pibbling": 4,
         }
         return sorted(nodes, key=lambda node: relation_order.get(node["relation"], 5))
 
@@ -459,10 +465,90 @@ class FamilyTreeView(tk.Frame):
         focus_id,
     ):
         available_width = max(360, graph_right - graph_left)
-        maximum_nodes = max(3, min(7, int(available_width // 142)))
+        maximum_nodes = (
+            max(3, min(9, int(available_width // 132)))
+            if row_index == 1
+            else max(3, min(7, int(available_width // 142)))
+        )
 
         if len(nodes) <= maximum_nodes:
             return list(nodes)
+
+        if row_index == 1:
+            birthing_parent_indexes = [
+                index
+                for index, node in enumerate(nodes)
+                if node.get("relation") == "Birthing parent"
+            ]
+            non_birthing_parent_indexes = [
+                index
+                for index, node in enumerate(nodes)
+                if node.get("relation") == "Non-birthing parent"
+            ]
+            birthing_pibbling_indexes = [
+                index
+                for index, node in enumerate(nodes)
+                if node.get("relation") == "Birthing parent's pibbling"
+            ]
+            non_birthing_pibbling_indexes = [
+                index
+                for index, node in enumerate(nodes)
+                if node.get("relation") == "Non-birthing parent's pibbling"
+            ]
+            ungrouped_indexes = [
+                index
+                for index, node in enumerate(nodes)
+                if node.get("relation")
+                not in (
+                    "Birthing parent",
+                    "Non-birthing parent",
+                    "Birthing parent's pibbling",
+                    "Non-birthing parent's pibbling",
+                )
+            ]
+            selected_indexes = set(
+                birthing_parent_indexes + non_birthing_parent_indexes
+            )
+            remaining_slots = max(0, maximum_nodes - len(selected_indexes))
+            birthing_cursor = len(birthing_pibbling_indexes) - 1
+            non_birthing_cursor = 0
+
+            while remaining_slots > 0 and (
+                birthing_cursor >= 0
+                or non_birthing_cursor < len(non_birthing_pibbling_indexes)
+            ):
+                if birthing_cursor >= 0:
+                    selected_indexes.add(
+                        birthing_pibbling_indexes[birthing_cursor]
+                    )
+                    birthing_cursor -= 1
+                    remaining_slots -= 1
+
+                if (
+                    remaining_slots > 0
+                    and non_birthing_cursor
+                    < len(non_birthing_pibbling_indexes)
+                ):
+                    selected_indexes.add(
+                        non_birthing_pibbling_indexes[
+                            non_birthing_cursor
+                        ]
+                    )
+                    non_birthing_cursor += 1
+                    remaining_slots -= 1
+
+            for index in ungrouped_indexes:
+                if remaining_slots <= 0:
+                    break
+
+                selected_indexes.add(index)
+                remaining_slots -= 1
+
+            return [
+                node
+                for index, node in enumerate(nodes)
+                if index in selected_indexes
+            ]
 
         relation_priority = {
             "Selected person": 0,
@@ -473,9 +559,9 @@ class FamilyTreeView(tk.Frame):
             "1/2 Sibling": 1,
             "Grandparent": 1,
             "Grandchild": 1,
-            "Birthing parent's sibling": 2,
-            "Non-birthing parent's sibling": 2,
-            "Niece/nephew": 3,
+            "Birthing parent's pibbling": 2,
+            "Non-birthing parent's pibbling": 2,
+            "Nibbling": 3,
             "Birthing parent's cousin": 4,
             "Non-birthing parent's cousin": 4,
             "Cousin": 4,
@@ -503,6 +589,112 @@ class FamilyTreeView(tk.Frame):
             return []
 
         center_x = (graph_left + graph_right) / 2
+
+        if row_index == 1:
+            birthing_parent_node = None
+            non_birthing_parent_node = None
+            birthing_pibbling_nodes = []
+            non_birthing_pibbling_nodes = []
+            ungrouped_nodes = []
+
+            for node in nodes:
+                relation = str(node.get("relation", "") or "")
+
+                if relation == "Birthing parent":
+                    birthing_parent_node = node
+                elif relation == "Non-birthing parent":
+                    non_birthing_parent_node = node
+                elif relation == "Birthing parent's pibbling":
+                    birthing_pibbling_nodes.append(node)
+                elif relation == "Non-birthing parent's pibbling":
+                    non_birthing_pibbling_nodes.append(node)
+                else:
+                    ungrouped_nodes.append(node)
+
+            for node in ungrouped_nodes:
+                if len(birthing_pibbling_nodes) <= len(
+                    non_birthing_pibbling_nodes
+                ):
+                    birthing_pibbling_nodes.insert(0, node)
+                else:
+                    non_birthing_pibbling_nodes.append(node)
+
+            if (
+                birthing_parent_node is not None
+                and non_birthing_parent_node is not None
+            ):
+                parent_gap = 12
+                pibbling_gap = 28
+                card_gap = 8
+                half_width = (graph_right - graph_left) / 2
+                node_width = 132
+
+                if birthing_pibbling_nodes:
+                    birthing_width = (
+                        half_width
+                        - parent_gap / 2
+                        - pibbling_gap
+                        - card_gap
+                        * max(0, len(birthing_pibbling_nodes) - 1)
+                    ) / (len(birthing_pibbling_nodes) + 1)
+                    node_width = min(node_width, birthing_width)
+
+                if non_birthing_pibbling_nodes:
+                    non_birthing_width = (
+                        half_width
+                        - parent_gap / 2
+                        - pibbling_gap
+                        - card_gap
+                        * max(0, len(non_birthing_pibbling_nodes) - 1)
+                    ) / (len(non_birthing_pibbling_nodes) + 1)
+                    node_width = min(node_width, non_birthing_width)
+
+                node_width = max(64, min(132, node_width))
+                parent_spacing = node_width + parent_gap
+                pibbling_spacing = node_width + card_gap
+                birthing_parent_x = center_x - parent_spacing / 2
+                non_birthing_parent_x = center_x + parent_spacing / 2
+                positions = [
+                    (
+                        birthing_parent_node,
+                        birthing_parent_x,
+                        y_position,
+                        node_width,
+                        64,
+                    ),
+                    (
+                        non_birthing_parent_node,
+                        non_birthing_parent_x,
+                        y_position,
+                        node_width,
+                        64,
+                    ),
+                ]
+                birthing_x = (
+                    birthing_parent_x
+                    - node_width
+                    - pibbling_gap
+                )
+
+                for node in reversed(birthing_pibbling_nodes):
+                    positions.append(
+                        (node, birthing_x, y_position, node_width, 64)
+                    )
+                    birthing_x -= pibbling_spacing
+
+                non_birthing_x = (
+                    non_birthing_parent_x
+                    + node_width
+                    + pibbling_gap
+                )
+
+                for node in non_birthing_pibbling_nodes:
+                    positions.append(
+                        (node, non_birthing_x, y_position, node_width, 64)
+                    )
+                    non_birthing_x += pibbling_spacing
+
+                return positions
 
         if row_index == 2:
             focus_node = None
@@ -556,7 +748,13 @@ class FamilyTreeView(tk.Frame):
                 total_width = spacing * (len(nodes) - 1)
                 start_x = center_x - total_width / 2
                 return [
-                    (node, start_x + index * spacing, y_position)
+                    (
+                        node,
+                        start_x + index * spacing,
+                        y_position,
+                        132,
+                        64,
+                    )
                     for index, node in enumerate(nodes)
                 ]
 
@@ -651,15 +849,147 @@ class FamilyTreeView(tk.Frame):
                     node,
                     center_x + offset * position_scale,
                     y_position,
+                    132,
+                    64,
                 )
                 for node, offset in positioned_nodes
+            ]
+
+        if row_index == 3:
+            anchored_groups = {}
+            unanchored_nodes = []
+
+            for node in nodes:
+                record_id = str(
+                    node["person"].get("record_id", "") or ""
+                ).strip()
+                visible_parent_ids = [
+                    parent_id
+                    for parent_id in self.relationship_map.parents_of(
+                        record_id
+                    )
+                    if parent_id in self.node_coordinates
+                ]
+                anchor_id = ""
+
+                if (
+                    node.get("relation") == "Child"
+                    and focus_id in visible_parent_ids
+                ):
+                    anchor_id = focus_id
+                elif visible_parent_ids:
+                    anchor_id = visible_parent_ids[0]
+
+                if anchor_id:
+                    anchored_groups.setdefault(anchor_id, []).append(node)
+                else:
+                    unanchored_nodes.append(node)
+
+            node_count = len(nodes)
+            card_gap = 8
+            graph_width = graph_right - graph_left
+            node_width = min(
+                132,
+                max(
+                    64,
+                    (
+                        graph_width
+                        - card_gap * max(0, node_count - 1)
+                    )
+                    / max(1, node_count),
+                ),
+            )
+            desired_positions = []
+
+            for anchor_id, group_nodes in sorted(
+                anchored_groups.items(),
+                key=lambda item: self.node_coordinates[item[0]][0],
+            ):
+                anchor_x = self.node_coordinates[anchor_id][0]
+                group_width = (
+                    node_width * len(group_nodes)
+                    + card_gap * max(0, len(group_nodes) - 1)
+                )
+                group_start = anchor_x - group_width / 2 + node_width / 2
+
+                for group_index, node in enumerate(group_nodes):
+                    desired_positions.append(
+                        (
+                            node,
+                            group_start
+                            + group_index * (node_width + card_gap),
+                        )
+                    )
+
+            unanchored_width = (
+                node_width * len(unanchored_nodes)
+                + card_gap * max(0, len(unanchored_nodes) - 1)
+            )
+            unanchored_start = (
+                center_x - unanchored_width / 2 + node_width / 2
+            )
+
+            for node_index, node in enumerate(unanchored_nodes):
+                desired_positions.append(
+                    (
+                        node,
+                        unanchored_start
+                        + node_index * (node_width + card_gap),
+                    )
+                )
+
+            desired_positions.sort(key=lambda item: item[1])
+            bounded_positions = []
+            minimum_x = graph_left + node_width / 2
+            maximum_x = graph_right - node_width / 2
+
+            for node, desired_x in desired_positions:
+                x_position = max(minimum_x, desired_x)
+
+                if bounded_positions:
+                    x_position = max(
+                        x_position,
+                        bounded_positions[-1][1] + node_width + card_gap,
+                    )
+
+                bounded_positions.append([node, x_position])
+
+            if bounded_positions and bounded_positions[-1][1] > maximum_x:
+                overflow = bounded_positions[-1][1] - maximum_x
+
+                for positioned_node in bounded_positions:
+                    positioned_node[1] -= overflow
+
+            for index in range(len(bounded_positions) - 2, -1, -1):
+                bounded_positions[index][1] = min(
+                    bounded_positions[index][1],
+                    bounded_positions[index + 1][1]
+                    - node_width
+                    - card_gap,
+                )
+
+            return [
+                (
+                    node,
+                    x_position,
+                    y_position,
+                    node_width,
+                    64,
+                )
+                for node, x_position in bounded_positions
             ]
 
         spacing = min(150, (graph_right - graph_left) / max(1, len(nodes)))
         total_width = spacing * (len(nodes) - 1)
         start_x = center_x - total_width / 2
         return [
-            (node, start_x + index * spacing, y_position)
+            (
+                node,
+                start_x + index * spacing,
+                y_position,
+                132,
+                64,
+            )
             for index, node in enumerate(nodes)
         ]
 
@@ -757,6 +1087,51 @@ class FamilyTreeView(tk.Frame):
                 smooth=False,
             )
 
+        focus_coordinates = self.node_coordinates.get(focus_id)
+
+        if focus_coordinates is None:
+            return
+
+        focus_x, focus_y, _focus_width, focus_height = focus_coordinates
+
+        for placeholder_id, parent_status in (
+            (
+                "__select_mother__",
+                getattr(self, "mother_status", "unknown"),
+            ),
+            (
+                "__select_father__",
+                getattr(self, "father_status", "unknown"),
+            ),
+        ):
+            if parent_status != "muggle":
+                continue
+
+            parent_coordinates = self.node_coordinates.get(
+                placeholder_id
+            )
+
+            if parent_coordinates is None:
+                continue
+
+            parent_x, parent_y, parent_width, parent_height = (
+                parent_coordinates
+            )
+            line_middle = (parent_y + focus_y) / 2
+            self.canvas.create_line(
+                parent_x,
+                parent_y + parent_height / 2,
+                parent_x,
+                line_middle,
+                focus_x,
+                line_middle,
+                focus_x,
+                focus_y - focus_height / 2,
+                fill=FAMILY_LINE,
+                width=2,
+                smooth=False,
+            )
+
     def draw_person_node(self, node, row_index, focus_id):
         person = node["person"]
         record_id = str(person.get("record_id", ""))
@@ -819,11 +1194,23 @@ class FamilyTreeView(tk.Frame):
         display_name = str(person.get("displayed_name", "") or "Unnamed")
         maiden_name = maiden_name_for(person)
         date_text = format_person_date(person)
-        detail_lines = [self.short_text(display_name, 23)]
+        name_character_limit = max(
+            8,
+            min(23, int(node_width / 6)),
+        )
+        maiden_character_limit = max(
+            6,
+            min(18, int(node_width / 7)),
+        )
+        detail_lines = [
+            self.short_text(display_name, name_character_limit)
+        ]
 
         if not is_placeholder:
             maiden_line = (
-                f"née {self.short_text(maiden_name, 18)}" if maiden_name else ""
+                f"née {self.short_text(maiden_name, maiden_character_limit)}"
+                if maiden_name
+                else ""
             )
             detail_lines.extend((maiden_line, date_text))
 
@@ -832,18 +1219,30 @@ class FamilyTreeView(tk.Frame):
             y_position,
             text="\n".join(detail_lines),
             fill=text_fill,
-            font=app_font(8, "bold" if is_focus else "normal"),
+            font=app_font(
+                7 if node_width < 96 else 8,
+                "bold" if is_focus else "normal",
+            ),
             justify="center",
             width=node_width - 12,
             tags=(tag_name,),
         )
+        relation_text = str(node.get("relation", "") or "")
+
+        if relation_text in (
+            "Birthing parent's pibbling",
+            "Non-birthing parent's pibbling",
+        ):
+            relation_text = "Pibbling"
+
         relation_item = self.canvas.create_text(
             x_position,
-            top - 7,
-            text=node.get("relation", ""),
+            top - (11 if node_width < 100 else 7),
+            text=relation_text,
             fill=relation_fill,
             font=app_font(7, "bold"),
             justify="center",
+            width=max(70, node_width + 16),
             tags=(tag_name,),
         )
         relation_bounds = self.canvas.bbox(relation_item)
@@ -888,18 +1287,40 @@ class FamilyTreeView(tk.Frame):
         self.canvas.tag_raise(relation_item)
 
     def draw_spouse_flags(self, focus_id):
-        focus_mate_ids = self.relationship_map.mates_of(focus_id)
-
-        for mate_id in self.mate_ids:
-            if mate_id not in focus_mate_ids and self.relationship_map.person(mate_id):
-                focus_mate_ids.append(mate_id)
-
         step_parent_mates = self.relationship_map.step_parent_mates_of(focus_id)
         visible_ids = set(self.node_coordinates)
-        rendered_pairs = {
-            (focus_id, mate_id)
-            for mate_id in focus_mate_ids
-        }
+        standard_mates_by_owner = {}
+        rendered_pairs = set()
+
+        for owner_id in sorted(visible_ids):
+            if self.relationship_map.person(owner_id) is None:
+                continue
+
+            mate_ids = self.relationship_map.mates_of(owner_id)
+
+            if owner_id == focus_id:
+                for mate_id in self.mate_ids:
+                    if (
+                        mate_id not in mate_ids
+                        and self.relationship_map.person(mate_id)
+                    ):
+                        mate_ids.append(mate_id)
+
+            if owner_id in step_parent_mates:
+                mate_ids = [
+                    mate_id
+                    for mate_id in mate_ids
+                    if mate_id not in step_parent_mates[owner_id]
+                    and mate_id not in visible_ids
+                ]
+
+            if not mate_ids:
+                continue
+
+            standard_mates_by_owner[owner_id] = mate_ids
+            rendered_pairs.update(
+                (owner_id, mate_id) for mate_id in mate_ids
+            )
 
         for parent_id, mate_ids in step_parent_mates.items():
             for mate_id in mate_ids:
@@ -912,11 +1333,12 @@ class FamilyTreeView(tk.Frame):
             self.active_spouse_owner_id = None
             self.active_mate_id = None
 
-        self.draw_spouse_flags_for_person(
-            focus_id,
-            focus_mate_ids,
-            is_step_parent=False,
-        )
+        for owner_id, mate_ids in standard_mates_by_owner.items():
+            self.draw_spouse_flags_for_person(
+                owner_id,
+                mate_ids,
+                is_step_parent=False,
+            )
 
         for parent_id, mate_ids in step_parent_mates.items():
             hidden_mate_ids = [

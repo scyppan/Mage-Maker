@@ -18,9 +18,17 @@ EVENT_TYPE_DEFINITIONS = (
     ("work_change", "Change in work", ("person",), False),
     ("relocated", "Relocated", ("person",), False),
     ("travel", "Travel", ("person",), False),
+    ("crafted", "Crafted", ("person",), False),
+    ("gifted", "Gifted", ("person", "item"), False),
+    ("destroyed", "Destroyed", ("item",), False),
     ("name_change", "Name change", ("person",), False),
     ("custom", "Custom event", ("person",), False),
-    ("founding", "Founding a location", ("location",), False),
+    (
+        "founding",
+        "Founding a location",
+        ("person", "location"),
+        False,
+    ),
     (
         "organization_founding",
         "Founding an organization",
@@ -81,6 +89,9 @@ LEGACY_EVENT_TYPE_ALIASES = {
     "extinction": "extinction",
     "relocation": "relocated",
     "travel": "travel",
+    "crafted": "crafted",
+    "gifted": "gifted",
+    "destroyed": "destroyed",
     "wizarding community established": (
         "wizarding_community_established"
     ),
@@ -128,7 +139,16 @@ def event_type_options(
         if automatic and not include_automatic:
             continue
 
-        if normalized_context == "period" or normalized_context in contexts:
+        if (
+            normalized_context == "item"
+            and event_type in ("born", "died")
+        ):
+            continue
+
+        if (
+            normalized_context in ("period", "item")
+            or normalized_context in contexts
+        ):
             options.append((event_type, label))
 
     current_type = canonical_event_type(current_event_type)

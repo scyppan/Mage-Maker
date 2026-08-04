@@ -18,6 +18,15 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
+from mage_maker.sections.items.link_dialog import RecordLinkDialog
+from mage_maker.sections.items.links import (
+    ITEM_EVENT_NEW_OWNER_LINK_TYPES,
+    item_event_link_type_label,
+    item_event_link_type_options,
+    normalize_item_event_link_type,
+    normalize_item_event_link_types,
+    normalize_item_event_new_owners,
+)
 from mage_maker.sections.development.organization_dialogs import (
     OrganizationSelectionDialog,
 )
@@ -45,6 +54,16 @@ from mage_maker.ui.widgets import (
 
 
 NEW_EVENT_DRAFT_ID = "__new-event-draft__"
+EVENT_TYPE_DEFAULT_TITLES = {
+    "born": "Birth",
+    "died": "death",
+    "murder": "Murder",
+    "returns_as_ghost": "Returns as ghost",
+    "romance": "Romance",
+    "breakup": "Breakup",
+    "travel": "Travel",
+    "item_event": "Item event",
+}
 
 
 def split_editor_date(value):
@@ -92,6 +111,10 @@ class EventAssociationPicker(tk.Frame):
             select_button_text or ""
         ).strip()
         self.options = []
+        self.options_by_id = {}
+        self.options_loaded = False
+        self.options_revision = None
+        self.options_mode = None
         self.visible_options = []
         self.selected_ids = []
         self.locked_ids = set()
@@ -254,6 +277,28 @@ class EventAssociationPicker(tk.Frame):
         return list(self.selected_ids)
 
     def refresh_options(self):
+        database = getattr(self.controller, "database", None)
+        database_revision = getattr(database, "revision", None)
+        cacheable = isinstance(database_revision, int)
+        options_mode = (
+            self.association_kind,
+            bool(getattr(self, "foundation_only", False)),
+            tuple(sorted(self.selected_ids))
+            if self.association_kind == "locations"
+            and getattr(self, "foundation_only", False)
+            else (),
+        )
+
+        if (
+            getattr(self, "options_loaded", False)
+            and cacheable
+            and getattr(self, "options_revision", None)
+            == database_revision
+            and getattr(self, "options_mode", None) == options_mode
+        ):
+            self.refresh_results()
+            return
+
         if self.association_kind == "people":
             self.options = self.controller.people_options()
         elif self.association_kind == "organizations":
@@ -267,6 +312,17 @@ class EventAssociationPicker(tk.Frame):
             else:
                 self.options = self.controller.location_options()
 
+        self.options_by_id = {
+            str(option.get("value", "") or "").strip(): option
+            for option in self.options
+            if str(option.get("value", "") or "").strip()
+        }
+        self.options_loaded = True
+        self.options_revision = (
+            database_revision if cacheable else None
+        )
+        self.options_mode = options_mode
+
         self.refresh_results()
 
     def recent_options(self, limit=12):
@@ -279,11 +335,15 @@ class EventAssociationPicker(tk.Frame):
         return self.controller.recent_location_options(limit=limit)
 
     def refresh_results(self, *arguments):
-        options_by_id = {
-            str(option.get("value", "") or ""): option
-            for option in self.options
-            if str(option.get("value", "") or "").strip()
-        }
+        options_by_id = getattr(self, "options_by_id", {})
+
+        if not options_by_id and self.options:
+            options_by_id = {
+                str(option.get("value", "") or ""): option
+                for option in self.options
+                if str(option.get("value", "") or "").strip()
+            }
+            self.options_by_id = options_by_id
         visible_ids = []
 
         for association_id in self.locked_order:
@@ -738,6 +798,8 @@ class EventEditor(tk.Frame):
         self.generated_founding_title = ""
         self.generated_extinction_title = ""
         self.generated_job_event_title = ""
+        self.generated_event_type_title = ""
+        self.previous_event_type = ""
         self.saved_editor_values = None
         self.saving = False
         self.association_selection_guard_until = 0.0
@@ -760,6 +822,11 @@ class EventEditor(tk.Frame):
         self.murder_affected_summary_value = tk.StringVar(
             value="Affected by: None"
         )
+        self.selected_item_ids = []
+        self.locked_item_ids = []
+        self.selected_item_link_types = {}
+        self.selected_item_new_owners = {}
+        self.items_summary_value = tk.StringVar(value="Items: None")
         self.job_event_value = tk.StringVar()
         self.salary_galleons_value = tk.StringVar(value="0")
         self.salary_sickles_value = tk.StringVar(value="0")
@@ -1372,6 +1439,28 @@ class EventEditor(tk.Frame):
             wraplength=230,
         )
         feedback.grid(row=0, column=0, sticky="ew")
+        items_summary = tk.Label(
+            footer,
+            textvariable=self.items_summary_value,
+            bg=self.background,
+            fg=TEXT_MUTED,
+            font=app_font(8, "bold"),
+            anchor="e",
+        )
+        items_summary.grid(row=0, column=1, padx=(8, 0))
+        self.link_items_button = SoftButton(
+            footer,
+            text="Link items",
+            command=self.open_item_links,
+            background=self.background,
+            fill=FIELD_BACKGROUND,
+            hover_fill=LIST_SELECTED,
+            foreground=TEXT_DARK,
+            width=82,
+            height=24,
+            font=app_font(8, "bold"),
+        )
+        self.link_items_button.grid(row=0, column=2, padx=(5, 0))
         self.cancel_button = SoftButton(
             footer,
             text="Cancel",
@@ -1381,7 +1470,7 @@ class EventEditor(tk.Frame):
             height=24,
             font=app_font(8, "bold"),
         )
-        self.cancel_button.grid(row=0, column=1, padx=(5, 0))
+        self.cancel_button.grid(row=0, column=3, padx=(5, 0))
         self.save_button = SoftButton(
             footer,
             text="Save event",
@@ -1394,7 +1483,7 @@ class EventEditor(tk.Frame):
             height=24,
             font=app_font(8, "bold"),
         )
-        self.save_button.grid(row=0, column=2, padx=(5, 0))
+        self.save_button.grid(row=0, column=4, padx=(5, 0))
 
     def form_resized(self, event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -1460,6 +1549,9 @@ class EventEditor(tk.Frame):
         self.founding_title_locked = False
         self.generated_founding_title = ""
         self.generated_extinction_title = ""
+        self.generated_job_event_title = ""
+        self.generated_event_type_title = ""
+        self.previous_event_type = ""
         self.people_picker.include_recent = True
         self.people_picker.single_selection = False
         self.baby_picker.include_recent = True
@@ -1498,6 +1590,11 @@ class EventEditor(tk.Frame):
         self.witnesses_picker.set_values(())
         self.affected_picker.set_values(())
         self.update_murder_additional_people_summary()
+        self.selected_item_ids = []
+        self.locked_item_ids = []
+        self.selected_item_link_types = {}
+        self.selected_item_new_owners = {}
+        self.update_items_summary()
 
         if hasattr(self, "eminence_picker"):
             self.eminence_picker.set_values((), (), {}, "")
@@ -1519,6 +1616,10 @@ class EventEditor(tk.Frame):
         locked_person_ids=(),
         default_location_ids=(),
         locked_location_ids=(),
+        default_item_ids=(),
+        locked_item_ids=(),
+        default_item_link_types=None,
+        default_item_new_owners=None,
         hide_locations=False,
         minimum_year=None,
         maximum_year=None,
@@ -1539,6 +1640,8 @@ class EventEditor(tk.Frame):
         self.generated_founding_title = ""
         self.generated_extinction_title = ""
         self.generated_job_event_title = ""
+        self.generated_event_type_title = ""
+        self.previous_event_type = ""
         self.people_picker.include_recent = True
         self.people_picker.single_selection = False
         self.baby_picker.include_recent = True
@@ -1582,6 +1685,39 @@ class EventEditor(tk.Frame):
         self.witnesses_picker.set_values(())
         self.affected_picker.set_values(())
         self.update_murder_additional_people_summary()
+        self.locked_item_ids = list(
+            dict.fromkeys(
+                str(item_id or "").strip()
+                for item_id in locked_item_ids or ()
+                if str(item_id or "").strip()
+            )
+        )
+        self.selected_item_ids = list(
+            dict.fromkeys(
+                [
+                    *(
+                        str(item_id or "").strip()
+                        for item_id in default_item_ids or ()
+                        if str(item_id or "").strip()
+                    ),
+                    *self.locked_item_ids,
+                ]
+            )
+        )
+        self.selected_item_link_types = normalize_item_event_link_types(
+            default_item_link_types,
+            self.selected_item_ids,
+            event_type_from_label(
+                self.event_type_value.get(),
+                "other",
+            ),
+        )
+        self.selected_item_new_owners = normalize_item_event_new_owners(
+            default_item_new_owners,
+            self.selected_item_ids,
+            self.selected_item_link_types,
+        )
+        self.update_items_summary()
         if hasattr(self, "eminence_picker"):
             self.eminence_picker.set_values(
                 self.people_picker.get_values(),
@@ -1658,6 +1794,8 @@ class EventEditor(tk.Frame):
         locked_person_ids=(),
         location_ids=(),
         locked_location_ids=(),
+        item_ids=(),
+        locked_item_ids=(),
         hide_locations=False,
         read_only=False,
         explanation="",
@@ -1695,6 +1833,7 @@ class EventEditor(tk.Frame):
         self.founding_title_locked = False
         self.generated_founding_title = ""
         self.generated_extinction_title = ""
+        self.generated_job_event_title = ""
         self.people_picker.include_recent = not self.lock_people
         self.baby_picker.include_recent = not self.lock_people
         self.birthing_parent_picker.include_recent = not self.lock_people
@@ -1708,6 +1847,7 @@ class EventEditor(tk.Frame):
         loaded_event_type = str(
             self.event.get("event_type", "") or ""
         ).strip()
+        self.previous_event_type = loaded_event_type
         self.locations_picker.single_selection = bool(
             single_location
             or loaded_event_type in (
@@ -1737,10 +1877,21 @@ class EventEditor(tk.Frame):
                 else "Changes saved here update this event everywhere it appears."
             )
         )
-        self.title_value.set(
+        loaded_title = (
             self.loaded_title()
             if display_title is None
             else str(display_title or "")
+        )
+        self.title_value.set(loaded_title)
+        loaded_default_title = EVENT_TYPE_DEFAULT_TITLES.get(
+            loaded_event_type,
+            "",
+        )
+        self.generated_event_type_title = (
+            loaded_default_title
+            if loaded_default_title
+            and loaded_title.strip() == loaded_default_title
+            else ""
         )
         self.configure_type_options()
         self.event_type_value.set(
@@ -1773,6 +1924,23 @@ class EventEditor(tk.Frame):
         baby_ids = list(
             self.event.get("baby_person_ids", []) or ()
         )
+        if (
+            loaded_event_type == "born"
+            and not baby_ids
+            and self.context == "person"
+            and self.event.get("automatic_source") == "life_start"
+        ):
+            current_person_ids = list(
+                dict.fromkeys(
+                    str(person_id or "").strip()
+                    for person_id in (
+                        *locked_person_ids,
+                        *person_ids,
+                    )
+                    if str(person_id or "").strip()
+                )
+            )
+            baby_ids = current_person_ids[:1]
         birthing_parent_ids = list(
             self.event.get("birthing_parent_person_ids", []) or ()
         )
@@ -1788,7 +1956,8 @@ class EventEditor(tk.Frame):
             (
                 baby_ids
                 if loaded_event_type == "born"
-                and self.event.get("automatic_source") == "birth_event"
+                and self.event.get("automatic_source")
+                in ("birth_event", "life_start")
                 else ()
             ),
         )
@@ -1842,6 +2011,41 @@ class EventEditor(tk.Frame):
             ],
         )
         self.update_murder_additional_people_summary()
+        self.locked_item_ids = list(
+            dict.fromkeys(
+                str(item_id or "").strip()
+                for item_id in locked_item_ids or ()
+                if str(item_id or "").strip()
+            )
+        )
+        self.selected_item_ids = list(
+            dict.fromkeys(
+                [
+                    *(
+                        str(item_id or "").strip()
+                        for item_id in self.event.get("item_ids", []) or ()
+                        if str(item_id or "").strip()
+                    ),
+                    *(
+                        str(item_id or "").strip()
+                        for item_id in item_ids or ()
+                        if str(item_id or "").strip()
+                    ),
+                    *self.locked_item_ids,
+                ]
+            )
+        )
+        self.selected_item_link_types = normalize_item_event_link_types(
+            self.event.get("item_link_types"),
+            self.selected_item_ids,
+            loaded_event_type,
+        )
+        self.selected_item_new_owners = normalize_item_event_new_owners(
+            self.event.get("item_new_owners"),
+            self.selected_item_ids,
+            self.selected_item_link_types,
+        )
+        self.update_items_summary()
         if hasattr(self, "eminence_picker"):
             eminence_candidate_ids = (
                 list(
@@ -1964,6 +2168,18 @@ class EventEditor(tk.Frame):
         if not hasattr(self, "job_event_value"):
             return
 
+        if str(
+            self.event.get("event_type", "") or ""
+        ).strip() not in ("started_job", "received_raise"):
+            self.job_event_options = []
+            self.job_event_options_by_label = {}
+            self.job_event_picker.set_values([])
+            self.job_event_value.set("")
+            self.salary_galleons_value.set("0")
+            self.salary_sickles_value.set("0")
+            self.salary_knuts_value.set("0")
+            return
+
         self.refresh_job_event_options()
         organization_id = str(
             self.event.get("organization_id", "") or ""
@@ -2075,6 +2291,9 @@ class EventEditor(tk.Frame):
         )
 
     def default_type_label(self):
+        if self.context == "item":
+            return EVENT_TYPE_LABELS["item_event"]
+
         if self.context == "person":
             return EVENT_TYPE_LABELS["custom"]
 
@@ -2299,6 +2518,10 @@ class EventEditor(tk.Frame):
             and not self.lock_people
             and not (
                 selected_type == "born"
+                and self.baby_picker.locked_order
+            )
+            and not (
+                selected_type == "born"
                 and self.event.get("automatic_source") == "birth_event"
             )
         )
@@ -2338,6 +2561,8 @@ class EventEditor(tk.Frame):
             for salary_entry in self.job_salary_entries:
                 salary_entry.set_enabled(field_editable)
 
+        if hasattr(self, "link_items_button"):
+            self.link_items_button.set_enabled(editable)
         self.save_button.set_enabled(editable)
         self.cancel_button.set_enabled(True)
 
@@ -2446,6 +2671,220 @@ class EventEditor(tk.Frame):
         self.murder_people_selection_changed()
         return True
 
+    def update_items_summary(self):
+        if not hasattr(self, "items_summary_value"):
+            return
+
+        linked_item_count = len(self.selected_item_ids)
+
+        if linked_item_count == 0:
+            self.items_summary_value.set("Items: None")
+        elif linked_item_count == 1:
+            item_id = self.selected_item_ids[0]
+            link_type = getattr(
+                self,
+                "selected_item_link_types",
+                {},
+            ).get(item_id, "")
+            self.items_summary_value.set(
+                "Items: 1 linked · "
+                + item_event_link_type_label(
+                    link_type,
+                    getattr(
+                        self,
+                        "selected_item_new_owners",
+                        {},
+                    ).get(item_id),
+                )
+            )
+        else:
+            self.items_summary_value.set(
+                f"Items: {linked_item_count} linked"
+            )
+
+    def item_link_person_ids(self):
+        return list(
+            dict.fromkeys(
+                str(person_id or "").strip()
+                for person_id in (
+                    *self.people_picker.get_values(),
+                    *self.baby_picker.get_values(),
+                    *self.birthing_parent_picker.get_values(),
+                    *self.non_birthing_parent_picker.get_values(),
+                    *self.perpetrators_picker.get_values(),
+                    *self.victims_picker.get_values(),
+                    *self.witnesses_picker.get_values(),
+                    *self.affected_picker.get_values(),
+                )
+                if str(person_id or "").strip()
+            )
+        )
+
+    def open_item_links(self):
+        if not self.controls_enabled:
+            return False
+
+        item_options_command = getattr(
+            self.controller,
+            "item_options",
+            None,
+        )
+        item_link_explanation = (
+            "Choose each item connected to this event, then select why it "
+            "is linked and what the event does to it."
+        )
+
+        if self.context == "person":
+            possessor_person_ids = self.item_link_person_ids()
+            event_date = self.date_value()
+
+            if not possessor_person_ids:
+                self.show_error(
+                    "Select the people, witnesses, or affected people "
+                    "before linking items."
+                )
+                return False
+
+            if not event_date:
+                self.show_error(
+                    "Enter the event date before linking items from a "
+                    "Mage timeline."
+                )
+                return False
+
+            try:
+                item_options = (
+                    list(
+                        item_options_command(
+                            possessor_person_ids=possessor_person_ids,
+                            on_date=event_date,
+                        )
+                    )
+                    if callable(item_options_command)
+                    else []
+                )
+            except (KeyError, TypeError, ValueError) as error:
+                self.show_error(str(error))
+                return False
+
+            item_link_explanation = (
+                "Only items possessed during this event by its people, "
+                "witnesses, or affected people are available. Select why "
+                "each item is linked and what the event does to it."
+            )
+        else:
+            item_options = (
+                list(item_options_command())
+                if callable(item_options_command)
+                else []
+            )
+
+        selected_event_type = str(
+            getattr(self, "event", {}).get("event_type", "other")
+            if isinstance(getattr(self, "event", {}), dict)
+            else "other"
+        ).strip()
+
+        if hasattr(self, "event_type_value"):
+            selected_event_type = event_type_from_label(
+                self.event_type_value.get(),
+                selected_event_type or "other",
+            )
+
+        RecordLinkDialog(
+            self,
+            "Link Items to Event",
+            "Link items to this event",
+            item_link_explanation,
+            item_options,
+            self.selected_item_ids,
+            self.item_links_chosen,
+            "Save item links",
+            locked_ids=self.locked_item_ids,
+            link_type_options=item_event_link_type_options(),
+            selected_link_types=getattr(
+                self,
+                "selected_item_link_types",
+                {},
+            ),
+            link_type_default=normalize_item_event_link_type(
+                "",
+                selected_event_type,
+            ),
+            new_owner_options=self.controller.people_options(),
+            recent_new_owner_options=(
+                self.controller.recent_people_options()
+                if hasattr(self.controller, "recent_people_options")
+                else ()
+            ),
+            selected_new_owners=getattr(
+                self,
+                "selected_item_new_owners",
+                {},
+            ),
+            mage_groups=(
+                self.controller.mage_groups()
+                if hasattr(self.controller, "mage_groups")
+                else ()
+            ),
+        )
+        return True
+
+    def item_links_chosen(
+        self,
+        item_ids,
+        item_link_types=None,
+        item_new_owners=None,
+    ):
+        self.selected_item_ids = list(
+            dict.fromkeys(
+                [
+                    *(
+                        str(item_id or "").strip()
+                        for item_id in item_ids or ()
+                        if str(item_id or "").strip()
+                    ),
+                    *self.locked_item_ids,
+                ]
+            )
+        )
+        requested_link_types = dict(
+            getattr(self, "selected_item_link_types", {}) or {}
+        )
+
+        if isinstance(item_link_types, dict):
+            requested_link_types.update(item_link_types)
+        event_type = (
+            event_type_from_label(
+                self.event_type_value.get(),
+                "other",
+            )
+            if hasattr(self, "event_type_value")
+            else str(
+                getattr(self, "event", {}).get("event_type", "other")
+                or "other"
+            )
+        )
+        self.selected_item_link_types = normalize_item_event_link_types(
+            requested_link_types,
+            self.selected_item_ids,
+            event_type,
+        )
+        requested_new_owners = dict(
+            getattr(self, "selected_item_new_owners", {}) or {}
+        )
+
+        if isinstance(item_new_owners, dict):
+            requested_new_owners.update(item_new_owners)
+
+        self.selected_item_new_owners = normalize_item_event_new_owners(
+            requested_new_owners,
+            self.selected_item_ids,
+            self.selected_item_link_types,
+        )
+        self.update_items_summary()
+        return True
+
     def location_selection_changed(self):
         if getattr(self, "controls_enabled", False):
             self.association_selection_guard_until = monotonic() + 0.35
@@ -2502,6 +2941,49 @@ class EventEditor(tk.Frame):
             self.event_type_value.get(),
             "other",
         )
+        previous_type = str(
+            getattr(self, "previous_event_type", "") or ""
+        ).strip()
+        current_title = self.title_value.get().strip()
+        previous_default_title = EVENT_TYPE_DEFAULT_TITLES.get(
+            previous_type,
+            "",
+        )
+        generated_titles = {
+            str(
+                getattr(self, attribute_name, "") or ""
+            ).strip()
+            for attribute_name in (
+                "generated_event_type_title",
+                "generated_founding_title",
+                "generated_extinction_title",
+                "generated_job_event_title",
+            )
+            if str(
+                getattr(self, attribute_name, "") or ""
+            ).strip()
+        }
+        title_uses_previous_default = (
+            current_title in ("", "New event")
+            or current_title in generated_titles
+            or (
+                bool(previous_default_title)
+                and current_title == previous_default_title
+            )
+        )
+        next_default_title = EVENT_TYPE_DEFAULT_TITLES.get(
+            selected_type,
+            "",
+        )
+
+        if title_uses_previous_default:
+            self.title_value.set(next_default_title)
+            self.generated_event_type_title = next_default_title
+        else:
+            self.generated_event_type_title = ""
+
+        self.previous_event_type = selected_type
+
         self.people_picker.single_selection = selected_type in (
             "died",
             "returns_as_ghost",
@@ -2569,14 +3051,7 @@ class EventEditor(tk.Frame):
                 self.locations_picker.locked_order[:1],
             )
 
-        if selected_type == "born":
-            if self.title_value.get().strip() in (
-                "",
-                "New event",
-                "Born",
-            ):
-                self.title_value.set("Birth")
-        elif selected_type == "murder":
+        if selected_type == "murder":
             if (
                 not self.perpetrators_picker.get_values()
                 and not self.victims_picker.get_values()
@@ -2588,29 +3063,15 @@ class EventEditor(tk.Frame):
                     (),
                 )
 
-            if self.title_value.get().strip() in ("", "New event"):
-                self.title_value.set("Murder")
-        elif (
-            selected_type == "died"
-            and self.title_value.get().strip() in ("", "New event")
+        elif selected_type in (
+            "died",
+            "returns_as_ghost",
+            "romance",
+            "breakup",
+            "travel",
+            "item_event",
         ):
-            self.title_value.set("death")
-        elif (
-            selected_type == "returns_as_ghost"
-            and self.title_value.get().strip() in ("", "New event")
-        ):
-            self.title_value.set("Returns as ghost")
-        elif (
-            selected_type in ("romance", "breakup", "travel")
-            and self.title_value.get().strip() in ("", "New event")
-        ):
-            self.title_value.set(
-                {
-                    "romance": "Romance",
-                    "breakup": "Breakup",
-                    "travel": "Travel",
-                }[selected_type]
-            )
+            pass
         elif (
             self.baby_picker.get_values()
             or self.birthing_parent_picker.get_values()
@@ -3075,6 +3536,37 @@ class EventEditor(tk.Frame):
                 if event_type == "organization_founding"
                 else selected_location_ids
             ),
+            "item_ids": list(
+                dict.fromkeys(
+                    [
+                        *getattr(self, "selected_item_ids", []),
+                        *getattr(self, "locked_item_ids", []),
+                    ]
+                )
+            ),
+            "item_link_types": normalize_item_event_link_types(
+                getattr(self, "selected_item_link_types", {}),
+                [
+                    *getattr(self, "selected_item_ids", []),
+                    *getattr(self, "locked_item_ids", []),
+                ],
+                event_type,
+            ),
+            "item_new_owners": normalize_item_event_new_owners(
+                getattr(self, "selected_item_new_owners", {}),
+                [
+                    *getattr(self, "selected_item_ids", []),
+                    *getattr(self, "locked_item_ids", []),
+                ],
+                normalize_item_event_link_types(
+                    getattr(self, "selected_item_link_types", {}),
+                    [
+                        *getattr(self, "selected_item_ids", []),
+                        *getattr(self, "locked_item_ids", []),
+                    ],
+                    event_type,
+                ),
+            ),
             "locked_location_ids": (
                 []
                 if event_type == "organization_founding"
@@ -3145,6 +3637,57 @@ class EventEditor(tk.Frame):
         ):
             self.show_error("Enter the year when this event happened.")
             return False
+
+        missing_item_owner_ids = [
+            item_id
+            for item_id in values["item_ids"]
+            if values["item_link_types"].get(item_id)
+            in ITEM_EVENT_NEW_OWNER_LINK_TYPES
+            and not values["item_new_owners"].get(
+                item_id,
+                {},
+            ).get("person_id")
+        ]
+
+        if missing_item_owner_ids:
+            self.show_error(
+                "Choose the new owner for every Passed down, Gifted, or "
+                "Taken item link."
+            )
+            return False
+
+        if self.context == "person" and values["item_ids"]:
+            possessor_person_ids = list(
+                dict.fromkeys(
+                    [
+                        *values["person_ids"],
+                        *values["witness_person_ids"],
+                        *values["affected_person_ids"],
+                    ]
+                )
+            )
+
+            try:
+                eligible_item_ids = {
+                    option["value"]
+                    for option in self.controller.item_options(
+                        possessor_person_ids=possessor_person_ids,
+                        on_date=values["date"],
+                    )
+                }
+            except (KeyError, TypeError, ValueError) as error:
+                self.show_error(str(error))
+                return False
+
+            if any(
+                item_id not in eligible_item_ids
+                for item_id in values["item_ids"]
+            ):
+                self.show_error(
+                    "Every linked item must be possessed during this event "
+                    "by one of its people, witnesses, or affected people."
+                )
+                return False
 
         if (
             values["event_type"] in ("died", "murder")

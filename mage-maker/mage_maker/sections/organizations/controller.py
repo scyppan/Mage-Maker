@@ -31,6 +31,10 @@ from mage_maker.sections.events.models import (
     split_world_event_date,
     world_event_year,
 )
+from mage_maker.sections.items.links import (
+    normalize_item_event_link_types,
+    normalize_item_event_new_owners,
+)
 from mage_maker.sections.settings.simulation import (
     DATABASE_DATE_SETTING_KEY,
     normalize_database_date,
@@ -150,6 +154,19 @@ def normalize_organization_event(value):
     affected_person_ids = normalize_association_values(
         value.get("affected_person_ids", [])
     )
+    item_ids = normalize_association_values(
+        value.get("item_ids", [])
+    )
+    item_link_types = normalize_item_event_link_types(
+        value.get("item_link_types"),
+        item_ids,
+        event_type,
+    )
+    item_new_owners = normalize_item_event_new_owners(
+        value.get("item_new_owners"),
+        item_ids,
+        item_link_types,
+    )
     linked_person_ids = set(
         normalize_association_values(
             [
@@ -196,6 +213,9 @@ def normalize_organization_event(value):
         "year": year,
         "description": description,
         "person_ids": person_ids,
+        "item_ids": item_ids,
+        "item_link_types": item_link_types,
+        "item_new_owners": item_new_owners,
         "eminence_person_ids": eminence_person_ids,
         "eminence_skills": eminence_skills,
     }
@@ -260,6 +280,9 @@ def new_organization_event(
     day=None,
     witness_person_ids=(),
     affected_person_ids=(),
+    item_ids=(),
+    item_link_types=None,
+    item_new_owners=None,
 ):
     return normalize_organization_event(
         {
@@ -273,6 +296,9 @@ def new_organization_event(
             "person_ids": list(person_ids),
             "witness_person_ids": list(witness_person_ids),
             "affected_person_ids": list(affected_person_ids),
+            "item_ids": list(item_ids),
+            "item_link_types": dict(item_link_types or {}),
+            "item_new_owners": dict(item_new_owners or {}),
             "eminence_person_ids": list(
                 eminence_person_ids
             ),
@@ -329,6 +355,9 @@ def organization_event_as_world_event(
             "date": normalized_event["date"],
             "description": normalized_event["description"],
             "person_ids": normalized_event["person_ids"],
+            "item_ids": normalized_event["item_ids"],
+            "item_link_types": normalized_event["item_link_types"],
+            "item_new_owners": normalized_event["item_new_owners"],
             **(
                 {
                     "witness_person_ids": normalized_event[
@@ -378,6 +407,11 @@ def organization_event_from_world_event(
             "date": normalized_world_event["date"],
             "description": normalized_world_event["description"],
             "person_ids": normalized_world_event["person_ids"],
+            "item_ids": normalized_world_event["item_ids"],
+            "item_link_types": normalized_world_event["item_link_types"],
+            "item_new_owners": normalized_world_event[
+                "item_new_owners"
+            ],
             "witness_person_ids": normalized_world_event.get(
                 "witness_person_ids",
                 [],

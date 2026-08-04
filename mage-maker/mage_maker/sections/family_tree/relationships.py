@@ -519,11 +519,11 @@ class FamilyRelationshipMap:
             elif record_id == father_id:
                 relation = "Non-birthing parent"
             elif record_id in maternal_aunts_uncles:
-                relation = "Birthing parent's sibling"
+                relation = "Birthing parent's pibbling"
             elif record_id in paternal_aunts_uncles:
-                relation = "Non-birthing parent's sibling"
+                relation = "Non-birthing parent's pibbling"
             else:
-                relation = "Aunt/uncle"
+                relation = "Pibbling"
 
             nodes.append({"person": self.person(record_id), "relation": relation})
 
@@ -559,7 +559,7 @@ class FamilyRelationshipMap:
         nodes = []
 
         for record_id in record_ids:
-            relation = "Child" if record_id in children else "Niece/nephew"
+            relation = "Child" if record_id in children else "Nibbling"
             nodes.append({"person": self.person(record_id), "relation": relation})
 
         return nodes

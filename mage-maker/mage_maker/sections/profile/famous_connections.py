@@ -2,10 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 
 from mage_maker.sections.events.types import canonical_event_type
-from mage_maker.sections.family_tree.relationships import (
-    FamilyRelationshipMap,
-    person_can_give_birth,
-)
+from mage_maker.sections.family_tree.relationships import FamilyRelationshipMap
 from mage_maker.sections.family_tree.spouse_relationships import (
     normalize_spouse_relationships,
 )
@@ -149,8 +146,7 @@ class FamousConnectionMap:
             return "Step parent"
 
         if self.is_aunt_or_uncle(record_id, famous_id):
-            person = self.relationships.person(record_id) or {}
-            return "Aunt" if person_can_give_birth(person) else "Uncle"
+            return "Pibbling"
 
         if self.is_cousin(record_id, famous_id):
             return "Cousin"

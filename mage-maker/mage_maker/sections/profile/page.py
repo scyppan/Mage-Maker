@@ -39,6 +39,7 @@ from mage_maker.sections.profile.famous_connections import (
 )
 from mage_maker.sections.profile.books import BooksView
 from mage_maker.sections.profile.jobs import NonMagicalJobsView
+from mage_maker.sections.items.page import ItemsView
 from mage_maker.sections.relationships.page import RelationshipsView
 from mage_maker.sections.ledger.page import LedgerView
 from mage_maker.sections.settings.mage_groups import (
@@ -108,6 +109,8 @@ class PersonForm(tk.Frame):
         settings_provider=None,
         organization_create_command=None,
         organization_location_provider=None,
+        item_controller=None,
+        status_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
@@ -125,6 +128,8 @@ class PersonForm(tk.Frame):
         self.organization_location_provider = (
             organization_location_provider
         )
+        self.item_controller = item_controller
+        self.status_command = status_command
         self.loading = False
         self.variables = {}
         self.boolean_widgets = {}
@@ -170,6 +175,7 @@ class PersonForm(tk.Frame):
         self.build_timeline_page(navigate_command)
         self.build_jobs_page()
         self.build_development_page()
+        self.build_items_page()
         self.build_books_page()
         self.build_ledger_page()
         self.update_person_navigation()
@@ -186,6 +192,7 @@ class PersonForm(tk.Frame):
             ("timeline", "Timeline", 90),
             ("jobs", "Jobs", 76),
             ("development", "Development", 112),
+            ("items", "Items", 76),
             ("books", "Books", 76),
             ("ledger", "Ledger", 78),
         )
@@ -442,7 +449,7 @@ class PersonForm(tk.Frame):
             value="Not recorded"
         )
         self.life_dates_display_value = tk.StringVar(
-            value="Born: Not recorded  ·  alive"
+            value="Born: Not recorded"
         )
         life_dates_frame = tk.Frame(
             identity_panel.content,
@@ -480,6 +487,7 @@ class PersonForm(tk.Frame):
             fg=TEXT_DARK,
             font=app_font(10, "bold"),
             anchor="w",
+            justify="left",
         )
         life_dates_value.grid(row=1, column=0, sticky="ew")
         overview = tk.Frame(page, bg=SURFACE)
@@ -689,6 +697,19 @@ class PersonForm(tk.Frame):
         page.grid(row=0, column=0, sticky="nsew")
         self.books = page
         self.pages["books"] = page
+
+    def build_items_page(self):
+        page = ItemsView(
+            self.content,
+            self.item_controller,
+            self.people_provider,
+            self.status_command,
+            event_controller=self.event_controller,
+            events_changed_command=self.events_changed_command,
+        )
+        page.grid(row=0, column=0, sticky="nsew")
+        self.items = page
+        self.pages["items"] = page
 
     def build_ledger_page(self):
         page = LedgerView(
@@ -1094,6 +1115,9 @@ class PersonForm(tk.Frame):
 
                 if self.loading:
                     self.after_idle(self.change_command)
+
+        if page_name == "items":
+            self.items.set_person(self.person_for_deferred_load())
 
         if page_name in ("books", "ledger"):
             self.refresh_books_and_ledger()
@@ -2140,11 +2164,6 @@ class PersonForm(tk.Frame):
             birth_date,
             unknown="Not recorded",
         )
-        death_display = (
-            f"Died {format_historical_display_date(death_date)}"
-            if death_date
-            else "alive"
-        )
         age_at_death, _exact_age = person_age_at_death(
             {
                 "birth_year": self.variables["birth_year"].get(),
@@ -2160,9 +2179,16 @@ class PersonForm(tk.Frame):
             if death_date and age_at_death is not None
             else ""
         )
-        self.life_dates_display_value.set(
-            f"Born: {birth_display}  ·  {death_display}{age_display}"
-        )
+        life_dates_text = f"Born: {birth_display}"
+
+        if death_date:
+            life_dates_text += (
+                "\nDied: "
+                f"{format_historical_display_date(death_date)}"
+                f"{age_display}"
+            )
+
+        self.life_dates_display_value.set(life_dates_text)
 
     def update_death_overview(self):
         if not hasattr(self, "death_overview_value"):
@@ -2371,26 +2397,43 @@ class PersonForm(tk.Frame):
             and self.variables["non_magical"].get()
         )
         restricted_pages = ("development", "books", "ledger")
+        variable_pages = (
+            "jobs",
+            "development",
+            "items",
+            "books",
+            "ledger",
+        )
 
-        if is_non_magical:
-            for page_name in restricted_pages:
+        for page_name in variable_pages:
+            if page_name in self.navigation_buttons:
                 self.navigation_buttons[page_name].pack_forget()
 
-            jobs_button = self.navigation_buttons["jobs"]
-
-            if not jobs_button.winfo_manager():
-                jobs_button.pack(side="left", padx=(0, 6))
+        if is_non_magical:
+            self.navigation_buttons["jobs"].pack(
+                side="left",
+                padx=(0, 6),
+            )
+            if "items" in self.navigation_buttons:
+                self.navigation_buttons["items"].pack(
+                    side="left",
+                    padx=(0, 6),
+                )
 
             if self.active_page_name in restricted_pages:
                 self.active_page_name = "profile"
         else:
-            self.navigation_buttons["jobs"].pack_forget()
-
-            for page_name in restricted_pages:
-                button = self.navigation_buttons[page_name]
-
-                if not button.winfo_manager():
-                    button.pack(side="left", padx=(0, 6))
+            for page_name in (
+                "development",
+                "items",
+                "books",
+                "ledger",
+            ):
+                if page_name in self.navigation_buttons:
+                    self.navigation_buttons[page_name].pack(
+                        side="left",
+                        padx=(0, 6),
+                    )
 
             if self.active_page_name == "jobs":
                 self.active_page_name = "profile"

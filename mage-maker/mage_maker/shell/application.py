@@ -15,6 +15,8 @@ from mage_maker.sections.locations.period_definitions import (
     load_period_definitions,
 )
 from mage_maker.sections.locations.periods_page import PeriodsPage
+from mage_maker.sections.items.controller import ItemController
+from mage_maker.sections.items.page import ItemsView
 from mage_maker.sections.mages.page import MagesPage
 from mage_maker.sections.organizations.controller import OrganizationController
 from mage_maker.sections.organizations.page import OrganizationPage
@@ -102,6 +104,10 @@ class MageMakerApp(tk.Tk):
             self.database
         )
         self.people_controller = PeopleController(self.database)
+        self.item_controller = ItemController(
+            self.database,
+            self.people_controller.list_people,
+        )
         self.location_controller = LocationController(
             self.database,
             self.people_controller.list_people,
@@ -115,6 +121,17 @@ class MageMakerApp(tk.Tk):
             self.people_controller.create_person,
             self.people_controller.list_mage_groups,
         )
+
+        ownership_changed = (
+            self.event_controller.synchronize_item_ownership_from_events()
+        )
+        retained_events_changed = (
+            self.event_controller.synchronize_retained_item_events_for_deaths()
+        )
+
+        if retained_events_changed or ownership_changed:
+            self.database.save()
+
         self.organization_controller = OrganizationController(
             self.database,
             self.location_controller.list_locations,
@@ -208,6 +225,7 @@ class MageMakerApp(tk.Tk):
             ("locations", "Locations", 116),
             ("periods", "Periods", 104),
             ("organizations", "Organizations", 144),
+            ("items", "Items", 96),
             ("settings", "Settings", 104),
         ):
             button = SoftButton(
@@ -260,6 +278,7 @@ class MageMakerApp(tk.Tk):
             organization_location_provider=(
                 self.organization_controller.location_records
             ),
+            item_controller=self.item_controller,
         )
         self.pages["mages"].grid(row=0, column=0, sticky="nsew")
 
@@ -300,6 +319,16 @@ class MageMakerApp(tk.Tk):
                     self.refresh_cross_page_data,
                     self.organization_lock_changed,
                     auto_refresh=False,
+                )
+            elif page_name == "items":
+                page = ItemsView(
+                    self.content,
+                    self.item_controller,
+                    self.people_controller.list_people,
+                    self.set_status,
+                    event_controller=self.event_controller,
+                    events_changed_command=self.refresh_cross_page_data,
+                    global_mode=True,
                 )
             elif page_name == "settings":
                 page = SettingsPage(
@@ -372,6 +401,7 @@ class MageMakerApp(tk.Tk):
             "locations",
             "periods",
             "organizations",
+            "items",
             "settings",
         ):
             return False
@@ -417,6 +447,7 @@ class MageMakerApp(tk.Tk):
                 "locations",
                 "periods",
                 "organizations",
+                "items",
                 "settings",
             )
         ):
@@ -441,6 +472,8 @@ class MageMakerApp(tk.Tk):
             self.pages["periods"].refresh()
         elif page_name == "organizations":
             self.pages["organizations"].refresh()
+        elif page_name == "items":
+            self.pages["items"].refresh_items()
         elif page_name == "settings":
             self.pages["settings"].refresh()
 
@@ -664,6 +697,16 @@ class MageMakerApp(tk.Tk):
                 page.set_region_lock(self.region_lock_id)
 
     def refresh_cross_page_data(self):
+        ownership_changed = (
+            self.event_controller.synchronize_item_ownership_from_events()
+        )
+        retained_events_changed = (
+            self.event_controller.synchronize_retained_item_events_for_deaths()
+        )
+
+        if retained_events_changed or ownership_changed:
+            self.database.save()
+
         mages_page = self.pages.get("mages")
 
         if mages_page is not None:
@@ -688,6 +731,11 @@ class MageMakerApp(tk.Tk):
             organization_page.refresh(
                 organization_page.current_organization_id
             )
+
+        items_page = self.pages.get("items")
+
+        if items_page is not None:
+            items_page.refresh_items(items_page.selected_item_id)
 
     def refresh_mage_group_data(self):
         mages_page = self.pages.get("mages")
@@ -771,6 +819,8 @@ class MageMakerApp(tk.Tk):
             and "organizations" in self.pages
         ):
             self.pages["organizations"].create_organization()
+        elif self.active_page_name == "items" and "items" in self.pages:
+            self.pages["items"].open_add_item_dialog()
 
         return "break"
 
@@ -792,6 +842,8 @@ class MageMakerApp(tk.Tk):
             and "organizations" in self.pages
         ):
             self.pages["organizations"].search_shortcut()
+        elif self.active_page_name == "items" and "items" in self.pages:
+            self.pages["items"].search_entry.entry.focus_set()
 
         return "break"
 

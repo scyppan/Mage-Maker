@@ -101,6 +101,7 @@ from mage_maker.sections.development.school_years import (
     ensure_adult_year_records_with_improvements,
     ensure_school_year_records,
     random_school_year_skill,
+    rebuild_school_year_records,
 )
 from mage_maker.sections.ledger.models import (
     normalize_ledger_entries,
@@ -298,10 +299,6 @@ class DevelopmentView(tk.Frame):
         self.year_ability_value.trace_add(
             "write",
             self.school_year_selection_changed,
-        )
-        self.year_skipped_value.trace_add(
-            "write",
-            self.year_skip_changed,
         )
         self.year_characteristic_value.trace_add(
             "write",
@@ -528,6 +525,25 @@ class DevelopmentView(tk.Frame):
             column=1,
             sticky="w",
             padx=(7, 0),
+        )
+        self.rebuild_development_years_button = SoftButton(
+            strategy_block,
+            text="Rebuild years",
+            command=self.rebuild_development_years,
+            background=SURFACE_MUTED,
+            fill=BUTTON_SOFT,
+            hover_fill=BUTTON_SOFT_HOVER,
+            foreground=TEXT_DARK,
+            width=116,
+            height=34,
+            font=app_font(9, "bold"),
+        )
+        self.rebuild_development_years_button.grid(
+            row=2,
+            column=1,
+            sticky="w",
+            padx=(7, 0),
+            pady=(7, 0),
         )
 
         self.focus_frame = tk.Frame(
@@ -1419,6 +1435,7 @@ class DevelopmentView(tk.Frame):
             improvement_header,
             text="Skip this year",
             variable=self.year_skipped_value,
+            command=self.year_skip_changed,
             bg=SURFACE_MUTED,
             activebackground=SURFACE_MUTED,
             fg=TEXT_DARK,
@@ -3159,7 +3176,12 @@ class DevelopmentView(tk.Frame):
 
         previous_loading = self.loading
         self.loading = True
-        skipped = bool(record.get("skipped", False))
+        school_selected = self.school_is_selected()
+        skipped = (
+            bool(record.get("skipped", False))
+            if school_selected
+            else False
+        )
 
         if hasattr(self, "year_detail_heading_value"):
             self.year_detail_heading_value.set(
@@ -3171,6 +3193,12 @@ class DevelopmentView(tk.Frame):
 
         if hasattr(self, "year_skipped_value"):
             self.year_skipped_value.set(skipped)
+
+        if hasattr(self, "school_skip_year_checkbutton"):
+            if school_selected:
+                self.school_skip_year_checkbutton.grid()
+            else:
+                self.school_skip_year_checkbutton.grid_remove()
 
         if hasattr(self, "school_skip_note"):
             person_name = str(
@@ -3184,7 +3212,7 @@ class DevelopmentView(tk.Frame):
                 f"{person_name} skipped attending school this year."
             )
 
-            if skipped:
+            if skipped and school_selected:
                 self.school_skip_note.grid()
             else:
                 self.school_skip_note.grid_remove()
@@ -3788,6 +3816,12 @@ class DevelopmentView(tk.Frame):
         if record is None:
             return
 
+        if not self.school_is_selected():
+            self.loading = True
+            self.year_skipped_value.set(False)
+            self.loading = False
+            return
+
         skip_requested = bool(self.year_skipped_value.get())
 
         if skip_requested and not bool(record.get("skipped", False)):
@@ -4120,6 +4154,56 @@ class DevelopmentView(tk.Frame):
         )
         self.loading = False
         self.notify_change()
+
+    def rebuild_development_years(self):
+        existing_records = normalize_school_year_records(
+            getattr(self, "school_year_records", [])
+        )
+
+        if not existing_records:
+            return False
+
+        person_name = str(
+            getattr(self, "current_person", {}).get(
+                "displayed_name",
+                "This person",
+            )
+            or "This person"
+        ).strip()
+        strategy_name = str(
+            self.strategy_value.get() or "Scattershot"
+        ).strip()
+        confirmed = messagebox.askyesno(
+            "Rebuild developmental years?",
+            (
+                f"Rebuild all developmental years for {person_name} "
+                f"using {strategy_name}?\n\n"
+                "Ability, skill, and characteristic choices will be "
+                "rerolled. School attendance, books, eminence, jobs, "
+                "and ledger history will be retained."
+            ),
+            parent=self,
+        )
+
+        if not confirmed:
+            return False
+
+        rebuilt_records = rebuild_school_year_records(
+            existing_records,
+            self.school_year_generation_plan(),
+            initial_characteristics=getattr(
+                self,
+                "characteristics",
+                None,
+            ),
+        )
+        self.school_year_records = rebuilt_records
+        self.development_plan["school_years"] = deepcopy(
+            rebuilt_records
+        )
+        self.update_school_progress_controls()
+        self.notify_change()
+        return True
 
     def advance_one_year(self):
         page_count = self.development_page_count()

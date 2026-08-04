@@ -397,7 +397,7 @@ def murder_timeline_summary(event, current_person_id, people):
 
     if selected_person_id in affected_ids:
         return (
-            "Affected by the murder of "
+            "Affected by death of "
             f"{murder_people_label(victim_ids, people)}"
         )
 

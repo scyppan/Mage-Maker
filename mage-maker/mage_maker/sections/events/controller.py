@@ -1,6 +1,8 @@
 from copy import deepcopy
 
 from mage_maker.core.dates import (
+    format_date_parts,
+    format_line_item_date,
     historical_days_in_month,
     historical_year_after,
     is_at_least_age,
@@ -30,6 +32,7 @@ from mage_maker.sections.events.models import (
     death_event_person_ids,
     event_linked_person_ids,
     normalize_world_event,
+    normalize_world_event_date,
     normalize_world_events,
     split_world_event_date,
     synchronize_birth_events_from_people,
@@ -44,7 +47,26 @@ from mage_maker.sections.family_tree.relationships import (
 )
 from mage_maker.sections.events.types import (
     canonical_event_type,
+    event_type_label,
     event_type_is_person_only,
+)
+from mage_maker.sections.items.models import (
+    item_current_holder,
+    item_passage_sort_key,
+    item_possessor_ids_on_date,
+    normalize_item_passage,
+    normalize_item_record,
+    normalize_item_records,
+)
+from mage_maker.sections.items.links import (
+    ITEM_EVENT_NEW_OWNER_LINK_TYPES,
+    item_event_new_owner,
+    item_event_link_type,
+    item_event_ownership_method,
+    normalize_item_event_link_type,
+    normalize_item_event_link_types,
+    normalize_item_event_new_owner,
+    normalize_item_event_new_owners,
 )
 from mage_maker.sections.locations.models import (
     ancestor_locations,
@@ -61,6 +83,7 @@ from mage_maker.sections.organizations.controller import (
     organization_context_label,
     organization_event_as_world_event,
     organization_event_from_world_event,
+    organization_event_world_id,
     organization_events_as_world_events,
     synchronize_school_campus_locations,
 )
@@ -76,6 +99,7 @@ RECENT_ASSOCIATION_STORAGE_LIMIT = 12
 RECENT_PERSON_STORAGE_KEY = "_recent_people"
 RECENT_LOCATION_STORAGE_KEY = "_recent_locations"
 RECENT_WORLD_LOCATION_ID = "__mage_maker_world__"
+RETAINED_DEATH_STORAGE_KEY = "retained_item_death_events"
 
 
 class DeathEventReplacementRequired(ValueError):
@@ -110,7 +134,11 @@ class EventController:
         self._events_by_record_id = {}
         self._events_by_person_id = {}
         self._events_by_location_id = {}
+        self._events_by_item_id = {}
         self._eminence_points_by_person_id = {}
+        self._people_options_cache = None
+        self._people_options_by_id_cache = {}
+        self._people_options_cache_revision = None
 
     def invalidate_event_cache(self):
         self._event_cache = None
@@ -118,6 +146,7 @@ class EventController:
         self._events_by_record_id = {}
         self._events_by_person_id = {}
         self._events_by_location_id = {}
+        self._events_by_item_id = {}
         self._eminence_points_by_person_id = {}
 
     def ensure_event_cache(self):
@@ -145,6 +174,7 @@ class EventController:
         events_by_record_id = {}
         events_by_person_id = {}
         events_by_location_id = {}
+        events_by_item_id = {}
         eminence_points_by_person_id = {}
 
         for event in normalized_events:
@@ -175,10 +205,14 @@ class EventController:
             for location_id in event.get("location_ids", []):
                 events_by_location_id.setdefault(location_id, []).append(event)
 
+            for item_id in event.get("item_ids", []):
+                events_by_item_id.setdefault(item_id, []).append(event)
+
         self._event_cache = normalized_events
         self._events_by_record_id = events_by_record_id
         self._events_by_person_id = events_by_person_id
         self._events_by_location_id = events_by_location_id
+        self._events_by_item_id = events_by_item_id
         self._eminence_points_by_person_id = eminence_points_by_person_id
         self._event_cache_revision = database_revision
 
@@ -205,7 +239,938 @@ class EventController:
         selected_event = self._events_by_record_id.get(selected_id)
         return deepcopy(selected_event) if selected_event is not None else None
 
-    def create_event(self, values, replace_existing_death=False):
+    def events_for_item(self, item_id):
+        selected_item_id = str(item_id or "").strip()
+
+        if not selected_item_id:
+            return []
+
+        self.ensure_event_cache()
+        matching_events = list(
+            self._events_by_item_id.get(selected_item_id, [])
+        )
+        matching_events.sort(key=world_event_sort_key)
+        return deepcopy(matching_events)
+
+    def item_options(
+        self,
+        possessor_person_ids=None,
+        on_date="",
+    ):
+        items = self.item_records()
+        items.sort(key=self.item_option_sort_key)
+        options = []
+        restricted_person_ids = (
+            {
+                str(person_id or "").strip()
+                for person_id in possessor_person_ids or ()
+                if str(person_id or "").strip()
+            }
+            if possessor_person_ids is not None
+            else None
+        )
+        people_names_by_id = (
+            {
+                str(person.get("record_id", "") or "").strip(): str(
+                    person.get("displayed_name", "")
+                    or "Unknown person"
+                ).strip()
+                for person in self.people_provider()
+                if isinstance(person, dict)
+                and str(person.get("record_id", "") or "").strip()
+            }
+            if restricted_person_ids is not None
+            else {}
+        )
+
+        for item in items:
+            if restricted_person_ids is not None:
+                possessor_ids = item_possessor_ids_on_date(
+                    item,
+                    on_date,
+                )
+
+                if not restricted_person_ids.intersection(possessor_ids):
+                    continue
+
+                holder_names = [
+                    people_names_by_id.get(
+                        person_id,
+                        "Unknown person",
+                    )
+                    for person_id in possessor_ids
+                    if person_id in restricted_person_ids
+                ]
+                holder_detail = (
+                    "Held by " + ", ".join(holder_names)
+                )
+            else:
+                holder = item_current_holder(item)
+                holder_detail = str(
+                    holder.get("person_name", "Unpossessed")
+                    or "Unpossessed"
+                ).strip()
+
+            options.append(
+                {
+                    "value": item["record_id"],
+                    "label": item["name"],
+                    "detail": (
+                        f"{item['category']} · "
+                        f"{holder_detail}"
+                    ),
+                }
+            )
+
+        return options
+
+    def item_records(self):
+        if self.database is None:
+            return []
+
+        try:
+            stored_items = self.database.list_records("items")
+        except (KeyError, TypeError):
+            return []
+
+        return normalize_item_records(stored_items)
+
+    def synchronize_retained_item_events_for_deaths(self):
+        if self.database is None:
+            return False
+
+        people = [
+            person
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        ]
+        items = self.item_records()
+
+        if not people or not items:
+            return False
+
+        settings = self.database.data.get("_application_settings", {})
+        normalized_settings = (
+            deepcopy(settings) if isinstance(settings, dict) else {}
+        )
+        stored_processed = normalized_settings.get(
+            RETAINED_DEATH_STORAGE_KEY,
+            {},
+        )
+        processed = (
+            dict(stored_processed)
+            if isinstance(stored_processed, dict)
+            else {}
+        )
+        stored_events = self.database.list_records("events")
+        organization_events = organization_events_as_world_events(
+            self.database.list_records("organizations")
+        )
+        events = normalize_world_events(
+            [*stored_events, *organization_events]
+        )
+        generated_events_by_pair = {}
+        events_by_item_id = {}
+        items_by_person_id = {}
+
+        for item in items:
+            item_person_ids = {
+                str(passage.get("person_id", "") or "").strip()
+                for passage in item.get("passage_history", [])
+                if str(passage.get("person_id", "") or "").strip()
+            }
+
+            for item_person_id in item_person_ids:
+                items_by_person_id.setdefault(
+                    item_person_id,
+                    [],
+                ).append(item)
+
+        for event in events:
+            generated_person_id = str(
+                event.get("retained_death_person_id", "") or ""
+            ).strip()
+            generated_item_id = str(
+                event.get("retained_death_item_id", "") or ""
+            ).strip()
+
+            if generated_person_id and generated_item_id:
+                generated_events_by_pair[
+                    (generated_person_id, generated_item_id)
+                ] = event
+
+            for item_id in event.get("item_ids", []):
+                events_by_item_id.setdefault(item_id, []).append(event)
+
+        changed = False
+        processed_changed = False
+
+        for person in people:
+            person_id = str(person.get("record_id", "") or "").strip()
+            death_year = person.get("death_year")
+
+            if death_year in (None, ""):
+                continue
+
+            try:
+                death_date = normalize_world_event_date(
+                    format_date_parts(
+                        death_year,
+                        person.get("death_month"),
+                        person.get("death_day"),
+                        unknown="",
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+
+            death_year_text, death_month_text, death_day_text = (
+                split_world_event_date(death_date)
+            )
+            person_name = str(
+                person.get("displayed_name", "") or "Unnamed person"
+            ).strip()
+
+            for item in items_by_person_id.get(person_id, []):
+                item_id = item["record_id"]
+                pair_key = f"{person_id}:{item_id}"
+                generated_event = generated_events_by_pair.get(
+                    (person_id, item_id)
+                )
+
+                if person_id not in item_possessor_ids_on_date(
+                    item,
+                    death_date,
+                ):
+                    if generated_event is not None:
+                        event_id = str(
+                            generated_event.get("record_id", "") or ""
+                        ).strip()
+
+                        if event_id:
+                            self.database.delete_record("events", event_id)
+                            changed = True
+
+                        if pair_key in processed:
+                            processed.pop(pair_key, None)
+                            processed_changed = True
+
+                    continue
+
+                explicit_event_found = False
+
+                for event in events_by_item_id.get(item_id, []):
+                    if event.get("retained_death_person_id"):
+                        continue
+
+                    event_date = str(event.get("date", "") or "").strip()
+
+                    if not event_date:
+                        continue
+
+                    event_year, event_month, event_day = (
+                        split_world_event_date(event_date)
+                    )
+
+                    if event_year != death_year_text:
+                        continue
+
+                    if (
+                        death_month_text
+                        and event_month != death_month_text
+                    ):
+                        continue
+
+                    if death_day_text and event_day != death_day_text:
+                        continue
+
+                    explicit_event_found = True
+                    break
+
+                if generated_event is not None:
+                    event_id = str(
+                        generated_event.get("record_id", "") or ""
+                    ).strip()
+                    previous_generated_date = str(
+                        generated_event.get(
+                            "retained_death_generated_date",
+                            "",
+                        )
+                        or ""
+                    ).strip()
+                    previous_generated_title = str(
+                        generated_event.get(
+                            "retained_death_generated_title",
+                            "",
+                        )
+                        or ""
+                    ).strip()
+                    previous_generated_description = str(
+                        generated_event.get(
+                            "retained_death_generated_description",
+                            "",
+                        )
+                        or ""
+                    ).strip()
+                    generated_title = (
+                        f"{item['name']} retained at death of {person_name}"
+                    )
+                    generated_description = (
+                        f"{item['name']} remained in {person_name}'s "
+                        "possession at the time of death."
+                    )
+                    generated_event_is_untouched = (
+                        generated_event.get("date", "")
+                        == previous_generated_date
+                        and generated_event.get("title", "")
+                        == previous_generated_title
+                        and generated_event.get("description", "")
+                        == previous_generated_description
+                        and generated_event.get("person_ids", [])
+                        == [person_id]
+                        and generated_event.get("item_ids", []) == [item_id]
+                        and item_event_link_type(
+                            generated_event,
+                            item_id,
+                        )
+                        == "retained"
+                    )
+
+                    if explicit_event_found and generated_event_is_untouched:
+                        self.database.delete_record("events", event_id)
+                        processed[pair_key] = death_date
+                        processed_changed = True
+                        changed = True
+                        continue
+
+                    updates = {}
+
+                    if (
+                        previous_generated_date
+                        and generated_event.get("date", "")
+                        == previous_generated_date
+                        and previous_generated_date != death_date
+                    ):
+                        updates["date"] = death_date
+                        updates[
+                            "retained_death_generated_date"
+                        ] = death_date
+
+                    if (
+                        previous_generated_title
+                        and generated_event.get("title", "")
+                        == previous_generated_title
+                        and previous_generated_title != generated_title
+                    ):
+                        updates["title"] = generated_title
+                        updates[
+                            "retained_death_generated_title"
+                        ] = generated_title
+
+                    if (
+                        previous_generated_description
+                        and generated_event.get("description", "")
+                        == previous_generated_description
+                        and previous_generated_description
+                        != generated_description
+                    ):
+                        updates["description"] = generated_description
+                        updates[
+                            "retained_death_generated_description"
+                        ] = generated_description
+
+                    if event_id and updates:
+                        self.database.update_record(
+                            "events",
+                            event_id,
+                            updates,
+                        )
+                        changed = True
+
+                    if processed.get(pair_key) != death_date:
+                        processed[pair_key] = death_date
+                        processed_changed = True
+
+                    continue
+
+                if processed.get(pair_key) == death_date:
+                    continue
+
+                if explicit_event_found:
+                    processed[pair_key] = death_date
+                    processed_changed = True
+                    continue
+
+                title = (
+                    f"{item['name']} retained at death of {person_name}"
+                )
+                description = (
+                    f"{item['name']} remained in {person_name}'s possession "
+                    "at the time of death."
+                )
+                retained_event = normalize_world_event(
+                    {
+                        "event_type": "item_event",
+                        "title": title,
+                        "date": death_date,
+                        "description": description,
+                        "person_ids": [person_id],
+                        "witness_person_ids": [],
+                        "affected_person_ids": [],
+                        "period_names": [],
+                        "location_ids": [],
+                        "item_ids": [item_id],
+                        "item_link_types": {item_id: "retained"},
+                        "item_new_owners": {},
+                        "retained_death_person_id": person_id,
+                        "retained_death_item_id": item_id,
+                        "retained_death_generated_date": death_date,
+                        "retained_death_generated_title": title,
+                        "retained_death_generated_description": description,
+                    }
+                )
+                self.database.create_record("events", retained_event)
+                processed[pair_key] = death_date
+                processed_changed = True
+                changed = True
+
+        if processed_changed:
+            normalized_settings[
+                RETAINED_DEATH_STORAGE_KEY
+            ] = processed
+            self.database.data[
+                "_application_settings"
+            ] = normalized_settings
+            self.database.dirty = True
+
+        if changed:
+            self.invalidate_event_cache()
+
+        return changed or processed_changed
+
+    def synchronize_item_ownership_from_events(self):
+        if self.database is None:
+            return False
+
+        items = self.item_records()
+
+        if not items:
+            return False
+
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): str(
+                person.get("displayed_name", "") or "Unnamed person"
+            ).strip()
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        stored_events = self.database.list_records("events")
+        organization_events = organization_events_as_world_events(
+            self.database.list_records("organizations")
+        )
+        events = normalize_world_events(
+            [
+                self.apply_title_rules(event)
+                for event in [*stored_events, *organization_events]
+            ]
+        )
+        events.sort(key=world_event_sort_key)
+        ownership_events_by_item_id = {}
+
+        for event in events:
+            for item_id in event.get("item_ids", []):
+                link_type = item_event_link_type(event, item_id)
+
+                if not item_event_ownership_method(link_type):
+                    continue
+
+                ownership_events_by_item_id.setdefault(
+                    item_id,
+                    [],
+                ).append(event)
+
+        changed = False
+
+        for stored_item in items:
+            item = normalize_item_record(stored_item)
+            existing_event_passages = {
+                passage["source_event_id"]: passage
+                for passage in item["passage_history"]
+                if passage["source_event_id"]
+            }
+            passage_history = [
+                passage
+                for passage in item["passage_history"]
+                if not passage["source_event_id"]
+            ]
+
+            for event in ownership_events_by_item_id.get(
+                item["record_id"],
+                [],
+            ):
+                event_id = str(
+                    event.get("record_id", "") or ""
+                ).strip()
+                link_type = item_event_link_type(
+                    event,
+                    item["record_id"],
+                )
+                method = item_event_ownership_method(link_type)
+                existing_passage = existing_event_passages.get(
+                    event_id,
+                    {},
+                )
+                person_id = ""
+                person_name = ""
+
+                if link_type in ITEM_EVENT_NEW_OWNER_LINK_TYPES:
+                    owner = item_event_new_owner(
+                        event,
+                        item["record_id"],
+                    )
+                    person_id = owner["person_id"]
+                    person_name = owner["person_name"]
+                elif link_type in ("crafted", "found"):
+                    direct_person_ids = [
+                        str(candidate_id or "").strip()
+                        for candidate_id in event.get("person_ids", [])
+                        if str(candidate_id or "").strip()
+                    ]
+
+                    if direct_person_ids:
+                        person_id = direct_person_ids[0]
+                        person_name = people_by_id.get(person_id, "")
+
+                    if not person_name:
+                        person_id = ""
+                        person_name = str(
+                            existing_passage.get("person_name", "")
+                            or ""
+                        ).strip()
+
+                passage_history.append(
+                    normalize_item_passage(
+                        {
+                            "record_id": (
+                                existing_passage.get("record_id")
+                                or f"item-event:{item['record_id']}:{event_id}"
+                            ),
+                            "person_id": person_id,
+                            "person_name": person_name,
+                            "date": event.get("date", ""),
+                            "method": method,
+                            "note": event.get("title", ""),
+                            "source_event_id": event_id,
+                        }
+                    )
+                )
+
+            passage_history.sort(key=item_passage_sort_key)
+
+            if passage_history == item["passage_history"]:
+                continue
+
+            self.database.update_record(
+                "items",
+                item["record_id"],
+                {"passage_history": passage_history},
+            )
+            changed = True
+
+        if changed:
+            self.invalidate_event_cache()
+
+        return changed
+
+    def item_option_sort_key(self, item):
+        return (
+            item["category"].casefold(),
+            item["name"].casefold(),
+        )
+
+    def linkable_event_options(self):
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): str(
+                person.get("displayed_name", "") or ""
+            ).strip()
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        locations_by_id = {
+            str(location.get("record_id", "") or "").strip(): str(
+                location.get("name", "") or ""
+            ).strip()
+            for location in self.location_provider()
+            if isinstance(location, dict)
+            and str(location.get("record_id", "") or "").strip()
+        }
+        events = self.list_events()
+        dated_events = [
+            event
+            for event in events
+            if str(event.get("date", "") or "").strip()
+        ]
+        undated_events = [
+            event
+            for event in events
+            if not str(event.get("date", "") or "").strip()
+        ]
+        dated_events.sort(key=world_event_sort_key, reverse=True)
+        undated_events.sort(key=world_event_sort_key)
+        options = []
+
+        for event in [*dated_events, *undated_events]:
+            event_date = format_line_item_date(
+                event.get("date", ""),
+                unknown="Date unknown",
+            )
+            event_type = event_type_label(event)
+            organization_name = str(
+                event.get("organization_name", "") or ""
+            ).strip()
+            person_names = [
+                people_by_id.get(person_id, "")
+                for person_id in event_linked_person_ids(event)
+                if people_by_id.get(person_id, "")
+            ]
+            location_names = [
+                locations_by_id.get(location_id, "")
+                for location_id in event.get("location_ids", [])
+                if locations_by_id.get(location_id, "")
+            ]
+            detail_parts = [event_type]
+
+            if organization_name:
+                detail_parts.append(organization_name)
+
+            options.append(
+                {
+                    "value": event["record_id"],
+                    "label": f"{event_date} · {event['title']}",
+                    "detail": " · ".join(detail_parts),
+                    "group": event_type,
+                    "default_link_type": item_event_link_type(event, ""),
+                    "search_text": " ".join(
+                        [
+                            *person_names,
+                            *location_names,
+                            *event.get("period_names", []),
+                        ]
+                    ),
+                }
+            )
+
+        return options
+
+    def set_item_event_links(
+        self,
+        item_id,
+        event_ids,
+        event_link_types=None,
+        event_new_owners=None,
+    ):
+        normalized_item_id = str(item_id or "").strip()
+        known_item_ids = {
+            item["record_id"]
+            for item in self.item_records()
+        }
+
+        if normalized_item_id not in known_item_ids:
+            raise KeyError(f"Unknown item record_id: {normalized_item_id}")
+
+        selected_event_ids = []
+
+        for event_id in event_ids or ():
+            normalized_event_id = str(event_id or "").strip()
+
+            if (
+                normalized_event_id
+                and normalized_event_id not in selected_event_ids
+            ):
+                selected_event_ids.append(normalized_event_id)
+
+        known_event_ids = {
+            event["record_id"]
+            for event in self.list_events()
+        }
+        missing_event_ids = [
+            event_id
+            for event_id in selected_event_ids
+            if event_id not in known_event_ids
+        ]
+
+        if missing_event_ids:
+            raise ValueError(
+                "One or more selected events no longer exist."
+            )
+
+        selected_event_id_set = set(selected_event_ids)
+        requested_event_link_types = (
+            event_link_types if isinstance(event_link_types, dict) else {}
+        )
+        requested_event_new_owners = (
+            event_new_owners if isinstance(event_new_owners, dict) else {}
+        )
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): str(
+                person.get("displayed_name", "") or "Unnamed person"
+            ).strip()
+            for person in self.people_provider()
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        database_data = deepcopy(self.database.data)
+        database_dirty = self.database.dirty
+        database_revision = self.database.revision
+        changed = False
+
+        try:
+            for event in self.database.list_records("events"):
+                linked_item_ids = list(event.get("item_ids", []) or [])
+                item_link_types = normalize_item_event_link_types(
+                    event.get("item_link_types"),
+                    linked_item_ids,
+                    event.get("event_type", ""),
+                )
+                item_new_owners = normalize_item_event_new_owners(
+                    event.get("item_new_owners"),
+                    linked_item_ids,
+                    item_link_types,
+                )
+                should_link = event["record_id"] in selected_event_id_set
+                is_linked = normalized_item_id in linked_item_ids
+
+                if should_link:
+                    if not is_linked:
+                        linked_item_ids.append(normalized_item_id)
+
+                    item_link_types[normalized_item_id] = (
+                        normalize_item_event_link_type(
+                            requested_event_link_types.get(
+                                event["record_id"],
+                                item_link_types.get(normalized_item_id),
+                            ),
+                            event.get("event_type", ""),
+                        )
+                    )
+                    requested_owner = normalize_item_event_new_owner(
+                        requested_event_new_owners.get(
+                            event["record_id"],
+                            item_new_owners.get(normalized_item_id),
+                        )
+                    )
+
+                    if (
+                        item_link_types[normalized_item_id]
+                        in ITEM_EVENT_NEW_OWNER_LINK_TYPES
+                    ):
+                        if requested_owner["person_id"] not in people_by_id:
+                            raise ValueError(
+                                "Choose the new owner for every Passed down, "
+                                "Gifted, or Taken item link."
+                            )
+
+                        requested_owner["person_name"] = people_by_id[
+                            requested_owner["person_id"]
+                        ]
+                        item_new_owners[
+                            normalized_item_id
+                        ] = requested_owner
+                    else:
+                        item_new_owners.pop(normalized_item_id, None)
+                else:
+                    linked_item_ids = [
+                        linked_item_id
+                        for linked_item_id in linked_item_ids
+                        if linked_item_id != normalized_item_id
+                    ]
+                    item_link_types.pop(normalized_item_id, None)
+                    item_new_owners.pop(normalized_item_id, None)
+
+                item_new_owners = normalize_item_event_new_owners(
+                    item_new_owners,
+                    linked_item_ids,
+                    item_link_types,
+                )
+
+                if (
+                    linked_item_ids == event.get("item_ids", [])
+                    and item_link_types
+                    == event.get("item_link_types", {})
+                    and item_new_owners
+                    == event.get("item_new_owners", {})
+                ):
+                    continue
+
+                self.database.update_record(
+                    "events",
+                    event["record_id"],
+                    {
+                        "item_ids": linked_item_ids,
+                        "item_link_types": item_link_types,
+                        "item_new_owners": item_new_owners,
+                    },
+                )
+                changed = True
+
+            for organization in self.database.list_records(
+                "organizations"
+            ):
+                organization_id = str(
+                    organization.get("record_id", "") or ""
+                ).strip()
+                organization_events = normalize_organization_events(
+                    organization.get("events", [])
+                )
+                organization_changed = False
+
+                for organization_event in organization_events:
+                    world_event_id = organization_event_world_id(
+                        organization_id,
+                        organization_event["record_id"],
+                    )
+                    linked_item_ids = list(
+                        organization_event.get("item_ids", []) or []
+                    )
+                    item_link_types = normalize_item_event_link_types(
+                        organization_event.get("item_link_types"),
+                        linked_item_ids,
+                        organization_event.get("event_type", ""),
+                    )
+                    item_new_owners = normalize_item_event_new_owners(
+                        organization_event.get("item_new_owners"),
+                        linked_item_ids,
+                        item_link_types,
+                    )
+                    should_link = (
+                        world_event_id in selected_event_id_set
+                    )
+                    is_linked = normalized_item_id in linked_item_ids
+
+                    if should_link:
+                        if not is_linked:
+                            linked_item_ids.append(normalized_item_id)
+
+                        item_link_types[normalized_item_id] = (
+                            normalize_item_event_link_type(
+                                requested_event_link_types.get(
+                                    world_event_id,
+                                    item_link_types.get(normalized_item_id),
+                                ),
+                                organization_event.get("event_type", ""),
+                            )
+                        )
+                        requested_owner = normalize_item_event_new_owner(
+                            requested_event_new_owners.get(
+                                world_event_id,
+                                item_new_owners.get(normalized_item_id),
+                            )
+                        )
+
+                        if (
+                            item_link_types[normalized_item_id]
+                            in ITEM_EVENT_NEW_OWNER_LINK_TYPES
+                        ):
+                            if (
+                                requested_owner["person_id"]
+                                not in people_by_id
+                            ):
+                                raise ValueError(
+                                    "Choose the new owner for every Passed "
+                                    "down, Gifted, or Taken item link."
+                                )
+
+                            requested_owner[
+                                "person_name"
+                            ] = people_by_id[
+                                requested_owner["person_id"]
+                            ]
+                            item_new_owners[
+                                normalized_item_id
+                            ] = requested_owner
+                        else:
+                            item_new_owners.pop(
+                                normalized_item_id,
+                                None,
+                            )
+                    else:
+                        linked_item_ids = [
+                            linked_item_id
+                            for linked_item_id in linked_item_ids
+                            if linked_item_id != normalized_item_id
+                        ]
+                        item_link_types.pop(normalized_item_id, None)
+                        item_new_owners.pop(normalized_item_id, None)
+
+                    item_new_owners = normalize_item_event_new_owners(
+                        item_new_owners,
+                        linked_item_ids,
+                        item_link_types,
+                    )
+
+                    if (
+                        linked_item_ids
+                        == organization_event.get("item_ids", [])
+                        and item_link_types
+                        == organization_event.get("item_link_types", {})
+                        and item_new_owners
+                        == organization_event.get(
+                            "item_new_owners",
+                            {},
+                        )
+                    ):
+                        continue
+
+                    organization_event["item_ids"] = linked_item_ids
+                    organization_event[
+                        "item_link_types"
+                    ] = item_link_types
+                    organization_event[
+                        "item_new_owners"
+                    ] = item_new_owners
+                    organization_changed = True
+
+                if not organization_changed:
+                    continue
+
+                organization["events"] = normalize_organization_events(
+                    organization_events
+                )
+                self.database.update_record(
+                    "organizations",
+                    organization_id,
+                    organization,
+                )
+                changed = True
+
+            ownership_changed = (
+                self.synchronize_item_ownership_from_events()
+            )
+            retained_events_changed = (
+                self.synchronize_retained_item_events_for_deaths()
+            )
+
+            if changed or ownership_changed or retained_events_changed:
+                self.database.save()
+        except Exception:
+            self.database.data = database_data
+            self.database.dirty = database_dirty
+            self.database.revision = database_revision
+            self.invalidate_event_cache()
+            raise
+
+        self.invalidate_event_cache()
+        return self.events_for_item(normalized_item_id)
+
+    def create_event(
+        self,
+        values,
+        replace_existing_death=False,
+        save_database=True,
+    ):
         self.require_single_death_location(values)
         prepared = normalize_world_event(
             self.apply_event_rules(values)
@@ -246,7 +1211,23 @@ class EventController:
         )
         self.synchronize_location_extinction_state()
         self.remember_associations(created)
-        self.database.save()
+
+        item_ownership_may_have_changed = created.get("item_ids") or any(
+            event.get("item_ids") for event in replaced_events
+        )
+
+        if item_ownership_may_have_changed:
+            self.synchronize_item_ownership_from_events()
+
+        if (
+            created.get("event_type") in DEATH_EVENT_TYPES
+            or item_ownership_may_have_changed
+        ):
+            self.synchronize_retained_item_events_for_deaths()
+
+        if save_database:
+            self.database.save()
+
         return normalize_world_event(created)
 
     def create_organization_founding_event(self, values):
@@ -339,6 +1320,25 @@ class EventController:
         )
         self.synchronize_location_extinction_state()
         self.remember_associations(updated)
+
+        death_state_may_have_changed = (
+            current.get("event_type") in DEATH_EVENT_TYPES
+            or updated.get("event_type") in DEATH_EVENT_TYPES
+        )
+        item_ownership_may_have_changed = (
+            current.get("item_ids")
+            or updated.get("item_ids")
+            or any(
+            event.get("item_ids") for event in replaced_events
+            )
+        )
+
+        if item_ownership_may_have_changed:
+            self.synchronize_item_ownership_from_events()
+
+        if death_state_may_have_changed or item_ownership_may_have_changed:
+            self.synchronize_retained_item_events_for_deaths()
+
         self.database.save()
         return normalize_world_event(updated)
 
@@ -378,6 +1378,10 @@ class EventController:
             eminence_updates,
         )
         self.synchronize_location_extinction_state()
+
+        if current.get("item_ids"):
+            self.synchronize_item_ownership_from_events()
+            self.synchronize_retained_item_events_for_deaths()
         self.database.save()
         return normalize_world_event(deleted)
 
@@ -392,11 +1396,75 @@ class EventController:
                 "Organization-owned events cannot be duplicated here."
             )
 
+        if current.get("automatic_source"):
+            raise ValueError(
+                "Automatic events cannot be duplicated."
+            )
+
         if current.get("event_type") in DEATH_EVENT_TYPES:
             raise ValueError(
                 "Death and Murder events cannot be duplicated."
             )
 
+        duplicated = self.duplicate_event_values(current)
+        return self.create_event(duplicated)
+
+    def duplicate_events(self, record_id, count):
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or count < 1
+            or count > 100
+        ):
+            raise ValueError(
+                "Choose between 1 and 100 event copies."
+            )
+
+        current = self.get_event(record_id)
+
+        if current is None:
+            raise KeyError(f"Unknown event record_id: {record_id}")
+
+        if current.get("organization_event"):
+            raise ValueError(
+                "Organization-owned events cannot be duplicated here."
+            )
+
+        if current.get("automatic_source"):
+            raise ValueError(
+                "Automatic events cannot be duplicated."
+            )
+
+        if current.get("event_type") in DEATH_EVENT_TYPES:
+            raise ValueError(
+                "Death and Murder events cannot be duplicated."
+            )
+
+        database_data = deepcopy(self.database.data)
+        database_dirty = self.database.dirty
+        database_revision = self.database.revision
+        duplicated_events = []
+
+        try:
+            for _ in range(count):
+                duplicated_values = self.duplicate_event_values(current)
+                current = self.create_event(
+                    duplicated_values,
+                    save_database=False,
+                )
+                duplicated_events.append(current)
+
+            self.database.save()
+        except Exception:
+            self.database.data = database_data
+            self.database.dirty = database_dirty
+            self.database.revision = database_revision
+            self.invalidate_event_cache()
+            raise
+
+        return deepcopy(duplicated_events)
+
+    def duplicate_event_values(self, current):
         duplicated = deepcopy(current)
 
         for field_name in (
@@ -442,7 +1510,7 @@ class EventController:
                     historical_year_after(next_year)
                 )
 
-        return self.create_event(duplicated)
+        return duplicated
 
     def synchronize_location_extinction_state(self):
         database_data = getattr(self.database, "data", None)
@@ -532,6 +1600,10 @@ class EventController:
             eminence_updates,
         )
         self.remember_associations(values)
+
+        if current.get("item_ids") or updated_world_event.get("item_ids"):
+            self.synchronize_item_ownership_from_events()
+            self.synchronize_retained_item_events_for_deaths()
         self.database.save()
         return organization_event_as_world_event(
             updated_organization,
@@ -601,6 +1673,10 @@ class EventController:
             self.database,
             eminence_updates,
         )
+
+        if current.get("item_ids"):
+            self.synchronize_item_ownership_from_events()
+            self.synchronize_retained_item_events_for_deaths()
         self.database.save()
         return normalize_world_event(current)
 
@@ -1504,6 +2580,16 @@ class EventController:
         )
 
     def people_options(self):
+        database_revision = getattr(self.database, "revision", None)
+        cacheable = isinstance(database_revision, int)
+
+        if (
+            self._people_options_cache is not None
+            and cacheable
+            and self._people_options_cache_revision == database_revision
+        ):
+            return list(self._people_options_cache)
+
         groups = self.mage_groups()
         options = [
             {
@@ -1521,7 +2607,34 @@ class EventController:
             if str(person.get("record_id", "") or "").strip()
         ]
         options.sort(key=self.association_option_sort_key)
-        return options
+        self._people_options_cache = options
+        self._people_options_by_id_cache = {
+            str(option.get("value", "") or "").strip(): option
+            for option in options
+            if str(option.get("value", "") or "").strip()
+        }
+        self._people_options_cache_revision = (
+            database_revision if cacheable else None
+        )
+        return list(options)
+
+    def people_option_labels(self, person_ids=()):
+        self.people_options()
+        requested_ids = {
+            str(person_id or "").strip()
+            for person_id in person_ids or ()
+            if str(person_id or "").strip()
+        }
+        return {
+            person_id: str(
+                self._people_options_by_id_cache.get(person_id, {}).get(
+                    "label",
+                    "Unknown person",
+                )
+                or "Unknown person"
+            ).strip()
+            for person_id in requested_ids
+        }
 
     def person_can_earn_eminence(self, person_id):
         selected_person_id = str(person_id or "").strip()
@@ -1827,13 +2940,15 @@ class EventController:
         return normalized_year
 
     def recent_people_options(self, limit=5):
+        options = self.people_options()
         return self.recent_association_options(
             "person_ids",
-            self.people_options(),
+            options,
             limit,
             self.recent_interaction_ids(
                 RECENT_PERSON_STORAGE_KEY,
             ),
+            options_by_id=self._people_options_by_id_cache,
         )
 
     def recent_location_options(self, limit=5):
@@ -1853,12 +2968,17 @@ class EventController:
         options,
         limit,
         preferred_ids=(),
+        options_by_id=None,
     ):
-        options_by_id = {
-            str(option.get("value", "") or ""): option
-            for option in options
-            if str(option.get("value", "") or "").strip()
-        }
+        resolved_options_by_id = (
+            options_by_id
+            if isinstance(options_by_id, dict)
+            else {
+                str(option.get("value", "") or ""): option
+                for option in options
+                if str(option.get("value", "") or "").strip()
+            }
+        )
         recent_options = []
         candidate_ids = [
             *[
@@ -1875,7 +2995,7 @@ class EventController:
                 continue
 
             used_ids.add(association_id)
-            option = options_by_id.get(association_id)
+            option = resolved_options_by_id.get(association_id)
 
             if option is None:
                 continue
@@ -2179,6 +3299,13 @@ class EventController:
             str(person.get("record_id", "") or "")
             for person in self.people_provider()
         }
+        person_names_by_id = {
+            str(person.get("record_id", "") or ""): str(
+                person.get("displayed_name", "") or "Unnamed person"
+            ).strip()
+            for person in self.people_provider()
+            if str(person.get("record_id", "") or "")
+        }
         known_period_names = {
             str(period.get("name", "") or "")
             for period in self.period_provider()
@@ -2194,6 +3321,10 @@ class EventController:
                 if self.database is not None
                 else []
             )
+        }
+        known_item_ids = {
+            str(item.get("record_id", "") or "")
+            for item in self.item_records()
         }
         if event.get("event_type") != "murder":
             event_role_ids = [
@@ -2222,6 +3353,34 @@ class EventController:
             for location_id in event["location_ids"]
             if location_id not in known_location_ids
         ]
+        missing_items = [
+            item_id
+            for item_id in event.get("item_ids", [])
+            if item_id not in known_item_ids
+        ]
+        item_link_types = normalize_item_event_link_types(
+            event.get("item_link_types"),
+            event.get("item_ids", []),
+            event.get("event_type", ""),
+        )
+        item_new_owners = normalize_item_event_new_owners(
+            event.get("item_new_owners"),
+            event.get("item_ids", []),
+            item_link_types,
+        )
+        missing_item_owner_ids = [
+            item_id
+            for item_id in event.get("item_ids", [])
+            if item_link_types.get(item_id)
+            in ITEM_EVENT_NEW_OWNER_LINK_TYPES
+            and not item_new_owners.get(item_id, {}).get("person_id")
+        ]
+        unknown_item_owner_ids = [
+            owner["person_id"]
+            for owner in item_new_owners.values()
+            if owner["person_id"]
+            and owner["person_id"] not in known_person_ids
+        ]
 
         if missing_people:
             raise ValueError(
@@ -2237,6 +3396,30 @@ class EventController:
             raise ValueError(
                 "One or more selected locations no longer exist."
             )
+
+        if missing_items:
+            raise ValueError(
+                "One or more selected items no longer exist."
+            )
+
+        if missing_item_owner_ids:
+            raise ValueError(
+                "Choose the new owner for every Passed down, Gifted, or "
+                "Taken item link."
+            )
+
+        if unknown_item_owner_ids:
+            raise ValueError(
+                "One or more selected new item owners no longer exist."
+            )
+
+        for owner in item_new_owners.values():
+            if owner["person_id"] in person_names_by_id:
+                owner["person_name"] = person_names_by_id[
+                    owner["person_id"]
+                ]
+
+        event["item_new_owners"] = item_new_owners
 
         if (
             event.get("event_type") == "organization_founding"

@@ -271,7 +271,7 @@ class PeopleController:
             "can_give_birth": False,
             "does_not_have_children": False,
             "famous_person": False,
-            "unfinished": False,
+            "unfinished": True,
             "biological_mother_id": "",
             "biological_father_id": "",
             "biological_mother_status": "unknown",
