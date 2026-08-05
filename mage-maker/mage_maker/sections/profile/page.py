@@ -1412,10 +1412,16 @@ class PersonForm(tk.Frame):
         born_event["birth_location_source"] = "manual"
 
         if event_type == "starting_location":
+            starting_event["time"] = str(
+                values.get("time", "") or ""
+            ).strip()
             starting_event["note"] = str(
                 values.get("description", "") or ""
             ).strip()
         else:
+            born_event["time"] = str(
+                values.get("time", "") or ""
+            ).strip()
             birth_year, birth_month, birth_day = split_partial_date(
                 values.get("date", ""),
                 "Birth date",
@@ -1544,6 +1550,7 @@ class PersonForm(tk.Frame):
                     death_day,
                     unknown="",
                 ),
+                "time": str(values.get("time", "") or "").strip(),
                 "note": str(
                     values.get("description", "") or ""
                 ).strip(),

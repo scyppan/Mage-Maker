@@ -4310,6 +4310,11 @@ class OrganizationPage(tk.Frame):
                 ),
                 unknown="Date required",
             )
+            event_time = str(event.get("time", "") or "").strip()
+
+            if event_time:
+                date_text = f"{date_text} {event_time}"
+
             person_ids = list(event.get("person_ids", []))
             people_count = len(person_ids)
 

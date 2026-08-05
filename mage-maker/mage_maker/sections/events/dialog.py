@@ -8,6 +8,7 @@ from mage_maker.sections.events.models import (
     WORLD_EVENT_LABEL_TYPES,
     WORLD_EVENT_TYPES,
     WORLD_EVENT_TYPE_LABELS,
+    normalize_world_event_date,
     split_world_event_date,
 )
 from mage_maker.sections.locations.location_hierarchy import (
@@ -92,6 +93,9 @@ class WorldEventDialog(tk.Toplevel):
         self.year_value = tk.StringVar(value=year)
         self.month_value = tk.StringVar(value=month)
         self.day_value = tk.StringVar(value=day)
+        self.time_value = tk.StringVar(
+            value=str(self.event.get("time", "") or "").strip()
+        )
         self.initial_person_ids = set(
             self.event.get("person_ids", default_person_ids)
         )
@@ -129,6 +133,11 @@ class WorldEventDialog(tk.Toplevel):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_dialog()
+        self.year_value.trace_add("write", self.update_time_visibility)
+        self.month_value.trace_add("write", self.update_time_visibility)
+        self.day_value.trace_add("write", self.update_time_visibility)
+        self.time_value.trace_add("write", self.update_time_visibility)
+        self.update_time_visibility()
         self.bind("<Escape>", self.close_dialog)
 
     def build_dialog(self):
@@ -199,8 +208,9 @@ class WorldEventDialog(tk.Toplevel):
         )
         type_picker.grid(row=1, column=0, sticky="ew")
         date_panel = tk.Frame(card, bg=SURFACE)
+        self.date_panel = date_panel
         date_panel.grid(row=3, column=0, sticky="ew", pady=(14, 0))
-        date_panel.grid_columnconfigure((0, 1, 2), weight=1)
+        date_panel.grid_columnconfigure((0, 1, 2, 3), weight=1)
         year_field = LabeledEntry(
             date_panel,
             "Year (required)",
@@ -222,6 +232,19 @@ class WorldEventDialog(tk.Toplevel):
             background=SURFACE,
         )
         day_field.grid(row=0, column=2, sticky="ew", padx=(6, 0))
+        self.time_field = LabeledEntry(
+            date_panel,
+            "Time (HHMM, 24-hour)",
+            self.time_value,
+            background=SURFACE,
+        )
+        self.time_field.grid(
+            row=0,
+            column=3,
+            sticky="ew",
+            padx=(12, 0),
+        )
+        self.time_field.grid_remove()
         calendar_notice = CalendarAdoptionNotice(
             date_panel,
             background=SURFACE,
@@ -235,7 +258,7 @@ class WorldEventDialog(tk.Toplevel):
         calendar_notice.grid(
             row=1,
             column=0,
-            columnspan=3,
+            columnspan=4,
             sticky="w",
             pady=(5, 0),
         )
@@ -654,6 +677,11 @@ class WorldEventDialog(tk.Toplevel):
                 None,
             ),
             recent_location_options=self.recent_location_options,
+            selection_history_command=getattr(
+                self.controller,
+                "remember_location_selection",
+                None,
+            ),
         )
 
     def location_chosen(self, location_id):
@@ -718,6 +746,7 @@ class WorldEventDialog(tk.Toplevel):
             ),
             "title": self.title_value.get(),
             "date": date_value,
+            "time": self.time_value.get().strip(),
             "description": self.description_control.text.get(
                 "1.0",
                 "end-1c",
@@ -754,6 +783,56 @@ class WorldEventDialog(tk.Toplevel):
 
         self.destroy()
         return True
+
+    def current_date_value(self):
+        year = self.year_value.get().strip()
+        month = self.month_value.get().strip()
+        day = self.day_value.get().strip()
+        date_value = year
+
+        if month:
+            date_value += f"-{month}"
+
+        if day:
+            date_value += f"-{day}"
+
+        return date_value
+
+    def update_time_visibility(self, *arguments):
+        if self.time_value.get().strip():
+            self.date_panel.grid_columnconfigure(3, weight=1)
+            self.time_field.grid()
+            return True
+
+        try:
+            selected_date = normalize_world_event_date(
+                self.current_date_value()
+            )
+        except ValueError:
+            self.time_field.grid_remove()
+            self.date_panel.grid_columnconfigure(3, weight=0)
+            return False
+
+        current_record_id = str(
+            self.event.get("record_id", "") or ""
+        ).strip()
+
+        for event in self.controller.list_events():
+            if (
+                current_record_id
+                and str(event.get("record_id", "") or "").strip()
+                == current_record_id
+            ):
+                continue
+
+            if str(event.get("date", "") or "").strip() == selected_date:
+                self.date_panel.grid_columnconfigure(3, weight=1)
+                self.time_field.grid()
+                return True
+
+        self.time_field.grid_remove()
+        self.date_panel.grid_columnconfigure(3, weight=0)
+        return False
 
     def close_dialog(self, event=None):
         self.destroy()
@@ -1842,6 +1921,7 @@ class EventLocationPickerDialog(tk.Toplevel):
         action_text="Add location",
         create_location_command=None,
         recent_location_options=(),
+        selection_history_command=None,
     ):
         super().__init__(parent)
         self.locations = [
@@ -1858,6 +1938,7 @@ class EventLocationPickerDialog(tk.Toplevel):
         )
         self.action_text = str(action_text or "Add location")
         self.create_location_command = create_location_command
+        self.selection_history_command = selection_history_command
         available_location_ids = {
             str(location.get("record_id", "") or "").strip()
             for location in self.locations
@@ -1974,7 +2055,7 @@ class EventLocationPickerDialog(tk.Toplevel):
         recent_panel.grid_columnconfigure(0, weight=1)
         recent_heading = tk.Label(
             recent_panel,
-            text="Recently viewed locations",
+            text="Recently viewed or selected locations",
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(9, "bold"),
@@ -2163,6 +2244,9 @@ class EventLocationPickerDialog(tk.Toplevel):
     def choose_location(self):
         if not self.selected_location_id:
             return
+
+        if callable(self.selection_history_command):
+            self.selection_history_command(self.selected_location_id)
 
         self.save_command(self.selected_location_id)
         self.destroy()

@@ -23,7 +23,10 @@ from mage_maker.sections.items.links import (
     normalize_item_event_link_types,
     normalize_item_event_new_owners,
 )
-from mage_maker.sections.events.models import split_world_event_date
+from mage_maker.sections.events.models import (
+    normalize_world_event_date,
+    split_world_event_date,
+)
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     PRIMARY,
@@ -82,6 +85,13 @@ class OrganizationEventDialog(tk.Toplevel):
         )
         self.month_value = tk.StringVar(value=event_month)
         self.day_value = tk.StringVar(value=event_day)
+        self.time_value = tk.StringVar(
+            value=(
+                str(normalized_event.get("time", "") or "").strip()
+                if normalized_event
+                else ""
+            )
+        )
         self.selected_person_ids = list(
             normalized_event.get("person_ids", [])
             if normalized_event
@@ -148,6 +158,11 @@ class OrganizationEventDialog(tk.Toplevel):
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.build_dialog()
+        self.year_value.trace_add("write", self.update_time_visibility)
+        self.month_value.trace_add("write", self.update_time_visibility)
+        self.day_value.trace_add("write", self.update_time_visibility)
+        self.time_value.trace_add("write", self.update_time_visibility)
+        self.update_time_visibility()
         self.grab_set()
         self.after_idle(self.focus_first_field)
 
@@ -208,6 +223,7 @@ class OrganizationEventDialog(tk.Toplevel):
         )
 
         date_frame = tk.Frame(body, bg=SURFACE)
+        self.date_frame = date_frame
         date_frame.grid(
             row=0,
             column=1,
@@ -216,9 +232,11 @@ class OrganizationEventDialog(tk.Toplevel):
             padx=(14, 0),
             pady=(0, 12),
         )
-        date_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        date_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
-        for column, label_text in enumerate(("Year", "Month", "Day")):
+        for column, label_text in enumerate(
+            ("Year", "Month", "Day", "Time (HHMM)")
+        ):
             date_label = tk.Label(
                 date_frame,
                 text=label_text,
@@ -231,8 +249,11 @@ class OrganizationEventDialog(tk.Toplevel):
                 row=0,
                 column=column,
                 sticky="ew",
-                padx=(0, 5) if column < 2 else 0,
+                padx=(0, 5) if column < 3 else 0,
             )
+
+            if column == 3:
+                self.time_label = date_label
 
         self.year_entry = RoundedEntry(
             date_frame,
@@ -281,6 +302,24 @@ class OrganizationEventDialog(tk.Toplevel):
             sticky="ew",
             pady=(5, 0),
         )
+        self.time_entry = RoundedEntry(
+            date_frame,
+            textvariable=self.time_value,
+            background=SURFACE,
+            width=88,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        self.time_entry.grid(
+            row=1,
+            column=3,
+            sticky="ew",
+            padx=(5, 0),
+            pady=(5, 0),
+        )
+        self.time_label.grid_remove()
+        self.time_entry.grid_remove()
         calendar_notice = CalendarAdoptionNotice(
             body,
             background=SURFACE,
@@ -878,6 +917,7 @@ class OrganizationEventDialog(tk.Toplevel):
                         "year": year,
                         "month": month_text,
                         "day": day_text,
+                        "time": self.time_value.get().strip(),
                         "description": description,
                         "person_ids": self.selected_person_ids,
                         "witness_person_ids": (
@@ -940,6 +980,7 @@ class OrganizationEventDialog(tk.Toplevel):
                         "selected_item_new_owners",
                         {},
                     ),
+                    time=self.time_value.get().strip(),
                 )
 
                 if self.event is not None:
@@ -954,3 +995,65 @@ class OrganizationEventDialog(tk.Toplevel):
 
         self.save_command(record)
         self.destroy()
+
+    def current_date_value(self):
+        year = self.year_value.get().strip()
+        month = self.month_value.get().strip()
+        day = self.day_value.get().strip()
+        date_value = year
+
+        if month:
+            date_value += f"-{month}"
+
+        if day:
+            date_value += f"-{day}"
+
+        return date_value
+
+    def update_time_visibility(self, *arguments):
+        if self.time_value.get().strip():
+            self.date_frame.grid_columnconfigure(3, weight=1)
+            self.time_label.grid()
+            self.time_entry.grid()
+            return True
+
+        try:
+            selected_date = normalize_world_event_date(
+                self.current_date_value()
+            )
+        except ValueError:
+            self.time_label.grid_remove()
+            self.time_entry.grid_remove()
+            self.date_frame.grid_columnconfigure(3, weight=0)
+            return False
+
+        list_events = getattr(self.event_controller, "list_events", None)
+
+        if not callable(list_events):
+            self.time_label.grid_remove()
+            self.time_entry.grid_remove()
+            self.date_frame.grid_columnconfigure(3, weight=0)
+            return False
+
+        current_record_id = str(
+            (self.event or {}).get("record_id", "") or ""
+        ).strip()
+
+        for event in list_events():
+            organization_event_id = str(
+                event.get("organization_event_id", "") or ""
+            ).strip()
+
+            if current_record_id and organization_event_id == current_record_id:
+                continue
+
+            if str(event.get("date", "") or "").strip() == selected_date:
+                self.date_frame.grid_columnconfigure(3, weight=1)
+                self.time_label.grid()
+                self.time_entry.grid()
+                return True
+
+        self.time_label.grid_remove()
+        self.time_entry.grid_remove()
+        self.date_frame.grid_columnconfigure(3, weight=0)
+        return False

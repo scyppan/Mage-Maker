@@ -754,6 +754,7 @@ class EventController:
                             "person_id": person_id,
                             "person_name": person_name,
                             "date": event.get("date", ""),
+                            "time": event.get("time", ""),
                             "method": method,
                             "note": event.get("title", ""),
                             "source_event_id": event_id,
@@ -821,6 +822,11 @@ class EventController:
                 event.get("date", ""),
                 unknown="Date unknown",
             )
+            event_time = str(event.get("time", "") or "").strip()
+
+            if event_time:
+                event_date = f"{event_date} {event_time}"
+
             event_type = event_type_label(event)
             organization_name = str(
                 event.get("organization_name", "") or ""
@@ -852,6 +858,7 @@ class EventController:
                             *person_names,
                             *location_names,
                             *event.get("period_names", []),
+                            event_time,
                         ]
                     ),
                 }
@@ -2719,6 +2726,160 @@ class EventController:
 
         return deepcopy(self.people_creator(values))
 
+    def current_location_id_for_person(self, person_id):
+        selected_person_id = str(person_id or "").strip()
+
+        if not selected_person_id:
+            return ""
+
+        person = next(
+            (
+                candidate
+                for candidate in self.people_provider()
+                if isinstance(candidate, dict)
+                and str(candidate.get("record_id", "") or "").strip()
+                == selected_person_id
+            ),
+            None,
+        )
+
+        if person is None:
+            return ""
+
+        locations = self.location_records()
+        locations_by_id = {
+            str(location.get("record_id", "") or "").strip(): location
+            for location in locations
+            if str(location.get("record_id", "") or "").strip()
+        }
+        location_ids_by_name = {}
+
+        for location_id, location in locations_by_id.items():
+            location_name = str(
+                location.get("name", "") or ""
+            ).strip().casefold()
+            location_label = recent_location_label(
+                location_id,
+                locations,
+            ).strip().casefold()
+
+            if location_name and location_name not in location_ids_by_name:
+                location_ids_by_name[location_name] = location_id
+
+            if location_label:
+                location_ids_by_name[location_label] = location_id
+
+        candidates = []
+
+        for event in normalize_timeline_events(
+            person.get("timeline_events", [])
+        ):
+            event_type = str(event.get("event_type", "") or "").strip()
+
+            if event_type not in ("starting_location", "relocated"):
+                continue
+
+            location_id = next(
+                (
+                    str(location_id or "").strip()
+                    for location_id in reversed(
+                        event.get("location_ids", []) or []
+                    )
+                    if str(location_id or "").strip() in locations_by_id
+                ),
+                "",
+            )
+
+            if not location_id:
+                location_id = location_ids_by_name.get(
+                    str(event.get("detail", "") or "")
+                    .strip()
+                    .casefold(),
+                    "",
+                )
+
+            if not location_id:
+                continue
+
+            event_key = world_event_sort_key(
+                {
+                    "date": event.get("date", ""),
+                    "time": event.get("time", ""),
+                    "title": event.get("detail", ""),
+                    "record_id": event.get("event_id", ""),
+                }
+            )
+            candidates.append(
+                (
+                    event_key[0],
+                    1 if event_type == "relocated" else 0,
+                    event_key[1],
+                    event_key[2],
+                    event_key[3],
+                    location_id,
+                )
+            )
+
+        for event in self.events_for_person(selected_person_id):
+            if (
+                event.get("event_type") != "relocated"
+                or selected_person_id not in event.get("person_ids", [])
+            ):
+                continue
+
+            location_id = next(
+                (
+                    str(location_id or "").strip()
+                    for location_id in reversed(
+                        event.get("location_ids", []) or []
+                    )
+                    if str(location_id or "").strip() in locations_by_id
+                ),
+                "",
+            )
+
+            if not location_id:
+                continue
+
+            event_key = world_event_sort_key(event)
+            candidates.append(
+                (
+                    event_key[0],
+                    1,
+                    event_key[1],
+                    event_key[2],
+                    event_key[3],
+                    location_id,
+                )
+            )
+
+        if candidates:
+            candidates.sort()
+            return candidates[-1][-1]
+
+        for field_name in (
+            "current_location",
+            "location",
+            "starting_location",
+            "birth_location",
+        ):
+            stored_location = str(
+                person.get(field_name, "") or ""
+            ).strip()
+            location_id = (
+                stored_location
+                if stored_location in locations_by_id
+                else location_ids_by_name.get(
+                    stored_location.casefold(),
+                    "",
+                )
+            )
+
+            if location_id:
+                return location_id
+
+        return ""
+
     def location_options(
         self,
         available_for_founding=False,
@@ -2979,6 +3140,47 @@ class EventController:
                 excluded_ids=(RECENT_WORLD_LOCATION_ID,),
             ),
         )
+
+    def remember_location_selection(self, location_id):
+        selected_location_id = str(location_id or "").strip()
+        available_ids = {
+            str(location.get("record_id", "") or "").strip()
+            for location in self.location_provider()
+            if isinstance(location, dict)
+            and str(location.get("record_id", "") or "").strip()
+        }
+
+        if not selected_location_id or selected_location_id not in available_ids:
+            return False
+
+        stored_history = self.database.data.get(
+            RECENT_LOCATION_STORAGE_KEY,
+            [],
+        )
+        history = (
+            [
+                str(stored_id or "").strip()
+                for stored_id in stored_history
+                if str(stored_id or "").strip()
+            ]
+            if isinstance(stored_history, list)
+            else []
+        )
+        updated_history = [
+            selected_location_id,
+            *[
+                stored_id
+                for stored_id in history
+                if stored_id != selected_location_id
+            ],
+        ][:RECENT_ASSOCIATION_STORAGE_LIMIT]
+
+        if updated_history == history:
+            return False
+
+        self.database.data[RECENT_LOCATION_STORAGE_KEY] = updated_history
+        self.database.dirty = True
+        return True
 
     def recent_association_options(
         self,

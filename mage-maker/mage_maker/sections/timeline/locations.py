@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+from mage_maker.sections.events.models import event_time_sort_key
 from mage_maker.sections.names.history import birth_name_entry
 from mage_maker.sections.timeline.events import (
     normalize_timeline_event,
@@ -361,6 +362,7 @@ def location_at_date(
                     "event_type": "relocated",
                     "detail": location_name,
                     "date": str(shared_event.get("date", "") or ""),
+                    "time": str(shared_event.get("time", "") or ""),
                     "note": "",
                 }
             )
@@ -420,8 +422,9 @@ def location_event_sort_key(item):
     return (
         event_key is not None,
         event_key or (0, 0, 0),
-        index,
         0 if event.get("event_type") == "starting_location" else 1,
+        event_time_sort_key(event.get("time")),
+        index,
     )
 
 

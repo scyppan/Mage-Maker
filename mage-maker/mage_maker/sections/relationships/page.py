@@ -2,6 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 
 from mage_maker.core.dates import format_date_parts
+from mage_maker.sections.events.models import world_event_sort_key
 from mage_maker.sections.events.types import canonical_event_type
 from mage_maker.sections.family_tree.spouse_relationships import (
     normalize_spouse_relationships,
@@ -240,6 +241,11 @@ class RelationshipsView(tk.Frame):
                 for other_id in other_ids
             ]
             date_text = format_timeline_date(event.get("date"))
+            event_time = str(event.get("time", "") or "").strip()
+
+            if event_time:
+                date_text = f"{date_text} {event_time}"
+
             relationship_text = {
                 "got_married": "Marriage to ",
                 "began_friendship": "Began friendship with ",
@@ -250,6 +256,10 @@ class RelationshipsView(tk.Frame):
                 {
                     "kind": event_type,
                     "date": str(event.get("date", "") or ""),
+                    "time": event_time,
+                    "record_id": str(
+                        event.get("record_id", "") or ""
+                    ),
                     "person_ids": other_ids,
                     "background": EVENT_COLORS.get(event_type),
                     "label": (
@@ -263,9 +273,13 @@ class RelationshipsView(tk.Frame):
         return rows
 
     def relationship_sort_key(self, relationship):
-        return (
-            str(relationship.get("date", "") or ""),
-            str(relationship.get("label", "") or "").casefold(),
+        return world_event_sort_key(
+            {
+                "date": relationship.get("date", ""),
+                "time": relationship.get("time", ""),
+                "title": relationship.get("label", ""),
+                "record_id": relationship.get("record_id", ""),
+            }
         )
 
     def open_selected_person(self, event=None):

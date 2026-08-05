@@ -6,6 +6,7 @@ from mage_maker.sections.events.editor import (
     NEW_EVENT_DRAFT_ID,
     EventEditor,
 )
+from mage_maker.sections.events.models import event_time_sort_key
 from mage_maker.sections.events.types import (
     event_type_label,
     event_visible_outside_person,
@@ -63,6 +64,7 @@ def period_event_date_key(value):
 def period_event_sort_key(event):
     return (
         period_event_date_key(event.get("date")),
+        event_time_sort_key(event.get("time")),
         event_type_label(event).casefold(),
         str(event.get("title", "") or "").casefold(),
         str(event.get("event_id", "") or ""),
@@ -71,6 +73,11 @@ def period_event_sort_key(event):
 
 def period_event_display_text(event):
     date_text = format_line_item_date(event.get("date"))
+    time_text = str(event.get("time", "") or "").strip()
+
+    if time_text:
+        date_text = f"{date_text} {time_text}"
+
     title = str(event.get("title", "") or "Event")
     event_summary = (
         title
@@ -453,6 +460,15 @@ class PeriodEventsView(tk.Frame):
         return None
 
     def update_editor(self):
+        comparison_command = getattr(
+            self.event_editor,
+            "set_comparison_events",
+            None,
+        )
+
+        if callable(comparison_command):
+            comparison_command(self.events)
+
         event = self.selected_event()
 
         if event is None:

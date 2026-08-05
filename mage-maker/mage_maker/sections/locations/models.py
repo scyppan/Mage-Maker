@@ -12,8 +12,10 @@ from mage_maker.sections.timeline.events import (
 )
 from mage_maker.sections.timeline.locations import location_at_date, normalize_location
 from mage_maker.sections.events.models import (
+    event_time_sort_key,
     normalize_world_event_date,
     normalize_world_events,
+    normalize_world_event_time,
     world_event_year,
 )
 from mage_maker.sections.events.types import (
@@ -51,6 +53,9 @@ def normalize_location_event(event):
         normalize_world_event_date(event_date)
         if event_date
         else ""
+    )
+    normalized["time"] = normalize_world_event_time(
+        normalized.get("time")
     )
     normalized["title"] = str(normalized.get("title", "") or "").strip()
     normalized["note"] = str(normalized.get("note", "") or "").strip()
@@ -135,6 +140,7 @@ def location_foundation_event_state(
                 ),
                 "title": str(event.get("title", "") or ""),
                 "date": str(event.get("date", "") or ""),
+                "time": str(event.get("time", "") or ""),
             }
         )
 
@@ -162,6 +168,7 @@ def location_foundation_event_state(
                 ),
                 "title": str(event.get("title", "") or ""),
                 "date": str(event.get("date", "") or ""),
+                "time": str(event.get("time", "") or ""),
             }
         )
 
@@ -236,6 +243,7 @@ def location_extinction_event_state(
                     event.get("event_id", "") or ""
                 ).strip(),
                 "date": str(event.get("date", "") or ""),
+                "time": str(event.get("time", "") or ""),
             }
         )
 
@@ -261,6 +269,7 @@ def location_extinction_event_state(
                     event.get("record_id", "") or ""
                 ).strip(),
                 "date": str(event.get("date", "") or ""),
+                "time": str(event.get("time", "") or ""),
             }
         )
 
@@ -642,6 +651,7 @@ def descendant_ids(location_id, locations):
 def location_event_sort_key(event):
     return (
         location_event_date_key(event.get("date")),
+        event_time_sort_key(event.get("time")),
         0 if location_event_is_foundation(event) else 1,
         str(event.get("title", "") or "").casefold(),
         str(event.get("event_id", "") or ""),
@@ -741,6 +751,7 @@ def person_location_events(people, locations):
                 person_id,
                 event_type,
                 event_date,
+                str(event.get("time", "") or ""),
                 detail.casefold(),
             )
 
@@ -752,6 +763,7 @@ def person_location_events(people, locations):
                 {
                     "event_id": f"mage:{person_id}:{event.get('event_id', '')}",
                     "date": event_date,
+                    "time": str(event.get("time", "") or ""),
                     "title": title,
                     "note": str(event.get("note", "") or "").strip(),
                     "origin_location_id": event_location_ids[0],
@@ -962,6 +974,7 @@ def world_events_for_location_timeline(
                 "event_id": event["record_id"],
                 "record_id": event["record_id"],
                 "date": event["date"],
+                "time": event.get("time", ""),
                 "title": title,
                 "note": event["description"],
                 "origin_location_id": origin_id,

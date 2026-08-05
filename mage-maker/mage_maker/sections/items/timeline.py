@@ -358,6 +358,7 @@ class ItemTimelineView(tk.Frame):
                         event.get("date", ""),
                         unknown="Date unknown",
                     ),
+                    str(event.get("time", "") or ""),
                     event_type_label(event),
                     str(event.get("title", "") or ""),
                     str(event.get("description", "") or ""),
@@ -380,6 +381,11 @@ class ItemTimelineView(tk.Frame):
                     event.get("date", ""),
                     unknown="Date unknown",
                 )
+                time_text = str(event.get("time", "") or "").strip()
+
+                if time_text:
+                    date_text = f"{date_text} {time_text}"
+
                 link_type = item_event_link_type(
                     event,
                     self.current_item_id(),
@@ -498,6 +504,15 @@ class ItemTimelineView(tk.Frame):
         )
 
     def load_selected_event(self):
+        comparison_command = getattr(
+            self.event_editor,
+            "set_comparison_events",
+            None,
+        )
+
+        if callable(comparison_command):
+            comparison_command(self.events)
+
         item_id = self.current_item_id()
         selected_event = self.selected_event()
 

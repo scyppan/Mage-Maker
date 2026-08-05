@@ -23,6 +23,7 @@ from mage_maker.sections.events.controller import (
 )
 from mage_maker.sections.events.models import (
     death_event_person_ids,
+    event_time_sort_key,
     split_world_event_date,
 )
 from mage_maker.sections.events.types import event_type_label
@@ -512,6 +513,21 @@ class TimelineView(tk.Frame):
             {},
         )
 
+    def default_location_ids_for_current_person(self):
+        location_command = getattr(
+            getattr(self, "event_controller", None),
+            "current_location_id_for_person",
+            None,
+        )
+
+        if not callable(location_command):
+            return ()
+
+        location_id = str(
+            location_command(self.current_person_id()) or ""
+        ).strip()
+        return (location_id,) if location_id else ()
+
     def timeline_section_boundaries(self):
         person = self.current_person()
         school_name = str(person.get("school", "") or "").strip()
@@ -753,6 +769,7 @@ class TimelineView(tk.Frame):
                 and query not in str(event.get("detail") or "").casefold()
                 and query not in str(event.get("note") or "").casefold()
                 and query not in str(event.get("date") or "").casefold()
+                and query not in str(event.get("time") or "").casefold()
             ):
                 continue
 
@@ -841,6 +858,11 @@ class TimelineView(tk.Frame):
                 row_index = len(self.list_rows)
                 self.list_rows.append(event)
                 event_date = format_timeline_date(event.get("date"))
+                event_time = str(event.get("time", "") or "").strip()
+
+                if event_time:
+                    event_date = f"{event_date} {event_time}"
+
                 self.listbox.insert(
                     "end",
                     f"{event_date}: {event['_display_summary']}",
@@ -967,7 +989,7 @@ class TimelineView(tk.Frame):
 
     def display_event_sort_key(self, event):
         if event.get("_draft_event"):
-            return -1, 0, 0, 0, 0, ""
+            return -1, 0, 0, 0, 0, 0, ""
 
         event_type = str(event.get("event_type", "") or "")
         current_person_id_command = getattr(
@@ -995,6 +1017,7 @@ class TimelineView(tk.Frame):
                 0,
                 0,
                 0,
+                event_time_sort_key(event.get("time")),
                 "",
             )
 
@@ -1021,6 +1044,7 @@ class TimelineView(tk.Frame):
             year,
             month,
             day,
+            event_time_sort_key(event.get("time")),
             terminal_priority,
             str(
                 event.get("_display_summary")
@@ -1177,6 +1201,15 @@ class TimelineView(tk.Frame):
         return None
 
     def refresh_editor(self):
+        comparison_command = getattr(
+            self.event_editor,
+            "set_comparison_events",
+            None,
+        )
+
+        if callable(comparison_command):
+            comparison_command([*self.events, *self.linked_events])
+
         selected_event = self.selected_event()
 
         if selected_event is None:
@@ -1199,6 +1232,9 @@ class TimelineView(tk.Frame):
                     context="person",
                     default_person_ids=(self.current_person_id(),),
                     locked_person_ids=(self.current_person_id(),),
+                    default_location_ids=(
+                        self.default_location_ids_for_current_person()
+                    ),
                 )
 
             self.event_editor.ensure_new_event_editable()
@@ -1591,6 +1627,7 @@ class TimelineView(tk.Frame):
                 "event_type": values["event_type"],
                 "detail": values["title"],
                 "date": values["date"],
+                "time": values.get("time", ""),
                 "note": values["description"],
                 "person_ids": values["person_ids"],
                 "perpetrator_person_ids": values.get(

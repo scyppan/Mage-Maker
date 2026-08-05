@@ -25,6 +25,7 @@ WORLD_EVENT_LABEL_TYPES = EVENT_LABEL_TYPES
 WORLD_EVENT_DATE_PATTERN = re.compile(
     r"^(-?\d{1,5})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$"
 )
+WORLD_EVENT_TIME_PATTERN = re.compile(r"^(?:[01]\d|2[0-3])[0-5]\d$")
 JOB_EVENT_TYPES = frozenset(("started_job", "received_raise"))
 DEATH_EVENT_TYPES = frozenset(("died", "murder"))
 BIRTH_EVENT_TYPE = "born"
@@ -117,6 +118,9 @@ def normalize_world_event(event):
         if normalized["event_type"] == BIRTH_EVENT_TYPE
         and not requested_date
         else normalize_world_event_date(requested_date)
+    )
+    normalized["time"] = normalize_world_event_time(
+        normalized.get("time")
     )
     normalized["description"] = str(
         normalized.get("description", "") or ""
@@ -616,6 +620,30 @@ def normalize_world_event_date(value):
     return normalized
 
 
+def normalize_world_event_time(value):
+    time_text = str(value or "").strip()
+
+    if not time_text:
+        return ""
+
+    if WORLD_EVENT_TIME_PATTERN.fullmatch(time_text) is None:
+        raise ValueError(
+            "Event time must use four digits from 0000 to 2359, "
+            "with no colon."
+        )
+
+    return time_text
+
+
+def event_time_sort_key(value):
+    time_text = str(value or "").strip()
+
+    if WORLD_EVENT_TIME_PATTERN.fullmatch(time_text) is None:
+        return 2400
+
+    return int(time_text)
+
+
 def split_world_event_date(value):
     if not str(value or "").strip():
         return "", "", ""
@@ -682,6 +710,7 @@ def world_event_sort_key(event):
 
     return (
         date_key,
+        event_time_sort_key(event.get("time")),
         str(event.get("title", "") or "").casefold(),
         str(event.get("record_id", "") or ""),
     )

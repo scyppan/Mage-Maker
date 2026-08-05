@@ -28,7 +28,9 @@ from mage_maker.sections.events.models import (
     normalize_eminence_skill_values,
     normalize_world_event,
     normalize_world_event_date,
+    normalize_world_event_time,
     split_world_event_date,
+    world_event_sort_key,
     world_event_year,
 )
 from mage_maker.sections.items.links import (
@@ -145,6 +147,7 @@ def normalize_organization_event(value):
     description = str(
         value.get("description", "") or ""
     ).strip()
+    event_time = normalize_world_event_time(value.get("time"))
     person_ids = normalize_association_values(
         value.get("person_ids", [])
     )
@@ -194,13 +197,21 @@ def normalize_organization_event(value):
     if event_type == ORGANIZATION_EVENT_FOUNDING:
         record_id = "organization-founding"
     elif not record_id:
-        identity_text = "|".join(
-            (
+        identity_parts = (
+            title.casefold(),
+            event_date,
+            description.casefold(),
+        )
+
+        if event_time:
+            identity_parts = (
                 title.casefold(),
                 event_date,
+                event_time,
                 description.casefold(),
             )
-        )
+
+        identity_text = "|".join(identity_parts)
         record_id = "organization-event-" + hashlib.sha256(
             identity_text.encode("utf-8")
         ).hexdigest()[:20]
@@ -210,6 +221,7 @@ def normalize_organization_event(value):
         "event_type": event_type or "event",
         "title": title,
         "date": event_date,
+        "time": event_time,
         "year": year,
         "description": description,
         "person_ids": person_ids,
@@ -266,6 +278,7 @@ def normalize_organization_events(value):
             }
         )
 
+    other_events.sort(key=world_event_sort_key)
     return [founding_event, *other_events]
 
 
@@ -283,6 +296,7 @@ def new_organization_event(
     item_ids=(),
     item_link_types=None,
     item_new_owners=None,
+    time="",
 ):
     return normalize_organization_event(
         {
@@ -292,6 +306,7 @@ def new_organization_event(
             "year": year,
             "month": month,
             "day": day,
+            "time": time,
             "description": description,
             "person_ids": list(person_ids),
             "witness_person_ids": list(witness_person_ids),
@@ -353,6 +368,7 @@ def organization_event_as_world_event(
             ),
             "title": world_title,
             "date": normalized_event["date"],
+            "time": normalized_event["time"],
             "description": normalized_event["description"],
             "person_ids": normalized_event["person_ids"],
             "item_ids": normalized_event["item_ids"],
@@ -405,6 +421,7 @@ def organization_event_from_world_event(
             **normalized_existing,
             "title": normalized_world_event["title"],
             "date": normalized_world_event["date"],
+            "time": normalized_world_event["time"],
             "description": normalized_world_event["description"],
             "person_ids": normalized_world_event["person_ids"],
             "item_ids": normalized_world_event["item_ids"],
@@ -803,6 +820,7 @@ def school_campus_foundation_event(organization):
         "event_type": "founding",
         "title": f"Founding of {campus_name}",
         "date": str(founding_event.get("date", "") or ""),
+        "time": str(founding_event.get("time", "") or ""),
         "note": f"Campus of {normalized['name']}.",
     }
 

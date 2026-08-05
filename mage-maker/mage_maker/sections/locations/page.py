@@ -1651,6 +1651,11 @@ class LocationPage(tk.Frame):
             date_text = format_line_item_date(
                 event.get("date")
             )
+            time_text = str(event.get("time", "") or "").strip()
+
+            if time_text:
+                date_text = f"{date_text} {time_text}"
+
             source_text = ""
 
             if event.get("propagation_distance", 0):
@@ -1774,6 +1779,15 @@ class LocationPage(tk.Frame):
         return False
 
     def update_timeline_details(self):
+        comparison_command = getattr(
+            self.event_editor,
+            "set_comparison_events",
+            None,
+        )
+
+        if callable(comparison_command):
+            comparison_command(self.visible_events)
+
         event = self.selected_timeline_event()
 
         if event is None:
@@ -2284,6 +2298,7 @@ class LocationPage(tk.Frame):
             "event_type": values["event_type"],
             "title": values["title"],
             "date": values["date"],
+            "time": values.get("time", ""),
             "note": values["description"],
         }
         updated_location, saved_event = self.controller.update_event(

@@ -12,6 +12,7 @@ from mage_maker.sections.events.period_view import (
     PeriodEventsView as UnifiedPeriodEventsView,
 )
 from mage_maker.sections.events.dialog import PlaceholderLocationDialog
+from mage_maker.sections.events.models import event_time_sort_key
 from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
@@ -1250,6 +1251,11 @@ class LegacyPeriodEventsView(tk.Frame):
             date_text = format_line_item_date(
                 event.get("date")
             )
+            time_text = str(event.get("time", "") or "").strip()
+
+            if time_text:
+                date_text = f"{date_text} {time_text}"
+
             event_type = self.event_type_text(event)
             title = str(event.get("title", "") or "Event")
             self.listbox.insert(
@@ -1316,6 +1322,11 @@ class LegacyPeriodEventsView(tk.Frame):
             self.date_value.set(
                 "Date: "
                 + format_historical_display_date(event.get("date"))
+                + (
+                    f" {event.get('time')}"
+                    if event.get("time")
+                    else ""
+                )
             )
             self.people_value.set(
                 ", ".join(labels.get("people", [])) or "None"
@@ -2303,6 +2314,7 @@ def period_event_sort_key(event):
 
     return (
         date_key,
+        event_time_sort_key(event.get("time")),
         str(event.get("title", "") or "").casefold(),
         str(event.get("event_id", "") or ""),
     )

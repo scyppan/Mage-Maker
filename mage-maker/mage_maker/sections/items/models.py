@@ -4,6 +4,7 @@ from copy import deepcopy
 from mage_maker.core.dates import format_line_item_date
 from mage_maker.sections.events.models import (
     normalize_world_event_date,
+    normalize_world_event_time,
     split_world_event_date,
     world_event_sort_key,
 )
@@ -144,6 +145,9 @@ def normalize_item_passage(value):
         normalize_world_event_date(passage_date)
         if passage_date
         else ""
+    )
+    normalized["time"] = normalize_world_event_time(
+        normalized.get("time")
     )
     normalized["method"] = normalize_item_passage_method(
         normalized.get("method")
@@ -366,6 +370,7 @@ def item_passage_sort_key(passage):
     return world_event_sort_key(
         {
             "date": passage["date"],
+            "time": passage.get("time", ""),
             "title": passage["method"],
             "record_id": passage["record_id"],
         }
@@ -401,6 +406,10 @@ def item_possession_periods(item, person_id):
             passage["date"],
             unknown="Date unknown",
         )
+
+        if passage.get("time"):
+            acquired_date = f"{acquired_date} {passage['time']}"
+
         lost_date = (
             format_line_item_date(
                 next_passage["date"],
@@ -409,6 +418,10 @@ def item_possession_periods(item, person_id):
             if next_passage is not None
             else "present"
         )
+
+        if next_passage is not None and next_passage.get("time"):
+            lost_date = f"{lost_date} {next_passage['time']}"
+
         lost_method = (
             next_passage["method"]
             if next_passage is not None
@@ -451,13 +464,18 @@ def item_passage_rows(item):
             passage["person_name"]
             or UNPOSSESSED_ITEM_HOLDER_LABEL
         )
+        passage_date = format_line_item_date(
+            passage["date"],
+            unknown="Date unknown",
+        )
+
+        if passage.get("time"):
+            passage_date = f"{passage_date} {passage['time']}"
+
         rows.append(
             {
                 "record_id": passage["record_id"],
-                "date": format_line_item_date(
-                    passage["date"],
-                    unknown="Date unknown",
-                ),
+                "date": passage_date,
                 "from": previous_holder_name,
                 "to": holder_name,
                 "method": passage["method"],

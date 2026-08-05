@@ -389,6 +389,11 @@ class CreationWizardDialog(tk.Toplevel):
             recent_location_options=(
                 self.event_controller.recent_location_options()
             ),
+            selection_history_command=getattr(
+                self.event_controller,
+                "remember_location_selection",
+                None,
+            ),
         )
         return True
 

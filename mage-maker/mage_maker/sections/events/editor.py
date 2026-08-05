@@ -18,6 +18,7 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
+from mage_maker.sections.events.models import normalize_world_event_date
 from mage_maker.sections.items.link_dialog import RecordLinkDialog
 from mage_maker.sections.items.links import (
     ITEM_EVENT_NEW_OWNER_LINK_TYPES,
@@ -482,6 +483,19 @@ class EventAssociationPicker(tk.Frame):
         else:
             self.selected_ids.append(association_id)
 
+        if (
+            self.association_kind == "locations"
+            and association_id in self.selected_ids
+        ):
+            remember_selection = getattr(
+                self.controller,
+                "remember_location_selection",
+                None,
+            )
+
+            if callable(remember_selection):
+                remember_selection(association_id)
+
         self.refresh_results()
 
         if self.change_command is not None:
@@ -547,6 +561,11 @@ class EventAssociationPicker(tk.Frame):
                 ),
                 recent_location_options=self.recent_options(
                     limit=5
+                ),
+                selection_history_command=getattr(
+                    self.controller,
+                    "remember_location_selection",
+                    None,
                 ),
             )
         else:
@@ -814,6 +833,9 @@ class EventEditor(tk.Frame):
         self.year_value = tk.StringVar()
         self.month_value = tk.StringVar()
         self.day_value = tk.StringVar()
+        self.time_value = tk.StringVar()
+        self.comparison_events = []
+        self.comparison_events_set = False
         self.period_value = tk.StringVar(value="Period: determined by year")
         self.feedback_value = tk.StringVar()
         self.murder_witnesses_summary_value = tk.StringVar(
@@ -835,6 +857,10 @@ class EventEditor(tk.Frame):
         self.year_value.trace_add("write", self.update_period_display)
         self.month_value.trace_add("write", self.update_period_display)
         self.day_value.trace_add("write", self.update_period_display)
+        self.year_value.trace_add("write", self.update_time_visibility)
+        self.month_value.trace_add("write", self.update_time_visibility)
+        self.day_value.trace_add("write", self.update_time_visibility)
+        self.time_value.trace_add("write", self.update_time_visibility)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.scrollbar_visible = True
@@ -990,6 +1016,7 @@ class EventEditor(tk.Frame):
             padx=(5, 0),
         )
         date_panel = tk.Frame(self.form, bg=self.background)
+        self.date_panel = date_panel
         date_panel.grid(
             row=2,
             column=0,
@@ -997,7 +1024,7 @@ class EventEditor(tk.Frame):
             sticky="ew",
             pady=(1, 0),
         )
-        date_panel.grid_columnconfigure((0, 1, 2), weight=1)
+        date_panel.grid_columnconfigure((0, 1, 2, 3), weight=1)
         self.year_field = LabeledEntry(
             date_panel,
             "Year",
@@ -1026,6 +1053,20 @@ class EventEditor(tk.Frame):
             control_height=24,
         )
         self.day_field.grid(row=0, column=2, sticky="ew", padx=(4, 0))
+        self.time_field = LabeledEntry(
+            date_panel,
+            "Time (HHMM, 24-hour)",
+            self.time_value,
+            background=self.background,
+            control_height=24,
+        )
+        self.time_field.grid(
+            row=0,
+            column=3,
+            sticky="ew",
+            padx=(8, 0),
+        )
+        self.time_field.grid_remove()
         calendar_notice = CalendarAdoptionNotice(
             date_panel,
             background=self.background,
@@ -1039,7 +1080,7 @@ class EventEditor(tk.Frame):
         calendar_notice.grid(
             row=1,
             column=0,
-            columnspan=3,
+            columnspan=4,
             sticky="w",
             pady=(1, 0),
         )
@@ -1573,6 +1614,7 @@ class EventEditor(tk.Frame):
         self.year_value.set("")
         self.month_value.set("")
         self.day_value.set("")
+        self.time_value.set("")
         if hasattr(self, "job_event_value"):
             self.job_event_value.set("")
             self.salary_galleons_value.set("0")
@@ -1664,6 +1706,7 @@ class EventEditor(tk.Frame):
         self.year_value.set("")
         self.month_value.set("")
         self.day_value.set("")
+        self.time_value.set("")
         if hasattr(self, "job_event_value"):
             self.job_event_value.set("")
             self.salary_galleons_value.set("0")
@@ -1903,6 +1946,9 @@ class EventEditor(tk.Frame):
         self.year_value.set(year)
         self.month_value.set(month)
         self.day_value.set(day)
+        self.time_value.set(
+            str(self.event.get("time", "") or "").strip()
+        )
         self.load_job_event_values()
         self.update_job_event_panel()
         self.description_control.text.configure(state="normal")
@@ -2115,6 +2161,7 @@ class EventEditor(tk.Frame):
         self.set_controls_enabled(not self.read_only)
         self.clear_feedback()
         self.update_period_display()
+        self.update_time_visibility()
         self.canvas.yview_moveto(0)
         self.saved_editor_values = deepcopy(self.values())
 
@@ -2505,6 +2552,9 @@ class EventEditor(tk.Frame):
             field_editable and not self.lock_date
         )
         self.day_field.control.set_enabled(
+            field_editable and not self.lock_date
+        )
+        self.time_field.control.set_enabled(
             field_editable and not self.lock_date
         )
         self.description_control.text.configure(
@@ -2925,6 +2975,21 @@ class EventEditor(tk.Frame):
             )
             return
 
+    def update_location_selection_for_type_change(
+        self,
+        selected_type,
+        previous_type,
+    ):
+        if (
+            selected_type == "relocated"
+            and previous_type
+            and previous_type != "relocated"
+        ):
+            self.locations_picker.set_values(())
+            return True
+
+        return False
+
     def organization_selection_changed(self):
         if (
             event_type_from_label(
@@ -2983,6 +3048,10 @@ class EventEditor(tk.Frame):
             self.generated_event_type_title = ""
 
         self.previous_event_type = selected_type
+        self.update_location_selection_for_type_change(
+            selected_type,
+            previous_type,
+        )
 
         self.people_picker.single_selection = selected_type in (
             "died",
@@ -3028,27 +3097,6 @@ class EventEditor(tk.Frame):
                         else ""
                     )
                 )
-            )
-
-        if (
-            selected_type
-            in (
-                "relocated",
-                "founding",
-                "extinction",
-                "born",
-                "died",
-                "murder",
-            )
-            and len(self.locations_picker.get_values()) > 1
-        ):
-            retained_location_ids = (
-                self.locations_picker.locked_order[:1]
-                or self.locations_picker.get_values()[-1:]
-            )
-            self.locations_picker.set_values(
-                retained_location_ids,
-                self.locations_picker.locked_order[:1],
             )
 
         if selected_type == "murder":
@@ -3347,6 +3395,102 @@ class EventEditor(tk.Frame):
             )
         )
 
+    def set_comparison_events(self, events):
+        self.comparison_events = [
+            {
+                "record_id": str(
+                    event.get("record_id", "") or ""
+                ).strip(),
+                "event_id": str(
+                    event.get("event_id", "") or ""
+                ).strip(),
+                "date": str(event.get("date", "") or "").strip(),
+            }
+            for event in events or ()
+            if isinstance(event, dict)
+        ]
+        self.comparison_events_set = True
+
+        if hasattr(self, "time_field"):
+            self.update_time_visibility()
+
+    def time_is_needed(self):
+        time_variable = getattr(self, "time_value", None)
+        time_text = (
+            str(time_variable.get() or "").strip()
+            if time_variable is not None
+            else ""
+        )
+
+        if time_text:
+            return True
+
+        try:
+            selected_date = normalize_world_event_date(
+                self.date_value()
+            )
+        except ValueError:
+            return False
+
+        comparison_events = list(
+            getattr(self, "comparison_events", []) or []
+        )
+
+        if not getattr(self, "comparison_events_set", False):
+            list_events = getattr(
+                getattr(self, "controller", None),
+                "list_events",
+                None,
+            )
+
+            if callable(list_events):
+                comparison_events = list_events()
+
+        current_event = getattr(self, "event", {})
+        current_ids = {
+            str(current_event.get(field_name, "") or "").strip()
+            for field_name in ("record_id", "event_id")
+            if str(current_event.get(field_name, "") or "").strip()
+        }
+
+        for event in comparison_events:
+            event_ids = {
+                str(event.get(field_name, "") or "").strip()
+                for field_name in ("record_id", "event_id")
+                if str(event.get(field_name, "") or "").strip()
+            }
+
+            if current_ids.intersection(event_ids):
+                continue
+
+            if str(event.get("date", "") or "").strip() == selected_date:
+                return True
+
+        return False
+
+    def update_time_visibility(self, *arguments):
+        time_field = getattr(self, "time_field", None)
+
+        if time_field is None:
+            return False
+
+        if self.time_is_needed():
+            date_panel = getattr(self, "date_panel", None)
+
+            if date_panel is not None:
+                date_panel.grid_columnconfigure(3, weight=1)
+
+            time_field.grid()
+            return True
+
+        time_field.grid_remove()
+        date_panel = getattr(self, "date_panel", None)
+
+        if date_panel is not None:
+            date_panel.grid_columnconfigure(3, weight=0)
+
+        return False
+
     def clamp_year_to_editor_bounds(self, event=None):
         if (
             self.minimum_year is None
@@ -3451,17 +3595,6 @@ class EventEditor(tk.Frame):
             dict.fromkeys(selected_locations + locked_locations)
         )
 
-        if (
-            event_type in ("born", "died", "murder")
-            and len(selected_location_ids) > 1
-        ):
-            selected_location_ids = selected_location_ids[-1:]
-            locked_locations = [
-                location_id
-                for location_id in locked_locations
-                if location_id in selected_location_ids
-            ][-1:]
-
         no_eminence_event = event_type in ("born", "died")
         job_option = self.selected_job_event_option()
         organization_ids = (
@@ -3498,6 +3631,7 @@ class EventEditor(tk.Frame):
             "event_type": event_type,
             "title": self.title_value.get(),
             "date": self.date_value(),
+            "time": self.time_value.get().strip(),
             "description": self.description_control.text.get(
                 "1.0",
                 "end-1c",

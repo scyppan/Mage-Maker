@@ -14,8 +14,10 @@ from mage_maker.sections.events.types import (
     event_type_options,
 )
 from mage_maker.sections.events.models import (
+    event_time_sort_key,
     normalize_association_values,
     normalize_job_event_metadata,
+    normalize_world_event_time,
 )
 
 
@@ -61,6 +63,9 @@ def normalize_timeline_event(event):
     normalized = normalize_job_event_metadata(normalized)
     normalized["detail"] = str(normalized.get("detail") or "").strip()
     normalized["date"] = normalize_event_date(normalized.get("date"))
+    normalized["time"] = normalize_world_event_time(
+        normalized.get("time")
+    )
     normalized["note"] = str(normalized.get("note") or "").strip()
     normalized["related_person_id"] = str(
         normalized.get("related_person_id") or ""
@@ -164,17 +169,32 @@ def timeline_event_sort_key(event):
             0,
             0,
             0,
+            event_time_sort_key(event.get("time")),
             str(event.get("event_id") or ""),
         )
 
     if not event_date:
-        return 4, 10000, 13, 32, str(event.get("event_id") or "")
+        return (
+            4,
+            10000,
+            13,
+            32,
+            event_time_sort_key(event.get("time")),
+            str(event.get("event_id") or ""),
+        )
 
     parts = [int(part) for part in event_date.split("-")]
     year = parts[0]
     month = parts[1] if len(parts) > 1 else 0
     day = parts[2] if len(parts) > 2 else 0
-    return 3, year, month, day, str(event.get("event_id") or "")
+    return (
+        3,
+        year,
+        month,
+        day,
+        event_time_sort_key(event.get("time")),
+        str(event.get("event_id") or ""),
+    )
 
 
 def timeline_event_summary(event):
