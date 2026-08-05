@@ -103,7 +103,11 @@ def location_event_is_foundation(event):
     )
 
 
-def location_foundation_event_state(location, world_events=None):
+def location_foundation_event_state(
+    location,
+    world_events=None,
+    world_events_are_normalized=False,
+):
     if not isinstance(location, dict):
         return {
             "valid": False,
@@ -134,7 +138,13 @@ def location_foundation_event_state(location, world_events=None):
             }
         )
 
-    for event in normalize_world_events(world_events or []):
+    normalized_world_events = (
+        list(world_events or [])
+        if world_events_are_normalized
+        else normalize_world_events(world_events or [])
+    )
+
+    for event in normalized_world_events:
         if (
             not location_id
             or location_id not in event.get("location_ids", [])
@@ -193,7 +203,11 @@ def location_foundation_event_state(location, world_events=None):
     }
 
 
-def location_extinction_event_state(location, world_events=None):
+def location_extinction_event_state(
+    location,
+    world_events=None,
+    world_events_are_normalized=False,
+):
     if not isinstance(location, dict):
         return {
             "exists": False,
@@ -225,7 +239,13 @@ def location_extinction_event_state(location, world_events=None):
             }
         )
 
-    for event in normalize_world_events(world_events or []):
+    normalized_world_events = (
+        list(world_events or [])
+        if world_events_are_normalized
+        else normalize_world_events(world_events or [])
+    )
+
+    for event in normalized_world_events:
         if (
             canonical_event_type(event.get("event_type"))
             != LOCATION_EXTINCTION_EVENT_TYPE
@@ -278,15 +298,43 @@ def synchronize_location_extinction_records(
     if not isinstance(locations, list) or not isinstance(world_events, list):
         return False
 
+    world_events_by_location_id = {}
+
+    for event in normalize_world_events(world_events):
+        if (
+            canonical_event_type(event.get("event_type"))
+            != LOCATION_EXTINCTION_EVENT_TYPE
+            or bool(event.get("organization_event"))
+        ):
+            continue
+
+        for location_id in event.get("location_ids", []):
+            normalized_location_id = str(
+                location_id or ""
+            ).strip()
+
+            if not normalized_location_id:
+                continue
+
+            world_events_by_location_id.setdefault(
+                normalized_location_id,
+                [],
+            ).append(event)
+
     changed = False
 
     for location in locations:
         if not isinstance(location, dict):
             continue
 
+        location_id = str(
+            location.get("record_id", "") or ""
+        ).strip()
+
         state = location_extinction_event_state(
             location,
-            world_events,
+            world_events_by_location_id.get(location_id, []),
+            world_events_are_normalized=True,
         )
 
         if (
@@ -295,9 +343,6 @@ def synchronize_location_extinction_records(
             and bool(location.get("extinct"))
             and location.get("extinction_year") not in (None, "")
         ):
-            location_id = str(
-                location.get("record_id", "") or ""
-            ).strip()
             location_name = str(
                 location.get("name", "") or "Unnamed location"
             ).strip()
@@ -323,7 +368,8 @@ def synchronize_location_extinction_records(
             )
             state = location_extinction_event_state(
                 location,
-                world_events,
+                world_events_by_location_id.get(location_id, []),
+                world_events_are_normalized=True,
             )
             changed = True
 

@@ -16,6 +16,7 @@ NAME_TYPES = (
     "sobriquet",
     "alias",
     "maiden name",
+    "married name",
     "birth name",
     "name change",
 )

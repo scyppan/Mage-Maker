@@ -1641,6 +1641,22 @@ class JsonDatabase:
         mage_groups = normalize_mage_groups(
             settings[MAGE_GROUPS_SETTING_KEY]
         )
+        people_by_id = {
+            str(person.get("record_id", "") or "").strip(): person
+            for person in database_data["people"]
+            if isinstance(person, dict)
+            and str(person.get("record_id", "") or "").strip()
+        }
+        parent_ids = {
+            str(parent_id or "").strip()
+            for person in database_data["people"]
+            if isinstance(person, dict)
+            for parent_id in (
+                person.get("biological_mother_id"),
+                person.get("biological_father_id"),
+            )
+            if str(parent_id or "").strip()
+        }
         non_magical_person_ids = {
             str(person.get("record_id", "") or "").strip()
             for person in database_data["people"]
@@ -1691,14 +1707,9 @@ class JsonDatabase:
                     "true or false."
                 )
 
-            if person.get("does_not_have_children") and any(
-                record_id
-                in (
-                    str(child.get("biological_mother_id", "") or ""),
-                    str(child.get("biological_father_id", "") or ""),
-                )
-                for child in database_data["people"]
-                if isinstance(child, dict)
+            if (
+                person.get("does_not_have_children")
+                and record_id in parent_ids
             ):
                 raise ValueError(
                     "A person marked Does not have children cannot be "
@@ -1775,7 +1786,7 @@ class JsonDatabase:
 
             require_blood_status_compatible(
                 person,
-                database_data["people"],
+                people_by_id,
             )
 
             for field_name in ("biological_mother_id", "biological_father_id"):
@@ -2147,12 +2158,6 @@ class JsonDatabase:
             str(location.get("record_id", "") or "").strip()
             for location in database_data["locations"]
             if isinstance(location, dict)
-        }
-        people_by_id = {
-            str(person.get("record_id", "") or "").strip(): person
-            for person in database_data["people"]
-            if isinstance(person, dict)
-            and str(person.get("record_id", "") or "").strip()
         }
         seen_birth_baby_ids = set()
 
@@ -3028,9 +3033,19 @@ class JsonDatabase:
         return deepcopy(self.data[collection_name])
 
     def read_record(self, collection_name, record_id):
-        for record in self.list_records(collection_name):
+        if collection_name not in (
+            "locations",
+            "organizations",
+            "events",
+            "items",
+        ):
+            raise KeyError(
+                f"Unknown application collection: {collection_name}"
+            )
+
+        for record in self.data[collection_name]:
             if record.get("record_id") == record_id:
-                return record
+                return deepcopy(record)
 
         return None
 

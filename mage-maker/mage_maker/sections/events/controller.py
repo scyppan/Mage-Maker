@@ -121,6 +121,7 @@ class EventController:
         location_creator=None,
         people_creator=None,
         mage_groups_provider=None,
+        people_summary_provider=None,
     ):
         self.database = database
         self.people_provider = people_provider
@@ -129,6 +130,7 @@ class EventController:
         self.location_creator = location_creator
         self.people_creator = people_creator
         self.mage_groups_provider = mage_groups_provider
+        self.people_summary_provider = people_summary_provider
         self._event_cache = None
         self._event_cache_revision = None
         self._events_by_record_id = {}
@@ -139,6 +141,12 @@ class EventController:
         self._people_options_cache = None
         self._people_options_by_id_cache = {}
         self._people_options_cache_revision = None
+
+    def people_summaries(self):
+        if callable(self.people_summary_provider):
+            return self.people_summary_provider()
+
+        return self.people_provider()
 
     def invalidate_event_cache(self):
         self._event_cache = None
@@ -275,7 +283,7 @@ class EventController:
                     person.get("displayed_name", "")
                     or "Unknown person"
                 ).strip()
-                for person in self.people_provider()
+                for person in self.people_summaries()
                 if isinstance(person, dict)
                 and str(person.get("record_id", "") or "").strip()
             }
@@ -341,7 +349,7 @@ class EventController:
 
         people = [
             person
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if isinstance(person, dict)
             and str(person.get("record_id", "") or "").strip()
         ]
@@ -363,13 +371,8 @@ class EventController:
             if isinstance(stored_processed, dict)
             else {}
         )
-        stored_events = self.database.list_records("events")
-        organization_events = organization_events_as_world_events(
-            self.database.list_records("organizations")
-        )
-        events = normalize_world_events(
-            [*stored_events, *organization_events]
-        )
+        self.ensure_event_cache()
+        events = self._event_cache
         generated_events_by_pair = {}
         events_by_item_id = {}
         items_by_person_id = {}
@@ -662,21 +665,12 @@ class EventController:
             str(person.get("record_id", "") or "").strip(): str(
                 person.get("displayed_name", "") or "Unnamed person"
             ).strip()
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if isinstance(person, dict)
             and str(person.get("record_id", "") or "").strip()
         }
-        stored_events = self.database.list_records("events")
-        organization_events = organization_events_as_world_events(
-            self.database.list_records("organizations")
-        )
-        events = normalize_world_events(
-            [
-                self.apply_title_rules(event)
-                for event in [*stored_events, *organization_events]
-            ]
-        )
-        events.sort(key=world_event_sort_key)
+        self.ensure_event_cache()
+        events = self._event_cache
         ownership_events_by_item_id = {}
 
         for event in events:
@@ -795,7 +789,7 @@ class EventController:
             str(person.get("record_id", "") or "").strip(): str(
                 person.get("displayed_name", "") or ""
             ).strip()
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if isinstance(person, dict)
             and str(person.get("record_id", "") or "").strip()
         }
@@ -918,7 +912,7 @@ class EventController:
             str(person.get("record_id", "") or "").strip(): str(
                 person.get("displayed_name", "") or "Unnamed person"
             ).strip()
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if isinstance(person, dict)
             and str(person.get("record_id", "") or "").strip()
         }
@@ -2536,7 +2530,7 @@ class EventController:
         return any(
             bool(person.get("famous_person"))
             and str(person.get("record_id", "") or "") in linked_person_ids
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if isinstance(person, dict)
         )
 
@@ -2603,7 +2597,7 @@ class EventController:
                     groups,
                 )["name"],
             }
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if str(person.get("record_id", "") or "").strip()
         ]
         options.sort(key=self.association_option_sort_key)
@@ -2644,7 +2638,7 @@ class EventController:
     def eminence_eligible_person_ids(self):
         return {
             str(person.get("record_id", "") or "").strip()
-            for person in self.people_provider()
+            for person in self.people_summaries()
             if isinstance(person, dict)
             and str(person.get("record_id", "") or "").strip()
             and not bool(person.get("non_magical"))
@@ -2767,7 +2761,27 @@ class EventController:
             for location_id in include_ids or ()
             if str(location_id or "").strip()
         }
-        world_events = self.database.list_records("events")
+        world_events_by_location_id = {}
+
+        for event in normalize_world_events(
+            self.database.list_records("events")
+        ):
+            if bool(event.get("organization_event")):
+                continue
+
+            for location_id in event.get("location_ids", []):
+                normalized_location_id = str(
+                    location_id or ""
+                ).strip()
+
+                if not normalized_location_id:
+                    continue
+
+                world_events_by_location_id.setdefault(
+                    normalized_location_id,
+                    [],
+                ).append(event)
+
         return [
             location
             for location in locations
@@ -2776,7 +2790,11 @@ class EventController:
                 in included_ids
                 or not location_foundation_event_state(
                     location,
-                    world_events,
+                    world_events_by_location_id.get(
+                        str(location.get("record_id", "") or "").strip(),
+                        [],
+                    ),
+                    world_events_are_normalized=True,
                 ).get(
                     "foundation_event_id"
                 )
@@ -3120,7 +3138,7 @@ class EventController:
             str(person.get("record_id", "") or ""): str(
                 person.get("displayed_name", "") or "Unnamed magician"
             ).strip()
-            for person in self.people_provider()
+            for person in self.people_summaries()
         }
         locations = self.location_provider()
         organizations = self.organization_records()

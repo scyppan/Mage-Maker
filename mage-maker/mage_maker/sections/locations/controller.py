@@ -15,7 +15,10 @@ from mage_maker.sections.locations.models import (
 )
 from mage_maker.sections.locations.periods import categorized_people_for_period
 from mage_maker.sections.timeline.locations import normalize_location
-from mage_maker.sections.events.models import world_event_year
+from mage_maker.sections.events.models import (
+    normalize_world_events,
+    world_event_year,
+)
 
 
 RECENT_LOCATION_STORAGE_KEY = "_recent_locations"
@@ -92,7 +95,9 @@ class LocationController:
             return deepcopy(self._locations_cache)
 
         locations = self.database.list_records("locations")
-        world_events = self.database.list_records("events")
+        world_events = normalize_world_events(
+            self.database.list_records("events")
+        )
         world_events_by_location_id = {}
 
         for event in world_events:
@@ -113,6 +118,7 @@ class LocationController:
             foundation_state = location_foundation_event_state(
                 location,
                 world_events_by_location_id.get(record_id, []),
+                world_events_are_normalized=True,
             )
             self._foundation_state_cache[record_id] = deepcopy(
                 foundation_state
@@ -120,6 +126,7 @@ class LocationController:
             extinction_state = location_extinction_event_state(
                 location,
                 world_events_by_location_id.get(record_id, []),
+                world_events_are_normalized=True,
             )
             self._extinction_state_cache[record_id] = deepcopy(
                 extinction_state

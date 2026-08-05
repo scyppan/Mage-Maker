@@ -164,12 +164,16 @@ def person_magic_state(person):
 
 def parent_magic_states(person, people):
     person_values = person if isinstance(person, dict) else {}
-    people_by_id = {
-        str(candidate.get("record_id", "") or "").strip(): candidate
-        for candidate in people
-        if isinstance(candidate, dict)
-        and str(candidate.get("record_id", "") or "").strip()
-    }
+    people_by_id = (
+        people
+        if isinstance(people, dict)
+        else {
+            str(candidate.get("record_id", "") or "").strip(): candidate
+            for candidate in people
+            if isinstance(candidate, dict)
+            and str(candidate.get("record_id", "") or "").strip()
+        }
+    )
     states = []
 
     for parent_role in ("mother", "father"):

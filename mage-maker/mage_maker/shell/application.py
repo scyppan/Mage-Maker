@@ -10,20 +10,15 @@ from mage_maker.core.database import JsonDatabase
 from mage_maker.core.game_database import GameDatabase, GameDatabaseError
 from mage_maker.sections.events.controller import EventController
 from mage_maker.sections.locations.controller import LocationController
-from mage_maker.sections.locations.page import LocationPage
 from mage_maker.sections.locations.period_definitions import (
     load_period_definitions,
 )
-from mage_maker.sections.locations.periods_page import PeriodsPage
 from mage_maker.sections.items.controller import ItemController
-from mage_maker.sections.items.page import ItemsView
 from mage_maker.sections.mages.page import MagesPage
 from mage_maker.sections.organizations.controller import OrganizationController
-from mage_maker.sections.organizations.page import OrganizationPage
 from mage_maker.sections.settings.controller import (
     ApplicationSettingsController,
 )
-from mage_maker.sections.settings.page import SettingsPage
 from mage_maker.ui.theme import (
     APP_BACKGROUND,
     BUTTON_SOFT,
@@ -120,6 +115,7 @@ class MageMakerApp(tk.Tk):
             self.location_controller.create_location,
             self.people_controller.create_person,
             self.people_controller.list_mage_groups,
+            self.people_controller.list_people_summaries,
         )
 
         ownership_changed = (
@@ -288,6 +284,8 @@ class MageMakerApp(tk.Tk):
 
         try:
             if page_name == "locations":
+                from mage_maker.sections.locations.page import LocationPage
+
                 page = LocationPage(
                     self.content,
                     self.location_controller,
@@ -300,6 +298,10 @@ class MageMakerApp(tk.Tk):
                     self.open_organization,
                 )
             elif page_name == "periods":
+                from mage_maker.sections.locations.periods_page import (
+                    PeriodsPage,
+                )
+
                 page = PeriodsPage(
                     self.content,
                     self.location_controller,
@@ -311,6 +313,10 @@ class MageMakerApp(tk.Tk):
                     self.refresh_cross_page_data,
                 )
             elif page_name == "organizations":
+                from mage_maker.sections.organizations.page import (
+                    OrganizationPage,
+                )
+
                 page = OrganizationPage(
                     self.content,
                     self.organization_controller,
@@ -321,6 +327,8 @@ class MageMakerApp(tk.Tk):
                     auto_refresh=False,
                 )
             elif page_name == "items":
+                from mage_maker.sections.items.page import ItemsView
+
                 page = ItemsView(
                     self.content,
                     self.item_controller,
@@ -331,6 +339,8 @@ class MageMakerApp(tk.Tk):
                     global_mode=True,
                 )
             elif page_name == "settings":
+                from mage_maker.sections.settings.page import SettingsPage
+
                 page = SettingsPage(
                     self.content,
                     self.settings_controller,

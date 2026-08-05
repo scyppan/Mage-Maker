@@ -111,10 +111,16 @@ class PersonForm(tk.Frame):
         organization_location_provider=None,
         item_controller=None,
         status_command=None,
+        people_summary_provider=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.change_command = change_command
         self.people_provider = people_provider
+        self.people_summary_provider = (
+            people_summary_provider
+            if callable(people_summary_provider)
+            else people_provider
+        )
         self.game_database = game_database
         self.event_controller = event_controller
         self.events_changed_command = events_changed_command
@@ -649,7 +655,7 @@ class PersonForm(tk.Frame):
         self.family_tree = FamilyTreeView(
             page,
             change_command=self.family_tree_changed,
-            people_provider=self.people_provider,
+            people_provider=self.people_summary_provider,
             create_person_command=create_person_command,
             update_person_command=update_person_command,
             refresh_people_command=refresh_people_command,
@@ -702,7 +708,7 @@ class PersonForm(tk.Frame):
         page = ItemsView(
             self.content,
             self.item_controller,
-            self.people_provider,
+            self.people_summary_provider,
             self.status_command,
             event_controller=self.event_controller,
             events_changed_command=self.events_changed_command,
@@ -723,7 +729,7 @@ class PersonForm(tk.Frame):
     def build_relationships_page(self):
         page = RelationshipsView(
             self.content,
-            people_provider=self.people_provider,
+            people_provider=self.people_summary_provider,
             event_controller=self.event_controller,
             navigate_command=self.family_tree.navigate_command,
         )
@@ -741,7 +747,7 @@ class PersonForm(tk.Frame):
         self.timeline = TimelineView(
             page,
             self.timeline_changed,
-            people_provider=self.people_provider,
+            people_provider=self.people_summary_provider,
             navigate_command=navigate_command,
             name_change_command=self.open_timeline_name_change,
             event_controller=self.event_controller,
@@ -2222,7 +2228,7 @@ class PersonForm(tk.Frame):
         current_person.update(self.current_profile_values())
         current_person.update(self.family_tree.get_relationship_values())
         connection_map = FamousConnectionMap(
-            self.people_provider(),
+            self.people_summary_provider(),
             current_person,
             (
                 self.event_controller.events_for_person(

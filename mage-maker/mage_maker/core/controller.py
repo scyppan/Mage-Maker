@@ -107,6 +107,40 @@ class PeopleController:
         "death_month",
         "death_day",
     )
+    summary_fields = (
+        "record_id",
+        "displayed_name",
+        "birth_year",
+        "birth_month",
+        "birth_day",
+        "deceased",
+        "death_year",
+        "death_month",
+        "death_day",
+        "canon",
+        "player_character",
+        "non_magical",
+        "can_give_birth",
+        "does_not_have_children",
+        "famous_person",
+        "unfinished",
+        "mage_group_id",
+        "school",
+        "name_details",
+        "biological_mother_id",
+        "biological_father_id",
+        "biological_mother_status",
+        "biological_father_status",
+        "mate_ids",
+        "spouse_relationships",
+        "blood_status",
+        "developmental_environment",
+        "parental_values",
+        "initial_bonuses",
+        "characteristics",
+        "timeline_events",
+        "created_at",
+    )
 
     def __init__(self, database):
         self.database = database
@@ -115,6 +149,19 @@ class PeopleController:
         people = self.database.list_people()
         people.sort(key=self.person_sort_key)
         return people
+
+    def list_people_summaries(self):
+        stored_people = self.database.data.get("people", [])
+        summaries = [
+            {
+                field_name: deepcopy(person.get(field_name))
+                for field_name in self.summary_fields
+            }
+            for person in stored_people
+            if isinstance(person, dict)
+        ]
+        summaries.sort(key=self.person_sort_key)
+        return summaries
 
     def person_sort_key(self, person):
         birth_year = self.sortable_number(person.get("birth_year"), 10000)
@@ -172,7 +219,7 @@ class PeopleController:
         normalized_record_id = str(record_id or "").strip()
         available_ids = {
             str(person.get("record_id", "") or "").strip()
-            for person in self.database.list_people()
+            for person in self.list_people_summaries()
             if str(person.get("record_id", "") or "").strip()
         }
 
@@ -211,7 +258,7 @@ class PeopleController:
     def recent_person_ids(self, limit=5):
         available_ids = {
             str(person.get("record_id", "") or "").strip()
-            for person in self.database.list_people()
+            for person in self.list_people_summaries()
             if str(person.get("record_id", "") or "").strip()
         }
         stored_history = self.database.data.get(

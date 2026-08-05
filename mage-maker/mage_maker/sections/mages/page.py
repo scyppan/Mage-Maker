@@ -174,6 +174,14 @@ class MagesPage(tk.Frame):
             ),
             item_controller=self.item_controller,
             status_command=self.status_command,
+            people_summary_provider=(
+                self.controller.list_people_summaries
+                if hasattr(
+                    self.controller,
+                    "list_people_summaries",
+                )
+                else self.controller.list_people
+            ),
         )
         self.person_form.grid(
             row=1,
@@ -265,7 +273,16 @@ class MagesPage(tk.Frame):
         self.set_editor_state(False)
 
     def refresh_people(self, selected_record_id=None):
-        self.people = self.controller.list_people()
+        summary_provider = getattr(
+            self.controller,
+            "list_people_summaries",
+            None,
+        )
+        self.people = (
+            summary_provider()
+            if callable(summary_provider)
+            else self.controller.list_people()
+        )
         self.people_list.set_people(
             self.people,
             selected_record_id,
@@ -281,7 +298,6 @@ class MagesPage(tk.Frame):
         self.current_record_id = record_id
         self.controller.remember_person_interaction(record_id)
         self.update_editor_identity(person)
-        self.update_idletasks()
         self.person_form.set_person(person)
         self.people_list.set_selected_record(record_id)
         self.form_dirty = False
