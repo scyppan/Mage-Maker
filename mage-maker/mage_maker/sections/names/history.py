@@ -119,6 +119,27 @@ def birth_name_entry(name_details):
     return None
 
 
+def synchronize_birth_name_date(name_details, birth_date):
+    synchronized_details = normalize_name_details(name_details)
+    normalized_birth_date = normalize_partial_date(
+        str(birth_date or "").strip(),
+        "Birth date",
+    )
+
+    for entry in synchronized_details["entries"]:
+        name_type = " ".join(
+            str(entry.get("name_type", "") or "")
+            .strip()
+            .casefold()
+            .split()
+        )
+
+        if name_type in ("birth name", "birthname"):
+            entry["date"] = normalized_birth_date
+
+    return synchronized_details
+
+
 def legacy_entry_id(record_id, ordinal, name_type, name_entry):
     identity = f"mage-maker:{record_id}:{ordinal}:{name_type}:{name_entry}"
     return str(uuid5(NAMESPACE_URL, identity))

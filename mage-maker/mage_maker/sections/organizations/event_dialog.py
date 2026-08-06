@@ -825,6 +825,7 @@ class OrganizationEventDialog(tk.Toplevel):
             allow_multiple=True,
             selected_person_ids=self.selected_person_ids,
             suggested_people_options=suggested_people_options,
+            reference_date=self.current_date_value(),
             action_text="Use selected",
         )
 

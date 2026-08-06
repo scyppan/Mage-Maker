@@ -1,14 +1,12 @@
 Traceback (most recent call last):
-  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\launcher.py", line 16, in run_application
-    application = resolved_app_class()
-  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\shell\application.py", line 93, in __init__
-    self.database.load()
-    ~~~~~~~~~~~~~~~~~~^^
-  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 101, in load
-    self.validate_database(loaded_data)
-    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\database.py", line 1964, in validate_database
-    raise ValueError(
-        "A Death event needs one person."
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\launcher.py", line 10, in run_application
+    from app import App
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\app.py", line 6, in <module>
+    from mage_maker.shell.application import MageMakerApp as App
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\shell\application.py", line 8, in <module>
+    from mage_maker.core.controller import PeopleController
+  File "e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\core\controller.py", line 44, in <module>
+    from mage_maker.sections.names.history import (
+    ...<3 lines>...
     )
-ValueError: A Death event needs one person.
+ImportError: cannot import name 'synchronize_birth_name_date' from 'mage_maker.sections.names.history' (e:\1. Everything Else\Charms Check\Mage Maker\mage-maker\mage_maker\sections\names\history.py)

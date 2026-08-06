@@ -2,7 +2,6 @@ import uuid
 from copy import deepcopy
 
 from mage_maker.core.dates import format_date_parts, normalize_partial_date
-from mage_maker.core.wizarding_currency import format_monthly_salary
 from mage_maker.sections.development.models import (
     calculate_school_start_year,
     school_year_calendar_year,
@@ -197,6 +196,38 @@ def timeline_event_sort_key(event):
     )
 
 
+def job_timeline_summary(event):
+    event_type = str(event.get("event_type") or "started_job")
+    action = (
+        "Received a raise"
+        if event_type == "received_raise"
+        else "Started a job"
+    )
+    job_title = str(event.get("job_title") or "").strip()
+    organization_name = str(
+        event.get("organization_name") or ""
+    ).strip()
+
+    if (
+        " (within " in organization_name
+        and organization_name.endswith(")")
+    ):
+        organization_name = (
+            organization_name[:-1].replace(" (within ", " within ", 1)
+        )
+
+    if job_title and organization_name:
+        return f"{action} • {job_title} ({organization_name})"
+
+    if job_title:
+        return f"{action} • {job_title}"
+
+    if organization_name:
+        return f"{action} • {organization_name}"
+
+    return action
+
+
 def timeline_event_summary(event):
     event_type = str(event.get("event_type") or "custom")
     detail = str(event.get("detail") or "").strip()
@@ -258,24 +289,10 @@ def timeline_event_summary(event):
         )
 
     if event_type == "started_job":
-        summary = f"Started job: {detail}" if detail else "Started job"
-
-        if event.get("salary") is not None:
-            summary += f" · {format_monthly_salary(event['salary'])}"
-
-        return summary
+        return job_timeline_summary(event)
 
     if event_type == "received_raise":
-        summary = (
-            f"Received a raise: {detail}"
-            if detail
-            else "Received a raise"
-        )
-
-        if event.get("salary") is not None:
-            summary += f" · {format_monthly_salary(event['salary'])}"
-
-        return summary
+        return job_timeline_summary(event)
 
     if event_type == "work_change":
         return (

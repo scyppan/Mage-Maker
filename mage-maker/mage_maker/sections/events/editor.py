@@ -18,6 +18,9 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
+from mage_maker.sections.events.job_dialog import (
+    EventJobSelectionDialog,
+)
 from mage_maker.sections.events.models import normalize_world_event_date
 from mage_maker.sections.items.link_dialog import RecordLinkDialog
 from mage_maker.sections.items.links import (
@@ -95,6 +98,7 @@ class EventAssociationPicker(tk.Frame):
         background=SURFACE_MUTED,
         heading_text="",
         select_button_text="",
+        reference_date_provider=None,
     ):
         super().__init__(
             parent,
@@ -111,6 +115,7 @@ class EventAssociationPicker(tk.Frame):
         self.select_button_text = str(
             select_button_text or ""
         ).strip()
+        self.reference_date_provider = reference_date_provider
         self.heading_base_text = ""
         self.options = []
         self.options_by_id = {}
@@ -576,6 +581,16 @@ class EventAssociationPicker(tk.Frame):
                 if callable(suggestion_provider)
                 else recent_options
             )
+            reference_date_provider = getattr(
+                self,
+                "reference_date_provider",
+                None,
+            )
+            reference_date = (
+                reference_date_provider()
+                if callable(reference_date_provider)
+                else None
+            )
             EventPersonPickerDialog(
                 self,
                 people_options,
@@ -600,6 +615,7 @@ class EventAssociationPicker(tk.Frame):
                 selected_person_ids=self.selected_ids,
                 locked_person_ids=self.locked_order,
                 suggested_people_options=suggested_people_options,
+                reference_date=reference_date,
                 action_text=(
                     "Add person"
                     if self.single_selection
@@ -721,6 +737,7 @@ class MurderAdditionalPeopleDialog(tk.Toplevel):
         witness_person_ids=(),
         affected_person_ids=(),
         saved_command=None,
+        reference_date_provider=None,
     ):
         super().__init__(parent)
         self.saved_command = saved_command
@@ -776,6 +793,7 @@ class MurderAdditionalPeopleDialog(tk.Toplevel):
             background=SURFACE_MUTED,
             heading_text="Witnessed by",
             select_button_text="Select another witness",
+            reference_date_provider=reference_date_provider,
         )
         self.witnesses_picker.grid(
             row=1,
@@ -792,6 +810,7 @@ class MurderAdditionalPeopleDialog(tk.Toplevel):
             background=SURFACE_MUTED,
             heading_text="Affected by",
             select_button_text="Select another affected person",
+            reference_date_provider=reference_date_provider,
         )
         self.affected_picker.grid(
             row=1,
@@ -900,6 +919,7 @@ class EventEditor(tk.Frame):
         self.association_selection_guard_until = 0.0
         self.job_event_options = []
         self.job_event_options_by_label = {}
+        self.selected_job_event_option_value = None
         self.heading_value = tk.StringVar(value="Event details")
         self.explanation_value = tk.StringVar(
             value="Select an event or add a new one."
@@ -925,7 +945,7 @@ class EventEditor(tk.Frame):
         self.selected_item_link_types = {}
         self.selected_item_new_owners = {}
         self.items_summary_value = tk.StringVar(value="Items: None")
-        self.job_event_value = tk.StringVar()
+        self.job_event_value = tk.StringVar(value="No job selected")
         self.salary_galleons_value = tk.StringVar(value="0")
         self.salary_sickles_value = tk.StringVar(value="0")
         self.salary_knuts_value = tk.StringVar(value="0")
@@ -1175,7 +1195,7 @@ class EventEditor(tk.Frame):
             sticky="ew",
             pady=(2, 0),
         )
-        self.job_event_panel.grid_columnconfigure(0, weight=2)
+        self.job_event_panel.grid_columnconfigure(0, weight=5)
         self.job_event_panel.grid_columnconfigure(
             (1, 2, 3),
             weight=1,
@@ -1194,19 +1214,47 @@ class EventEditor(tk.Frame):
             sticky="ew",
             padx=(0, 4),
         )
-        self.job_event_picker = RoundedSelect(
+        job_selection_frame = tk.Frame(
             self.job_event_panel,
-            textvariable=self.job_event_value,
-            values=[],
-            background=self.background,
-            height=24,
-            font=app_font(8),
+            bg=self.background,
         )
-        self.job_event_picker.grid(
+        job_selection_frame.grid(
             row=1,
             column=0,
             sticky="ew",
             padx=(0, 4),
+        )
+        job_selection_frame.grid_columnconfigure(0, weight=1)
+        self.job_event_display = tk.Label(
+            job_selection_frame,
+            textvariable=self.job_event_value,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            font=app_font(8),
+            anchor="w",
+            justify="left",
+            wraplength=360,
+            padx=10,
+            pady=7,
+        )
+        self.job_event_display.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        self.job_event_picker = SoftButton(
+            job_selection_frame,
+            text="Choose job…",
+            command=self.open_job_event_dialog,
+            background=self.background,
+            width=104,
+            height=42,
+            font=app_font(9, "bold"),
+        )
+        self.job_event_picker.grid(
+            row=0,
+            column=1,
+            padx=(6, 0),
         )
         self.job_salary_label = tk.Label(
             self.job_event_panel,
@@ -1254,7 +1302,7 @@ class EventEditor(tk.Frame):
                 salary_block,
                 textvariable=value,
                 background=self.background,
-                width=92,
+                width=64,
                 height=24,
                 font=app_font(8),
                 justify="center",
@@ -1347,6 +1395,7 @@ class EventEditor(tk.Frame):
             self.controller,
             "people",
             background=self.background,
+            reference_date_provider=self.date_value,
         )
         self.people_picker.grid(
             row=0,
@@ -1364,6 +1413,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Baby",
             select_button_text="Select the baby",
+            reference_date_provider=self.date_value,
         )
         self.baby_picker.single_selection = True
         self.baby_picker.change_command = (
@@ -1377,6 +1427,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Birthing parent",
             select_button_text="Select the birthing parent",
+            reference_date_provider=self.date_value,
         )
         self.birthing_parent_picker.single_selection = True
         self.birthing_parent_picker.change_command = (
@@ -1390,6 +1441,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Non-Birthing parent",
             select_button_text="Select the non-birthing parent",
+            reference_date_provider=self.date_value,
         )
         self.non_birthing_parent_picker.single_selection = True
         self.non_birthing_parent_picker.change_command = (
@@ -1403,6 +1455,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Perpetrator",
             select_button_text="Select another perpetrator",
+            reference_date_provider=self.date_value,
         )
         self.perpetrators_picker.change_command = (
             self.murder_people_selection_changed
@@ -1415,6 +1468,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Victim",
             select_button_text="Select another victim",
+            reference_date_provider=self.date_value,
         )
         self.victims_picker.change_command = (
             self.murder_people_selection_changed
@@ -1427,6 +1481,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Witness",
             select_button_text="Select another witness",
+            reference_date_provider=self.date_value,
         )
         self.witnesses_picker.change_command = (
             self.murder_people_selection_changed
@@ -1439,6 +1494,7 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Affected by",
             select_button_text="Select another affected person",
+            reference_date_provider=self.date_value,
         )
         self.affected_picker.change_command = (
             self.murder_people_selection_changed
@@ -1717,7 +1773,8 @@ class EventEditor(tk.Frame):
         self.day_value.set("")
         self.time_value.set("")
         if hasattr(self, "job_event_value"):
-            self.job_event_value.set("")
+            self.selected_job_event_option_value = None
+            self.job_event_value.set("No job selected")
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
@@ -1809,7 +1866,8 @@ class EventEditor(tk.Frame):
         self.day_value.set("")
         self.time_value.set("")
         if hasattr(self, "job_event_value"):
-            self.job_event_value.set("")
+            self.selected_job_event_option_value = None
+            self.job_event_value.set("No job selected")
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
@@ -2300,17 +2358,59 @@ class EventEditor(tk.Frame):
             for option in self.job_event_options
             if str(option.get("label", "") or "").strip()
         }
-        self.job_event_picker.set_values(
-            list(self.job_event_options_by_label)
-        )
 
     def selected_job_event_option(self):
-        if not hasattr(self, "job_event_value"):
-            return None
-
-        return self.job_event_options_by_label.get(
-            self.job_event_value.get(),
+        option = getattr(
+            self,
+            "selected_job_event_option_value",
+            None,
         )
+        return deepcopy(option) if isinstance(option, dict) else None
+
+    def set_selected_job_event_option(self, option):
+        if not isinstance(option, dict):
+            self.selected_job_event_option_value = None
+            self.job_event_value.set("No job selected")
+            return
+
+        self.selected_job_event_option_value = deepcopy(option)
+        display_label = str(
+            option.get("label", "") or "Unnamed job"
+        ).strip()
+        display_label = display_label.replace(
+            " (within ",
+            "\n(within ",
+            1,
+        )
+        self.job_event_value.set(
+            display_label
+        )
+
+    def open_job_event_dialog(self):
+        self.refresh_job_event_options()
+        selected = self.selected_job_event_option()
+        location_provider = getattr(
+            self.controller,
+            "location_records",
+            None,
+        )
+        locations = (
+            list(location_provider())
+            if callable(location_provider)
+            else []
+        )
+        EventJobSelectionDialog(
+            self,
+            self.job_event_options,
+            locations,
+            (selected or {}).get("organization_id", ""),
+            (selected or {}).get("organization_job_id", ""),
+            self.job_event_dialog_selected,
+        )
+
+    def job_event_dialog_selected(self, option):
+        self.set_selected_job_event_option(option)
+        return True
 
     def load_job_event_values(self):
         if not hasattr(self, "job_event_value"):
@@ -2321,37 +2421,48 @@ class EventEditor(tk.Frame):
         ).strip() not in ("started_job", "received_raise"):
             self.job_event_options = []
             self.job_event_options_by_label = {}
-            self.job_event_picker.set_values([])
-            self.job_event_value.set("")
+            self.set_selected_job_event_option(None)
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
             return
 
-        self.refresh_job_event_options()
         organization_id = str(
             self.event.get("organization_id", "") or ""
         ).strip()
         organization_job_id = str(
             self.event.get("organization_job_id", "") or ""
         ).strip()
-        selected_label = ""
+        option_reader = getattr(
+            self.controller,
+            "organization_job_option",
+            None,
+        )
+        selected_option = (
+            option_reader(organization_id, organization_job_id)
+            if callable(option_reader)
+            else None
+        )
 
-        for option in self.job_event_options:
-            if (
-                str(option.get("organization_id", "") or "")
-                == organization_id
-                and str(
-                    option.get("organization_job_id", "") or ""
-                )
-                == organization_job_id
-            ):
-                selected_label = str(
-                    option.get("label", "") or ""
-                )
-                break
+        if selected_option is None and organization_id and organization_job_id:
+            self.refresh_job_event_options()
+            selected_option = next(
+                (
+                    option
+                    for option in self.job_event_options
+                    if str(
+                        option.get("organization_id", "") or ""
+                    ).strip()
+                    == organization_id
+                    and str(
+                        option.get("organization_job_id", "") or ""
+                    ).strip()
+                    == organization_job_id
+                ),
+                None,
+            )
 
-        self.job_event_value.set(selected_label)
+        self.set_selected_job_event_option(selected_option)
         salary = self.event.get("salary")
 
         if isinstance(salary, dict):
@@ -2410,7 +2521,6 @@ class EventEditor(tk.Frame):
             self.form.after_idle(self.form_resized)
             return
 
-        self.refresh_job_event_options()
         self.job_salary_label.configure(
             text=(
                 "New monthly salary"
@@ -2578,6 +2688,37 @@ class EventEditor(tk.Frame):
 
             return
 
+        if event_type in ("started_job", "received_raise"):
+            ancillary_row = 0
+
+            if not self.hide_locations:
+                self.locations_picker.grid(
+                    row=0,
+                    column=0,
+                    columnspan=2,
+                    sticky="ew",
+                )
+                ancillary_row = 1
+
+            self.murder_additional_people_panel.grid(
+                row=ancillary_row,
+                column=0,
+                columnspan=2,
+                sticky="ew",
+                pady=(3, 0) if ancillary_row else 0,
+            )
+
+            if hasattr(self, "eminence_picker"):
+                self.eminence_picker.grid(
+                    row=ancillary_row + 1,
+                    column=0,
+                    columnspan=2,
+                    sticky="ew",
+                    pady=(3, 0),
+                )
+
+            return
+
         self.people_picker.grid(
             row=0,
             column=0,
@@ -2663,6 +2804,7 @@ class EventEditor(tk.Frame):
         )
         self.people_picker.set_enabled(
             field_editable and not self.lock_people
+            and selected_type not in ("started_job", "received_raise")
         )
         self.baby_picker.set_enabled(
             field_editable
@@ -2809,6 +2951,7 @@ class EventEditor(tk.Frame):
             self.witnesses_picker.get_values(),
             self.affected_picker.get_values(),
             self.murder_additional_people_chosen,
+            reference_date_provider=self.date_value,
         )
         return True
 
@@ -3158,7 +3301,21 @@ class EventEditor(tk.Frame):
         self.people_picker.single_selection = selected_type in (
             "died",
             "returns_as_ghost",
+            "started_job",
+            "received_raise",
         )
+
+        if selected_type in ("started_job", "received_raise"):
+            job_locked_person_ids = self.people_picker.locked_order[:1]
+            job_person_ids = (
+                job_locked_person_ids
+                or self.people_picker.get_values()[:1]
+            )
+            self.people_picker.set_values(
+                job_person_ids,
+                job_locked_person_ids,
+            )
+
         self.locations_picker.single_selection = (
             selected_type
             in (

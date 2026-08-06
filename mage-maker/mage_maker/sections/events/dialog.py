@@ -4,6 +4,7 @@ from datetime import date
 from functools import partial
 from tkinter import messagebox
 
+from mage_maker.core.dates import historical_year_distance
 from mage_maker.sections.events.models import (
     WORLD_EVENT_LABEL_TYPES,
     WORLD_EVENT_TYPES,
@@ -542,6 +543,7 @@ class WorldEventDialog(tk.Toplevel):
             allow_multiple=True,
             selected_person_ids=self.selected_person_ids,
             suggested_people_options=suggested_people_options,
+            reference_date=self.current_date_value(),
             action_text="Use selected",
         )
 
@@ -906,6 +908,7 @@ class EventPersonPickerDialog(tk.Toplevel):
         selected_person_ids=None,
         locked_person_ids=None,
         suggested_people_options=None,
+        reference_date=None,
     ):
         super().__init__(parent)
         self.allow_multiple = bool(allow_multiple)
@@ -1005,6 +1008,7 @@ class EventPersonPickerDialog(tk.Toplevel):
             selection_prompt or "Select a person."
         ).strip()
         self.action_text = str(action_text or "Choose person").strip()
+        self.reference_date = reference_date
         self.mage_groups = [
             deepcopy(group)
             for group in mage_groups or []
@@ -1464,20 +1468,47 @@ class EventPersonPickerDialog(tk.Toplevel):
         if birth_year is None:
             return None
 
-        death_year = self.integer_value(person.get("death_year"))
-        has_death_date = bool(person.get("deceased")) or death_year is not None
-        today = date.today()
-        end_year = death_year if has_death_date else today.year
-        age = end_year - birth_year
         birth_month = self.integer_value(person.get("birth_month"))
         birth_day = self.integer_value(person.get("birth_day"))
+        reference_date = getattr(self, "reference_date", None)
 
-        if has_death_date:
-            end_month = self.integer_value(person.get("death_month"))
-            end_day = self.integer_value(person.get("death_day"))
+        if reference_date is not None:
+            try:
+                end_year_text, end_month_text, end_day_text = (
+                    split_world_event_date(reference_date)
+                )
+            except (TypeError, ValueError):
+                return None
+
+            end_year = self.integer_value(end_year_text)
+            end_month = self.integer_value(end_month_text)
+            end_day = self.integer_value(end_day_text)
         else:
-            end_month = today.month
-            end_day = today.day
+            death_year = self.integer_value(person.get("death_year"))
+            has_death_date = (
+                bool(person.get("deceased"))
+                or death_year is not None
+            )
+
+            if has_death_date:
+                end_year = death_year
+                end_month = self.integer_value(
+                    person.get("death_month")
+                )
+                end_day = self.integer_value(person.get("death_day"))
+            else:
+                today = date.today()
+                end_year = today.year
+                end_month = today.month
+                end_day = today.day
+
+        if end_year is None:
+            return None
+
+        try:
+            age = historical_year_distance(birth_year, end_year)
+        except (TypeError, ValueError):
+            return None
 
         if (
             birth_month is not None
@@ -1600,6 +1631,15 @@ class EventPersonPickerDialog(tk.Toplevel):
             if birth_year is not None
             else "Birth date unknown"
         )
+        reference_date = getattr(self, "reference_date", None)
+
+        if reference_date is not None:
+            event_age = self.person_age(person)
+            birth_text = (
+                f"Age {event_age} at event · {birth_text}"
+                if event_age is not None
+                else f"Age at event unknown · {birth_text}"
+            )
         group_name = str(option.get("group_name", "") or "").strip()
         details = (
             f"{birth_text} · {group_name}"

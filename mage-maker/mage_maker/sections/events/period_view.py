@@ -1,5 +1,6 @@
 import tkinter as tk
 from copy import deepcopy
+from tkinter import messagebox
 
 from mage_maker.core.dates import format_line_item_date
 from mage_maker.sections.events.editor import (
@@ -11,6 +12,7 @@ from mage_maker.sections.events.types import (
     event_type_label,
     event_visible_outside_person,
 )
+from mage_maker.sections.timeline.events import job_timeline_summary
 from mage_maker.ui.theme import (
     BORDER_SOFT,
     DELETE_HOVER,
@@ -79,14 +81,17 @@ def period_event_display_text(event):
         date_text = f"{date_text} {time_text}"
 
     title = str(event.get("title", "") or "Event")
-    event_summary = (
-        title
-        if str(
-            event.get("event_type", "") or ""
-        ).strip().casefold()
-        == "founding"
-        else f"{event_type_label(event)}  ·  {title}"
-    )
+    event_type = str(
+        event.get("event_type", "") or ""
+    ).strip().casefold()
+
+    if event_type in ("started_job", "received_raise"):
+        event_summary = job_timeline_summary(event)
+    elif event_type == "founding":
+        event_summary = title
+    else:
+        event_summary = f"{event_type_label(event)}  ·  {title}"
+
     return f"{date_text}  ·  {event_summary}"
 
 
@@ -440,10 +445,76 @@ class PeriodEventsView(tk.Frame):
         if not selection:
             return
 
-        self.selected_event_id = self.events[selection[0]]["event_id"]
+        requested_event_id = self.events[selection[0]]["event_id"]
+
+        if (
+            requested_event_id != self.selected_event_id
+            and not self.confirm_unsaved_event_changes()
+        ):
+            self.restore_selected_event_row()
+            return "break"
+
+        self.selected_event_id = requested_event_id
         self.reset_remove_confirmation()
         self.update_editor()
         self.update_button_state()
+
+    def restore_selected_event_row(self):
+        self.listbox.selection_clear(0, "end")
+
+        for index, event in enumerate(self.events):
+            if str(event.get("event_id", "") or "") != str(
+                self.selected_event_id or ""
+            ):
+                continue
+
+            self.listbox.selection_set(index)
+            self.listbox.see(index)
+            return True
+
+        return False
+
+    def confirm_unsaved_event_changes(self):
+        association_guard_command = getattr(
+            getattr(self, "event_editor", None),
+            "association_selection_guard_active",
+            None,
+        )
+
+        if (
+            callable(association_guard_command)
+            and association_guard_command()
+        ):
+            return False
+
+        unsaved_changes_command = getattr(
+            getattr(self, "event_editor", None),
+            "has_unsaved_changes",
+            None,
+        )
+
+        if (
+            not callable(unsaved_changes_command)
+            or not unsaved_changes_command()
+        ):
+            return True
+
+        save_choice = messagebox.askyesnocancel(
+            "Unsaved event changes",
+            "Save this event before continuing?",
+            parent=self,
+            icon="warning",
+            default="yes",
+        )
+
+        if save_choice is None:
+            return False
+
+        if save_choice:
+            return bool(self.event_editor.save())
+
+        self.event_editor.cancel()
+        return True
 
     def selected_event(self):
         for event in self.events:
@@ -559,6 +630,9 @@ class PeriodEventsView(tk.Frame):
         if self.period is None:
             self.status_command("Select a period first.")
             return
+
+        if not self.confirm_unsaved_event_changes():
+            return False
 
         self.draft_event = {
             "event_id": NEW_EVENT_DRAFT_ID,
@@ -685,6 +759,13 @@ class PeriodEventsView(tk.Frame):
 
     def select_event(self, record_id):
         requested_id = str(record_id or "")
+
+        if (
+            requested_id != str(self.selected_event_id or "")
+            and not self.confirm_unsaved_event_changes()
+        ):
+            self.restore_selected_event_row()
+            return False
 
         for index, event in enumerate(self.events):
             if event.get("event_id") != requested_id:

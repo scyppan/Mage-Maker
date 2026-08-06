@@ -118,6 +118,12 @@ class MageMakerApp(tk.Tk):
             self.people_controller.list_people_summaries,
         )
 
+        job_events_changed = (
+            self.event_controller.ensure_started_job_events_for_assignments(
+                save_database=False,
+            )
+        )
+
         ownership_changed = (
             self.event_controller.synchronize_item_ownership_from_events()
         )
@@ -125,7 +131,11 @@ class MageMakerApp(tk.Tk):
             self.event_controller.synchronize_retained_item_events_for_deaths()
         )
 
-        if retained_events_changed or ownership_changed:
+        if (
+            job_events_changed
+            or retained_events_changed
+            or ownership_changed
+        ):
             self.database.save()
 
         self.organization_controller = OrganizationController(
@@ -325,6 +335,9 @@ class MageMakerApp(tk.Tk):
                     self.refresh_cross_page_data,
                     self.organization_lock_changed,
                     auto_refresh=False,
+                    open_job_event_command=(
+                        self.open_mage_timeline_event
+                    ),
                 )
             elif page_name == "items":
                 from mage_maker.sections.items.page import ItemsView
@@ -441,6 +454,24 @@ class MageMakerApp(tk.Tk):
             and not self.pages[
                 "locations"
             ].confirm_unsaved_location_changes()
+        ):
+            return False
+
+        if (
+            confirm_change
+            and self.active_page_name == "periods"
+            and not self.pages[
+                "periods"
+            ].confirm_unsaved_event_changes()
+        ):
+            return False
+
+        if (
+            confirm_change
+            and self.active_page_name == "items"
+            and not self.pages[
+                "items"
+            ].item_timeline.confirm_unsaved_changes()
         ):
             return False
 
@@ -566,6 +597,17 @@ class MageMakerApp(tk.Tk):
             return False
 
         return self.pages["mages"].select_person(record_id)
+
+    def open_mage_timeline_event(self, person_id, event_id):
+        if not self.show_page("mages"):
+            return False
+
+        mages_page = self.pages["mages"]
+
+        if not mages_page.select_person(person_id):
+            return False
+
+        return mages_page.open_timeline_event(event_id)
 
     def open_location(self, record_id):
         if not self.show_page("locations"):
@@ -773,6 +815,22 @@ class MageMakerApp(tk.Tk):
             and not self.pages[
                 "organizations"
             ].confirm_unsaved_organization_changes()
+        ):
+            return
+
+        if (
+            "periods" in self.pages
+            and not self.pages[
+                "periods"
+            ].confirm_unsaved_event_changes()
+        ):
+            return
+
+        if (
+            "items" in self.pages
+            and not self.pages[
+                "items"
+            ].item_timeline.confirm_unsaved_changes()
         ):
             return
 

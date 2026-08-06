@@ -69,6 +69,7 @@ from mage_maker.sections.development.initial_values import (
 )
 from mage_maker.sections.development.models import (
     ACADEMIC_YEARS_TO_ADULTHOOD,
+    DEVELOPMENT_ABILITY_BY_SKILL,
     DEVELOPMENT_ABILITY_OPTIONS,
     DEVELOPMENT_SCHEMA_OPTIONS,
     DEVELOPMENT_SKILL_OPTIONS,
@@ -85,6 +86,7 @@ from mage_maker.sections.development.models import (
     normalize_development_plan,
     normalize_eminence_records,
     normalize_job_records,
+    normalize_development_skill,
     job_assignment_overlaps_year_range,
     normalize_school_started,
     normalize_school_year_records,
@@ -101,7 +103,9 @@ from mage_maker.sections.development.school_years import (
     ensure_adult_year_records_with_improvements,
     ensure_school_year_records,
     random_school_year_skill,
+    reconcile_development_plan_characteristics,
     reconcile_school_year_electives,
+    reconcile_school_year_characteristic_buys,
     rebuild_school_year_records,
     school_curriculum_year,
 )
@@ -128,6 +132,7 @@ from mage_maker.ui.theme import (
     LOCKED_BORDER,
     PRIMARY,
     PRIMARY_HOVER,
+    PRIMARY_SOFT,
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
@@ -266,9 +271,13 @@ class DevelopmentView(tk.Frame):
         self.year_elective_heading_value = tk.StringVar(
             value="Electives: None available"
         )
+        self.year_elective_count_value = tk.StringVar(
+            value="0 selected"
+        )
         self.year_elective_variables = {}
         self.year_elective_checkbuttons = {}
         self.year_approved_electives = []
+        self.year_past_elective_identities = set()
         self.year_elective_limit = 0
         self.year_skill_values = [
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
@@ -1678,8 +1687,19 @@ class DevelopmentView(tk.Frame):
             column=0,
             sticky="ew",
         )
-        year_elective_heading = tk.Label(
+        year_elective_header = tk.Frame(
             self.year_curriculum_frame,
+            bg=SURFACE_MUTED,
+        )
+        year_elective_header.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(8, 2),
+        )
+        year_elective_header.grid_columnconfigure(0, weight=1)
+        year_elective_heading = tk.Label(
+            year_elective_header,
             textvariable=self.year_elective_heading_value,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
@@ -1687,10 +1707,22 @@ class DevelopmentView(tk.Frame):
             anchor="w",
         )
         year_elective_heading.grid(
-            row=1,
+            row=0,
             column=0,
             sticky="ew",
-            pady=(8, 2),
+        )
+        year_elective_count = tk.Label(
+            year_elective_header,
+            textvariable=self.year_elective_count_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="e",
+        )
+        year_elective_count.grid(
+            row=0,
+            column=1,
+            sticky="e",
         )
         self.year_elective_options_frame = tk.Frame(
             self.year_curriculum_frame,
@@ -1702,7 +1734,7 @@ class DevelopmentView(tk.Frame):
             sticky="ew",
         )
         self.year_elective_options_frame.grid_columnconfigure(
-            (0, 1, 2),
+            (0, 1, 2, 3),
             weight=1,
             uniform="school_year_electives",
         )
@@ -2775,6 +2807,27 @@ class DevelopmentView(tk.Frame):
         self.current_person["characteristics"] = deepcopy(
             submitted_values
         )
+        self.school_year_records = (
+            reconcile_school_year_characteristic_buys(
+                submitted_values,
+                getattr(self, "school_year_records", []),
+            )
+        )
+        current_plan = getattr(self, "development_plan", None)
+
+        if current_plan is not None:
+            current_plan["school_years"] = deepcopy(
+                self.school_year_records
+            )
+            self.development_plan = (
+                reconcile_development_plan_characteristics(
+                    current_plan,
+                    submitted_values,
+                )
+            )
+            self.current_person["development_plan"] = deepcopy(
+                self.development_plan
+            )
         self.characteristics_editing = False
         self.update_characteristic_points()
         self.update_initial_values_completion()
@@ -3269,7 +3322,9 @@ class DevelopmentView(tk.Frame):
         self.year_elective_variables = {}
         self.year_elective_checkbuttons = {}
         self.year_approved_electives = []
+        self.year_past_elective_identities = set()
         self.year_elective_limit = 0
+        self.year_elective_count_value.set("0 selected")
 
         if bool(record.get("skipped", False)):
             self.year_core_courses_value.set(
@@ -3304,62 +3359,168 @@ class DevelopmentView(tk.Frame):
             approved_electives,
             elective_limit,
         )
+        current_year = int(record.get("year", 0) or 0)
+        past_elective_identities = set()
+
+        for previous_record in getattr(
+            self,
+            "school_year_records",
+            [],
+        ):
+            try:
+                previous_year = int(
+                    previous_record.get("year", 0) or 0
+                )
+            except (TypeError, ValueError):
+                continue
+
+            if (
+                previous_year >= current_year
+                or bool(previous_record.get("skipped", False))
+            ):
+                continue
+
+            past_elective_identities.update(
+                str(elective or "").strip().casefold()
+                for elective in previous_record.get(
+                    "electives",
+                    [],
+                )
+                if str(elective or "").strip()
+            )
+
         self.year_core_courses_value.set(
             "Core classes: "
             + (", ".join(core_courses) if core_courses else "None")
         )
         self.year_approved_electives = list(approved_electives)
+        self.year_past_elective_identities = (
+            past_elective_identities
+        )
         self.year_elective_limit = elective_limit
 
         if not approved_electives or elective_limit == 0:
             self.year_elective_heading_value.set(
                 "Electives: None available"
             )
+            self.year_elective_count_value.set("0 of 0 selected")
             return
 
         self.year_elective_heading_value.set(
             f"Electives (choose up to {elective_limit})"
         )
+        electives_by_ability = {
+            ability: []
+            for ability in DEVELOPMENT_ABILITY_OPTIONS
+        }
 
-        for index, elective in enumerate(approved_electives):
-            elective_value = tk.BooleanVar(
-                self,
-                value=elective in selected_electives,
+        for elective in approved_electives:
+            try:
+                elective_skill = normalize_development_skill(
+                    elective
+                )
+            except ValueError:
+                elective_skill = ""
+
+            governing_ability = DEVELOPMENT_ABILITY_BY_SKILL.get(
+                elective_skill,
+                DEVELOPMENT_ABILITY_OPTIONS[-1],
             )
-            elective_checkbutton = tk.Checkbutton(
+            electives_by_ability[governing_ability].append(elective)
+
+        for column_index, ability in enumerate(
+            DEVELOPMENT_ABILITY_OPTIONS
+        ):
+            ability_frame = tk.Frame(
                 self.year_elective_options_frame,
-                text=elective,
-                variable=elective_value,
-                command=partial(
-                    self.elective_selection_changed,
-                    elective,
-                ),
                 bg=SURFACE_MUTED,
-                activebackground=SURFACE_MUTED,
-                fg=TEXT_DARK,
-                activeforeground=TEXT_DARK,
-                disabledforeground=TEXT_MUTED,
-                selectcolor=FIELD_BACKGROUND,
-                font=app_font(9),
+            )
+            ability_frame.grid(
+                row=0,
+                column=column_index,
+                sticky="new",
+                padx=(
+                    (0, 5)
+                    if column_index == 0
+                    else (5, 5)
+                    if column_index < 3
+                    else (5, 0)
+                ),
+            )
+            ability_frame.grid_columnconfigure(0, weight=1)
+            ability_heading = tk.Label(
+                ability_frame,
+                text=ability,
+                bg=SURFACE_MUTED,
+                fg=TEXT_MUTED,
+                font=app_font(9, "bold"),
                 anchor="w",
-                justify="left",
-                borderwidth=0,
-                highlightthickness=0,
-                padx=0,
-                pady=1,
             )
-            elective_checkbutton.grid(
-                row=index // 3,
-                column=index % 3,
-                sticky="w",
-                padx=(0, 10),
+            ability_heading.grid(
+                row=0,
+                column=0,
+                sticky="ew",
+                pady=(0, 2),
             )
-            self.year_elective_variables[elective] = (
-                elective_value
-            )
-            self.year_elective_checkbuttons[elective] = (
-                elective_checkbutton
-            )
+
+            for row_index, elective in enumerate(
+                electives_by_ability[ability],
+                start=1,
+            ):
+                was_taken_before = (
+                    elective.casefold()
+                    in past_elective_identities
+                )
+                elective_background = (
+                    PRIMARY_SOFT
+                    if was_taken_before
+                    else SURFACE_MUTED
+                )
+                elective_value = tk.BooleanVar(
+                    self,
+                    value=elective in selected_electives,
+                )
+                elective_checkbutton = tk.Checkbutton(
+                    ability_frame,
+                    text=elective,
+                    variable=elective_value,
+                    command=partial(
+                        self.elective_selection_changed,
+                        elective,
+                    ),
+                    bg=elective_background,
+                    activebackground=elective_background,
+                    fg=TEXT_DARK,
+                    activeforeground=TEXT_DARK,
+                    disabledforeground=(
+                        TEXT_DARK
+                        if was_taken_before
+                        else TEXT_MUTED
+                    ),
+                    selectcolor=FIELD_BACKGROUND,
+                    font=app_font(
+                        9,
+                        "bold" if was_taken_before else "normal",
+                    ),
+                    anchor="w",
+                    justify="left",
+                    borderwidth=0,
+                    highlightthickness=0,
+                    padx=4 if was_taken_before else 0,
+                    pady=1,
+                )
+                elective_checkbutton.grid(
+                    row=row_index,
+                    column=0,
+                    sticky="ew",
+                    pady=1,
+                )
+                self.year_elective_variables[elective] = (
+                    elective_value
+                )
+                self.year_elective_checkbuttons[elective] = (
+                    elective_checkbutton
+                )
 
         self.update_elective_checkbutton_states()
 
@@ -3377,6 +3538,12 @@ class DevelopmentView(tk.Frame):
             0,
             int(getattr(self, "year_elective_limit", 0) or 0),
         )
+
+        if hasattr(self, "year_elective_count_value"):
+            self.year_elective_count_value.set(
+                f"{selected_count} of {elective_limit} selected"
+            )
+
         selection_limit_reached = selected_count >= elective_limit
 
         for elective, checkbutton in getattr(

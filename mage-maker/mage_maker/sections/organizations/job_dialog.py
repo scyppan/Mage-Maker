@@ -24,6 +24,10 @@ from mage_maker.ui.widgets import (
 )
 
 
+def organization_level_input_is_valid(proposed_value):
+    return not proposed_value or proposed_value.isdigit()
+
+
 class OrganizationJobDialog(tk.Toplevel):
     def __init__(
         self,
@@ -77,6 +81,13 @@ class OrganizationJobDialog(tk.Toplevel):
                 else ""
             )
         )
+        self.level_value = tk.StringVar(
+            value=(
+                str(self.existing_job["level"])
+                if self.existing_job is not None
+                else "0"
+            )
+        )
         self.opened_year_value = tk.StringVar(value=opened_year)
         self.opened_month_value = tk.StringVar(value=opened_month)
         self.opened_day_value = tk.StringVar(value=opened_day)
@@ -91,8 +102,8 @@ class OrganizationJobDialog(tk.Toplevel):
             else "Add organization job"
         )
         self.configure(bg=APP_BACKGROUND)
-        self.geometry("700x520")
-        self.minsize(640, 490)
+        self.geometry("700x600")
+        self.minsize(640, 570)
         self.transient(parent.winfo_toplevel())
         self.protocol("WM_DELETE_WINDOW", self.close_dialog)
         self.grid_rowconfigure(1, weight=1)
@@ -163,9 +174,40 @@ class OrganizationJobDialog(tk.Toplevel):
             sticky="ew",
             pady=(5, 14),
         )
+        level_label = tk.Label(
+            body,
+            text="Level within organization (0 is highest)",
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        level_label.grid(row=2, column=0, sticky="ew")
+        self.level_entry = RoundedEntry(
+            body,
+            textvariable=self.level_value,
+            background=SURFACE,
+            width=500,
+            height=38,
+            font=app_font(10),
+            justify="center",
+        )
+        self.level_entry.grid(
+            row=3,
+            column=0,
+            sticky="ew",
+            pady=(5, 14),
+        )
+        self.level_entry.entry.configure(
+            validate="key",
+            validatecommand=(
+                self.register(organization_level_input_is_valid),
+                "%P",
+            ),
+        )
         opened_panel = self.build_date_panel(
             body,
-            2,
+            4,
             "Position opened",
             (
                 self.opened_year_value,
@@ -176,7 +218,7 @@ class OrganizationJobDialog(tk.Toplevel):
         self.opened_entries = opened_panel
         closed_panel = self.build_date_panel(
             body,
-            3,
+            5,
             "Position closed",
             (
                 self.closed_year_value,
@@ -197,7 +239,7 @@ class OrganizationJobDialog(tk.Toplevel):
             anchor="w",
         )
         self.extinction_note.grid(
-            row=4,
+            row=6,
             column=0,
             sticky="ew",
             pady=(0, 4),
@@ -220,7 +262,7 @@ class OrganizationJobDialog(tk.Toplevel):
             ),
         )
         self.calendar_notice.grid(
-            row=5,
+            row=7,
             column=0,
             sticky="w",
             pady=(4, 0),
@@ -329,7 +371,7 @@ class OrganizationJobDialog(tk.Toplevel):
     def position_upper_right(self):
         owner = self.master.winfo_toplevel()
         dialog_width = max(640, self.winfo_width())
-        dialog_height = max(490, self.winfo_height())
+        dialog_height = max(570, self.winfo_height())
         owner_left = owner.winfo_rootx()
         owner_top = owner.winfo_rooty()
         owner_width = max(owner.winfo_width(), dialog_width + 48)
@@ -354,6 +396,7 @@ class OrganizationJobDialog(tk.Toplevel):
                 self.closed_year_value.get(),
                 self.closed_month_value.get(),
                 self.closed_day_value.get(),
+                level=self.level_value.get(),
             )
 
             if self.existing_job is not None:

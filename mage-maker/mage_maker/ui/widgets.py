@@ -401,6 +401,7 @@ class RoundedSelect(tk.Frame):
         height=40,
         radius=CONTROL_RADIUS,
         font=app_font(11),
+        multiline=False,
     ):
         super().__init__(
             parent,
@@ -420,6 +421,7 @@ class RoundedSelect(tk.Frame):
         self.disabled_fill = FIELD_DISABLED
         self.font = font
         self.radius = radius
+        self.multiline = bool(multiline)
         self.is_enabled = True
         self.has_focus = False
         self.grid_propagate(False)
@@ -441,13 +443,20 @@ class RoundedSelect(tk.Frame):
             outline=BORDER,
             width=1,
         )
+        label_options = {
+            "text": str(self.textvariable.get() or ""),
+            "fill": TEXT_DARK,
+            "font": font,
+            "anchor": "w",
+        }
+
+        if self.multiline:
+            label_options["width"] = max(20, width - 42)
+
         self.label = self.canvas.create_text(
             12,
             height // 2,
-            text=str(self.textvariable.get() or ""),
-            fill=TEXT_DARK,
-            font=font,
-            anchor="w",
+            **label_options,
         )
         self.arrow = self.canvas.create_text(
             width - 15,
@@ -597,6 +606,12 @@ class RoundedSelect(tk.Frame):
         )
         self.canvas.coords(self.label, 12, height // 2)
         self.canvas.coords(self.arrow, width - 15, height // 2)
+
+        if self.multiline:
+            self.canvas.itemconfigure(
+                self.label,
+                width=max(20, width - 42),
+            )
 
     def handle_enter(self, event=None):
         if self.is_enabled and not self.has_focus:

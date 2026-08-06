@@ -81,10 +81,13 @@ from mage_maker.sections.organizations.controller import (
     normalize_organization_events,
     normalize_organization_record,
     organization_context_label,
+    organization_effective_location_id,
     organization_event_as_world_event,
     organization_event_from_world_event,
     organization_event_world_id,
     organization_events_as_world_events,
+    organization_large_employer_branch_ids,
+    organizations_by_id,
     synchronize_school_campus_locations,
 )
 from mage_maker.sections.settings.mage_groups import (
@@ -1908,60 +1911,166 @@ class EventController:
     def organization_job_options(self):
         options = []
         organizations = self.database.list_records("organizations")
+        organization_records = organizations_by_id(organizations)
         locations = self.location_provider()
+        large_employer_branch_ids = (
+            organization_large_employer_branch_ids(organizations)
+        )
 
         for organization in organizations:
             if not isinstance(organization, dict):
                 continue
 
-            organization_id = str(
-                organization.get("record_id", "") or ""
-            ).strip()
-            organization_name = organization_context_label(
-                organization_id,
-                organizations,
-                locations,
-            )
-
             for job in normalize_organization_jobs(
                 organization.get("jobs", [])
             ):
                 options.append(
-                    {
-                        "value": job["record_id"],
-                        "label": f"{organization_name} — {job['title']}",
-                        "event_title": (
-                            f"{job['title']} at {organization_name}"
-                        ),
-                        "organization_id": organization_id,
-                        "organization_name": organization_name,
-                        "organization_job_id": job["record_id"],
-                        "job_title": job["title"],
-                        "job": deepcopy(job),
-                        "organization": deepcopy(organization),
-                    }
+                    self.organization_job_option_values(
+                        organization,
+                        job,
+                        organizations,
+                        locations,
+                        large_employer_branch_ids,
+                        organization_records,
+                    )
                 )
 
-        options.sort(key=self.association_option_sort_key)
+        options.sort(key=self.organization_job_option_sort_key)
         return options
 
-    def job_event_organization_job(self, event):
+    def organization_job_option(
+        self,
+        organization_id,
+        organization_job_id,
+    ):
+        selected_organization_id = str(
+            organization_id or ""
+        ).strip()
+        selected_job_id = str(organization_job_id or "").strip()
+
+        if not selected_organization_id or not selected_job_id:
+            return None
+
+        organizations = self.database.list_records("organizations")
+        organization = next(
+            (
+                candidate
+                for candidate in organizations
+                if isinstance(candidate, dict)
+                and str(
+                    candidate.get("record_id", "") or ""
+                ).strip()
+                == selected_organization_id
+            ),
+            None,
+        )
+
+        if organization is None:
+            return None
+
+        job = next(
+            (
+                candidate
+                for candidate in normalize_organization_jobs(
+                    organization.get("jobs", [])
+                )
+                if candidate["record_id"] == selected_job_id
+            ),
+            None,
+        )
+
+        if job is None:
+            return None
+
+        locations = self.location_provider()
+        return self.organization_job_option_values(
+            organization,
+            job,
+            organizations,
+            locations,
+            organization_large_employer_branch_ids(organizations),
+            organizations_by_id(organizations),
+        )
+
+    def organization_job_option_values(
+        self,
+        organization,
+        job,
+        organizations,
+        locations,
+        large_employer_branch_ids,
+        organization_records=None,
+    ):
         organization_id = str(
-            (event or {}).get("organization_id", "") or ""
+            organization.get("record_id", "") or ""
         ).strip()
-        organization_job_id = str(
-            (event or {}).get("organization_job_id", "") or ""
-        ).strip()
+        organization_name = organization_context_label(
+            organization_id,
+            organizations,
+            locations,
+        )
+        location_id = organization_effective_location_id(
+            organization,
+            (
+                organization_records
+                if organization_records is not None
+                else organizations
+            ),
+        )
 
-        for option in self.organization_job_options():
-            if (
-                option["organization_id"] == organization_id
-                and option["organization_job_id"]
-                == organization_job_id
-            ):
-                return option
+        location_ancestor_ids = [
+            str(location.get("record_id", "") or "").strip()
+            for location in ancestor_locations(location_id, locations)
+            if str(location.get("record_id", "") or "").strip()
+        ]
+        location_label = (
+            recent_location_label(location_id, locations)
+            if location_id
+            else "No location"
+        )
+        return {
+            "value": job["record_id"],
+            "label": (
+                f"Level {job['level']} · {job['title']} — "
+                f"{organization_name}"
+            ),
+            "event_title": (
+                f"{job['title']} at {organization_name}"
+            ),
+            "organization_id": organization_id,
+            "organization_name": organization_name,
+            "organization_job_id": job["record_id"],
+            "job_title": job["title"],
+            "job_level": job["level"],
+            "location_id": location_id,
+            "location_label": location_label,
+            "location_ancestor_ids": location_ancestor_ids,
+            "large_employer_branch": (
+                organization_id in large_employer_branch_ids
+            ),
+            "job": deepcopy(job),
+            "organization": deepcopy(organization),
+        }
 
-        return None
+    def organization_job_option_sort_key(self, option):
+        try:
+            level = int((option or {}).get("job_level", 0))
+        except (TypeError, ValueError):
+            level = 0
+
+        return (
+            level,
+            str((option or {}).get("organization_name", "") or "")
+            .casefold(),
+            str((option or {}).get("job_title", "") or "").casefold(),
+            str((option or {}).get("organization_job_id", "") or ""),
+        )
+
+    def job_event_organization_job(self, event):
+        return self.organization_job_option(
+            (event or {}).get("organization_id", ""),
+            (event or {}).get("organization_job_id", ""),
+        )
 
     def all_job_assignments(self):
         assignments = []
@@ -2018,6 +2127,250 @@ class EventController:
                 )
 
         return normalize_job_records(assignments)
+
+    def started_job_event_for_assignment(
+        self,
+        assignment_id,
+        person_id="",
+    ):
+        normalized_assignment_id = str(assignment_id or "").strip()
+        normalized_person_id = str(person_id or "").strip()
+
+        if not normalized_assignment_id:
+            return None
+
+        for event in self.database.list_records("events"):
+            if (
+                canonical_event_type((event or {}).get("event_type"))
+                != "started_job"
+                or str(
+                    (event or {}).get("job_assignment_id", "") or ""
+                ).strip()
+                != normalized_assignment_id
+            ):
+                continue
+
+            if (
+                normalized_person_id
+                and normalized_person_id
+                not in (event or {}).get("person_ids", [])
+            ):
+                continue
+
+            return normalize_world_event(event)
+
+        return None
+
+    def started_job_event_matches_assignment(
+        self,
+        event,
+        person_id,
+        assignment,
+    ):
+        if (
+            canonical_event_type((event or {}).get("event_type"))
+            != "started_job"
+        ):
+            return False
+
+        assignment_id = str(
+            (assignment or {}).get("record_id", "") or ""
+        ).strip()
+        event_assignment_id = str(
+            (event or {}).get("job_assignment_id", "") or ""
+        ).strip()
+
+        if event_assignment_id and event_assignment_id != assignment_id:
+            return False
+
+        if list((event or {}).get("person_ids", []) or []) != [
+            str(person_id or "").strip()
+        ]:
+            return False
+
+        if str(
+            (event or {}).get("organization_id", "") or ""
+        ).strip() != str(
+            (assignment or {}).get("organization_id", "") or ""
+        ).strip():
+            return False
+
+        if str(
+            (event or {}).get("organization_job_id", "") or ""
+        ).strip() != str(
+            (assignment or {}).get("organization_job_id", "") or ""
+        ).strip():
+            return False
+
+        event_year, event_month, event_day = split_world_event_date(
+            (event or {}).get("date", "")
+        )
+
+        if not event_year:
+            return False
+
+        return job_date_tuple(
+            event_year,
+            event_month,
+            event_day,
+        ) == job_date_tuple(
+            assignment["start_year"],
+            assignment["start_month"],
+            assignment["start_day"],
+        )
+
+    def started_job_event_values(
+        self,
+        person_id,
+        assignment,
+        organization_job_option,
+    ):
+        normalized_assignment = normalize_job_record(assignment)
+        assignment_id = normalized_assignment["record_id"]
+        event_record_id = f"job-appointment:{assignment_id}"
+
+        if self.database.read_record("events", event_record_id) is not None:
+            event_record_id = ""
+
+        end_date = format_date_parts(
+            normalized_assignment["end_year"],
+            normalized_assignment["end_month"],
+            normalized_assignment["end_day"],
+            unknown="",
+        )
+        values = {
+            "event_type": "started_job",
+            "title": organization_job_option["event_title"],
+            "date": format_date_parts(
+                normalized_assignment["start_year"],
+                normalized_assignment["start_month"],
+                normalized_assignment["start_day"],
+                unknown="",
+            ),
+            "description": "",
+            "person_ids": [str(person_id or "").strip()],
+            "witness_person_ids": [],
+            "affected_person_ids": [],
+            "eminence_person_ids": [],
+            "eminence_skills": {},
+            "period_names": [],
+            "location_ids": [],
+            "locked_location_ids": [],
+            "item_ids": [],
+            "organization_id": organization_job_option[
+                "organization_id"
+            ],
+            "organization_name": organization_job_option[
+                "organization_name"
+            ],
+            "organization_job_id": organization_job_option[
+                "organization_job_id"
+            ],
+            "job_title": organization_job_option["job_title"],
+            "job_assignment_id": assignment_id,
+            "job_end_date": end_date,
+            "salary": normalized_assignment["salary"],
+        }
+
+        if event_record_id:
+            values["record_id"] = event_record_id
+
+        return normalize_world_event(values)
+
+    def ensure_started_job_events_for_assignments(
+        self,
+        save_database=True,
+    ):
+        stored_events = self.database.list_records("events")
+        job_options = {
+            (
+                option["organization_id"],
+                option["organization_job_id"],
+            ): option
+            for option in self.organization_job_options()
+        }
+        changed_count = 0
+
+        for person in self.database.list_people():
+            if not isinstance(person, dict):
+                continue
+
+            person_id = str(
+                person.get("record_id", "") or ""
+            ).strip()
+
+            for assignment in self.person_job_assignments(person_id):
+                assignment_id = assignment["record_id"]
+                option = job_options.get(
+                    (
+                        assignment["organization_id"],
+                        assignment["organization_job_id"],
+                    )
+                )
+
+                if option is None:
+                    continue
+
+                existing_event = self.started_job_event_for_assignment(
+                    assignment_id,
+                    person_id,
+                )
+
+                if existing_event is None:
+                    existing_event = next(
+                        (
+                            normalize_world_event(event)
+                            for event in stored_events
+                            if self.started_job_event_matches_assignment(
+                                event,
+                                person_id,
+                                assignment,
+                            )
+                        ),
+                        None,
+                    )
+
+                if existing_event is not None:
+                    if not str(
+                        existing_event.get("job_assignment_id", "") or ""
+                    ).strip():
+                        existing_event["job_assignment_id"] = assignment_id
+                        updated_event = self.database.update_record(
+                            "events",
+                            existing_event["record_id"],
+                            normalize_world_event(existing_event),
+                        )
+                        stored_events = [
+                            (
+                                updated_event
+                                if event.get("record_id")
+                                == existing_event["record_id"]
+                                else event
+                            )
+                            for event in stored_events
+                        ]
+                        changed_count += 1
+
+                    continue
+
+                created_event = self.database.create_record(
+                    "events",
+                    self.started_job_event_values(
+                        person_id,
+                        assignment,
+                        option,
+                    ),
+                )
+                stored_events.append(created_event)
+                changed_count += 1
+
+        if changed_count:
+            self.invalidate_event_cache()
+
+            if save_database:
+                self.database.save()
+
+        return changed_count
 
     def started_job_assignment_id(self, event_id):
         normalized_event_id = str(event_id or "").strip()

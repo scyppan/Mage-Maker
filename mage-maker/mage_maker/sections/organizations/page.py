@@ -27,6 +27,8 @@ from mage_maker.sections.organizations.controller import (
     organization_context_label,
     organization_id_is_in_scope,
     organization_ids_in_scope,
+    organization_jobs_grouped_by_level,
+    organization_large_employer_branch_ids,
 )
 from mage_maker.sections.organizations.event_dialog import (
     OrganizationEventDialog,
@@ -52,6 +54,7 @@ from mage_maker.ui.theme import (
     PRIMARY,
     PRIMARY_DARK,
     PRIMARY_HOVER,
+    PRIMARY_SOFT,
     SURFACE,
     SURFACE_MUTED,
     TEXT_DARK,
@@ -963,6 +966,7 @@ class OrganizationPage(tk.Frame):
         events_changed_command=None,
         scope_change_command=None,
         auto_refresh=True,
+        open_job_event_command=None,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
@@ -970,6 +974,7 @@ class OrganizationPage(tk.Frame):
         self.event_controller = event_controller
         self.events_changed_command = events_changed_command
         self.scope_change_command = scope_change_command
+        self.open_job_event_command = open_job_event_command
         self.all_organizations = []
         self.organizations = []
         self.organization_id_by_line = {}
@@ -989,6 +994,8 @@ class OrganizationPage(tk.Frame):
         self.hydrated_editor_pages = set()
         self.organization_events = normalize_organization_events([])
         self.organization_jobs = normalize_organization_jobs([])
+        self.job_list_rows = []
+        self.selected_job_record_id = ""
         self.visible_job_timeline = []
         self.job_timeline_value = tk.StringVar(
             value="Select a job to see its timeline"
@@ -1004,6 +1011,7 @@ class OrganizationPage(tk.Frame):
         self.has_shop_value = tk.BooleanVar(value=False)
         self.shop_inventory = normalize_shop_inventory({})
         self.famous_organization_value = tk.BooleanVar(value=False)
+        self.large_employer_value = tk.BooleanVar(value=False)
         self.has_storeroom_value = tk.BooleanVar(value=False)
         self.storeroom_inventory = normalize_storeroom_inventory([])
         self.extinct_value = tk.BooleanVar(value=False)
@@ -1025,7 +1033,10 @@ class OrganizationPage(tk.Frame):
         self.build_toolbar()
         self.build_workspace()
         self.name_value.trace_add("write", self.form_value_changed)
-        self.type_value.trace_add("write", self.form_value_changed)
+        self.type_value.trace_add(
+            "write",
+            self.organization_type_changed,
+        )
         self.link_school_value.trace_add(
             "write",
             self.form_value_changed,
@@ -1062,6 +1073,27 @@ class OrganizationPage(tk.Frame):
 
     def form_value_changed(self, *arguments):
         self.mark_form_dirty()
+
+    def organization_type_changed(self, *arguments):
+        if self.form_updates_paused:
+            return
+
+        if self.type_value.get() != "School":
+            self.selected_school_id = ""
+            self.link_school_value.set(False)
+
+        self.refresh_school_link()
+        self.update_school_controls_visibility()
+        self.mark_form_dirty()
+
+    def update_school_controls_visibility(self):
+        if not hasattr(self, "school_frame"):
+            return
+
+        if self.type_value.get() == "School":
+            self.school_frame.grid()
+        else:
+            self.school_frame.grid_remove()
 
     def narrative_changed(self, event):
         if not event.widget.edit_modified():
@@ -1895,38 +1927,31 @@ class OrganizationPage(tk.Frame):
             column=2,
             padx=(6, 0),
         )
-        school_frame = tk.Frame(fields, bg=SURFACE)
-        school_frame.grid(
+        self.school_frame = tk.Frame(fields, bg=SURFACE)
+        self.school_frame.grid(
             row=2,
             column=0,
             columnspan=3,
             sticky="ew",
             pady=(12, 0),
         )
-        school_frame.grid_columnconfigure(1, weight=1)
-        self.school_link_checkbox = tk.Checkbutton(
-            school_frame,
-            text="Link school",
-            variable=self.link_school_value,
-            command=self.toggle_school_link,
+        self.school_frame.grid_columnconfigure(1, weight=1)
+        school_record_label = tk.Label(
+            self.school_frame,
+            text="Curriculum school record (optional)",
             bg=SURFACE,
-            fg=TEXT_DARK,
-            activebackground=SURFACE,
-            activeforeground=TEXT_DARK,
-            selectcolor=FIELD_BACKGROUND,
+            fg=TEXT_MUTED,
             font=app_font(9, "bold"),
             anchor="w",
-            padx=0,
-            pady=0,
         )
-        self.school_link_checkbox.grid(
+        school_record_label.grid(
             row=0,
             column=0,
             sticky="w",
             padx=(0, 10),
         )
         school_value_label = tk.Label(
-            school_frame,
+            self.school_frame,
             textvariable=self.school_value,
             bg=FIELD_BACKGROUND,
             fg=TEXT_DARK,
@@ -1941,7 +1966,7 @@ class OrganizationPage(tk.Frame):
             sticky="ew",
         )
         self.choose_school_button = SoftButton(
-            school_frame,
+            self.school_frame,
             text="Choose school…",
             command=self.open_school_dialog,
             background=SURFACE,
@@ -1954,6 +1979,21 @@ class OrganizationPage(tk.Frame):
             column=2,
             padx=(6, 0),
         )
+        self.clear_school_button = SoftButton(
+            self.school_frame,
+            text="Clear",
+            command=self.clear_school_link,
+            background=SURFACE,
+            width=64,
+            height=36,
+            font=app_font(9, "bold"),
+        )
+        self.clear_school_button.grid(
+            row=0,
+            column=3,
+            padx=(6, 0),
+        )
+        self.update_school_controls_visibility()
         flags_frame = tk.Frame(fields, bg=SURFACE)
         flags_frame.grid(
             row=3,
@@ -1962,7 +2002,7 @@ class OrganizationPage(tk.Frame):
             sticky="ew",
             pady=(12, 0),
         )
-        flags_frame.grid_columnconfigure(4, weight=1)
+        flags_frame.grid_columnconfigure(5, weight=1)
         self.has_shop_checkbox = tk.Checkbutton(
             flags_frame,
             text="Has a shop",
@@ -2026,6 +2066,27 @@ class OrganizationPage(tk.Frame):
             sticky="w",
             padx=(0, 20),
         )
+        self.large_employer_checkbox = tk.Checkbutton(
+            flags_frame,
+            text="Large employer",
+            variable=self.large_employer_value,
+            command=self.mark_form_dirty,
+            bg=SURFACE,
+            fg=TEXT_DARK,
+            activebackground=SURFACE,
+            activeforeground=TEXT_DARK,
+            selectcolor=FIELD_BACKGROUND,
+            font=app_font(9, "bold"),
+            anchor="w",
+            padx=0,
+            pady=0,
+        )
+        self.large_employer_checkbox.grid(
+            row=0,
+            column=3,
+            sticky="w",
+            padx=(0, 20),
+        )
         self.extinct_checkbox = tk.Checkbutton(
             flags_frame,
             text="Extinct",
@@ -2043,7 +2104,7 @@ class OrganizationPage(tk.Frame):
         )
         self.extinct_checkbox.grid(
             row=0,
-            column=3,
+            column=4,
             sticky="w",
             padx=(0, 20),
         )
@@ -2054,7 +2115,7 @@ class OrganizationPage(tk.Frame):
         self.extinction_date_frame.grid(
             row=1,
             column=0,
-            columnspan=4,
+            columnspan=5,
             sticky="ew",
             pady=(8, 0),
         )
@@ -2643,8 +2704,9 @@ class OrganizationPage(tk.Frame):
             parent,
             text=(
                 "Positions belong to this organization. Each position records "
-                "when it opened and whether it is currently filled. Click a "
-                "Vacant range to fill the position."
+                "when it opened and whether it is currently filled. Select a "
+                "vacant range, then use the candidate button below. Select an "
+                "occupied range to open the appointment on that mage's Timeline."
             ),
             bg=SURFACE_MUTED,
             fg=TEXT_MUTED,
@@ -2763,7 +2825,6 @@ class OrganizationPage(tk.Frame):
         timeline_frame.grid(
             row=1,
             column=1,
-            rowspan=2,
             sticky="nsew",
             padx=(14, 0),
         )
@@ -2853,6 +2914,32 @@ class OrganizationPage(tk.Frame):
             sticky="w",
             padx=(6, 0),
         )
+        timeline_actions = tk.Frame(
+            jobs_frame,
+            bg=SURFACE,
+        )
+        timeline_actions.grid(
+            row=2,
+            column=1,
+            sticky="e",
+            padx=(14, 0),
+            pady=(8, 0),
+        )
+        self.fill_vacancy_button = SoftButton(
+            timeline_actions,
+            text="Select candidate for vacant position",
+            command=self.open_selected_vacancy,
+            background=SURFACE,
+            width=242,
+            height=32,
+            font=app_font(9, "bold"),
+        )
+        self.fill_vacancy_button.grid(
+            row=0,
+            column=0,
+            sticky="e",
+        )
+        self.fill_vacancy_button.set_enabled(False)
 
     def build_shop(self, parent):
         explanation = tk.Label(
@@ -3077,6 +3164,11 @@ class OrganizationPage(tk.Frame):
             for organization in self.all_organizations
             if str(organization.get("record_id", "") or "").strip()
         }
+        self.large_employer_branch_ids = (
+            organization_large_employer_branch_ids(
+                self.all_organizations
+            )
+        )
         self.location_labels_by_id = {
             str(option.get("record_id", "") or "").strip(): str(
                 option.get("label", "") or "Unknown location"
@@ -3381,6 +3473,13 @@ class OrganizationPage(tk.Frame):
             {},
         )
         return (
+            (
+                0
+                if self.location_filter_id
+                and organization_id
+                in getattr(self, "large_employer_branch_ids", set())
+                else 1
+            ),
             str(organization.get("name", "") or "").casefold(),
             str(organization_id),
         )
@@ -3695,6 +3794,9 @@ class OrganizationPage(tk.Frame):
                 selected_school_id or ""
             ).strip()
 
+        if self.type_value.get() != "School":
+            self.selected_school_id = ""
+
         school = self.controller.school_by_id(
             self.selected_school_id
         )
@@ -3709,30 +3811,36 @@ class OrganizationPage(tk.Frame):
                 self.selected_school_id
             )
             if is_linked
-            else "Choose a school"
+            else "No curriculum record linked"
         )
         self.choose_school_button.set_enabled(
-            bool(self.link_school_value.get())
+            self.type_value.get() == "School"
         )
+        if hasattr(self, "clear_school_button"):
+            self.clear_school_button.set_enabled(is_linked)
         self.name_field.control.set_enabled(not is_linked)
-        self.type_picker.configure(
-            state="disabled" if is_linked else "readonly"
-        )
+        self.type_picker.configure(state="readonly")
 
         if is_linked:
             self.name_value.set(
                 str(school.get("name", "") or "")
             )
-            self.type_value.set("School")
+
+        self.update_school_controls_visibility()
 
     def toggle_school_link(self):
         if not self.link_school_value.get():
-            self.selected_school_id = ""
-            self.refresh_school_link("")
+            self.clear_school_link()
             return
 
         if not self.selected_school_id:
             self.open_school_dialog()
+
+    def clear_school_link(self):
+        self.selected_school_id = ""
+        self.link_school_value.set(False)
+        self.refresh_school_link("")
+        self.mark_form_dirty()
 
     def available_schools_for_link(self):
         linked_school_ids = {
@@ -3752,8 +3860,8 @@ class OrganizationPage(tk.Frame):
         ]
 
     def open_school_dialog(self):
-        if not self.link_school_value.get():
-            self.link_school_value.set(True)
+        if self.type_value.get() != "School":
+            return
 
         OrganizationSchoolSelectionDialog(
             self,
@@ -3764,11 +3872,12 @@ class OrganizationPage(tk.Frame):
         )
 
     def school_selection_cancelled(self):
-        if self.selected_school_id:
+        if not self.selected_school_id:
+            self.link_school_value.set(False)
+            self.refresh_school_link("")
             return
 
-        self.link_school_value.set(False)
-        self.refresh_school_link("")
+        self.refresh_school_link()
 
     def school_selected(self, school):
         if not isinstance(school, dict):
@@ -3912,6 +4021,9 @@ class OrganizationPage(tk.Frame):
         self.famous_organization_value.set(
             bool(organization.get("famous_organization"))
         )
+        self.large_employer_value.set(
+            bool(organization.get("large_employer"))
+        )
         self.has_storeroom_value.set(
             bool(organization.get("has_storeroom"))
         )
@@ -3976,6 +4088,7 @@ class OrganizationPage(tk.Frame):
         self.has_shop_value.set(False)
         self.shop_inventory = normalize_shop_inventory({})
         self.famous_organization_value.set(False)
+        self.large_employer_value.set(False)
         self.has_storeroom_value.set(False)
         self.storeroom_inventory = normalize_storeroom_inventory([])
         self.extinct_value.set(False)
@@ -4099,12 +4212,11 @@ class OrganizationPage(tk.Frame):
         )
 
     def save_organization(self):
-        if (
-            self.link_school_value.get()
-            and not self.selected_school_id
-        ):
+        if self.type_value.get() != "School":
+            self.selected_school_id = ""
+
+        if not self.selected_school_id:
             self.link_school_value.set(False)
-            self.refresh_school_link("")
 
         has_shop_value = getattr(self, "has_shop_value", None)
         has_storeroom_value = getattr(
@@ -4115,6 +4227,11 @@ class OrganizationPage(tk.Frame):
         famous_organization_value = getattr(
             self,
             "famous_organization_value",
+            None,
+        )
+        large_employer_value = getattr(
+            self,
+            "large_employer_value",
             None,
         )
         extinct_value = getattr(self, "extinct_value", None)
@@ -4152,6 +4269,11 @@ class OrganizationPage(tk.Frame):
             "famous_organization": (
                 bool(famous_organization_value.get())
                 if famous_organization_value is not None
+                else False
+            ),
+            "large_employer": (
+                bool(large_employer_value.get())
+                if large_employer_value is not None
                 else False
             ),
             "has_storeroom": (
@@ -4461,46 +4583,92 @@ class OrganizationPage(tk.Frame):
                 ]["record_id"]
 
         self.job_list.delete(0, "end")
-        selected_index = None
-
-        for index, organization_job in enumerate(
+        self.job_list_rows = []
+        selected_row = None
+        first_job_row = None
+        displayed_job_count = 0
+        job_indexes_by_id = {
+            organization_job["record_id"]: index
+            for index, organization_job in enumerate(self.organization_jobs)
+        }
+        grouped_jobs = organization_jobs_grouped_by_level(
             self.organization_jobs
-        ):
-            status = self.controller.organization_job_status(
-                organization_job
-            )
-            self.job_list.insert(
-                "end",
-                (
-                    f"{organization_job['title']} · "
-                    f"opened {organization_job['opened_date']}"
-                    + (
-                        f" · closed {organization_job['closed_date']}"
-                        if organization_job["closed_date"]
-                        else ""
-                    )
-                    + " · "
-                    f"{status}"
-                ),
-            )
+        )
+
+        for level_index, (level, level_jobs) in enumerate(grouped_jobs):
+            if level_index:
+                separator_row = len(self.job_list_rows)
+                self.job_list.insert("end", "")
+                self.job_list_rows.append(None)
+                self.job_list.itemconfigure(
+                    separator_row,
+                    background=SURFACE,
+                    selectbackground=SURFACE,
+                )
+
+            header_row = len(self.job_list_rows)
+            self.job_list.insert("end", f"── Level {level} ──")
+            self.job_list_rows.append(None)
             self.job_list.itemconfigure(
-                index,
-                background=(
-                    FIELD_BACKGROUND
-                    if index % 2 == 0
-                    else LIST_ALTERNATE
-                ),
+                header_row,
+                background=PRIMARY_SOFT,
+                foreground=TEXT_DARK,
+                selectbackground=PRIMARY_SOFT,
+                selectforeground=TEXT_DARK,
             )
 
-            if organization_job["record_id"] == retained_job_id:
-                selected_index = index
+            for organization_job in level_jobs:
+                job_index = job_indexes_by_id[
+                    organization_job["record_id"]
+                ]
 
-        if self.organization_jobs:
-            if selected_index is None:
-                selected_index = 0
+                row_index = len(self.job_list_rows)
+                status = self.controller.organization_job_status(
+                    organization_job
+                )
+                self.job_list.insert(
+                    "end",
+                    (
+                        f"   {organization_job['title']} · "
+                        f"opened {organization_job['opened_date']}"
+                        + (
+                            f" · closed {organization_job['closed_date']}"
+                            if organization_job["closed_date"]
+                            else ""
+                        )
+                        + " · "
+                        f"{status}"
+                    ),
+                )
+                self.job_list_rows.append(job_index)
+                self.job_list.itemconfigure(
+                    row_index,
+                    background=(
+                        FIELD_BACKGROUND
+                        if displayed_job_count % 2 == 0
+                        else LIST_ALTERNATE
+                    ),
+                )
+                displayed_job_count += 1
 
-            self.job_list.selection_set(selected_index)
-            self.job_list.see(selected_index)
+                if first_job_row is None:
+                    first_job_row = row_index
+
+                if organization_job["record_id"] == retained_job_id:
+                    selected_row = row_index
+
+        if first_job_row is not None:
+            if selected_row is None:
+                selected_row = first_job_row
+
+            selected_job_index = self.job_list_rows[selected_row]
+            self.selected_job_record_id = self.organization_jobs[
+                selected_job_index
+            ]["record_id"]
+            self.job_list.selection_set(selected_row)
+            self.job_list.see(selected_row)
+        else:
+            self.selected_job_record_id = ""
 
         self.refresh_job_timeline()
 
@@ -4510,9 +4678,44 @@ class OrganizationPage(tk.Frame):
         if not selected:
             return None
 
-        return int(selected[0])
+        row_index = int(selected[0])
+
+        if not 0 <= row_index < len(self.job_list_rows):
+            return None
+
+        job_index = self.job_list_rows[row_index]
+
+        if job_index is None:
+            return None
+
+        return int(job_index)
 
     def job_selected(self, event=None):
+        selected_index = self.selected_job_index()
+
+        if selected_index is None:
+            self.job_list.selection_clear(0, "end")
+
+            for row_index, job_index in enumerate(self.job_list_rows):
+                if job_index is None:
+                    continue
+
+                if (
+                    self.organization_jobs[job_index]["record_id"]
+                    != self.selected_job_record_id
+                ):
+                    continue
+
+                self.job_list.selection_set(row_index)
+                self.job_list.see(row_index)
+                return
+
+            self.refresh_job_timeline()
+            return
+
+        self.selected_job_record_id = self.organization_jobs[
+            selected_index
+        ]["record_id"]
         self.refresh_job_timeline()
 
     def refresh_job_timeline(self):
@@ -4520,6 +4723,8 @@ class OrganizationPage(tk.Frame):
             return
 
         self.job_timeline_list.delete(0, "end")
+        if hasattr(self, "fill_vacancy_button"):
+            self.fill_vacancy_button.set_enabled(False)
         selected_index = self.selected_job_index()
 
         if (
@@ -4579,6 +4784,77 @@ class OrganizationPage(tk.Frame):
                 else -1
             )
         )
+
+        if not 0 <= selected_index < len(self.visible_job_timeline):
+            return
+
+        timeline_entry = self.visible_job_timeline[selected_index]
+
+        if timeline_entry.get("vacant"):
+            if hasattr(self, "fill_vacancy_button"):
+                self.fill_vacancy_button.set_enabled(True)
+            return
+
+        if hasattr(self, "fill_vacancy_button"):
+            self.fill_vacancy_button.set_enabled(False)
+
+        if not timeline_entry.get("vacant"):
+            assignment_ids = timeline_entry.get("assignment_ids", [])
+            person_ids = timeline_entry.get("person_ids", [])
+
+            if (
+                not assignment_ids
+                or not person_ids
+                or self.event_controller is None
+                or self.open_job_event_command is None
+            ):
+                return
+
+            appointment_reader = getattr(
+                self.event_controller,
+                "started_job_event_for_assignment",
+                None,
+            )
+            repair_command = getattr(
+                self.event_controller,
+                "ensure_started_job_events_for_assignments",
+                None,
+            )
+
+            if not callable(appointment_reader):
+                return
+
+            appointment_event = appointment_reader(
+                assignment_ids[0],
+                person_ids[0],
+            )
+
+            if appointment_event is None and callable(repair_command):
+                repair_command()
+                appointment_event = appointment_reader(
+                    assignment_ids[0],
+                    person_ids[0],
+                )
+
+            if appointment_event is None:
+                self.status_command(
+                    "The appointment event could not be found."
+                )
+                return
+
+            self.open_job_event_command(
+                person_ids[0],
+                appointment_event["record_id"],
+            )
+            return
+
+    def open_selected_vacancy(self):
+        selected = self.job_timeline_list.curselection()
+
+        if not selected:
+            return
+
+        selected_index = int(selected[0])
 
         if not 0 <= selected_index < len(self.visible_job_timeline):
             return

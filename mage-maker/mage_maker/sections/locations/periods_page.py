@@ -408,6 +408,16 @@ class PeriodsPage(tk.Frame):
         if requested_name not in self.periods_by_name:
             return False
 
+        if (
+            requested_name != self.selected_period_name
+            and not self.confirm_unsaved_event_changes()
+        ):
+            self.period_sidebar.select_period(
+                self.selected_period_name,
+                notify=False,
+            )
+            return False
+
         self.clear_save_feedback()
         self.selected_period_name = requested_name
         self.update_selected_period_views()
@@ -457,6 +467,13 @@ class PeriodsPage(tk.Frame):
         if view_name not in self.pages:
             return False
 
+        if (
+            self.active_view_name == "events"
+            and view_name != "events"
+            and not self.confirm_unsaved_event_changes()
+        ):
+            return False
+
         self.active_view_name = view_name
         self.pages[view_name].tkraise()
 
@@ -476,6 +493,18 @@ class PeriodsPage(tk.Frame):
             self.people_view.refresh()
 
         return True
+
+    def confirm_unsaved_event_changes(self):
+        confirmation_command = getattr(
+            getattr(self, "events_view", None),
+            "confirm_unsaved_event_changes",
+            None,
+        )
+
+        if not callable(confirmation_command):
+            return True
+
+        return bool(confirmation_command())
 
     def period_details_submitted(self, event=None):
         self.save_period_details()

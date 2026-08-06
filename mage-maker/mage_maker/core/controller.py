@@ -15,6 +15,9 @@ from mage_maker.sections.development.models import (
 from mage_maker.sections.development.characteristics import (
     normalize_characteristics,
 )
+from mage_maker.sections.development.school_years import (
+    reconcile_development_plan_characteristics,
+)
 from mage_maker.sections.development.initial_bonuses import (
     normalize_initial_bonuses,
 )
@@ -38,7 +41,11 @@ from mage_maker.sections.family_tree.spouse_relationships import (
     reciprocal_relationship,
     relationship_ids,
 )
-from mage_maker.sections.names.history import empty_name_details, normalize_name_details
+from mage_maker.sections.names.history import (
+    empty_name_details,
+    normalize_name_details,
+    synchronize_birth_name_date,
+)
 from mage_maker.sections.names.timeline import synchronize_name_change_events
 from mage_maker.sections.events.models import (
     death_event_person_ids,
@@ -392,6 +399,15 @@ class PeopleController:
             normalized.get("birth_day"),
             "Birth",
         )
+        normalized["name_details"] = synchronize_birth_name_date(
+            normalized.get("name_details", empty_name_details()),
+            format_date_parts(
+                normalized.get("birth_year"),
+                normalized.get("birth_month"),
+                normalized.get("birth_day"),
+                unknown="",
+            ),
+        )
         normalized = self.synchronize_life_start_timeline(
             normalized,
             starting_location,
@@ -505,6 +521,23 @@ class PeopleController:
                 prospective_person.get("initial_bonuses")
             )
         )
+        prospective_person["characteristics"] = (
+            normalize_characteristics(
+                prospective_person.get("characteristics")
+            )
+        )
+        prospective_person["development_plan"] = (
+            reconcile_development_plan_characteristics(
+                prospective_person.get("development_plan"),
+                prospective_person["characteristics"],
+            )
+        )
+        normalized["characteristics"] = deepcopy(
+            prospective_person["characteristics"]
+        )
+        normalized["development_plan"] = deepcopy(
+            prospective_person["development_plan"]
+        )
 
         if prospective_person.get("non_magical"):
             prospective_person["school"] = ""
@@ -519,6 +552,21 @@ class PeopleController:
             prospective_person.get("birth_month"),
             prospective_person.get("birth_day"),
             "Birth",
+        )
+        prospective_person["name_details"] = synchronize_birth_name_date(
+            prospective_person.get(
+                "name_details",
+                empty_name_details(),
+            ),
+            format_date_parts(
+                prospective_person.get("birth_year"),
+                prospective_person.get("birth_month"),
+                prospective_person.get("birth_day"),
+                unknown="",
+            ),
+        )
+        normalized["name_details"] = deepcopy(
+            prospective_person["name_details"]
         )
         current_death_signature = (
             bool(current_person.get("deceased")),
@@ -743,6 +791,17 @@ class PeopleController:
             normalized["characteristics"] = (
                 normalize_characteristics(
                     normalized["characteristics"]
+                )
+            )
+
+        if (
+            "development_plan" in normalized
+            and "characteristics" in normalized
+        ):
+            normalized["development_plan"] = (
+                reconcile_development_plan_characteristics(
+                    normalized["development_plan"],
+                    normalized["characteristics"],
                 )
             )
 

@@ -2,10 +2,12 @@ import random
 from copy import deepcopy
 
 from mage_maker.sections.development.characteristics import (
+    CHARACTERISTIC_MAXIMUM_VALUE,
     CHARACTERISTIC_NAMES,
     available_characteristic_buys,
     characteristic_values_through_school_year,
     normalize_characteristic_name,
+    normalize_characteristics,
 )
 from mage_maker.sections.development.initial_bonuses import (
     SCHEMA_ABILITIES,
@@ -18,6 +20,7 @@ from mage_maker.sections.development.models import (
     DEVELOPMENT_ABILITY_OPTIONS,
     DEVELOPMENT_SKILL_OPTIONS,
     SCHOOL_YEAR_BOOK_COUNT,
+    eminence_skill_counts,
     normalize_adult_year_record,
     normalize_adult_year_records,
     normalize_development_ability,
@@ -29,6 +32,79 @@ from mage_maker.sections.development.models import (
     normalize_school_year_records,
     school_year_book_identity,
 )
+
+
+ELECTIVE_CONTINUATION_PROBABILITY = 0.97
+EMINENCE_ELECTIVE_WEIGHT_PER_POINT = 0.35
+EMINENCE_ELECTIVE_WEIGHT_POINT_LIMIT = 3
+
+
+def reconcile_school_year_characteristic_buys(
+    initial_characteristics,
+    school_year_records,
+):
+    normalized_records = normalize_school_year_records(
+        school_year_records
+    )
+    normalized_initial = normalize_characteristics(
+        initial_characteristics
+    )
+
+    if normalized_initial is None:
+        return normalized_records
+
+    characteristic_values = deepcopy(normalized_initial)
+
+    for record in normalized_records:
+        selected_characteristic = normalize_characteristic_name(
+            record.get("characteristic"),
+            allow_blank=True,
+        )
+
+        if (
+            selected_characteristic
+            and characteristic_values[selected_characteristic]
+            < CHARACTERISTIC_MAXIMUM_VALUE
+        ):
+            characteristic_values[selected_characteristic] += 1
+            continue
+
+        replacement_characteristic = ""
+
+        for characteristic_name in CHARACTERISTIC_NAMES:
+            if (
+                characteristic_values[characteristic_name]
+                >= CHARACTERISTIC_MAXIMUM_VALUE
+            ):
+                continue
+
+            if (
+                not replacement_characteristic
+                or characteristic_values[characteristic_name]
+                < characteristic_values[replacement_characteristic]
+            ):
+                replacement_characteristic = characteristic_name
+
+        record["characteristic"] = replacement_characteristic
+
+        if replacement_characteristic:
+            characteristic_values[replacement_characteristic] += 1
+
+    return normalize_school_year_records(normalized_records)
+
+
+def reconcile_development_plan_characteristics(
+    development_plan,
+    initial_characteristics,
+):
+    normalized_plan = normalize_development_plan(development_plan)
+    normalized_plan["school_years"] = (
+        reconcile_school_year_characteristic_buys(
+            initial_characteristics,
+            normalized_plan.get("school_years", []),
+        )
+    )
+    return normalize_development_plan(normalized_plan)
 
 
 def strategy_weighted_choice(options, preferred_options, randomizer=None):
@@ -190,11 +266,76 @@ def reconcile_school_year_electives(
     return reconciled_electives
 
 
+def development_eminence_skill_counts(development_plan):
+    plan = normalize_development_plan(
+        development_plan,
+        default_schema="Scattershot",
+    )
+    eminence_records = list(plan.get("initial_eminence", []))
+
+    for school_year in plan.get("school_years", []):
+        eminence_records.extend(
+            school_year.get("eminence", [])
+        )
+
+    for adult_year in plan.get("adult_years", []):
+        eminence_records.extend(
+            adult_year.get("eminence", [])
+        )
+
+    return eminence_skill_counts(eminence_records)
+
+
+def eminence_weighted_elective_choice(
+    electives,
+    eminence_counts,
+    randomizer=None,
+):
+    available_electives = list(electives)
+
+    if not available_electives:
+        raise ValueError("At least one elective is required.")
+
+    selected_randomizer = randomizer or random
+    weights = []
+
+    for elective in available_electives:
+        try:
+            elective_skill = normalize_development_skill(elective)
+        except ValueError:
+            elective_skill = ""
+
+        eminence_count = min(
+            max(0, int(eminence_counts.get(elective_skill, 0))),
+            EMINENCE_ELECTIVE_WEIGHT_POINT_LIMIT,
+        )
+        weights.append(
+            1.0
+            + eminence_count
+            * EMINENCE_ELECTIVE_WEIGHT_PER_POINT
+        )
+
+    if all(weight == 1.0 for weight in weights):
+        return selected_randomizer.choice(available_electives)
+
+    selection_point = selected_randomizer.random() * sum(weights)
+    cumulative_weight = 0.0
+
+    for elective, weight in zip(available_electives, weights):
+        cumulative_weight += weight
+
+        if selection_point < cumulative_weight:
+            return elective
+
+    return available_electives[-1]
+
+
 def select_school_year_electives(
     approved_electives,
     elective_limit,
     development_plan,
     randomizer=None,
+    previous_electives=None,
 ):
     available_electives = normalize_school_year_electives(
         approved_electives
@@ -212,8 +353,62 @@ def select_school_year_electives(
     preferred_skills = set(
         preferred_development_skills(development_plan)
     )
-    selected_electives = []
-    remaining_electives = list(available_electives)
+    eminence_counts = development_eminence_skill_counts(
+        development_plan
+    )
+    selected_randomizer = randomizer or random
+    selected_electives = reconcile_school_year_electives(
+        previous_electives or [],
+        available_electives,
+        normalized_limit,
+    )
+    switched_electives = []
+    switch_alternatives = [
+        elective
+        for elective in available_electives
+        if elective not in selected_electives
+    ]
+
+    if (
+        selected_electives
+        and len(selected_electives) == normalized_limit
+        and switch_alternatives
+        and selected_randomizer.random()
+        >= ELECTIVE_CONTINUATION_PROBABILITY
+    ):
+        guidance_scores = {}
+
+        for elective in selected_electives:
+            try:
+                elective_skill = normalize_development_skill(
+                    elective
+                )
+            except ValueError:
+                elective_skill = ""
+
+            guidance_scores[elective] = (
+                (2 if elective_skill in preferred_skills else 0)
+                + int(eminence_counts.get(elective_skill, 0))
+            )
+
+        lowest_guidance_score = min(guidance_scores.values())
+        switch_candidates = [
+            elective
+            for elective in selected_electives
+            if guidance_scores[elective] == lowest_guidance_score
+        ]
+        switched_elective = selected_randomizer.choice(
+            switch_candidates
+        )
+        selected_electives.remove(switched_elective)
+        switched_electives.append(switched_elective)
+
+    remaining_electives = [
+        elective
+        for elective in available_electives
+        if elective not in selected_electives
+        and elective not in switched_electives
+    ]
 
     while (
         remaining_electives
@@ -232,13 +427,38 @@ def select_school_year_electives(
             if elective_skill in preferred_skills:
                 preferred_electives.append(elective)
 
-        selected_elective = strategy_weighted_choice(
-            remaining_electives,
-            preferred_electives,
-            randomizer,
+        random_electives = [
+            elective
+            for elective in remaining_electives
+            if elective not in preferred_electives
+        ]
+        use_preferred = (
+            bool(preferred_electives)
+            and selected_randomizer.random()
+            < STRATEGY_PREFERENCE_PROBABILITY
+        )
+        selection_pool = (
+            preferred_electives
+            if use_preferred
+            else random_electives or remaining_electives
+        )
+        selected_elective = eminence_weighted_elective_choice(
+            selection_pool,
+            eminence_counts,
+            selected_randomizer,
         )
         selected_electives.append(selected_elective)
         remaining_electives.remove(selected_elective)
+
+    if (
+        len(selected_electives) < normalized_limit
+        and switched_electives
+    ):
+        selected_electives.extend(
+            switched_electives[
+                : normalized_limit - len(selected_electives)
+            ]
+        )
 
     return selected_electives
 
@@ -943,6 +1163,7 @@ def random_school_year_record(
     excluded_book_identities=None,
     characteristic_options=None,
     curriculum_year=None,
+    previous_electives=None,
 ):
     improvements = random_annual_improvements(
         development_plan,
@@ -959,6 +1180,7 @@ def random_school_year_record(
             curriculum.get("elective_limit", 0),
             development_plan,
             randomizer,
+            previous_electives,
         )
         if curriculum is not None
         else []
@@ -1001,6 +1223,15 @@ def rebuild_school_year_records(
 
     for existing_record in normalized_records:
         year_number = existing_record["year"]
+        previous_electives = []
+
+        for previous_record in reversed(rebuilt_records):
+            if previous_record.get("electives"):
+                previous_electives = list(
+                    previous_record["electives"]
+                )
+                break
+
         characteristic_options = (
             available_characteristic_buys(
                 initial_characteristics,
@@ -1035,6 +1266,7 @@ def rebuild_school_year_records(
             ),
             characteristic_options=characteristic_options,
             curriculum_year=curriculum_year,
+            previous_electives=previous_electives,
         )
         rebuilt_record["skipped"] = bool(
             existing_record.get("skipped", False)
@@ -1082,7 +1314,10 @@ def ensure_school_year_records(
     manage_books=True,
     schools=None,
 ):
-    normalized_records = normalize_school_year_records(records)
+    normalized_records = reconcile_school_year_characteristic_buys(
+        initial_characteristics,
+        records,
+    )
     records_by_year = {
         record["year"]: record
         for record in normalized_records
@@ -1105,6 +1340,15 @@ def ensure_school_year_records(
             for earlier_year in sorted(records_by_year)
             if earlier_year < year_number
         ]
+        previous_electives = []
+
+        for earlier_record in reversed(earlier_records):
+            if earlier_record.get("electives"):
+                previous_electives = list(
+                    earlier_record["electives"]
+                )
+                break
+
         characteristic_options = (
             available_characteristic_buys(
                 initial_characteristics,
@@ -1151,6 +1395,7 @@ def ensure_school_year_records(
                 assigned_identities | intentional_identities,
                 characteristic_options,
                 curriculum_year,
+                previous_electives,
             )
             intentional_identities.update(
                 school_year_book_identity(book)
@@ -1281,6 +1526,7 @@ def ensure_school_year_records(
                         curriculum_year["elective_limit"],
                         development_plan,
                         randomizer,
+                        previous_electives,
                     )
                 )
             else:

@@ -9,7 +9,6 @@ from mage_maker.core.dates import (
     historical_year_after,
     historical_year_shift,
 )
-from mage_maker.core.wizarding_currency import format_monthly_salary
 from mage_maker.sections.development.models import (
     ACADEMIC_YEARS_TO_ADULTHOOD,
     calculate_school_start_year,
@@ -30,6 +29,7 @@ from mage_maker.sections.events.types import event_type_label
 from mage_maker.sections.timeline.events import (
     EVENT_TYPE_LABELS,
     birth_timeline_summary,
+    job_timeline_summary,
     marriage_timeline_summary,
     murder_people_label,
     murder_timeline_summary,
@@ -89,8 +89,6 @@ LIFE_START_PRIORITIES = {
     "birth_name": 2,
 }
 TIMELINE_SECTION_DASHES = "-" * 32
-
-
 def format_timeline_date(value):
     return format_line_item_date(value)
 
@@ -855,33 +853,45 @@ class TimelineView(tk.Frame):
             )
 
             for event in events_by_section[section_name]:
-                row_index = len(self.list_rows)
-                self.list_rows.append(event)
                 event_date = format_timeline_date(event.get("date"))
                 event_time = str(event.get("time", "") or "").strip()
 
                 if event_time:
                     event_date = f"{event_date} {event_time}"
 
-                self.listbox.insert(
-                    "end",
-                    f"{event_date}: {event['_display_summary']}",
-                )
-                self.listbox.itemconfigure(
-                    row_index,
-                    background=timeline_event_background(
-                        event,
-                        current_person_id,
-                    ),
+                display_lines = self.event_display_lines(
+                    event_date,
+                    event,
                 )
 
-                if event.get("event_id") == self.selected_event_id:
-                    self.listbox.selection_set(row_index)
-                    self.listbox.see(row_index)
+                for line_index, display_line in enumerate(display_lines):
+                    row_index = len(self.list_rows)
+                    self.list_rows.append(event)
+                    self.listbox.insert("end", display_line)
+                    self.listbox.itemconfigure(
+                        row_index,
+                        background=timeline_event_background(
+                            event,
+                            current_person_id,
+                        ),
+                    )
+
+                    if (
+                        line_index == 0
+                        and event.get("event_id")
+                        == self.selected_event_id
+                    ):
+                        self.listbox.selection_set(row_index)
+                        self.listbox.see(row_index)
 
         if not preserve_unsaved_editor:
             self.refresh_editor()
         self.update_button_state()
+
+    def event_display_lines(self, event_date, event):
+        summary = str(event.get("_display_summary", "") or "").strip()
+        display_text = f"{event_date}: {summary}"
+        return [display_text]
 
     def event_summary_text(self, event):
         if event.get("_draft_event"):
@@ -968,22 +978,18 @@ class TimelineView(tk.Frame):
                 event.get("title", "") or "Returns as ghost"
             ).strip()
 
+        if (
+            event.get("_stored_event")
+            and event.get("event_type")
+            in ("started_job", "received_raise")
+        ):
+            return job_timeline_summary(event)
+
         if event.get("_stored_event"):
-            summary = (
+            return (
                 f"{event_type_label(event)} · "
                 f"{event.get('title', 'Event')}"
             )
-
-            if (
-                event.get("event_type")
-                in ("started_job", "received_raise")
-                and event.get("salary") is not None
-            ):
-                summary += (
-                    f" · {format_monthly_salary(event['salary'])}"
-                )
-
-            return summary
 
         return timeline_event_summary(event)
 

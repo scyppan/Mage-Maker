@@ -367,6 +367,21 @@ class MagesPage(tk.Frame):
 
         return self.load_person(record_id)
 
+    def open_timeline_event(self, event_id):
+        normalized_event_id = str(event_id or "").strip()
+
+        if not normalized_event_id or self.current_record_id is None:
+            return False
+
+        self.person_form.loaded_section_record_ids.pop("timeline", None)
+
+        if not self.person_form.show_page("timeline"):
+            return False
+
+        self.person_form.timeline.selected_event_id = normalized_event_id
+        self.person_form.timeline.filter_events()
+        return self.person_form.timeline.restore_selected_event_row()
+
     def open_creation_wizard(self):
         if not self.confirm_unsaved_changes():
             return

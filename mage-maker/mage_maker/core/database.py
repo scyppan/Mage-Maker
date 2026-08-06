@@ -6,6 +6,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from mage_maker.core.dates import format_date_parts
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
     calculate_school_start_year,
@@ -18,6 +19,7 @@ from mage_maker.sections.development.models import (
 )
 from mage_maker.sections.development.school_years import (
     migrate_annual_progression_choices,
+    reconcile_development_plan_characteristics,
 )
 from mage_maker.sections.development.initial_bonuses import (
     allowance_sickles,
@@ -36,7 +38,11 @@ from mage_maker.sections.development.initial_values import (
     resolved_blood_status,
     resolved_developmental_environment,
 )
-from mage_maker.sections.names.history import migrate_legacy_name_details
+from mage_maker.sections.names.history import (
+    migrate_legacy_name_details,
+    synchronize_birth_name_date,
+)
+from mage_maker.sections.names.timeline import synchronize_name_change_events
 from mage_maker.sections.family_tree.spouse_relationships import (
     merge_mate_ids,
     normalize_spouse_relationships,
@@ -214,6 +220,20 @@ class JsonDatabase:
                 changed = True
 
             if not bool(person.get("non_magical")):
+                if person.get("development_plan") in (None, ""):
+                    continue
+
+                reconciled_plan = (
+                    reconcile_development_plan_characteristics(
+                        person.get("development_plan"),
+                        person.get("characteristics"),
+                    )
+                )
+
+                if person.get("development_plan") != reconciled_plan:
+                    person["development_plan"] = reconciled_plan
+                    changed = True
+
                 continue
 
             cleaned_plan = non_magical_development_plan(
@@ -348,6 +368,9 @@ class JsonDatabase:
             people_changed = self.normalize_people_death_timeline_state(
                 database_data
             )
+            life_start_changed = self.normalize_people_life_start_state(
+                database_data
+            )
             birth_changed = synchronize_birth_events_from_people(
                 database_data
             )
@@ -360,6 +383,7 @@ class JsonDatabase:
                 or campus_changed
                 or extinction_changed
                 or people_changed
+                or life_start_changed
                 or birth_changed
             )
 
@@ -1480,11 +1504,54 @@ class JsonDatabase:
             schema_version = 35
             migrated = True
 
+        if self.normalize_people_life_start_state(database_data):
+            migrated = True
+
         metadata["schema_version"] = 35
         metadata["database_version"] = "0.35.0"
         database_data["_database"] = metadata
 
         return migrated
+
+    def normalize_people_life_start_state(self, database_data):
+        changed = False
+
+        for person in database_data.get("people", []):
+            if not isinstance(person, dict):
+                continue
+
+            name_details = migrate_legacy_name_details(
+                person.get("name_details", {}),
+                person.get("displayed_name", ""),
+                person.get("record_id", ""),
+            )
+            synchronized_details = synchronize_birth_name_date(
+                name_details,
+                format_date_parts(
+                    person.get("birth_year"),
+                    person.get("birth_month"),
+                    person.get("birth_day"),
+                    unknown="",
+                ),
+            )
+            synchronized_person = deepcopy(person)
+            synchronized_person["name_details"] = deepcopy(
+                synchronized_details
+            )
+            synchronized_events = synchronize_name_change_events(
+                synchronized_details,
+                ensure_life_start_events(synchronized_person),
+            )
+
+            if person.get("name_details") != synchronized_details:
+                person["name_details"] = synchronized_details
+                changed = True
+
+            if person.get("timeline_events", []) != synchronized_events:
+                person["timeline_events"] = synchronized_events
+                changed = True
+
+        return changed
 
     def repair_orphan_death_events(self, database_data):
         known_person_ids = {
@@ -1827,6 +1894,18 @@ class JsonDatabase:
             normalized_plan = normalize_development_plan(
                 person.get("development_plan")
             )
+            reconciled_plan = (
+                reconcile_development_plan_characteristics(
+                    normalized_plan,
+                    normalized_characteristics,
+                )
+            )
+
+            if normalized_plan != reconciled_plan:
+                raise ValueError(
+                    "Development-year characteristic purchases must keep "
+                    "every characteristic at five or below."
+                )
 
             if person.get("non_magical"):
                 if str(person.get("school", "") or ""):
