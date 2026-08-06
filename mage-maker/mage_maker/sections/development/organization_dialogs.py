@@ -8,13 +8,7 @@ from mage_maker.sections.organizations.controller import (
     ORGANIZATION_TYPES,
     new_organization_job,
     organization_context_label,
-    organization_effective_location_id,
-    organization_large_employer_branch_ids,
     organization_paths_by_id,
-    organizations_by_id,
-)
-from mage_maker.sections.organizations.job_dialog import (
-    organization_level_input_is_valid,
 )
 from mage_maker.sections.locations.location_hierarchy import (
     LocationHierarchyTree,
@@ -301,14 +295,6 @@ class OrganizationSelectionDialog(tk.Toplevel):
         ]
         self.organization_paths_by_id = organization_paths_by_id(
             self.organizations
-        )
-        self.organizations_by_id = organizations_by_id(
-            self.organizations
-        )
-        self.large_employer_branch_ids = (
-            organization_large_employer_branch_ids(
-                self.organizations
-            )
         )
         self.save_command = save_command
         self.create_command = create_command
@@ -656,21 +642,13 @@ class OrganizationSelectionDialog(tk.Toplevel):
         organization_id = str(
             organization.get("record_id", "") or ""
         ).strip()
-        location_id = organization_effective_location_id(
-            organization,
-            getattr(
-                self,
-                "organizations_by_id",
-                getattr(self, "organizations", []),
-            ),
-        )
         searchable_values = [
             organization.get("name"),
             organization.get("organization_type"),
             organization.get("overview"),
             organization.get("notes"),
             self.location_labels_by_id.get(
-                location_id,
+                str(organization.get("location_id", "") or ""),
                 "",
             ),
             OrganizationSelectionDialog.organization_hierarchy_label(
@@ -684,8 +662,13 @@ class OrganizationSelectionDialog(tk.Toplevel):
             ).get(organization_id, ""),
             "Has a shop" if organization.get("has_shop") else "",
             (
-                "Large employer"
-                if organization.get("large_employer")
+                "Includes a library"
+                if organization.get("includes_library")
+                else ""
+            ),
+            (
+                "Library open to outsiders"
+                if organization.get("library_open_to_outsiders")
                 else ""
             ),
             "Extinct" if organization.get("extinct") else "Active",
@@ -783,17 +766,9 @@ class OrganizationSelectionDialog(tk.Toplevel):
         if not location_filter_id:
             return True
 
-        organization_location_id = organization_effective_location_id(
-            organization,
-            getattr(
-                self,
-                "organizations_by_id",
-                getattr(self, "organizations", []),
-            ),
-        )
         organization_location_label = (
             self.location_labels_by_id.get(
-                organization_location_id,
+                str(organization.get("location_id", "") or ""),
                 "",
             )
         )
@@ -922,22 +897,9 @@ class OrganizationSelectionDialog(tk.Toplevel):
         self.use_button.set_enabled(bool(self.visible_organizations))
 
     def organization_sort_key(self, organization):
-        organization_id = str(
-            organization.get("record_id", "") or ""
-        ).strip()
-        return (
-            (
-                0
-                if getattr(self, "location_filter_id", "")
-                and organization_id
-                in getattr(self, "large_employer_branch_ids", set())
-                else 1
-            ),
-            str(
-                organization.get("name", "") or ""
-            ).casefold(),
-            organization_id,
-        )
+        return str(
+            organization.get("name", "") or ""
+        ).casefold()
 
     def open_quick_create(self):
         if (
@@ -1002,7 +964,6 @@ class QuickOrganizationDialog(tk.Toplevel):
         self.founding_month_value = tk.StringVar()
         self.founding_day_value = tk.StringVar()
         self.job_title_value = tk.StringVar()
-        self.job_level_value = tk.StringVar(value="0")
         self.job_opened_year_value = tk.StringVar()
         self.job_opened_month_value = tk.StringVar()
         self.job_opened_day_value = tk.StringVar()
@@ -1285,42 +1246,6 @@ class QuickOrganizationDialog(tk.Toplevel):
             sticky="ew",
             padx=(4, 0),
         )
-        job_level_label = tk.Label(
-            body,
-            text="First job level (0 is highest)",
-            bg=SURFACE,
-            fg=TEXT_MUTED,
-            font=app_font(9, "bold"),
-            anchor="w",
-        )
-        job_level_label.grid(
-            row=6,
-            column=0,
-            columnspan=2,
-            sticky="ew",
-        )
-        job_level_entry = RoundedEntry(
-            body,
-            textvariable=self.job_level_value,
-            background=SURFACE,
-            width=180,
-            height=38,
-            font=app_font(10),
-            justify="center",
-        )
-        job_level_entry.grid(
-            row=7,
-            column=0,
-            sticky="w",
-            pady=(5, 13),
-        )
-        job_level_entry.entry.configure(
-            validate="key",
-            validatecommand=(
-                self.register(organization_level_input_is_valid),
-                "%P",
-            ),
-        )
         calendar_notice = CalendarAdoptionNotice(
             body,
             background=SURFACE,
@@ -1564,12 +1489,6 @@ class QuickOrganizationDialog(tk.Toplevel):
 
         try:
             job_title = self.job_title_value.get().strip()
-            job_level_value = getattr(self, "job_level_value", None)
-            job_level = (
-                job_level_value.get().strip()
-                if job_level_value is not None
-                else "0"
-            )
             job_opened_year = (
                 self.job_opened_year_value.get().strip()
             )
@@ -1600,7 +1519,6 @@ class QuickOrganizationDialog(tk.Toplevel):
                 or job_opened_year
                 or job_opened_month
                 or job_opened_day
-                or job_level not in ("", "0")
             ):
                 organization_jobs.append(
                     new_organization_job(
@@ -1608,7 +1526,6 @@ class QuickOrganizationDialog(tk.Toplevel):
                         job_opened_year or founding_year,
                         job_opened_month or founding_month,
                         job_opened_day or founding_day,
-                        level=job_level,
                     )
                 )
 

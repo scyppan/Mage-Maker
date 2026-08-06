@@ -81,13 +81,10 @@ from mage_maker.sections.organizations.controller import (
     normalize_organization_events,
     normalize_organization_record,
     organization_context_label,
-    organization_effective_location_id,
     organization_event_as_world_event,
     organization_event_from_world_event,
     organization_event_world_id,
     organization_events_as_world_events,
-    organization_large_employer_branch_ids,
-    organizations_by_id,
     synchronize_school_campus_locations,
 )
 from mage_maker.sections.settings.mage_groups import (
@@ -267,12 +264,10 @@ class EventController:
         self,
         possessor_person_ids=None,
         on_date="",
-        include_all=False,
     ):
         items = self.item_records()
         items.sort(key=self.item_option_sort_key)
-        preferred_options = []
-        remaining_options = []
+        options = []
         restricted_person_ids = (
             {
                 str(person_id or "").strip()
@@ -297,52 +292,26 @@ class EventController:
         )
 
         for item in items:
-            preferred_item = False
-
             if restricted_person_ids is not None:
                 possessor_ids = item_possessor_ids_on_date(
                     item,
                     on_date,
                 )
-                matching_person_ids = [
-                    person_id
+
+                if not restricted_person_ids.intersection(possessor_ids):
+                    continue
+
+                holder_names = [
+                    people_names_by_id.get(
+                        person_id,
+                        "Unknown person",
+                    )
                     for person_id in possessor_ids
                     if person_id in restricted_person_ids
                 ]
-
-                if not matching_person_ids and not include_all:
-                    continue
-
-                if matching_person_ids:
-                    preferred_item = True
-                    holder_names = [
-                        people_names_by_id.get(
-                            person_id,
-                            "Unknown person",
-                        )
-                        for person_id in matching_person_ids
-                    ]
-                    holder_detail = (
-                        "Held by "
-                        + ", ".join(holder_names)
-                        + " during event"
-                    )
-                else:
-                    event_holder_names = [
-                        people_names_by_id.get(
-                            person_id,
-                            "Unknown person",
-                        )
-                        for person_id in possessor_ids
-                        if person_id
-                    ]
-                    holder_detail = (
-                        "Held by "
-                        + ", ".join(event_holder_names)
-                        + " during event"
-                        if event_holder_names
-                        else "Unpossessed during event"
-                    )
+                holder_detail = (
+                    "Held by " + ", ".join(holder_names)
+                )
             else:
                 holder = item_current_holder(item)
                 holder_detail = str(
@@ -350,21 +319,18 @@ class EventController:
                     or "Unpossessed"
                 ).strip()
 
-            option = {
-                "value": item["record_id"],
-                "label": item["name"],
-                "detail": (
-                    f"{item['category']} · "
-                    f"{holder_detail}"
-                ),
-            }
+            options.append(
+                {
+                    "value": item["record_id"],
+                    "label": item["name"],
+                    "detail": (
+                        f"{item['category']} · "
+                        f"{holder_detail}"
+                    ),
+                }
+            )
 
-            if preferred_item:
-                preferred_options.append(option)
-            else:
-                remaining_options.append(option)
-
-        return [*preferred_options, *remaining_options]
+        return options
 
     def item_records(self):
         if self.database is None:
@@ -1911,166 +1877,69 @@ class EventController:
     def organization_job_options(self):
         options = []
         organizations = self.database.list_records("organizations")
-        organization_records = organizations_by_id(organizations)
         locations = self.location_provider()
-        large_employer_branch_ids = (
-            organization_large_employer_branch_ids(organizations)
-        )
 
         for organization in organizations:
             if not isinstance(organization, dict):
                 continue
 
+            organization_id = str(
+                organization.get("record_id", "") or ""
+            ).strip()
+            organization_name = organization_context_label(
+                organization_id,
+                organizations,
+                locations,
+            )
+
             for job in normalize_organization_jobs(
                 organization.get("jobs", [])
             ):
                 options.append(
-                    self.organization_job_option_values(
-                        organization,
-                        job,
-                        organizations,
-                        locations,
-                        large_employer_branch_ids,
-                        organization_records,
-                    )
+                    {
+                        "value": job["record_id"],
+                        "label": f"{organization_name} — {job['title']}",
+                        "event_title": (
+                            f"{job['title']} at {organization_name}"
+                        ),
+                        "organization_id": organization_id,
+                        "organization_name": organization_name,
+                        "organization_job_id": job["record_id"],
+                        "job_title": job["title"],
+                        "level": job["level"],
+                        "job": deepcopy(job),
+                        "organization": deepcopy(organization),
+                    }
                 )
 
         options.sort(key=self.organization_job_option_sort_key)
         return options
 
-    def organization_job_option(
-        self,
-        organization_id,
-        organization_job_id,
-    ):
-        selected_organization_id = str(
-            organization_id or ""
-        ).strip()
-        selected_job_id = str(organization_job_id or "").strip()
-
-        if not selected_organization_id or not selected_job_id:
-            return None
-
-        organizations = self.database.list_records("organizations")
-        organization = next(
-            (
-                candidate
-                for candidate in organizations
-                if isinstance(candidate, dict)
-                and str(
-                    candidate.get("record_id", "") or ""
-                ).strip()
-                == selected_organization_id
-            ),
-            None,
-        )
-
-        if organization is None:
-            return None
-
-        job = next(
-            (
-                candidate
-                for candidate in normalize_organization_jobs(
-                    organization.get("jobs", [])
-                )
-                if candidate["record_id"] == selected_job_id
-            ),
-            None,
-        )
-
-        if job is None:
-            return None
-
-        locations = self.location_provider()
-        return self.organization_job_option_values(
-            organization,
-            job,
-            organizations,
-            locations,
-            organization_large_employer_branch_ids(organizations),
-            organizations_by_id(organizations),
-        )
-
-    def organization_job_option_values(
-        self,
-        organization,
-        job,
-        organizations,
-        locations,
-        large_employer_branch_ids,
-        organization_records=None,
-    ):
-        organization_id = str(
-            organization.get("record_id", "") or ""
-        ).strip()
-        organization_name = organization_context_label(
-            organization_id,
-            organizations,
-            locations,
-        )
-        location_id = organization_effective_location_id(
-            organization,
-            (
-                organization_records
-                if organization_records is not None
-                else organizations
-            ),
-        )
-
-        location_ancestor_ids = [
-            str(location.get("record_id", "") or "").strip()
-            for location in ancestor_locations(location_id, locations)
-            if str(location.get("record_id", "") or "").strip()
-        ]
-        location_label = (
-            recent_location_label(location_id, locations)
-            if location_id
-            else "No location"
-        )
-        return {
-            "value": job["record_id"],
-            "label": (
-                f"Level {job['level']} · {job['title']} — "
-                f"{organization_name}"
-            ),
-            "event_title": (
-                f"{job['title']} at {organization_name}"
-            ),
-            "organization_id": organization_id,
-            "organization_name": organization_name,
-            "organization_job_id": job["record_id"],
-            "job_title": job["title"],
-            "job_level": job["level"],
-            "location_id": location_id,
-            "location_label": location_label,
-            "location_ancestor_ids": location_ancestor_ids,
-            "large_employer_branch": (
-                organization_id in large_employer_branch_ids
-            ),
-            "job": deepcopy(job),
-            "organization": deepcopy(organization),
-        }
-
     def organization_job_option_sort_key(self, option):
-        try:
-            level = int((option or {}).get("job_level", 0))
-        except (TypeError, ValueError):
-            level = 0
-
         return (
-            level,
-            str((option or {}).get("organization_name", "") or "")
-            .casefold(),
-            str((option or {}).get("job_title", "") or "").casefold(),
-            str((option or {}).get("organization_job_id", "") or ""),
+            str(option.get("organization_name", "") or "").casefold(),
+            int(option.get("level", 0) or 0),
+            str(option.get("job_title", "") or "").casefold(),
+            str(option.get("organization_job_id", "") or ""),
         )
 
     def job_event_organization_job(self, event):
-        return self.organization_job_option(
-            (event or {}).get("organization_id", ""),
-            (event or {}).get("organization_job_id", ""),
-        )
+        organization_id = str(
+            (event or {}).get("organization_id", "") or ""
+        ).strip()
+        organization_job_id = str(
+            (event or {}).get("organization_job_id", "") or ""
+        ).strip()
+
+        for option in self.organization_job_options():
+            if (
+                option["organization_id"] == organization_id
+                and option["organization_job_id"]
+                == organization_job_id
+            ):
+                return option
+
+        return None
 
     def all_job_assignments(self):
         assignments = []
@@ -2127,250 +1996,6 @@ class EventController:
                 )
 
         return normalize_job_records(assignments)
-
-    def started_job_event_for_assignment(
-        self,
-        assignment_id,
-        person_id="",
-    ):
-        normalized_assignment_id = str(assignment_id or "").strip()
-        normalized_person_id = str(person_id or "").strip()
-
-        if not normalized_assignment_id:
-            return None
-
-        for event in self.database.list_records("events"):
-            if (
-                canonical_event_type((event or {}).get("event_type"))
-                != "started_job"
-                or str(
-                    (event or {}).get("job_assignment_id", "") or ""
-                ).strip()
-                != normalized_assignment_id
-            ):
-                continue
-
-            if (
-                normalized_person_id
-                and normalized_person_id
-                not in (event or {}).get("person_ids", [])
-            ):
-                continue
-
-            return normalize_world_event(event)
-
-        return None
-
-    def started_job_event_matches_assignment(
-        self,
-        event,
-        person_id,
-        assignment,
-    ):
-        if (
-            canonical_event_type((event or {}).get("event_type"))
-            != "started_job"
-        ):
-            return False
-
-        assignment_id = str(
-            (assignment or {}).get("record_id", "") or ""
-        ).strip()
-        event_assignment_id = str(
-            (event or {}).get("job_assignment_id", "") or ""
-        ).strip()
-
-        if event_assignment_id and event_assignment_id != assignment_id:
-            return False
-
-        if list((event or {}).get("person_ids", []) or []) != [
-            str(person_id or "").strip()
-        ]:
-            return False
-
-        if str(
-            (event or {}).get("organization_id", "") or ""
-        ).strip() != str(
-            (assignment or {}).get("organization_id", "") or ""
-        ).strip():
-            return False
-
-        if str(
-            (event or {}).get("organization_job_id", "") or ""
-        ).strip() != str(
-            (assignment or {}).get("organization_job_id", "") or ""
-        ).strip():
-            return False
-
-        event_year, event_month, event_day = split_world_event_date(
-            (event or {}).get("date", "")
-        )
-
-        if not event_year:
-            return False
-
-        return job_date_tuple(
-            event_year,
-            event_month,
-            event_day,
-        ) == job_date_tuple(
-            assignment["start_year"],
-            assignment["start_month"],
-            assignment["start_day"],
-        )
-
-    def started_job_event_values(
-        self,
-        person_id,
-        assignment,
-        organization_job_option,
-    ):
-        normalized_assignment = normalize_job_record(assignment)
-        assignment_id = normalized_assignment["record_id"]
-        event_record_id = f"job-appointment:{assignment_id}"
-
-        if self.database.read_record("events", event_record_id) is not None:
-            event_record_id = ""
-
-        end_date = format_date_parts(
-            normalized_assignment["end_year"],
-            normalized_assignment["end_month"],
-            normalized_assignment["end_day"],
-            unknown="",
-        )
-        values = {
-            "event_type": "started_job",
-            "title": organization_job_option["event_title"],
-            "date": format_date_parts(
-                normalized_assignment["start_year"],
-                normalized_assignment["start_month"],
-                normalized_assignment["start_day"],
-                unknown="",
-            ),
-            "description": "",
-            "person_ids": [str(person_id or "").strip()],
-            "witness_person_ids": [],
-            "affected_person_ids": [],
-            "eminence_person_ids": [],
-            "eminence_skills": {},
-            "period_names": [],
-            "location_ids": [],
-            "locked_location_ids": [],
-            "item_ids": [],
-            "organization_id": organization_job_option[
-                "organization_id"
-            ],
-            "organization_name": organization_job_option[
-                "organization_name"
-            ],
-            "organization_job_id": organization_job_option[
-                "organization_job_id"
-            ],
-            "job_title": organization_job_option["job_title"],
-            "job_assignment_id": assignment_id,
-            "job_end_date": end_date,
-            "salary": normalized_assignment["salary"],
-        }
-
-        if event_record_id:
-            values["record_id"] = event_record_id
-
-        return normalize_world_event(values)
-
-    def ensure_started_job_events_for_assignments(
-        self,
-        save_database=True,
-    ):
-        stored_events = self.database.list_records("events")
-        job_options = {
-            (
-                option["organization_id"],
-                option["organization_job_id"],
-            ): option
-            for option in self.organization_job_options()
-        }
-        changed_count = 0
-
-        for person in self.database.list_people():
-            if not isinstance(person, dict):
-                continue
-
-            person_id = str(
-                person.get("record_id", "") or ""
-            ).strip()
-
-            for assignment in self.person_job_assignments(person_id):
-                assignment_id = assignment["record_id"]
-                option = job_options.get(
-                    (
-                        assignment["organization_id"],
-                        assignment["organization_job_id"],
-                    )
-                )
-
-                if option is None:
-                    continue
-
-                existing_event = self.started_job_event_for_assignment(
-                    assignment_id,
-                    person_id,
-                )
-
-                if existing_event is None:
-                    existing_event = next(
-                        (
-                            normalize_world_event(event)
-                            for event in stored_events
-                            if self.started_job_event_matches_assignment(
-                                event,
-                                person_id,
-                                assignment,
-                            )
-                        ),
-                        None,
-                    )
-
-                if existing_event is not None:
-                    if not str(
-                        existing_event.get("job_assignment_id", "") or ""
-                    ).strip():
-                        existing_event["job_assignment_id"] = assignment_id
-                        updated_event = self.database.update_record(
-                            "events",
-                            existing_event["record_id"],
-                            normalize_world_event(existing_event),
-                        )
-                        stored_events = [
-                            (
-                                updated_event
-                                if event.get("record_id")
-                                == existing_event["record_id"]
-                                else event
-                            )
-                            for event in stored_events
-                        ]
-                        changed_count += 1
-
-                    continue
-
-                created_event = self.database.create_record(
-                    "events",
-                    self.started_job_event_values(
-                        person_id,
-                        assignment,
-                        option,
-                    ),
-                )
-                stored_events.append(created_event)
-                changed_count += 1
-
-        if changed_count:
-            self.invalidate_event_cache()
-
-            if save_database:
-                self.database.save()
-
-        return changed_count
 
     def started_job_assignment_id(self, event_id):
         normalized_event_id = str(event_id or "").strip()
@@ -3513,283 +3138,6 @@ class EventController:
             ),
             options_by_id=self._people_options_by_id_cache,
         )
-
-    def add_event_people_suggestion(
-        self,
-        suggestions,
-        used_person_ids,
-        options_by_id,
-        person_id,
-        reason,
-        limit,
-    ):
-        normalized_person_id = str(person_id or "").strip()
-
-        if (
-            not normalized_person_id
-            or normalized_person_id in used_person_ids
-            or normalized_person_id not in options_by_id
-            or len(suggestions) >= limit
-        ):
-            return False
-
-        suggestion = deepcopy(options_by_id[normalized_person_id])
-        suggestion["suggestion_reason"] = str(reason or "").strip()
-        suggestions.append(suggestion)
-        used_person_ids.add(normalized_person_id)
-        return True
-
-    def event_people_suggestion_options(
-        self,
-        focus_person_ids=(),
-        recent_limit=3,
-        limit=30,
-    ):
-        options = self.people_options()
-        options_by_id = {
-            str(option.get("value", "") or "").strip(): option
-            for option in options
-            if str(option.get("value", "") or "").strip()
-        }
-        normalized_focus_ids = []
-
-        for person_id in focus_person_ids or ():
-            normalized_person_id = str(person_id or "").strip()
-
-            if (
-                normalized_person_id in options_by_id
-                and normalized_person_id not in normalized_focus_ids
-            ):
-                normalized_focus_ids.append(normalized_person_id)
-
-        suggestion_limit = max(1, int(limit))
-        recent_suggestion_limit = max(0, min(3, int(recent_limit)))
-        used_person_ids = set(normalized_focus_ids)
-        suggestions = []
-        recent_suggestion_count = 0
-
-        recent_people_options = (
-            self.recent_people_options(
-                limit=RECENT_ASSOCIATION_STORAGE_LIMIT
-            )
-            if recent_suggestion_limit > 0
-            else []
-        )
-
-        for option in recent_people_options:
-            person_id = str(option.get("value", "") or "").strip()
-
-            if self.add_event_people_suggestion(
-                suggestions,
-                used_person_ids,
-                options_by_id,
-                person_id,
-                "Recently used",
-                suggestion_limit,
-            ):
-                recent_suggestion_count += 1
-
-            if recent_suggestion_count >= recent_suggestion_limit:
-                break
-
-        if not normalized_focus_ids or len(suggestions) >= suggestion_limit:
-            return suggestions
-
-        people = [
-            option.get("person", {})
-            for option in options
-            if isinstance(option.get("person"), dict)
-        ]
-        relationships = FamilyRelationshipMap(people)
-        focus_names_by_id = {
-            person_id: str(
-                options_by_id[person_id].get("label", "")
-                or "Selected person"
-            ).strip()
-            for person_id in normalized_focus_ids
-        }
-
-        for focus_person_id in normalized_focus_ids:
-            focus_name = focus_names_by_id[focus_person_id]
-
-            for mate_id in relationships.mates_of(focus_person_id):
-                self.add_event_people_suggestion(
-                    suggestions,
-                    used_person_ids,
-                    options_by_id,
-                    mate_id,
-                    f"Spouse or partner of {focus_name}",
-                    suggestion_limit,
-                )
-
-        for focus_person_id in normalized_focus_ids:
-            focus_name = focus_names_by_id[focus_person_id]
-
-            for child_id in relationships.children_of(focus_person_id):
-                self.add_event_people_suggestion(
-                    suggestions,
-                    used_person_ids,
-                    options_by_id,
-                    child_id,
-                    f"Child of {focus_name}",
-                    suggestion_limit,
-                )
-
-        existing_events = self.list_events()
-        existing_events.sort(key=world_event_sort_key, reverse=True)
-        focus_person_id_set = set(normalized_focus_ids)
-        friend_person_ids = []
-        friend_focus_names_by_id = {}
-        shared_event_counts = {}
-        shared_event_focus_names_by_id = {}
-
-        for event in existing_events:
-            linked_person_ids = list(
-                dict.fromkeys(event_linked_person_ids(event))
-            )
-            matching_focus_ids = [
-                person_id
-                for person_id in linked_person_ids
-                if person_id in focus_person_id_set
-            ]
-
-            if not matching_focus_ids:
-                continue
-
-            focus_name = focus_names_by_id[matching_focus_ids[0]]
-
-            for linked_person_id in linked_person_ids:
-                if (
-                    linked_person_id in focus_person_id_set
-                    or linked_person_id not in options_by_id
-                ):
-                    continue
-
-                shared_event_counts[linked_person_id] = (
-                    shared_event_counts.get(linked_person_id, 0) + 1
-                )
-                shared_event_focus_names_by_id.setdefault(
-                    linked_person_id,
-                    focus_name,
-                )
-
-                if (
-                    event.get("event_type") == "began_friendship"
-                    and linked_person_id not in friend_person_ids
-                ):
-                    friend_person_ids.append(linked_person_id)
-                    friend_focus_names_by_id[linked_person_id] = focus_name
-
-        for friend_person_id in friend_person_ids:
-            self.add_event_people_suggestion(
-                suggestions,
-                used_person_ids,
-                options_by_id,
-                friend_person_id,
-                "Friend of "
-                + friend_focus_names_by_id[friend_person_id],
-                suggestion_limit,
-            )
-
-        shared_event_rankings = [
-            (
-                -shared_event_count,
-                str(
-                    options_by_id[person_id].get("label", "") or ""
-                ).casefold(),
-                person_id,
-            )
-            for person_id, shared_event_count
-            in shared_event_counts.items()
-            if person_id not in used_person_ids
-        ]
-        shared_event_rankings.sort()
-
-        for _, _, person_id in shared_event_rankings:
-            shared_event_count = shared_event_counts[person_id]
-            event_word = "event" if shared_event_count == 1 else "events"
-            self.add_event_people_suggestion(
-                suggestions,
-                used_person_ids,
-                options_by_id,
-                person_id,
-                (
-                    f"Shared {shared_event_count} previous {event_word} with "
-                    + shared_event_focus_names_by_id[person_id]
-                ),
-                suggestion_limit,
-            )
-
-        focus_birth_years = []
-
-        for focus_person_id in normalized_focus_ids:
-            focus_person = options_by_id[focus_person_id].get("person", {})
-            birth_year = (
-                focus_person.get("birth_year")
-                if isinstance(focus_person, dict)
-                else None
-            )
-
-            if isinstance(birth_year, bool):
-                continue
-
-            try:
-                focus_birth_years.append(int(birth_year))
-            except (TypeError, ValueError):
-                continue
-
-        similar_age_rankings = []
-
-        if focus_birth_years:
-            for person_id, option in options_by_id.items():
-                if person_id in used_person_ids:
-                    continue
-
-                person = option.get("person", {})
-                birth_year = (
-                    person.get("birth_year")
-                    if isinstance(person, dict)
-                    else None
-                )
-
-                if isinstance(birth_year, bool):
-                    continue
-
-                try:
-                    normalized_birth_year = int(birth_year)
-                except (TypeError, ValueError):
-                    continue
-
-                age_gap = min(
-                    abs(normalized_birth_year - focus_birth_year)
-                    for focus_birth_year in focus_birth_years
-                )
-
-                if age_gap > 7:
-                    continue
-
-                similar_age_rankings.append(
-                    (
-                        age_gap,
-                        str(option.get("label", "") or "").casefold(),
-                        person_id,
-                    )
-                )
-
-        similar_age_rankings.sort()
-        age_focus_name = focus_names_by_id[normalized_focus_ids[0]]
-
-        for _, _, person_id in similar_age_rankings:
-            self.add_event_people_suggestion(
-                suggestions,
-                used_person_ids,
-                options_by_id,
-                person_id,
-                f"Similar age to {age_focus_name}",
-                suggestion_limit,
-            )
-
-        return suggestions
 
     def recent_location_options(self, limit=5):
         return self.recent_association_options(

@@ -14,6 +14,7 @@ from mage_maker.sections.locations.period_definitions import (
     load_period_definitions,
 )
 from mage_maker.sections.items.controller import ItemController
+from mage_maker.sections.books.controller import BookController
 from mage_maker.sections.mages.page import MagesPage
 from mage_maker.sections.organizations.controller import OrganizationController
 from mage_maker.sections.settings.controller import (
@@ -118,12 +119,6 @@ class MageMakerApp(tk.Tk):
             self.people_controller.list_people_summaries,
         )
 
-        job_events_changed = (
-            self.event_controller.ensure_started_job_events_for_assignments(
-                save_database=False,
-            )
-        )
-
         ownership_changed = (
             self.event_controller.synchronize_item_ownership_from_events()
         )
@@ -131,11 +126,7 @@ class MageMakerApp(tk.Tk):
             self.event_controller.synchronize_retained_item_events_for_deaths()
         )
 
-        if (
-            job_events_changed
-            or retained_events_changed
-            or ownership_changed
-        ):
+        if retained_events_changed or ownership_changed:
             self.database.save()
 
         self.organization_controller = OrganizationController(
@@ -144,6 +135,14 @@ class MageMakerApp(tk.Tk):
             self.game_database.schools,
             self.game_database.storeroom_items,
             self.location_controller,
+        )
+        self.book_controller = BookController(
+            self.database,
+            self.game_database,
+            self.people_controller.list_people,
+            self.location_controller.list_locations,
+            self.organization_controller.list_organizations,
+            self.event_controller,
         )
         self.status_value = tk.StringVar(value="Ready")
         self.pages = {}
@@ -232,6 +231,7 @@ class MageMakerApp(tk.Tk):
             ("periods", "Periods", 104),
             ("organizations", "Organizations", 144),
             ("items", "Items", 96),
+            ("books", "Books", 96),
             ("settings", "Settings", 104),
         ):
             button = SoftButton(
@@ -285,6 +285,7 @@ class MageMakerApp(tk.Tk):
                 self.organization_controller.location_records
             ),
             item_controller=self.item_controller,
+            book_controller=self.book_controller,
         )
         self.pages["mages"].grid(row=0, column=0, sticky="nsew")
 
@@ -335,9 +336,6 @@ class MageMakerApp(tk.Tk):
                     self.refresh_cross_page_data,
                     self.organization_lock_changed,
                     auto_refresh=False,
-                    open_job_event_command=(
-                        self.open_mage_timeline_event
-                    ),
                 )
             elif page_name == "items":
                 from mage_maker.sections.items.page import ItemsView
@@ -350,6 +348,16 @@ class MageMakerApp(tk.Tk):
                     event_controller=self.event_controller,
                     events_changed_command=self.refresh_cross_page_data,
                     global_mode=True,
+                )
+            elif page_name == "books":
+                from mage_maker.sections.books.page import BooksPage
+
+                page = BooksPage(
+                    self.content,
+                    self.book_controller,
+                    self.set_status,
+                    self.refresh_cross_page_data,
+                    auto_refresh=False,
                 )
             elif page_name == "settings":
                 from mage_maker.sections.settings.page import SettingsPage
@@ -425,6 +433,7 @@ class MageMakerApp(tk.Tk):
             "periods",
             "organizations",
             "items",
+            "books",
             "settings",
         ):
             return False
@@ -457,24 +466,6 @@ class MageMakerApp(tk.Tk):
         ):
             return False
 
-        if (
-            confirm_change
-            and self.active_page_name == "periods"
-            and not self.pages[
-                "periods"
-            ].confirm_unsaved_event_changes()
-        ):
-            return False
-
-        if (
-            confirm_change
-            and self.active_page_name == "items"
-            and not self.pages[
-                "items"
-            ].item_timeline.confirm_unsaved_changes()
-        ):
-            return False
-
         if not self.ensure_page(page_name):
             return False
 
@@ -489,6 +480,7 @@ class MageMakerApp(tk.Tk):
                 "periods",
                 "organizations",
                 "items",
+                "books",
                 "settings",
             )
         ):
@@ -515,6 +507,8 @@ class MageMakerApp(tk.Tk):
             self.pages["organizations"].refresh()
         elif page_name == "items":
             self.pages["items"].refresh_items()
+        elif page_name == "books":
+            self.pages["books"].refresh()
         elif page_name == "settings":
             self.pages["settings"].refresh()
 
@@ -597,17 +591,6 @@ class MageMakerApp(tk.Tk):
             return False
 
         return self.pages["mages"].select_person(record_id)
-
-    def open_mage_timeline_event(self, person_id, event_id):
-        if not self.show_page("mages"):
-            return False
-
-        mages_page = self.pages["mages"]
-
-        if not mages_page.select_person(person_id):
-            return False
-
-        return mages_page.open_timeline_event(event_id)
 
     def open_location(self, record_id):
         if not self.show_page("locations"):
@@ -789,6 +772,14 @@ class MageMakerApp(tk.Tk):
         if items_page is not None:
             items_page.refresh_items(items_page.selected_item_id)
 
+        books_page = self.pages.get("books")
+
+        if books_page is not None:
+            books_page.refresh(books_page.selected_book_id)
+
+        if mages_page is not None:
+            mages_page.person_form.refresh_books_and_ledger()
+
     def refresh_mage_group_data(self):
         mages_page = self.pages.get("mages")
 
@@ -815,22 +806,6 @@ class MageMakerApp(tk.Tk):
             and not self.pages[
                 "organizations"
             ].confirm_unsaved_organization_changes()
-        ):
-            return
-
-        if (
-            "periods" in self.pages
-            and not self.pages[
-                "periods"
-            ].confirm_unsaved_event_changes()
-        ):
-            return
-
-        if (
-            "items" in self.pages
-            and not self.pages[
-                "items"
-            ].item_timeline.confirm_unsaved_changes()
         ):
             return
 
@@ -889,6 +864,8 @@ class MageMakerApp(tk.Tk):
             self.pages["organizations"].create_organization()
         elif self.active_page_name == "items" and "items" in self.pages:
             self.pages["items"].open_add_item_dialog()
+        elif self.active_page_name == "books" and "books" in self.pages:
+            self.pages["books"].create_shortcut()
 
         return "break"
 
@@ -912,6 +889,8 @@ class MageMakerApp(tk.Tk):
             self.pages["organizations"].search_shortcut()
         elif self.active_page_name == "items" and "items" in self.pages:
             self.pages["items"].search_entry.entry.focus_set()
+        elif self.active_page_name == "books" and "books" in self.pages:
+            self.pages["books"].search_shortcut()
 
         return "break"
 

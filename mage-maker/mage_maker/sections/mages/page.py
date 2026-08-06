@@ -50,6 +50,7 @@ class MagesPage(tk.Frame):
         organization_create_command=None,
         organization_location_provider=None,
         item_controller=None,
+        book_controller=None,
     ):
         super().__init__(parent, bg=APP_BACKGROUND)
         self.controller = controller
@@ -67,6 +68,7 @@ class MagesPage(tk.Frame):
             organization_location_provider
         )
         self.item_controller = item_controller
+        self.book_controller = book_controller
         self.people = []
         self.current_record_id = None
         self.form_dirty = False
@@ -110,10 +112,6 @@ class MagesPage(tk.Frame):
         list_card.grid_columnconfigure(0, weight=1)
         initial_period_filter = ""
         period_filter_change_command = None
-        initial_generation_filter = ""
-        generation_filter_change_command = None
-        generation_override_provider = None
-        generation_move_command = None
 
         if self.settings_provider is not None:
             period_filter_provider = getattr(
@@ -126,26 +124,6 @@ class MagesPage(tk.Frame):
                 "set_people_period_filter",
                 None,
             )
-            generation_filter_provider = getattr(
-                self.settings_provider,
-                "people_generation_filter",
-                None,
-            )
-            stored_generation_change_command = getattr(
-                self.settings_provider,
-                "set_people_generation_filter",
-                None,
-            )
-            stored_generation_override_provider = getattr(
-                self.settings_provider,
-                "people_generation_overrides",
-                None,
-            )
-            stored_generation_move_command = getattr(
-                self.settings_provider,
-                "set_people_generation_override",
-                None,
-            )
 
             if callable(period_filter_provider):
                 initial_period_filter = period_filter_provider()
@@ -153,26 +131,6 @@ class MagesPage(tk.Frame):
             if callable(stored_period_change_command):
                 period_filter_change_command = (
                     stored_period_change_command
-                )
-
-            if callable(generation_filter_provider):
-                initial_generation_filter = (
-                    generation_filter_provider()
-                )
-
-            if callable(stored_generation_change_command):
-                generation_filter_change_command = (
-                    stored_generation_change_command
-                )
-
-            if callable(stored_generation_override_provider):
-                generation_override_provider = (
-                    stored_generation_override_provider
-                )
-
-            if callable(stored_generation_move_command):
-                generation_move_command = (
-                    stored_generation_move_command
                 )
 
         self.people_list = PeopleList(
@@ -184,14 +142,6 @@ class MagesPage(tk.Frame):
             period_filter_change_command=(
                 period_filter_change_command
             ),
-            initial_generation_filter=initial_generation_filter,
-            generation_filter_change_command=(
-                generation_filter_change_command
-            ),
-            generation_override_provider=(
-                generation_override_provider
-            ),
-            generation_move_command=generation_move_command,
         )
         self.people_list.grid(row=0, column=0, sticky="nsew")
         editor_card = tk.Frame(
@@ -225,6 +175,7 @@ class MagesPage(tk.Frame):
                 self.organization_location_provider
             ),
             item_controller=self.item_controller,
+            book_controller=self.book_controller,
             status_command=self.status_command,
             people_summary_provider=(
                 self.controller.list_people_summaries
@@ -366,21 +317,6 @@ class MagesPage(tk.Frame):
             return False
 
         return self.load_person(record_id)
-
-    def open_timeline_event(self, event_id):
-        normalized_event_id = str(event_id or "").strip()
-
-        if not normalized_event_id or self.current_record_id is None:
-            return False
-
-        self.person_form.loaded_section_record_ids.pop("timeline", None)
-
-        if not self.person_form.show_page("timeline"):
-            return False
-
-        self.person_form.timeline.selected_event_id = normalized_event_id
-        self.person_form.timeline.filter_events()
-        return self.person_form.timeline.restore_selected_event_row()
 
     def open_creation_wizard(self):
         if not self.confirm_unsaved_changes():

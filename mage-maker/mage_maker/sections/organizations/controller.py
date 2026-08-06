@@ -51,157 +51,12 @@ ORGANIZATION_TYPES = (
     "Shop",
 )
 ORGANIZATION_EVENT_FOUNDING = "founding"
-LEGACY_ORGANIZATION_JOB_LEVELS = {
-    "senior": 0,
-    "advisory": 1,
-    "midlevel": 2,
-    "junior": 3,
-    "administrative": 4,
-}
 SHOP_STOCK_CATEGORIES = (
     ("always_in_stock", "Always in stock"),
     ("regularly_in_stock", "Regularly in stock"),
     ("sometimes_in_stock", "Sometimes in stock"),
     ("rarely_in_stock", "Rarely in stock"),
 )
-
-
-def infer_organization_job_level(title):
-    normalized_title = " ".join(
-        str(title or "").strip().casefold().replace("-", " ").split()
-    )
-    title_words = set(normalized_title.split())
-
-    if title_words.intersection(
-        {
-            "chief",
-            "commissioner",
-            "director",
-            "head",
-            "lead",
-            "minister",
-            "president",
-            "principal",
-            "senior",
-            "superintendent",
-        }
-    ):
-        return 0
-
-    if title_words.intersection(
-        {
-            "adviser",
-            "advisor",
-            "advisory",
-            "consultant",
-            "counsel",
-            "counsellor",
-        }
-    ):
-        return 1
-
-    if title_words.intersection(
-        {
-            "administrative",
-            "administrator",
-            "clerk",
-            "receptionist",
-            "secretary",
-        }
-    ):
-        return 4
-
-    if title_words.intersection(
-        {
-            "apprentice",
-            "assistant",
-            "intern",
-            "junior",
-            "trainee",
-        }
-    ):
-        return 3
-
-    return 2
-
-
-def normalize_organization_job_level(value, title=""):
-    requested_level = str(value if value is not None else "").strip()
-
-    if not requested_level:
-        return infer_organization_job_level(title)
-
-    legacy_level = LEGACY_ORGANIZATION_JOB_LEVELS.get(
-        requested_level.casefold()
-    )
-
-    if legacy_level is not None:
-        return legacy_level
-
-    normalized_number = requested_level.casefold()
-
-    if normalized_number.startswith("level "):
-        normalized_number = normalized_number[6:].strip()
-
-    if isinstance(value, bool):
-        raise ValueError(
-            "A position level must be a whole number of 0 or greater."
-        )
-
-    try:
-        level = int(normalized_number)
-    except (TypeError, ValueError) as error:
-        raise ValueError(
-            "A position level must be a whole number of 0 or greater."
-        ) from error
-
-    if (
-        level < 0
-        or (
-            isinstance(value, float)
-            and not value.is_integer()
-        )
-    ):
-        raise ValueError(
-            "A position level must be a whole number of 0 or greater."
-        )
-
-    return level
-
-
-def organization_job_level_sort_key(organization_job):
-    normalized_job = normalize_organization_job(organization_job)
-    return (
-        normalized_job["level"],
-        normalized_job["title"].casefold(),
-        organization_job_date_tuple(normalized_job["opened_date"]),
-        normalized_job["record_id"],
-    )
-
-
-def organization_jobs_grouped_by_level(value):
-    normalized_jobs = normalize_organization_jobs(value)
-    sorted_jobs = sorted(
-        normalized_jobs,
-        key=organization_job_level_sort_key,
-    )
-    levels = sorted(
-        {
-            organization_job["level"]
-            for organization_job in sorted_jobs
-        }
-    )
-    return [
-        (
-            level,
-            [
-                deepcopy(organization_job)
-                for organization_job in sorted_jobs
-                if organization_job["level"] == level
-            ],
-        )
-        for level in levels
-    ]
 
 
 def normalize_storeroom_inventory(value):
@@ -620,10 +475,20 @@ def normalize_organization_job(value):
     if not title:
         raise ValueError("An organization job must have a title.")
 
-    level = normalize_organization_job_level(
-        value.get("level"),
-        title,
-    )
+    level_value = value.get("level", 0)
+
+    if isinstance(level_value, bool):
+        raise ValueError("Position level must be a non-negative whole number.")
+
+    try:
+        level = int(level_value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "Position level must be a non-negative whole number."
+        ) from error
+
+    if level < 0:
+        raise ValueError("Position level cannot be negative.")
 
     opened_date = organization_job_date(
         value,
@@ -776,6 +641,14 @@ def normalize_organization_jobs(value):
         normalized_jobs.append(normalized_job)
         seen_ids.add(normalized_job["record_id"])
 
+    normalized_jobs.sort(
+        key=lambda job: (
+            job["level"],
+            job["title"].casefold(),
+            organization_job_date_tuple(job["opened_date"]),
+            job["record_id"],
+        )
+    )
     return normalized_jobs
 
 
@@ -882,12 +755,15 @@ def normalize_organization_record(values):
     normalized["famous_organization"] = bool(
         normalized.get("famous_organization", False)
     )
-    normalized["large_employer"] = bool(
-        normalized.get("large_employer", False)
-    )
     normalized["has_storeroom"] = bool(
         normalized.get("has_storeroom", False)
     )
+    normalized["includes_library"] = bool(
+        normalized.get("includes_library", False)
+    )
+    normalized["library_open_to_outsiders"] = bool(
+        normalized.get("library_open_to_outsiders", False)
+    ) and normalized["includes_library"]
     normalized["storeroom_inventory"] = (
         normalize_storeroom_inventory(
             normalized.get("storeroom_inventory", [])
@@ -955,10 +831,11 @@ def normalize_organization_record(values):
 
 
 def school_campus_name(organization):
-    return str(
+    organization_name = str(
         (organization or {}).get("name", "")
         or "Unnamed school"
     ).strip()
+    return f"Campus of {organization_name}"
 
 
 def school_campus_foundation_event(organization):
@@ -1216,73 +1093,6 @@ def organizations_by_id(organizations):
         if isinstance(organization, dict)
         and str(organization.get("record_id", "") or "").strip()
     }
-
-
-def organization_effective_location_id(organization, organizations):
-    records = (
-        organizations
-        if isinstance(organizations, dict)
-        else organizations_by_id(organizations)
-    )
-    current = organization if isinstance(organization, dict) else None
-    current_id = str(
-        (
-            current.get("record_id", "")
-            if current is not None
-            else organization
-        )
-        or ""
-    ).strip()
-
-    if current is None:
-        current = records.get(current_id)
-
-    visited_ids = set()
-
-    while current is not None and current_id not in visited_ids:
-        visited_ids.add(current_id)
-        location_id = str(
-            current.get("location_id", "") or ""
-        ).strip()
-
-        if location_id:
-            return location_id
-
-        current_id = str(
-            current.get("parent_organization_id", "") or ""
-        ).strip()
-        current = records.get(current_id)
-
-    return ""
-
-
-def organization_large_employer_branch_ids(organizations):
-    records = organizations_by_id(organizations)
-    branch_ids = {
-        organization_id
-        for organization_id, organization in records.items()
-        if bool(organization.get("large_employer"))
-    }
-    changed = True
-
-    while changed:
-        changed = False
-
-        for organization_id, organization in records.items():
-            parent_id = str(
-                organization.get("parent_organization_id", "") or ""
-            ).strip()
-
-            if (
-                organization_id in branch_ids
-                or parent_id not in branch_ids
-            ):
-                continue
-
-            branch_ids.add(organization_id)
-            changed = True
-
-    return branch_ids
 
 
 def organization_root_ancestor(record_id, organizations):
@@ -1574,9 +1384,10 @@ class OrganizationController:
                 "has_shop": False,
                 "shop_inventory": normalize_shop_inventory({}),
                 "famous_organization": False,
-                "large_employer": False,
                 "has_storeroom": False,
                 "storeroom_inventory": [],
+                "includes_library": False,
+                "library_open_to_outsiders": False,
                 "extinct": False,
                 "extinction_date": "",
                 "overview": "",
@@ -1663,6 +1474,24 @@ class OrganizationController:
                 "job assignments in it."
             )
 
+        linked_book_titles = [
+            str(book.get("title", "Untitled book") or "Untitled book")
+            for book in self.database.data.get("books", [])
+            if any(
+                str(holding.get("organization_id", "") or "")
+                == str(record_id)
+                for holding in book.get("holdings", [])
+                if isinstance(holding, dict)
+            )
+        ]
+
+        if linked_book_titles:
+            raise ValueError(
+                "Move or remove this organization's book holdings before "
+                "deleting it: "
+                f"{', '.join(linked_book_titles)}."
+            )
+
         eminence_updates = prepare_event_eminence_updates(
             self.database,
             organization_events_as_world_events((organization,)),
@@ -1688,17 +1517,13 @@ class OrganizationController:
 
     def apply_school_link(self, organization):
         normalized = normalize_organization_record(organization)
-
-        if normalized.get("organization_type") != "School":
-            normalized["school_id"] = ""
-            return normalized
-
         school = self.school_by_id(normalized.get("school_id"))
 
         if school is not None:
             normalized["name"] = str(
                 school.get("name", "") or ""
             ).strip()
+            normalized["organization_type"] = "School"
 
         return normalized
 
@@ -2277,15 +2102,9 @@ class OrganizationController:
         organization_id = str(
             organization.get("record_id", "") or ""
         ).strip()
-        resolved_organizations = (
-            organizations
-            if organizations is not None
-            else self.list_organizations()
-        )
-        location_id = organization_effective_location_id(
-            organization,
-            resolved_organizations,
-        )
+        location_id = str(
+            organization.get("location_id", "") or ""
+        ).strip()
         resolved_locations = (
             self.locations_provider()
             if locations is None
@@ -2335,12 +2154,17 @@ class OrganizationController:
                 if organization.get("famous_organization")
                 else ""
             ),
+            "Has a storeroom" if organization.get("has_storeroom") else "",
             (
-                "Large employer"
-                if organization.get("large_employer")
+                "Includes a library"
+                if organization.get("includes_library")
                 else ""
             ),
-            "Has a storeroom" if organization.get("has_storeroom") else "",
+            (
+                "Library open to outsiders"
+                if organization.get("library_open_to_outsiders")
+                else ""
+            ),
             "Extinct" if organization.get("extinct") else "Active",
             organization.get("extinction_date"),
         ]
@@ -2396,21 +2220,15 @@ class OrganizationController:
         organization,
         location_id,
         locations=None,
-        organizations=None,
     ):
         selected_id = str(location_id or "").strip()
 
         if not selected_id:
             return True
 
-        organization_location_id = organization_effective_location_id(
-            organization,
-            (
-                self.list_organizations()
-                if organizations is None
-                else organizations
-            ),
-        )
+        organization_location_id = str(
+            organization.get("location_id", "") or ""
+        ).strip()
 
         if not organization_location_id:
             return False
@@ -2466,21 +2284,15 @@ class OrganizationController:
             if query_terms
             else {}
         )
-        available_organizations_by_id = organizations_by_id(
-            available_organizations
-        )
-        organization_location_ids = set()
-
-        for organization in available_organizations:
-            organization_location_id = organization_effective_location_id(
-                organization,
-                available_organizations_by_id,
-            )
-
-            if organization_location_id:
-                organization_location_ids.add(
-                    organization_location_id
-                )
+        organization_location_ids = {
+            str(
+                organization.get("location_id", "") or ""
+            ).strip()
+            for organization in available_organizations
+            if str(
+                organization.get("location_id", "") or ""
+            ).strip()
+        }
         location_labels = {
             organization_location_id: recent_location_label(
                 organization_location_id,
@@ -2563,7 +2375,6 @@ class OrganizationController:
                 organization,
                 location_id,
                 locations,
-                available_organizations_by_id,
             ):
                 continue
 
@@ -2580,7 +2391,7 @@ class OrganizationController:
             if query_terms:
                 search_text_value = self.organization_search_text(
                     organization,
-                    available_organizations_by_id,
+                    available_organizations,
                     paths_by_id,
                     locations,
                     location_paths,
@@ -2597,28 +2408,12 @@ class OrganizationController:
 
             matching.append(organization)
 
-        large_employer_branch_ids = (
-            organization_large_employer_branch_ids(
-                available_organizations
-            )
-        )
         decorated = [
             (
-                (
-                    (
-                        0
-                        if str(
-                            organization.get("record_id", "") or ""
-                        ).strip()
-                        in large_employer_branch_ids
-                        and selected_location_id
-                        else 1
-                    ),
-                    *self.organization_sort_key_for(
-                        organization,
-                        available_organizations,
-                        paths_by_id,
-                    ),
+                self.organization_sort_key_for(
+                    organization,
+                    available_organizations,
+                    paths_by_id,
                 ),
                 organization,
             )
@@ -2885,7 +2680,6 @@ class OrganizationController:
                         [],
                         [],
                         True,
-                        [],
                     )
                 )
 
@@ -2901,7 +2695,6 @@ class OrganizationController:
                     [assignment["person_id"]],
                     [assignment["person_name"]],
                     False,
-                    [assignment["record_id"]],
                 )
             )
             if visible_assignment_end == (
@@ -2925,7 +2718,6 @@ class OrganizationController:
                     [],
                     [],
                     True,
-                    [],
                 )
             )
 
@@ -2985,18 +2777,6 @@ class OrganizationController:
                     previous["person_ids"],
                     previous["holder_names"],
                     previous["vacant"],
-                    [
-                        *previous.get("assignment_ids", []),
-                        *[
-                            assignment_id
-                            for assignment_id in entry.get(
-                                "assignment_ids",
-                                [],
-                            )
-                            if assignment_id
-                            not in previous.get("assignment_ids", [])
-                        ],
-                    ],
                 )
                 continue
 
@@ -3011,7 +2791,6 @@ class OrganizationController:
         person_ids,
         holder_names,
         vacant,
-        assignment_ids=None,
     ):
         start_year, start_month, start_day = start_date
         end_year, end_month, end_day = end_date
@@ -3038,7 +2817,6 @@ class OrganizationController:
             "end_day": end_day,
             "person_ids": list(person_ids),
             "holder_names": list(holder_names),
-            "assignment_ids": list(assignment_ids or []),
             "vacant": bool(vacant),
             "label": f"{range_text} • {holder_text}",
         }

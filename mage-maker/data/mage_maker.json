@@ -1,8 +1,8 @@
 {
   "_database": {
-    "schema_version": 35,
-    "database_version": "0.35.0",
-    "last_saved": "2026-08-06T07:26:24.543185+00:00"
+    "schema_version": 36,
+    "database_version": "0.36.0",
+    "last_saved": "2026-08-06T12:54:27.427405+00:00"
   },
   "people": [
     {
@@ -73,7 +73,7 @@
       "imported_fields": {},
       "record_id": "1ef136a2-d6bd-4c91-af2e-3ec04770bf99",
       "created_at": "2026-07-22T13:11:28.910114+00:00",
-      "last_updated": "2026-08-04T05:50:52.626274+00:00",
+      "last_updated": "2026-08-06T09:44:37.074195+00:00",
       "death_year": 1054,
       "death_month": null,
       "death_day": null,
@@ -1672,13 +1672,6 @@
             "points": 1
           },
           {
-            "record_id": "event-eminence-c397e77f8b06c352294443eb",
-            "title": "Founding of Hogwarts",
-            "description": "",
-            "skill": "Defense",
-            "points": 1
-          },
-          {
             "record_id": "event-eminence-34a1db24dd43226ab9b45a5b",
             "title": "Founders begin to build the castle",
             "description": "",
@@ -1690,6 +1683,13 @@
             "title": "Founding of Godric's Hollow",
             "description": "With wages earned in battle, Godric founds Godric's Hollow",
             "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-c397e77f8b06c352294443eb",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Defense",
             "points": 1
           }
         ],
@@ -38218,13 +38218,6 @@
             "points": 1
           },
           {
-            "record_id": "event-eminence-6946123e5bfa7c2d5d7db3dc",
-            "title": "Founding of Hogwarts",
-            "description": "",
-            "skill": "Arithmancy",
-            "points": 1
-          },
-          {
             "record_id": "event-eminence-d1273fc9b82a6d2f67a6e6b2",
             "title": "Founders begin to build the castle",
             "description": "",
@@ -38236,6 +38229,13 @@
             "title": "Katla gives Salazar his locket",
             "description": "Katla constructs the locket, imbued with his mark which Voldemort eventually used as a Horcrux.",
             "skill": "History",
+            "points": 1
+          },
+          {
+            "record_id": "event-eminence-6946123e5bfa7c2d5d7db3dc",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Arithmancy",
             "points": 1
           }
         ],
@@ -38249,7 +38249,7 @@
       "imported_fields": {},
       "record_id": "bfc92f8c-9704-4ee5-89c1-4d6cfe9cd392",
       "created_at": "2026-08-01T10:33:54.882512+00:00",
-      "last_updated": "2026-08-04T11:13:00.645889+00:00",
+      "last_updated": "2026-08-06T09:44:37.076111+00:00",
       "does_not_have_children": false
     },
     {
@@ -45397,13 +45397,6 @@
             "points": 1
           },
           {
-            "record_id": "event-eminence-4358e3b2471360aa4e272fc5",
-            "title": "Founding of Hogwarts",
-            "description": "",
-            "skill": "Charms",
-            "points": 1
-          },
-          {
             "record_id": "event-eminence-5e96d2cf987c42620ee2274b",
             "title": "Founders co-study group",
             "description": "A few years after the opening of Hogwarts, the founders develop a co-study group to learn from one another and share their research helping each grow together.",
@@ -45458,6 +45451,13 @@
             "description": "Rowena gifts the Cup to Helga",
             "skill": "History",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-4358e3b2471360aa4e272fc5",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Charms",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -45470,7 +45470,7 @@
       "imported_fields": {},
       "record_id": "f66d30d0-6b77-4ec8-b3d9-5e90428b0cc3",
       "created_at": "2026-08-02T14:17:50.564174+00:00",
-      "last_updated": "2026-08-04T11:19:14.871520+00:00"
+      "last_updated": "2026-08-06T09:44:37.079654+00:00"
     },
     {
       "displayed_name": "Rowena Ravenclaw",
@@ -47056,13 +47056,6 @@
             "points": 1
           },
           {
-            "record_id": "event-eminence-9671274dde0550a11be342a6",
-            "title": "Founding of Hogwarts",
-            "description": "",
-            "skill": "Artificing",
-            "points": 1
-          },
-          {
             "record_id": "event-eminence-a9cf65b24907b5211fa58743",
             "title": "Founders begin to build the castle",
             "description": "",
@@ -47082,6 +47075,13 @@
             "description": "Rowena crafts her Diadem",
             "skill": "Artificing",
             "points": 1
+          },
+          {
+            "record_id": "event-eminence-9671274dde0550a11be342a6",
+            "title": "Founding of Hogwarts",
+            "description": "",
+            "skill": "Artificing",
+            "points": 1
           }
         ],
         "mortality_checked_through_age": null,
@@ -47094,7 +47094,7 @@
       "imported_fields": {},
       "record_id": "6d9eaf12-05a9-4366-b787-1ecb3ce7fcc3",
       "created_at": "2026-08-02T14:19:54.167753+00:00",
-      "last_updated": "2026-08-04T11:21:06.532414+00:00"
+      "last_updated": "2026-08-06T09:44:37.077887+00:00"
     },
     {
       "displayed_name": "Katla",
@@ -81473,7 +81473,7 @@
     },
     {
       "record_id": "school-campus:395b69b4-6931-48a7-a6b5-9ee49251ef28",
-      "name": "Crucethu",
+      "name": "Campus of Crucethu",
       "parent_location_id": "00000deb-7be6-42e8-a8d2-0d23dff11c0b",
       "campus_organization_id": "395b69b4-6931-48a7-a6b5-9ee49251ef28",
       "demographics": "",
@@ -81484,7 +81484,7 @@
         {
           "event_id": "school-campus-founding:395b69b4-6931-48a7-a6b5-9ee49251ef28",
           "event_type": "founding",
-          "title": "Founding of Crucethu",
+          "title": "Founding of Campus of Crucethu",
           "date": "1065-04-09",
           "time": "",
           "note": "Campus of Crucethu."
@@ -81867,6 +81867,28 @@
       "record_id": "60a3f4fe-50e1-405c-90ea-5bef6fe6abb8",
       "created_at": "2026-08-06T00:08:36.866778+00:00",
       "last_updated": "2026-08-06T00:08:36.866778+00:00"
+    },
+    {
+      "name": "Campus of Hogwarts",
+      "parent_location_id": "38b8b79b-0785-4213-826e-0e65998d3b41",
+      "campus_organization_id": "a92dd0cc-d54e-4c76-9848-502280c2f401",
+      "demographics": "",
+      "notes": "",
+      "extinct": false,
+      "extinction_year": "",
+      "timeline_events": [
+        {
+          "event_id": "school-campus-founding:a92dd0cc-d54e-4c76-9848-502280c2f401",
+          "event_type": "founding",
+          "title": "Founding of Campus of Hogwarts",
+          "date": "990",
+          "time": "",
+          "note": "Campus of Hogwarts."
+        }
+      ],
+      "record_id": "073329c7-a04f-4e4a-b2a9-f291b3ef4e04",
+      "created_at": "2026-08-06T09:44:37.072449+00:00",
+      "last_updated": "2026-08-06T09:44:37.072449+00:00"
     }
   ],
   "organizations": [
@@ -82046,32 +82068,6 @@
           "closed_day": null
         },
         {
-          "record_id": "3a35b571-bd06-4be1-b110-c12a01016977",
-          "title": "Senior Spokesmage",
-          "level": 6,
-          "opened_date": "1997-01-01",
-          "opened_year": 1997,
-          "opened_month": 1,
-          "opened_day": 1,
-          "closed_date": "",
-          "closed_year": null,
-          "closed_month": null,
-          "closed_day": null
-        },
-        {
-          "record_id": "be4dbb10-f510-437e-8fbc-256411654a6d",
-          "title": "Junior Spokesmage",
-          "level": 7,
-          "opened_date": "1997-01-01",
-          "opened_year": 1997,
-          "opened_month": 1,
-          "opened_day": 1,
-          "closed_date": "",
-          "closed_year": null,
-          "closed_month": null,
-          "closed_day": null
-        },
-        {
           "record_id": "81390ec4-3a33-46c0-808b-fa64e1668f94",
           "title": "Office Manager",
           "level": 5,
@@ -82090,6 +82086,32 @@
           "level": 6,
           "opened_date": "1898-01-01",
           "opened_year": 1898,
+          "opened_month": 1,
+          "opened_day": 1,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
+        },
+        {
+          "record_id": "3a35b571-bd06-4be1-b110-c12a01016977",
+          "title": "Senior Spokesmage",
+          "level": 6,
+          "opened_date": "1997-01-01",
+          "opened_year": 1997,
+          "opened_month": 1,
+          "opened_day": 1,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
+        },
+        {
+          "record_id": "be4dbb10-f510-437e-8fbc-256411654a6d",
+          "title": "Junior Spokesmage",
+          "level": 7,
+          "opened_date": "1997-01-01",
+          "opened_year": 1997,
           "opened_month": 1,
           "opened_day": 1,
           "closed_date": "",
@@ -82165,7 +82187,7 @@
       ],
       "record_id": "1acd0edc-2421-4061-9108-7eb6f7984f64",
       "created_at": "2026-07-31T09:33:06.929464+00:00",
-      "last_updated": "2026-08-06T07:22:52.080302+00:00",
+      "last_updated": "2026-08-06T09:43:46.837201+00:00",
       "has_shop": false,
       "shop_inventory": {
         "always_in_stock": [],
@@ -82179,7 +82201,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": true
+      "large_employer": true,
+      "includes_library": true,
+      "library_open_to_outsiders": true
     },
     {
       "name": "Division of Central Administration",
@@ -82225,7 +82249,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Division of International Engagement",
@@ -82273,7 +82299,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Department of International Magical Cooperation",
@@ -82319,7 +82347,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Division of Law and Justice",
@@ -82363,7 +82393,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Department of Magical Law Enforcement",
@@ -82423,7 +82455,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Wizengamot",
@@ -82496,7 +82530,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Division of Research",
@@ -82540,7 +82576,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Department of Mysteries",
@@ -82614,7 +82652,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Division of Domestic Affairs",
@@ -82660,7 +82700,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Division for the Regulation of the Use of Magic",
@@ -82704,7 +82746,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Investigations Department",
@@ -82748,7 +82792,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Hit Wizards Squad",
@@ -82792,7 +82838,9 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Auror's Office",
@@ -82901,7 +82949,7 @@
           "closed_day": null
         },
         {
-          "record_id": "f4cbc8c1-69c6-4100-81de-916dd5b5da4d",
+          "record_id": "d72c9feb-efd5-421f-bb9f-810ccc25dc23",
           "title": "Auror",
           "level": 4,
           "opened_date": "1737",
@@ -82914,7 +82962,7 @@
           "closed_day": null
         },
         {
-          "record_id": "d72c9feb-efd5-421f-bb9f-810ccc25dc23",
+          "record_id": "f4cbc8c1-69c6-4100-81de-916dd5b5da4d",
           "title": "Auror",
           "level": 4,
           "opened_date": "1737",
@@ -83060,12 +83108,14 @@
       "has_storeroom": false,
       "storeroom_inventory": [],
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Hogwarts",
       "organization_type": "School",
-      "location_id": "",
+      "location_id": "38b8b79b-0785-4213-826e-0e65998d3b41",
       "parent_organization_id": "",
       "school_id": "school_104",
       "has_shop": false,
@@ -83116,12 +83166,14 @@
       "jobs": [],
       "record_id": "a92dd0cc-d54e-4c76-9848-502280c2f401",
       "created_at": "2026-08-01T08:25:45.179311+00:00",
-      "last_updated": "2026-08-03T08:33:56.506422+00:00",
+      "last_updated": "2026-08-06T09:44:37.072504+00:00",
       "famous_organization": false,
       "has_storeroom": false,
       "storeroom_inventory": [],
-      "campus_location_id": "",
-      "large_employer": false
+      "campus_location_id": "073329c7-a04f-4e4a-b2a9-f291b3ef4e04",
+      "large_employer": false,
+      "includes_library": true,
+      "library_open_to_outsiders": true
     },
     {
       "name": "British Wizards Council",
@@ -83162,11 +83214,37 @@
       ],
       "jobs": [
         {
-          "record_id": "bc434e19-547d-4431-a8cc-91e5bc9b6e01",
-          "title": "Léodwita",
+          "record_id": "a0b58187-7465-4a53-b43f-39a28e932575",
+          "title": "Bocere",
           "level": 2,
-          "opened_date": "1065",
-          "opened_year": 1065,
+          "opened_date": "1096",
+          "opened_year": 1096,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
+        },
+        {
+          "record_id": "d52c833f-b564-4853-897f-93999bf06d0c",
+          "title": "Bocere",
+          "level": 2,
+          "opened_date": "1309",
+          "opened_year": 1309,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
+        },
+        {
+          "record_id": "ff1ee0ab-7569-449f-87d6-2aeff4be46d6",
+          "title": "Bocere",
+          "level": 2,
+          "opened_date": "1413",
+          "opened_year": 1413,
           "opened_month": null,
           "opened_day": null,
           "closed_date": "1706-12-31",
@@ -83201,6 +83279,19 @@
           "closed_day": 31
         },
         {
+          "record_id": "bc434e19-547d-4431-a8cc-91e5bc9b6e01",
+          "title": "Léodwita",
+          "level": 2,
+          "opened_date": "1065",
+          "opened_year": 1065,
+          "opened_month": null,
+          "opened_day": null,
+          "closed_date": "1706-12-31",
+          "closed_year": 1706,
+          "closed_month": 12,
+          "closed_day": 31
+        },
+        {
           "record_id": "454e0bc0-55df-4179-a8db-2899aae3e416",
           "title": "Wita",
           "level": 2,
@@ -83214,7 +83305,7 @@
           "closed_day": 31
         },
         {
-          "record_id": "9e16bbd7-438a-4c18-b91c-fd5682910a2f",
+          "record_id": "6966cf67-a5f5-484f-a19a-e8014c00095e",
           "title": "Wita",
           "level": 2,
           "opened_date": "1065",
@@ -83227,7 +83318,7 @@
           "closed_day": 31
         },
         {
-          "record_id": "6966cf67-a5f5-484f-a19a-e8014c00095e",
+          "record_id": "9e16bbd7-438a-4c18-b91c-fd5682910a2f",
           "title": "Wita",
           "level": 2,
           "opened_date": "1065",
@@ -83290,52 +83381,15 @@
           "closed_year": 1706,
           "closed_month": 12,
           "closed_day": 31
-        },
-        {
-          "record_id": "a0b58187-7465-4a53-b43f-39a28e932575",
-          "title": "Bocere",
-          "level": 2,
-          "opened_date": "1096",
-          "opened_year": 1096,
-          "opened_month": null,
-          "opened_day": null,
-          "closed_date": "1706-12-31",
-          "closed_year": 1706,
-          "closed_month": 12,
-          "closed_day": 31
-        },
-        {
-          "record_id": "d52c833f-b564-4853-897f-93999bf06d0c",
-          "title": "Bocere",
-          "level": 2,
-          "opened_date": "1309",
-          "opened_year": 1309,
-          "opened_month": null,
-          "opened_day": null,
-          "closed_date": "1706-12-31",
-          "closed_year": 1706,
-          "closed_month": 12,
-          "closed_day": 31
-        },
-        {
-          "record_id": "ff1ee0ab-7569-449f-87d6-2aeff4be46d6",
-          "title": "Bocere",
-          "level": 2,
-          "opened_date": "1413",
-          "opened_year": 1413,
-          "opened_month": null,
-          "opened_day": null,
-          "closed_date": "1706-12-31",
-          "closed_year": 1706,
-          "closed_month": 12,
-          "closed_day": 31
         }
       ],
       "record_id": "7b65e3c9-05e0-480c-b672-ccba403671fb",
       "created_at": "2026-08-02T06:54:23.586876+00:00",
       "last_updated": "2026-08-02T07:51:02.935111+00:00",
       "campus_location_id": "",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Crucethu",
@@ -83379,7 +83433,9 @@
       "created_at": "2026-08-02T08:41:05.456808+00:00",
       "last_updated": "2026-08-02T08:44:06.372276+00:00",
       "campus_location_id": "school-campus:395b69b4-6931-48a7-a6b5-9ee49251ef28",
-      "large_employer": false
+      "large_employer": false,
+      "includes_library": false,
+      "library_open_to_outsiders": false
     },
     {
       "name": "Department for the Regulation and Control of Magical Creatures",
@@ -83436,6 +83492,19 @@
           "closed_day": null
         },
         {
+          "record_id": "2224a170-acdf-4071-b3fb-6d7b42484c5c",
+          "title": "Chief Investigator",
+          "level": 1,
+          "opened_date": "1811-05-01",
+          "opened_year": 1811,
+          "opened_month": 5,
+          "opened_day": 1,
+          "closed_date": "",
+          "closed_year": null,
+          "closed_month": null,
+          "closed_day": null
+        },
+        {
           "record_id": "aa6b6a40-4568-49a1-96d3-a03e430dbec6",
           "title": "Senior Advisor",
           "level": 1,
@@ -83469,19 +83538,6 @@
           "opened_year": 1825,
           "opened_month": 12,
           "opened_day": 2,
-          "closed_date": "",
-          "closed_year": null,
-          "closed_month": null,
-          "closed_day": null
-        },
-        {
-          "record_id": "2224a170-acdf-4071-b3fb-6d7b42484c5c",
-          "title": "Chief Investigator",
-          "level": 1,
-          "opened_date": "1811-05-01",
-          "opened_year": 1811,
-          "opened_month": 5,
-          "opened_day": 1,
           "closed_date": "",
           "closed_year": null,
           "closed_month": null,
@@ -83556,7 +83612,9 @@
       "campus_location_id": "",
       "record_id": "08c0f0a3-af3a-4cb0-957f-1e8cd7d0d714",
       "created_at": "2026-08-06T06:02:51.217202+00:00",
-      "last_updated": "2026-08-06T07:11:37.119855+00:00"
+      "last_updated": "2026-08-06T07:11:37.119855+00:00",
+      "includes_library": false,
+      "library_open_to_outsiders": false
     }
   ],
   "events": [
@@ -99414,6 +99472,177 @@
     },
     {
       "event_type": "started_job",
+      "title": "Senior Advisor at Department for the Regulation and Control of Magical Creatures",
+      "date": "1998-07-15",
+      "description": "",
+      "person_ids": [
+        "594ad00f-0b79-4118-ba66-a875f7ba9811"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "08c0f0a3-af3a-4cb0-957f-1e8cd7d0d714",
+      "organization_name": "Department for the Regulation and Control of Magical Creatures (within British Ministry for Magic)",
+      "organization_job_id": "aa6b6a40-4568-49a1-96d3-a03e430dbec6",
+      "job_title": "Senior Advisor",
+      "job_end_date": "2000-08-14",
+      "salary": {
+        "galleons": 678,
+        "sickles": 0,
+        "knuts": 0,
+        "period": "month"
+      },
+      "job_assignment_id": "event-job:7766ebc0-a730-44c6-8967-b0db0f33b1b3",
+      "record_id": "7766ebc0-a730-44c6-8967-b0db0f33b1b3",
+      "time": "",
+      "item_ids": [],
+      "item_link_types": {},
+      "item_new_owners": {},
+      "created_at": "2026-08-06T06:13:52.967850+00:00",
+      "last_updated": "2026-08-06T06:13:52.967850+00:00"
+    },
+    {
+      "event_type": "started_job",
+      "title": "Auror at Auror's Office (within British Ministry for Magic)",
+      "date": "1998-07-21",
+      "description": "",
+      "person_ids": [
+        "da621804-0d7d-4af5-8cd1-54e535323c8b"
+      ],
+      "witness_person_ids": [],
+      "affected_person_ids": [],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "item_ids": [],
+      "organization_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
+      "organization_name": "Auror's Office (within British Ministry for Magic)",
+      "organization_job_id": "f1ee50ac-bcc6-465c-a87d-26fdebb53479",
+      "job_title": "Auror",
+      "job_assignment_id": "ac0f0b34-8d6a-486d-a8ec-444fadd67245",
+      "job_end_date": "2001-09-04",
+      "salary": {
+        "galleons": 988,
+        "sickles": 0,
+        "knuts": 0,
+        "period": "month"
+      },
+      "record_id": "job-appointment:ac0f0b34-8d6a-486d-a8ec-444fadd67245",
+      "time": "",
+      "item_link_types": {},
+      "item_new_owners": {},
+      "created_at": "2026-08-06T07:24:57.380860+00:00",
+      "last_updated": "2026-08-06T07:24:57.380860+00:00"
+    },
+    {
+      "event_type": "started_job",
+      "title": "Senior Auror at Auror's Office (within British Ministry for Magic)",
+      "date": "1999-01-01",
+      "description": "",
+      "person_ids": [
+        "da621804-0d7d-4af5-8cd1-54e535323c8b"
+      ],
+      "witness_person_ids": [],
+      "affected_person_ids": [],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "item_ids": [],
+      "organization_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
+      "organization_name": "Auror's Office (within British Ministry for Magic)",
+      "organization_job_id": "78ad61c6-828c-4fb0-bc39-f025b2a1c057",
+      "job_title": "Senior Auror",
+      "job_assignment_id": "event-job:job-appointment:a2b49494-64ff-4b39-b961-d76d12a533f3",
+      "job_end_date": "2002-11-18",
+      "salary": {
+        "galleons": 1021,
+        "sickles": 0,
+        "knuts": 0,
+        "period": "month"
+      },
+      "record_id": "job-appointment:event-job:job-appointment:a2b49494-64ff-4b39-b961-d76d12a533f3",
+      "time": "",
+      "item_link_types": {},
+      "item_new_owners": {},
+      "created_at": "2026-08-06T07:24:57.393959+00:00",
+      "last_updated": "2026-08-06T07:24:57.393959+00:00"
+    },
+    {
+      "event_type": "started_job",
+      "title": "Deputy Chief Assistant at Auror's Office (within British Ministry for Magic)",
+      "date": "1999-11-19",
+      "description": "",
+      "person_ids": [
+        "da621804-0d7d-4af5-8cd1-54e535323c8b"
+      ],
+      "witness_person_ids": [],
+      "affected_person_ids": [],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "item_ids": [],
+      "organization_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
+      "organization_name": "Auror's Office (within British Ministry for Magic)",
+      "organization_job_id": "d6da6d2e-e037-46c9-b45e-044a253c6146",
+      "job_title": "Deputy Chief Assistant",
+      "job_assignment_id": "event-job:job-appointment:6ae04113-edf0-4a49-8355-e2dc0f10ef71",
+      "job_end_date": "2003-03-21",
+      "salary": {
+        "galleons": 1189,
+        "sickles": 12,
+        "knuts": 1,
+        "period": "month"
+      },
+      "record_id": "job-appointment:event-job:job-appointment:6ae04113-edf0-4a49-8355-e2dc0f10ef71",
+      "time": "",
+      "item_link_types": {},
+      "item_new_owners": {},
+      "created_at": "2026-08-06T07:24:57.389507+00:00",
+      "last_updated": "2026-08-06T07:24:57.389507+00:00"
+    },
+    {
+      "event_type": "started_job",
+      "title": "Head of the Department at Department for the Regulation and Control of Magical Creatures",
+      "date": "2000-08-14",
+      "description": "",
+      "person_ids": [
+        "594ad00f-0b79-4118-ba66-a875f7ba9811"
+      ],
+      "eminence_person_ids": [],
+      "eminence_skills": {},
+      "period_names": [],
+      "location_ids": [],
+      "locked_location_ids": [],
+      "organization_id": "08c0f0a3-af3a-4cb0-957f-1e8cd7d0d714",
+      "organization_name": "Department for the Regulation and Control of Magical Creatures (within British Ministry for Magic)",
+      "organization_job_id": "40ea1617-56ab-4307-bbc1-7f46bc17bd8c",
+      "job_title": "Head of the Department",
+      "job_end_date": "2003-03-21",
+      "salary": {
+        "galleons": 855,
+        "sickles": 0,
+        "knuts": 0,
+        "period": "month"
+      },
+      "job_assignment_id": "event-job:a81c6a6d-6595-4acc-a952-7ce1888ef442",
+      "record_id": "a81c6a6d-6595-4acc-a952-7ce1888ef442",
+      "time": "",
+      "item_ids": [],
+      "item_link_types": {},
+      "item_new_owners": {},
+      "created_at": "2026-08-06T06:18:05.399079+00:00",
+      "last_updated": "2026-08-06T06:18:05.399079+00:00"
+    },
+    {
+      "event_type": "started_job",
       "title": "Chief Assistant at Auror's Office (within British Ministry for Magic)",
       "date": "2001-03-22",
       "description": "",
@@ -99453,39 +99682,6 @@
     },
     {
       "event_type": "started_job",
-      "title": "Senior Advisor at Department for the Regulation and Control of Magical Creatures",
-      "date": "1998-07-15",
-      "description": "",
-      "person_ids": [
-        "594ad00f-0b79-4118-ba66-a875f7ba9811"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "organization_id": "08c0f0a3-af3a-4cb0-957f-1e8cd7d0d714",
-      "organization_name": "Department for the Regulation and Control of Magical Creatures (within British Ministry for Magic)",
-      "organization_job_id": "aa6b6a40-4568-49a1-96d3-a03e430dbec6",
-      "job_title": "Senior Advisor",
-      "job_end_date": "2000-08-14",
-      "salary": {
-        "galleons": 678,
-        "sickles": 0,
-        "knuts": 0,
-        "period": "month"
-      },
-      "job_assignment_id": "event-job:7766ebc0-a730-44c6-8967-b0db0f33b1b3",
-      "record_id": "7766ebc0-a730-44c6-8967-b0db0f33b1b3",
-      "time": "",
-      "item_ids": [],
-      "item_link_types": {},
-      "item_new_owners": {},
-      "created_at": "2026-08-06T06:13:52.967850+00:00",
-      "last_updated": "2026-08-06T06:13:52.967850+00:00"
-    },
-    {
-      "event_type": "started_job",
       "title": "Deputy Chief Assistant at Auror's Office",
       "date": "2003-03-22",
       "description": "",
@@ -99518,144 +99714,6 @@
       "last_updated": "2026-08-06T06:15:47.428209+00:00",
       "witness_person_ids": [],
       "affected_person_ids": []
-    },
-    {
-      "event_type": "started_job",
-      "title": "Head of the Department at Department for the Regulation and Control of Magical Creatures",
-      "date": "2000-08-14",
-      "description": "",
-      "person_ids": [
-        "594ad00f-0b79-4118-ba66-a875f7ba9811"
-      ],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "organization_id": "08c0f0a3-af3a-4cb0-957f-1e8cd7d0d714",
-      "organization_name": "Department for the Regulation and Control of Magical Creatures (within British Ministry for Magic)",
-      "organization_job_id": "40ea1617-56ab-4307-bbc1-7f46bc17bd8c",
-      "job_title": "Head of the Department",
-      "job_end_date": "2003-03-21",
-      "salary": {
-        "galleons": 855,
-        "sickles": 0,
-        "knuts": 0,
-        "period": "month"
-      },
-      "job_assignment_id": "event-job:a81c6a6d-6595-4acc-a952-7ce1888ef442",
-      "record_id": "a81c6a6d-6595-4acc-a952-7ce1888ef442",
-      "time": "",
-      "item_ids": [],
-      "item_link_types": {},
-      "item_new_owners": {},
-      "created_at": "2026-08-06T06:18:05.399079+00:00",
-      "last_updated": "2026-08-06T06:18:05.399079+00:00"
-    },
-    {
-      "event_type": "started_job",
-      "title": "Auror at Auror's Office (within British Ministry for Magic)",
-      "date": "1998-07-21",
-      "description": "",
-      "person_ids": [
-        "da621804-0d7d-4af5-8cd1-54e535323c8b"
-      ],
-      "witness_person_ids": [],
-      "affected_person_ids": [],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "item_ids": [],
-      "organization_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
-      "organization_name": "Auror's Office (within British Ministry for Magic)",
-      "organization_job_id": "f1ee50ac-bcc6-465c-a87d-26fdebb53479",
-      "job_title": "Auror",
-      "job_assignment_id": "ac0f0b34-8d6a-486d-a8ec-444fadd67245",
-      "job_end_date": "2001-09-04",
-      "salary": {
-        "galleons": 988,
-        "sickles": 0,
-        "knuts": 0,
-        "period": "month"
-      },
-      "record_id": "job-appointment:ac0f0b34-8d6a-486d-a8ec-444fadd67245",
-      "time": "",
-      "item_link_types": {},
-      "item_new_owners": {},
-      "created_at": "2026-08-06T07:24:57.380860+00:00",
-      "last_updated": "2026-08-06T07:24:57.380860+00:00"
-    },
-    {
-      "event_type": "started_job",
-      "title": "Deputy Chief Assistant at Auror's Office (within British Ministry for Magic)",
-      "date": "1999-11-19",
-      "description": "",
-      "person_ids": [
-        "da621804-0d7d-4af5-8cd1-54e535323c8b"
-      ],
-      "witness_person_ids": [],
-      "affected_person_ids": [],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "item_ids": [],
-      "organization_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
-      "organization_name": "Auror's Office (within British Ministry for Magic)",
-      "organization_job_id": "d6da6d2e-e037-46c9-b45e-044a253c6146",
-      "job_title": "Deputy Chief Assistant",
-      "job_assignment_id": "event-job:job-appointment:6ae04113-edf0-4a49-8355-e2dc0f10ef71",
-      "job_end_date": "2003-03-21",
-      "salary": {
-        "galleons": 1189,
-        "sickles": 12,
-        "knuts": 1,
-        "period": "month"
-      },
-      "record_id": "job-appointment:event-job:job-appointment:6ae04113-edf0-4a49-8355-e2dc0f10ef71",
-      "time": "",
-      "item_link_types": {},
-      "item_new_owners": {},
-      "created_at": "2026-08-06T07:24:57.389507+00:00",
-      "last_updated": "2026-08-06T07:24:57.389507+00:00"
-    },
-    {
-      "event_type": "started_job",
-      "title": "Senior Auror at Auror's Office (within British Ministry for Magic)",
-      "date": "1999-01-01",
-      "description": "",
-      "person_ids": [
-        "da621804-0d7d-4af5-8cd1-54e535323c8b"
-      ],
-      "witness_person_ids": [],
-      "affected_person_ids": [],
-      "eminence_person_ids": [],
-      "eminence_skills": {},
-      "period_names": [],
-      "location_ids": [],
-      "locked_location_ids": [],
-      "item_ids": [],
-      "organization_id": "d1195a01-ea8d-4591-aa2d-46c97d3a82ed",
-      "organization_name": "Auror's Office (within British Ministry for Magic)",
-      "organization_job_id": "78ad61c6-828c-4fb0-bc39-f025b2a1c057",
-      "job_title": "Senior Auror",
-      "job_assignment_id": "event-job:job-appointment:a2b49494-64ff-4b39-b961-d76d12a533f3",
-      "job_end_date": "2002-11-18",
-      "salary": {
-        "galleons": 1021,
-        "sickles": 0,
-        "knuts": 0,
-        "period": "month"
-      },
-      "record_id": "job-appointment:event-job:job-appointment:a2b49494-64ff-4b39-b961-d76d12a533f3",
-      "time": "",
-      "item_link_types": {},
-      "item_new_owners": {},
-      "created_at": "2026-08-06T07:24:57.393959+00:00",
-      "last_updated": "2026-08-06T07:24:57.393959+00:00"
     },
     {
       "event_type": "started_job",
@@ -99729,9 +99787,9 @@
     }
   ],
   "_recent_people": [
-    "594ad00f-0b79-4118-ba66-a875f7ba9811",
     "da621804-0d7d-4af5-8cd1-54e535323c8b",
     "024dde35-66df-4b86-a098-57a5a5980ffa",
+    "594ad00f-0b79-4118-ba66-a875f7ba9811",
     "ff853e34-62a4-482d-8871-59c4fb1942fa",
     "0ae645e6-63a4-4f69-bf04-3aaf431fad3c",
     "19c79a0e-0fb7-4c23-9e2d-7dd29d3f5a3e",
@@ -99743,18 +99801,18 @@
     "c596f72c-5362-4594-bfc9-1f1ee4cd689e"
   ],
   "_recent_locations": [
+    "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
+    "38b8b79b-0785-4213-826e-0e65998d3b41",
+    "de9bca8f-8fea-4db4-a040-131af6804693",
+    "23b54b30-b742-4e20-a224-915ca732fd61",
+    "d3ba12b1-afe7-443b-a75b-31de101048c6",
+    "96103198-d236-4041-92af-7fb8580ae909",
     "12e14d4f-ac0d-4e31-a144-80c71ac6a53c",
     "9c2845b0-2f80-45d7-89fd-381a259c40c7",
     "f31e3a15-e52c-4cdc-ac14-249bb323bde1",
     "4da1c615-4a85-409e-8b09-fc51ac1f85d1",
-    "e9cdd1f9-3e84-4408-b2c2-98ed4b3dabef",
     "60a3f4fe-50e1-405c-90ea-5bef6fe6abb8",
-    "57d0dfb7-c6ac-4f6d-baa8-4a0eb0ff89f1",
-    "8bf994a9-2f19-48e1-8233-407b36d3b0f2",
-    "179f0b6e-313e-4421-87a6-1aa33ce30ff0",
-    "201bfcad-9fdb-489c-ae5a-26f6623b2710",
-    "da9f9f1e-2244-44b9-94de-28d679b0cd40",
-    "6a1ad229-4cd5-4a5f-8240-ca1da38abb7e"
+    "57d0dfb7-c6ac-4f6d-baa8-4a0eb0ff89f1"
   ],
   "_recent_event_associations": {
     "person_ids": [
@@ -100228,5 +100286,7 @@
       "last_updated": "2026-08-04T11:27:09.585779+00:00",
       "group": ""
     }
-  ]
+  ],
+  "books": [],
+  "book_readings": []
 }

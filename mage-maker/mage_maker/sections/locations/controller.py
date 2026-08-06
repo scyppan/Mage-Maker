@@ -615,6 +615,28 @@ class LocationController:
                 "Move or remove the events tied to this location first."
             )
 
+        linked_book_titles = [
+            str(book.get("title", "Untitled book") or "Untitled book")
+            for book in self.database.data.get("books", [])
+            if (
+                str(book.get("publication_location_id", "") or "")
+                == str(record_id)
+                or any(
+                    str(holding.get("location_id", "") or "")
+                    == str(record_id)
+                    for holding in book.get("holdings", [])
+                    if isinstance(holding, dict)
+                )
+            )
+        ]
+
+        if linked_book_titles:
+            raise ValueError(
+                "Move or remove the book publication and archive links "
+                "before deleting this location: "
+                f"{', '.join(linked_book_titles)}."
+            )
+
         referenced_names = {
             normalize_location(name)
             for name in mage_location_names(self.people_provider())

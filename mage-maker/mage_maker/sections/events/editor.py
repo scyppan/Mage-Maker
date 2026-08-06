@@ -18,10 +18,10 @@ from mage_maker.sections.events.dialog import (
 from mage_maker.sections.events.eminence_picker import (
     EventEminencePicker,
 )
-from mage_maker.sections.events.job_dialog import (
-    EventJobSelectionDialog,
+from mage_maker.sections.events.models import (
+    normalize_world_event_date,
+    split_world_event_date,
 )
-from mage_maker.sections.events.models import normalize_world_event_date
 from mage_maker.sections.items.link_dialog import RecordLinkDialog
 from mage_maker.sections.items.links import (
     ITEM_EVENT_NEW_OWNER_LINK_TYPES,
@@ -98,7 +98,6 @@ class EventAssociationPicker(tk.Frame):
         background=SURFACE_MUTED,
         heading_text="",
         select_button_text="",
-        reference_date_provider=None,
     ):
         super().__init__(
             parent,
@@ -115,8 +114,6 @@ class EventAssociationPicker(tk.Frame):
         self.select_button_text = str(
             select_button_text or ""
         ).strip()
-        self.reference_date_provider = reference_date_provider
-        self.heading_base_text = ""
         self.options = []
         self.options_by_id = {}
         self.options_loaded = False
@@ -155,8 +152,6 @@ class EventAssociationPicker(tk.Frame):
 
         if self.heading_text:
             self.heading_value.set(self.heading_text)
-
-        self.heading_base_text = self.heading_value.get()
 
         heading = tk.Label(
             heading_row,
@@ -276,44 +271,7 @@ class EventAssociationPicker(tk.Frame):
             else:
                 self.selected_ids = self.selected_ids[-1:]
 
-        if (
-            self.association_kind == "people"
-            and not getattr(self, "select_button_text", "")
-            and hasattr(self, "select_button")
-        ):
-            self.select_button.set_text(
-                "Select a person"
-                if self.single_selection
-                else "Select people"
-            )
-
-        self.update_heading_value()
         self.refresh_options()
-
-    def update_heading_value(self):
-        if not hasattr(self, "heading_value"):
-            return
-
-        heading_text = str(
-            getattr(self, "heading_base_text", "") or "Records"
-        )
-
-        if self.association_kind != "people":
-            self.heading_value.set(heading_text)
-            return
-
-        selected_count = len(
-            list(
-                dict.fromkeys(
-                    str(person_id or "").strip()
-                    for person_id in self.selected_ids
-                    if str(person_id or "").strip()
-                )
-            )
-        )
-        self.heading_value.set(
-            f"{heading_text} · {selected_count} selected"
-        )
 
     def set_instruction(self, instruction=""):
         self.instruction_text = str(instruction or "").strip()
@@ -381,7 +339,6 @@ class EventAssociationPicker(tk.Frame):
         return self.controller.recent_location_options(limit=limit)
 
     def refresh_results(self, *arguments):
-        self.update_heading_value()
         options_by_id = getattr(self, "options_by_id", {})
 
         if not options_by_id and self.options:
@@ -563,44 +520,18 @@ class EventAssociationPicker(tk.Frame):
         )
 
         if self.association_kind == "people":
-            people_options = self.controller.people_options()
-            self.options = list(people_options)
             recent_options = [
                 option
                 for option in self.recent_options(limit=12)
                 if str(option.get("value", "") or "").strip()
                 not in self.locked_ids
             ][:5]
-            suggestion_provider = getattr(
-                self.controller,
-                "event_people_suggestion_options",
-                None,
-            )
-            suggested_people_options = (
-                suggestion_provider(self.selected_ids)
-                if callable(suggestion_provider)
-                else recent_options
-            )
-            reference_date_provider = getattr(
-                self,
-                "reference_date_provider",
-                None,
-            )
-            reference_date = (
-                reference_date_provider()
-                if callable(reference_date_provider)
-                else None
-            )
             EventPersonPickerDialog(
                 self,
-                people_options,
+                self.options,
                 recent_options,
                 selected_id,
-                (
-                    self.selector_chosen
-                    if self.single_selection
-                    else self.selectors_chosen
-                ),
+                self.selector_chosen,
                 create_person_command=getattr(
                     self.controller,
                     "create_event_person",
@@ -610,16 +541,6 @@ class EventAssociationPicker(tk.Frame):
                     self.controller.mage_groups()
                     if hasattr(self.controller, "mage_groups")
                     else []
-                ),
-                allow_multiple=not self.single_selection,
-                selected_person_ids=self.selected_ids,
-                locked_person_ids=self.locked_order,
-                suggested_people_options=suggested_people_options,
-                reference_date=reference_date,
-                action_text=(
-                    "Add person"
-                    if self.single_selection
-                    else "Use selected"
                 ),
             )
         elif self.association_kind == "locations":
@@ -665,6 +586,19 @@ class EventAssociationPicker(tk.Frame):
         if not normalized_id:
             return False
 
+        if self.association_kind == "people":
+            self.options = self.controller.people_options()
+        elif self.association_kind == "organizations":
+            self.options = self.controller.organization_options()
+        else:
+            if getattr(self, "foundation_only", False):
+                self.options = self.controller.location_options(
+                    available_for_founding=True,
+                    include_ids=(*self.selected_ids, normalized_id),
+                )
+            else:
+                self.options = self.controller.location_options()
+
         if self.single_selection:
             self.selected_ids = [
                 locked_id
@@ -674,10 +608,7 @@ class EventAssociationPicker(tk.Frame):
         if normalized_id not in self.selected_ids:
             self.selected_ids.append(normalized_id)
 
-        self.options_loaded = False
-        self.options_revision = None
-        self.options_mode = None
-        self.refresh_options()
+        self.refresh_results()
 
         for index, option in enumerate(self.visible_options):
             if str(option.get("value", "") or "") != normalized_id:
@@ -689,26 +620,6 @@ class EventAssociationPicker(tk.Frame):
             break
 
         self.selection_changed()
-
-        if self.change_command is not None:
-            self.change_command()
-
-        return True
-
-    def selectors_chosen(self, association_ids):
-        selected_ids = list(self.locked_order)
-
-        for association_id in association_ids or ():
-            normalized_id = str(association_id or "").strip()
-
-            if normalized_id and normalized_id not in selected_ids:
-                selected_ids.append(normalized_id)
-
-        self.selected_ids = selected_ids
-        self.options_loaded = False
-        self.options_revision = None
-        self.options_mode = None
-        self.refresh_options()
 
         if self.change_command is not None:
             self.change_command()
@@ -737,7 +648,6 @@ class MurderAdditionalPeopleDialog(tk.Toplevel):
         witness_person_ids=(),
         affected_person_ids=(),
         saved_command=None,
-        reference_date_provider=None,
     ):
         super().__init__(parent)
         self.saved_command = saved_command
@@ -793,7 +703,6 @@ class MurderAdditionalPeopleDialog(tk.Toplevel):
             background=SURFACE_MUTED,
             heading_text="Witnessed by",
             select_button_text="Select another witness",
-            reference_date_provider=reference_date_provider,
         )
         self.witnesses_picker.grid(
             row=1,
@@ -810,7 +719,6 @@ class MurderAdditionalPeopleDialog(tk.Toplevel):
             background=SURFACE_MUTED,
             heading_text="Affected by",
             select_button_text="Select another affected person",
-            reference_date_provider=reference_date_provider,
         )
         self.affected_picker.grid(
             row=1,
@@ -919,7 +827,6 @@ class EventEditor(tk.Frame):
         self.association_selection_guard_until = 0.0
         self.job_event_options = []
         self.job_event_options_by_label = {}
-        self.selected_job_event_option_value = None
         self.heading_value = tk.StringVar(value="Event details")
         self.explanation_value = tk.StringVar(
             value="Select an event or add a new one."
@@ -945,10 +852,13 @@ class EventEditor(tk.Frame):
         self.selected_item_link_types = {}
         self.selected_item_new_owners = {}
         self.items_summary_value = tk.StringVar(value="Items: None")
-        self.job_event_value = tk.StringVar(value="No job selected")
+        self.job_event_value = tk.StringVar()
         self.salary_galleons_value = tk.StringVar(value="0")
         self.salary_sickles_value = tk.StringVar(value="0")
         self.salary_knuts_value = tk.StringVar(value="0")
+        self.job_end_year_value = tk.StringVar()
+        self.job_end_month_value = tk.StringVar()
+        self.job_end_day_value = tk.StringVar()
         self.adjusting_year = False
         self.year_value.trace_add("write", self.update_period_display)
         self.month_value.trace_add("write", self.update_period_display)
@@ -1195,7 +1105,7 @@ class EventEditor(tk.Frame):
             sticky="ew",
             pady=(2, 0),
         )
-        self.job_event_panel.grid_columnconfigure(0, weight=5)
+        self.job_event_panel.grid_columnconfigure(0, weight=2)
         self.job_event_panel.grid_columnconfigure(
             (1, 2, 3),
             weight=1,
@@ -1214,47 +1124,19 @@ class EventEditor(tk.Frame):
             sticky="ew",
             padx=(0, 4),
         )
-        job_selection_frame = tk.Frame(
+        self.job_event_picker = RoundedSelect(
             self.job_event_panel,
-            bg=self.background,
+            textvariable=self.job_event_value,
+            values=[],
+            background=self.background,
+            height=24,
+            font=app_font(8),
         )
-        job_selection_frame.grid(
+        self.job_event_picker.grid(
             row=1,
             column=0,
             sticky="ew",
             padx=(0, 4),
-        )
-        job_selection_frame.grid_columnconfigure(0, weight=1)
-        self.job_event_display = tk.Label(
-            job_selection_frame,
-            textvariable=self.job_event_value,
-            bg=FIELD_BACKGROUND,
-            fg=TEXT_DARK,
-            font=app_font(8),
-            anchor="w",
-            justify="left",
-            wraplength=360,
-            padx=10,
-            pady=7,
-        )
-        self.job_event_display.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-        )
-        self.job_event_picker = SoftButton(
-            job_selection_frame,
-            text="Choose job…",
-            command=self.open_job_event_dialog,
-            background=self.background,
-            width=104,
-            height=42,
-            font=app_font(9, "bold"),
-        )
-        self.job_event_picker.grid(
-            row=0,
-            column=1,
-            padx=(6, 0),
         )
         self.job_salary_label = tk.Label(
             self.job_event_panel,
@@ -1302,7 +1184,7 @@ class EventEditor(tk.Frame):
                 salary_block,
                 textvariable=value,
                 background=self.background,
-                width=64,
+                width=92,
                 height=24,
                 font=app_font(8),
                 justify="center",
@@ -1322,6 +1204,96 @@ class EventEditor(tk.Frame):
                 ),
             )
             self.job_salary_entries.append(salary_entry)
+
+        self.job_end_date_panel = tk.Frame(
+            self.job_event_panel,
+            bg=self.background,
+        )
+        self.job_end_date_panel.grid(
+            row=2,
+            column=0,
+            columnspan=4,
+            sticky="ew",
+            pady=(4, 0),
+        )
+        self.job_end_date_panel.grid_columnconfigure(
+            (0, 1, 2),
+            weight=1,
+        )
+        job_end_heading = tk.Label(
+            self.job_end_date_panel,
+            text="End date",
+            bg=self.background,
+            fg=TEXT_DARK,
+            font=app_font(8, "bold"),
+            anchor="w",
+        )
+        job_end_heading.grid(
+            row=0,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+        self.job_end_date_entries = []
+
+        for column, label_text, value in (
+            (0, "Year", self.job_end_year_value),
+            (1, "Month", self.job_end_month_value),
+            (2, "Day", self.job_end_day_value),
+        ):
+            end_date_block = tk.Frame(
+                self.job_end_date_panel,
+                bg=self.background,
+            )
+            end_date_block.grid(
+                row=1,
+                column=column,
+                sticky="ew",
+                padx=(0, 4) if column < 2 else 0,
+            )
+            end_date_block.grid_columnconfigure(0, weight=1)
+            end_date_label = tk.Label(
+                end_date_block,
+                text=label_text,
+                bg=self.background,
+                fg=TEXT_MUTED,
+                font=app_font(7, "bold"),
+                anchor="w",
+            )
+            end_date_label.grid(row=0, column=0, sticky="ew")
+            end_date_entry = RoundedEntry(
+                end_date_block,
+                textvariable=value,
+                background=self.background,
+                height=24,
+                font=app_font(8),
+                justify="center",
+            )
+            end_date_entry.grid(
+                row=1,
+                column=0,
+                sticky="ew",
+                pady=(1, 0),
+            )
+            self.job_end_date_entries.append(end_date_entry)
+
+        self.job_end_calendar_notice = CalendarAdoptionNotice(
+            self.job_end_date_panel,
+            background=self.background,
+            wraplength=540,
+            date_variables=(
+                self.job_end_year_value,
+                self.job_end_month_value,
+                self.job_end_day_value,
+            ),
+        )
+        self.job_end_calendar_notice.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            pady=(2, 0),
+        )
 
         self.job_event_panel.grid_remove()
         description_heading = tk.Frame(
@@ -1395,7 +1367,6 @@ class EventEditor(tk.Frame):
             self.controller,
             "people",
             background=self.background,
-            reference_date_provider=self.date_value,
         )
         self.people_picker.grid(
             row=0,
@@ -1413,7 +1384,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Baby",
             select_button_text="Select the baby",
-            reference_date_provider=self.date_value,
         )
         self.baby_picker.single_selection = True
         self.baby_picker.change_command = (
@@ -1427,7 +1397,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Birthing parent",
             select_button_text="Select the birthing parent",
-            reference_date_provider=self.date_value,
         )
         self.birthing_parent_picker.single_selection = True
         self.birthing_parent_picker.change_command = (
@@ -1441,7 +1410,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Non-Birthing parent",
             select_button_text="Select the non-birthing parent",
-            reference_date_provider=self.date_value,
         )
         self.non_birthing_parent_picker.single_selection = True
         self.non_birthing_parent_picker.change_command = (
@@ -1455,7 +1423,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Perpetrator",
             select_button_text="Select another perpetrator",
-            reference_date_provider=self.date_value,
         )
         self.perpetrators_picker.change_command = (
             self.murder_people_selection_changed
@@ -1468,7 +1435,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Victim",
             select_button_text="Select another victim",
-            reference_date_provider=self.date_value,
         )
         self.victims_picker.change_command = (
             self.murder_people_selection_changed
@@ -1481,7 +1447,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Witness",
             select_button_text="Select another witness",
-            reference_date_provider=self.date_value,
         )
         self.witnesses_picker.change_command = (
             self.murder_people_selection_changed
@@ -1494,7 +1459,6 @@ class EventEditor(tk.Frame):
             background=self.background,
             heading_text="Affected by",
             select_button_text="Select another affected person",
-            reference_date_provider=self.date_value,
         )
         self.affected_picker.change_command = (
             self.murder_people_selection_changed
@@ -1670,38 +1634,6 @@ class EventEditor(tk.Frame):
         self.after_idle(self.update_scrollbar_visibility)
 
     def update_scrollbar_visibility(self):
-        bounds_command = getattr(self.canvas, "bbox", None)
-
-        if not callable(bounds_command):
-            if self.compact_no_scroll and self.scrollbar_visible:
-                self.scrollbar.grid_remove()
-                self.scrollbar_visible = False
-
-            if self.compact_no_scroll:
-                self.canvas.yview_moveto(0)
-
-            return
-
-        bounds = bounds_command("all")
-        content_height = (
-            max(0, bounds[3] - bounds[1])
-            if bounds
-            else 0
-        )
-        available_height = max(1, self.canvas.winfo_height())
-        available_width = max(1, self.canvas.winfo_width())
-
-        if (
-            hasattr(self, "eminence_picker")
-            and self.eminence_picker.fit_to_available_space(
-                content_height,
-                available_height,
-                available_width,
-            )
-        ):
-            self.after_idle(self.update_scrollbar_visibility)
-            return
-
         if self.compact_no_scroll:
             if self.scrollbar_visible:
                 self.scrollbar.grid_remove()
@@ -1710,6 +1642,13 @@ class EventEditor(tk.Frame):
             self.canvas.yview_moveto(0)
             return
 
+        bounds = self.canvas.bbox("all")
+        content_height = (
+            max(0, bounds[3] - bounds[1])
+            if bounds
+            else 0
+        )
+        available_height = max(1, self.canvas.winfo_height())
         needs_scrollbar = content_height > available_height + 2
 
         if needs_scrollbar and not self.scrollbar_visible:
@@ -1773,11 +1712,14 @@ class EventEditor(tk.Frame):
         self.day_value.set("")
         self.time_value.set("")
         if hasattr(self, "job_event_value"):
-            self.selected_job_event_option_value = None
-            self.job_event_value.set("No job selected")
+            self.job_event_value.set("")
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
+            if hasattr(self, "job_end_year_value"):
+                self.job_end_year_value.set("")
+                self.job_end_month_value.set("")
+                self.job_end_day_value.set("")
             self.job_event_panel.grid_remove()
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
@@ -1866,11 +1808,14 @@ class EventEditor(tk.Frame):
         self.day_value.set("")
         self.time_value.set("")
         if hasattr(self, "job_event_value"):
-            self.selected_job_event_option_value = None
-            self.job_event_value.set("No job selected")
+            self.job_event_value.set("")
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
+            if hasattr(self, "job_end_year_value"):
+                self.job_end_year_value.set("")
+                self.job_end_month_value.set("")
+                self.job_end_day_value.set("")
         self.description_control.text.configure(state="normal")
         self.description_control.text.delete("1.0", "end")
         self.configure_type_options()
@@ -2358,59 +2303,17 @@ class EventEditor(tk.Frame):
             for option in self.job_event_options
             if str(option.get("label", "") or "").strip()
         }
+        self.job_event_picker.set_values(
+            list(self.job_event_options_by_label)
+        )
 
     def selected_job_event_option(self):
-        option = getattr(
-            self,
-            "selected_job_event_option_value",
-            None,
-        )
-        return deepcopy(option) if isinstance(option, dict) else None
+        if not hasattr(self, "job_event_value"):
+            return None
 
-    def set_selected_job_event_option(self, option):
-        if not isinstance(option, dict):
-            self.selected_job_event_option_value = None
-            self.job_event_value.set("No job selected")
-            return
-
-        self.selected_job_event_option_value = deepcopy(option)
-        display_label = str(
-            option.get("label", "") or "Unnamed job"
-        ).strip()
-        display_label = display_label.replace(
-            " (within ",
-            "\n(within ",
-            1,
+        return self.job_event_options_by_label.get(
+            self.job_event_value.get(),
         )
-        self.job_event_value.set(
-            display_label
-        )
-
-    def open_job_event_dialog(self):
-        self.refresh_job_event_options()
-        selected = self.selected_job_event_option()
-        location_provider = getattr(
-            self.controller,
-            "location_records",
-            None,
-        )
-        locations = (
-            list(location_provider())
-            if callable(location_provider)
-            else []
-        )
-        EventJobSelectionDialog(
-            self,
-            self.job_event_options,
-            locations,
-            (selected or {}).get("organization_id", ""),
-            (selected or {}).get("organization_job_id", ""),
-            self.job_event_dialog_selected,
-        )
-
-    def job_event_dialog_selected(self, option):
-        self.set_selected_job_event_option(option)
-        return True
 
     def load_job_event_values(self):
         if not hasattr(self, "job_event_value"):
@@ -2421,48 +2324,41 @@ class EventEditor(tk.Frame):
         ).strip() not in ("started_job", "received_raise"):
             self.job_event_options = []
             self.job_event_options_by_label = {}
-            self.set_selected_job_event_option(None)
+            self.job_event_picker.set_values([])
+            self.job_event_value.set("")
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
+            if hasattr(self, "job_end_year_value"):
+                self.job_end_year_value.set("")
+                self.job_end_month_value.set("")
+                self.job_end_day_value.set("")
             return
 
+        self.refresh_job_event_options()
         organization_id = str(
             self.event.get("organization_id", "") or ""
         ).strip()
         organization_job_id = str(
             self.event.get("organization_job_id", "") or ""
         ).strip()
-        option_reader = getattr(
-            self.controller,
-            "organization_job_option",
-            None,
-        )
-        selected_option = (
-            option_reader(organization_id, organization_job_id)
-            if callable(option_reader)
-            else None
-        )
+        selected_label = ""
 
-        if selected_option is None and organization_id and organization_job_id:
-            self.refresh_job_event_options()
-            selected_option = next(
-                (
-                    option
-                    for option in self.job_event_options
-                    if str(
-                        option.get("organization_id", "") or ""
-                    ).strip()
-                    == organization_id
-                    and str(
-                        option.get("organization_job_id", "") or ""
-                    ).strip()
-                    == organization_job_id
-                ),
-                None,
-            )
+        for option in self.job_event_options:
+            if (
+                str(option.get("organization_id", "") or "")
+                == organization_id
+                and str(
+                    option.get("organization_job_id", "") or ""
+                )
+                == organization_job_id
+            ):
+                selected_label = str(
+                    option.get("label", "") or ""
+                )
+                break
 
-        self.set_selected_job_event_option(selected_option)
+        self.job_event_value.set(selected_label)
         salary = self.event.get("salary")
 
         if isinstance(salary, dict):
@@ -2479,6 +2375,14 @@ class EventEditor(tk.Frame):
             self.salary_galleons_value.set("0")
             self.salary_sickles_value.set("0")
             self.salary_knuts_value.set("0")
+
+        if hasattr(self, "job_end_year_value"):
+            end_year, end_month, end_day = split_world_event_date(
+                self.event.get("job_end_date", "")
+            )
+            self.job_end_year_value.set(end_year)
+            self.job_end_month_value.set(end_month)
+            self.job_end_day_value.set(end_day)
 
     def job_event_selection_changed(self, *arguments):
         option = self.selected_job_event_option()
@@ -2521,6 +2425,7 @@ class EventEditor(tk.Frame):
             self.form.after_idle(self.form_resized)
             return
 
+        self.refresh_job_event_options()
         self.job_salary_label.configure(
             text=(
                 "New monthly salary"
@@ -2533,6 +2438,17 @@ class EventEditor(tk.Frame):
 
         for salary_entry in self.job_salary_entries:
             salary_entry.set_enabled(self.controls_enabled)
+
+        if (
+            event_type == "started_job"
+            and hasattr(self, "job_end_date_panel")
+        ):
+            self.job_end_date_panel.grid()
+
+            for end_date_entry in self.job_end_date_entries:
+                end_date_entry.set_enabled(self.controls_enabled)
+        elif hasattr(self, "job_end_date_panel"):
+            self.job_end_date_panel.grid_remove()
 
         self.form.after_idle(self.form_resized)
 
@@ -2688,37 +2604,6 @@ class EventEditor(tk.Frame):
 
             return
 
-        if event_type in ("started_job", "received_raise"):
-            ancillary_row = 0
-
-            if not self.hide_locations:
-                self.locations_picker.grid(
-                    row=0,
-                    column=0,
-                    columnspan=2,
-                    sticky="ew",
-                )
-                ancillary_row = 1
-
-            self.murder_additional_people_panel.grid(
-                row=ancillary_row,
-                column=0,
-                columnspan=2,
-                sticky="ew",
-                pady=(3, 0) if ancillary_row else 0,
-            )
-
-            if hasattr(self, "eminence_picker"):
-                self.eminence_picker.grid(
-                    row=ancillary_row + 1,
-                    column=0,
-                    columnspan=2,
-                    sticky="ew",
-                    pady=(3, 0),
-                )
-
-            return
-
         self.people_picker.grid(
             row=0,
             column=0,
@@ -2804,7 +2689,6 @@ class EventEditor(tk.Frame):
         )
         self.people_picker.set_enabled(
             field_editable and not self.lock_people
-            and selected_type not in ("started_job", "received_raise")
         )
         self.baby_picker.set_enabled(
             field_editable
@@ -2853,6 +2737,13 @@ class EventEditor(tk.Frame):
 
             for salary_entry in self.job_salary_entries:
                 salary_entry.set_enabled(field_editable)
+
+            for end_date_entry in getattr(
+                self,
+                "job_end_date_entries",
+                (),
+            ):
+                end_date_entry.set_enabled(field_editable)
 
         if hasattr(self, "link_items_button"):
             self.link_items_button.set_enabled(editable)
@@ -2951,7 +2842,6 @@ class EventEditor(tk.Frame):
             self.witnesses_picker.get_values(),
             self.affected_picker.get_values(),
             self.murder_additional_people_chosen,
-            reference_date_provider=self.date_value,
         )
         return True
 
@@ -3052,7 +2942,6 @@ class EventEditor(tk.Frame):
                         item_options_command(
                             possessor_person_ids=possessor_person_ids,
                             on_date=event_date,
-                            include_all=True,
                         )
                     )
                     if callable(item_options_command)
@@ -3063,9 +2952,9 @@ class EventEditor(tk.Frame):
                 return False
 
             item_link_explanation = (
-                "Items possessed during this event by its people, witnesses, "
-                "or affected people appear first. Every other item remains "
-                "available so this event can establish a new connection."
+                "Only items possessed during this event by its people, "
+                "witnesses, or affected people are available. Select why "
+                "each item is linked and what the event does to it."
             )
         else:
             item_options = (
@@ -3301,21 +3190,7 @@ class EventEditor(tk.Frame):
         self.people_picker.single_selection = selected_type in (
             "died",
             "returns_as_ghost",
-            "started_job",
-            "received_raise",
         )
-
-        if selected_type in ("started_job", "received_raise"):
-            job_locked_person_ids = self.people_picker.locked_order[:1]
-            job_person_ids = (
-                job_locked_person_ids
-                or self.people_picker.get_values()[:1]
-            )
-            self.people_picker.set_values(
-                job_person_ids,
-                job_locked_person_ids,
-            )
-
         self.locations_picker.single_selection = (
             selected_type
             in (
@@ -3790,6 +3665,25 @@ class EventEditor(tk.Frame):
 
         return date_value
 
+    def job_end_date_value(self):
+        if not hasattr(self, "job_end_year_value"):
+            return str(
+                getattr(self, "event", {}).get("job_end_date", "") or ""
+            ).strip()
+
+        year = self.job_end_year_value.get().strip()
+        month = self.job_end_month_value.get().strip()
+        day = self.job_end_day_value.get().strip()
+        date_value = year
+
+        if month:
+            date_value += f"-{month}"
+
+        if day:
+            date_value += f"-{day}"
+
+        return date_value
+
     def values(self):
         selected_locations = self.locations_picker.get_values()
         locked_locations = list(self.locations_picker.locked_order)
@@ -4003,7 +3897,9 @@ class EventEditor(tk.Frame):
                 self.event.get("job_assignment_id", "") or ""
             ),
             "job_end_date": str(
-                self.event.get("job_end_date", "") or ""
+                self.job_end_date_value()
+                if event_type == "started_job"
+                else ""
             ),
             "salary": (
                 {
@@ -4049,6 +3945,39 @@ class EventEditor(tk.Frame):
             )
             return False
 
+        if self.context == "person" and values["item_ids"]:
+            possessor_person_ids = list(
+                dict.fromkeys(
+                    [
+                        *values["person_ids"],
+                        *values["witness_person_ids"],
+                        *values["affected_person_ids"],
+                    ]
+                )
+            )
+
+            try:
+                eligible_item_ids = {
+                    option["value"]
+                    for option in self.controller.item_options(
+                        possessor_person_ids=possessor_person_ids,
+                        on_date=values["date"],
+                    )
+                }
+            except (KeyError, TypeError, ValueError) as error:
+                self.show_error(str(error))
+                return False
+
+            if any(
+                item_id not in eligible_item_ids
+                for item_id in values["item_ids"]
+            ):
+                self.show_error(
+                    "Every linked item must be possessed during this event "
+                    "by one of its people, witnesses, or affected people."
+                )
+                return False
+
         if (
             values["event_type"] in ("died", "murder")
             and not values["date"]
@@ -4065,6 +3994,22 @@ class EventEditor(tk.Frame):
                 self.show_error(
                     "A job event must belong to exactly one person."
                 )
+                return False
+
+        if (
+            values["event_type"] == "started_job"
+            and hasattr(self, "job_end_year_value")
+        ):
+            end_year = self.job_end_year_value.get().strip()
+            end_month = self.job_end_month_value.get().strip()
+            end_day = self.job_end_day_value.get().strip()
+
+            if not end_year and (end_month or end_day):
+                self.show_error("Job end month and day require a year.")
+                return False
+
+            if end_day and not end_month:
+                self.show_error("Job end day requires a month.")
                 return False
 
         if (

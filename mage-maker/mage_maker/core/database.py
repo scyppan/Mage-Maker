@@ -6,7 +6,6 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mage_maker.core.dates import format_date_parts
 from mage_maker.sections.development.models import (
     DEVELOPMENT_ASSIGNMENT_SETTING_KEY,
     calculate_school_start_year,
@@ -19,7 +18,6 @@ from mage_maker.sections.development.models import (
 )
 from mage_maker.sections.development.school_years import (
     migrate_annual_progression_choices,
-    reconcile_development_plan_characteristics,
 )
 from mage_maker.sections.development.initial_bonuses import (
     allowance_sickles,
@@ -38,11 +36,7 @@ from mage_maker.sections.development.initial_values import (
     resolved_blood_status,
     resolved_developmental_environment,
 )
-from mage_maker.sections.names.history import (
-    migrate_legacy_name_details,
-    synchronize_birth_name_date,
-)
-from mage_maker.sections.names.timeline import synchronize_name_change_events
+from mage_maker.sections.names.history import migrate_legacy_name_details
 from mage_maker.sections.family_tree.spouse_relationships import (
     merge_mate_ids,
     normalize_spouse_relationships,
@@ -106,6 +100,12 @@ from mage_maker.sections.items.models import (
     normalize_item_record,
     normalize_item_records,
 )
+from mage_maker.sections.books.models import (
+    normalize_book_reading,
+    normalize_book_readings,
+    normalize_book_record,
+    normalize_book_records,
+)
 
 
 class JsonDatabase:
@@ -139,6 +139,8 @@ class JsonDatabase:
             "organizations",
             "events",
             "items",
+            "books",
+            "book_readings",
         ):
             if collection_name not in database_data:
                 database_data[collection_name] = []
@@ -150,6 +152,25 @@ class JsonDatabase:
 
         if database_data.get("items", []) != normalized_items:
             database_data["items"] = normalized_items
+            changed = True
+
+        normalized_books = normalize_book_records(
+            database_data.get("books", [])
+        )
+
+        if database_data.get("books", []) != normalized_books:
+            database_data["books"] = normalized_books
+            changed = True
+
+        normalized_book_readings = normalize_book_readings(
+            database_data.get("book_readings", [])
+        )
+
+        if (
+            database_data.get("book_readings", [])
+            != normalized_book_readings
+        ):
+            database_data["book_readings"] = normalized_book_readings
             changed = True
 
         settings = database_data.get("_application_settings")
@@ -220,20 +241,6 @@ class JsonDatabase:
                 changed = True
 
             if not bool(person.get("non_magical")):
-                if person.get("development_plan") in (None, ""):
-                    continue
-
-                reconciled_plan = (
-                    reconcile_development_plan_characteristics(
-                        person.get("development_plan"),
-                        person.get("characteristics"),
-                    )
-                )
-
-                if person.get("development_plan") != reconciled_plan:
-                    person["development_plan"] = reconciled_plan
-                    changed = True
-
                 continue
 
             cleaned_plan = non_magical_development_plan(
@@ -333,13 +340,15 @@ class JsonDatabase:
 
         schema_version = metadata.get("schema_version")
 
-        if not isinstance(schema_version, int) or schema_version > 35:
+        if not isinstance(schema_version, int) or schema_version > 36:
             return False
 
-        if schema_version == 35:
+        if schema_version == 36:
             stored_events = database_data.get("events", [])
             stored_organizations = database_data.get("organizations", [])
             stored_locations = database_data.get("locations", [])
+            stored_books = database_data.get("books", [])
+            stored_book_readings = database_data.get("book_readings", [])
             normalized_events = normalize_world_events(stored_events)
             normalized_organizations = [
                 normalize_organization_record(organization)
@@ -349,9 +358,15 @@ class JsonDatabase:
                 normalize_location_record(location)
                 for location in stored_locations
             ]
+            normalized_books = normalize_book_records(stored_books)
+            normalized_book_readings = normalize_book_readings(
+                stored_book_readings
+            )
             database_data["events"] = normalized_events
             database_data["organizations"] = normalized_organizations
             database_data["locations"] = normalized_locations
+            database_data["books"] = normalized_books
+            database_data["book_readings"] = normalized_book_readings
             death_event_changed = self.repair_orphan_death_events(
                 database_data
             )
@@ -368,9 +383,6 @@ class JsonDatabase:
             people_changed = self.normalize_people_death_timeline_state(
                 database_data
             )
-            life_start_changed = self.normalize_people_life_start_state(
-                database_data
-            )
             birth_changed = synchronize_birth_events_from_people(
                 database_data
             )
@@ -379,11 +391,12 @@ class JsonDatabase:
                 stored_events != normalized_events
                 or stored_organizations != normalized_organizations
                 or stored_locations != normalized_locations
+                or stored_books != normalized_books
+                or stored_book_readings != normalized_book_readings
                 or death_event_changed
                 or campus_changed
                 or extinction_changed
                 or people_changed
-                or life_start_changed
                 or birth_changed
             )
 
@@ -1504,54 +1517,26 @@ class JsonDatabase:
             schema_version = 35
             migrated = True
 
-        if self.normalize_people_life_start_state(database_data):
+        if schema_version < 36:
+            database_data["organizations"] = [
+                normalize_organization_record(organization)
+                for organization in database_data.get("organizations", [])
+                if isinstance(organization, dict)
+            ]
+            database_data["books"] = normalize_book_records(
+                database_data.get("books", [])
+            )
+            database_data["book_readings"] = normalize_book_readings(
+                database_data.get("book_readings", [])
+            )
+            schema_version = 36
             migrated = True
 
-        metadata["schema_version"] = 35
-        metadata["database_version"] = "0.35.0"
+        metadata["schema_version"] = 36
+        metadata["database_version"] = "0.36.0"
         database_data["_database"] = metadata
 
         return migrated
-
-    def normalize_people_life_start_state(self, database_data):
-        changed = False
-
-        for person in database_data.get("people", []):
-            if not isinstance(person, dict):
-                continue
-
-            name_details = migrate_legacy_name_details(
-                person.get("name_details", {}),
-                person.get("displayed_name", ""),
-                person.get("record_id", ""),
-            )
-            synchronized_details = synchronize_birth_name_date(
-                name_details,
-                format_date_parts(
-                    person.get("birth_year"),
-                    person.get("birth_month"),
-                    person.get("birth_day"),
-                    unknown="",
-                ),
-            )
-            synchronized_person = deepcopy(person)
-            synchronized_person["name_details"] = deepcopy(
-                synchronized_details
-            )
-            synchronized_events = synchronize_name_change_events(
-                synchronized_details,
-                ensure_life_start_events(synchronized_person),
-            )
-
-            if person.get("name_details") != synchronized_details:
-                person["name_details"] = synchronized_details
-                changed = True
-
-            if person.get("timeline_events", []) != synchronized_events:
-                person["timeline_events"] = synchronized_events
-                changed = True
-
-        return changed
 
     def repair_orphan_death_events(self, database_data):
         known_person_ids = {
@@ -1643,6 +1628,8 @@ class JsonDatabase:
             "organizations",
             "events",
             "items",
+            "books",
+            "book_readings",
         ):
             if not isinstance(database_data.get(collection_name), list):
                 raise TypeError(
@@ -1894,18 +1881,6 @@ class JsonDatabase:
             normalized_plan = normalize_development_plan(
                 person.get("development_plan")
             )
-            reconciled_plan = (
-                reconcile_development_plan_characteristics(
-                    normalized_plan,
-                    normalized_characteristics,
-                )
-            )
-
-            if normalized_plan != reconciled_plan:
-                raise ValueError(
-                    "Development-year characteristic purchases must keep "
-                    "every characteristic at five or below."
-                )
 
             if person.get("non_magical"):
                 if str(person.get("school", "") or ""):
@@ -1943,6 +1918,8 @@ class JsonDatabase:
             "organizations",
             "events",
             "items",
+            "books",
+            "book_readings",
         ):
             seen_record_ids = set()
 
@@ -2010,6 +1987,97 @@ class JsonDatabase:
                                 "Every item holder must reference an "
                                 "existing person."
                             )
+
+                if collection_name == "books":
+                    normalized_book = normalize_book_record(record)
+
+                    if record != normalized_book:
+                        raise ValueError(
+                            "Books must use their canonical stored structure."
+                        )
+
+                if collection_name == "book_readings":
+                    normalized_reading = normalize_book_reading(record)
+
+                    if record != normalized_reading:
+                        raise ValueError(
+                            "Book readings must use their canonical stored "
+                            "structure."
+                        )
+
+        known_book_ids = {
+            str(book.get("record_id", "") or "").strip()
+            for book in database_data["books"]
+            if isinstance(book, dict)
+        }
+        known_location_ids = {
+            str(location.get("record_id", "") or "").strip()
+            for location in database_data["locations"]
+            if isinstance(location, dict)
+        }
+        known_organization_ids = {
+            str(organization.get("record_id", "") or "").strip()
+            for organization in database_data["organizations"]
+            if isinstance(organization, dict)
+        }
+
+        for book in database_data["books"]:
+            if (
+                book["author_person_id"]
+                and book["author_person_id"] not in seen_ids
+            ):
+                raise ValueError(
+                    "Every linked book author must reference an existing "
+                    "person."
+                )
+
+            if (
+                book["publication_location_id"]
+                and book["publication_location_id"] not in known_location_ids
+            ):
+                raise ValueError(
+                    "Every book publication location must exist."
+                )
+
+            for holding in book["holdings"]:
+                if (
+                    holding["organization_id"]
+                    and holding["organization_id"]
+                    not in known_organization_ids
+                ):
+                    raise ValueError(
+                        "Every book library or shop holding must reference "
+                        "an existing organization."
+                    )
+
+                if (
+                    holding["person_id"]
+                    and holding["person_id"] not in seen_ids
+                ):
+                    raise ValueError(
+                        "Every private book holding must reference an "
+                        "existing person."
+                    )
+
+                if (
+                    holding["location_id"]
+                    and holding["location_id"] not in known_location_ids
+                ):
+                    raise ValueError(
+                        "Every archived book holding must reference an "
+                        "existing location."
+                    )
+
+        for reading in database_data["book_readings"]:
+            if reading["person_id"] not in seen_ids:
+                raise ValueError(
+                    "Every book reading must reference an existing person."
+                )
+
+            if reading["book_id"] not in known_book_ids:
+                raise ValueError(
+                    "Every book reading must reference an existing book."
+                )
 
         known_item_ids = {
             str(item.get("record_id", "") or "").strip()
@@ -3093,6 +3161,44 @@ class JsonDatabase:
 
             self.data["items"] = repaired_items
 
+            repaired_books = []
+
+            for stored_book in self.data.get("books", []):
+                book = normalize_book_record(stored_book)
+
+                if book["author_person_id"] == record_id:
+                    book["author_person_id"] = ""
+                    book["author_name"] = (
+                        book["author_name"] or deleted_person_name
+                    )
+
+                for holding in book["holdings"]:
+                    if (
+                        holding["holder_type"] == "Private owner"
+                        and holding["person_id"] == record_id
+                    ):
+                        holding["person_id"] = ""
+                        holding["holder_name"] = (
+                            holding["holder_name"] or deleted_person_name
+                        )
+                repaired_books.append(normalize_book_record(book))
+
+            self.data["books"] = repaired_books
+            self.data["book_readings"] = [
+                normalize_book_reading(
+                    {
+                        **reading,
+                        "source_person_id": (
+                            ""
+                            if reading.get("source_person_id") == record_id
+                            else reading.get("source_person_id", "")
+                        ),
+                    }
+                )
+                for reading in self.data.get("book_readings", [])
+                if reading.get("person_id") != record_id
+            ]
+
             self.dirty = True
             self.revision += 1
 
@@ -3106,6 +3212,8 @@ class JsonDatabase:
             "organizations",
             "events",
             "items",
+            "books",
+            "book_readings",
         ):
             raise KeyError(f"Unknown application collection: {collection_name}")
 
@@ -3117,6 +3225,8 @@ class JsonDatabase:
             "organizations",
             "events",
             "items",
+            "books",
+            "book_readings",
         ):
             raise KeyError(
                 f"Unknown application collection: {collection_name}"

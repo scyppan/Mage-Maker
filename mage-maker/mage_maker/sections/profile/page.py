@@ -28,7 +28,6 @@ from mage_maker.sections.names.history import (
     new_name_entry,
     normalize_name_details,
     normalize_name_entry,
-    synchronize_birth_name_date,
 )
 from mage_maker.sections.names.timeline import (
     name_entry_for_timeline_event,
@@ -111,6 +110,7 @@ class PersonForm(tk.Frame):
         organization_create_command=None,
         organization_location_provider=None,
         item_controller=None,
+        book_controller=None,
         status_command=None,
         people_summary_provider=None,
     ):
@@ -136,6 +136,7 @@ class PersonForm(tk.Frame):
             organization_location_provider
         )
         self.item_controller = item_controller
+        self.book_controller = book_controller
         self.status_command = status_command
         self.loading = False
         self.variables = {}
@@ -700,7 +701,12 @@ class PersonForm(tk.Frame):
         self.pages["jobs"] = page
 
     def build_books_page(self):
-        page = BooksView(self.content)
+        page = BooksView(
+            self.content,
+            self.book_controller,
+            self.status_command,
+            self.events_changed_command,
+        )
         page.grid(row=0, column=0, sticky="nsew")
         self.books = page
         self.pages["books"] = page
@@ -904,63 +910,6 @@ class PersonForm(tk.Frame):
             self.person_snapshot.get("timeline_events", [])
         )
 
-    def synchronize_birth_date_dependents(self):
-        if not self.current_record_id:
-            return False
-
-        birth_year = self.variables["birth_year"].get()
-        birth_month = self.variables["birth_month"].get()
-        birth_day = self.variables["birth_day"].get()
-        birth_date = format_date_parts(
-            birth_year,
-            birth_month,
-            birth_day,
-            unknown="",
-        )
-        synchronized_details = synchronize_birth_name_date(
-            self.name_details,
-            birth_date,
-        )
-        timeline_is_current = self.section_is_current("timeline")
-        current_events = (
-            self.timeline.get_events()
-            if timeline_is_current
-            else deepcopy(
-                self.person_snapshot.get("timeline_events", [])
-            )
-        )
-        timeline_person = {
-            "displayed_name": self.variables["displayed_name"].get(),
-            "birth_year": birth_year,
-            "birth_month": birth_month,
-            "birth_day": birth_day,
-            "name_details": deepcopy(synchronized_details),
-            "timeline_events": current_events,
-        }
-        synchronized_events = synchronize_name_change_events(
-            synchronized_details,
-            ensure_life_start_events(timeline_person),
-        )
-        changed = (
-            synchronized_details != self.name_details
-            or synchronized_events != current_events
-        )
-        self.name_details = deepcopy(synchronized_details)
-        self.person_snapshot.update(
-            {
-                "birth_year": birth_year,
-                "birth_month": birth_month,
-                "birth_day": birth_day,
-                "name_details": deepcopy(synchronized_details),
-                "timeline_events": deepcopy(synchronized_events),
-            }
-        )
-
-        if timeline_is_current and synchronized_events != current_events:
-            self.timeline.set_events(synchronized_events)
-
-        return changed
-
     def current_relationship_values(self):
         if self.section_is_current("family_tree"):
             return self.family_tree.get_relationship_values()
@@ -1080,7 +1029,6 @@ class PersonForm(tk.Frame):
         ):
             return
 
-        self.synchronize_birth_date_dependents()
         timeline_person = self.person_for_deferred_load()
         timeline_person["name_details"] = deepcopy(self.name_details)
         timeline_person["timeline_events"] = self.current_timeline_events()
@@ -1317,6 +1265,7 @@ class PersonForm(tk.Frame):
             self.variables["birth_day"].get(),
             school_attended=school_attended,
         )
+        self.books.set_person(self.current_record_id)
         self.books.set_development_records(
             plan.get("school_years", []),
             plan.get("adult_years", []),
@@ -1353,16 +1302,23 @@ class PersonForm(tk.Frame):
 
     def save_name_details(self, name_details):
         self.ensure_timeline_loaded()
+        normalized_details = normalize_name_details(name_details)
         birth_date = format_date_parts(
             self.variables["birth_year"].get(),
             self.variables["birth_month"].get(),
             self.variables["birth_day"].get(),
             unknown="",
         )
-        normalized_details = synchronize_birth_name_date(
-            name_details,
-            birth_date,
-        )
+
+        for entry in normalized_details["entries"]:
+            name_type = " ".join(
+                entry["name_type"].strip().casefold().split()
+            )
+
+            if name_type in ("birth name", "birthname"):
+                entry["date"] = birth_date
+
+        normalized_details = normalize_name_details(normalized_details)
         timeline_person = self.current_profile_values()
         timeline_person["name_details"] = deepcopy(normalized_details)
         timeline_person["timeline_events"] = self.timeline.get_events()
@@ -1509,14 +1465,33 @@ class PersonForm(tk.Frame):
             born_event["note"] = str(
                 values.get("description", "") or ""
             ).strip()
-            self.name_details = synchronize_birth_name_date(
-                self.name_details,
-                format_date_parts(
-                    birth_year,
-                    birth_month,
-                    birth_day,
-                    unknown="",
-                ),
+            updated_name_details = deepcopy(self.name_details)
+
+            for entry in updated_name_details.get("entries", []):
+                name_type = " ".join(
+                    str(entry.get("name_type", "") or "")
+                    .strip()
+                    .casefold()
+                    .split()
+                )
+
+                if name_type in ("birth name", "birthname"):
+                    entry["date"] = (
+                        ""
+                        if not birth_year
+                        else "-".join(
+                            date_part
+                            for date_part in (
+                                birth_year,
+                                birth_month,
+                                birth_day,
+                            )
+                            if date_part
+                        )
+                    )
+
+            self.name_details = normalize_name_details(
+                updated_name_details
             )
 
         timeline_person = self.current_profile_values()
@@ -1858,7 +1833,6 @@ class PersonForm(tk.Frame):
         }
 
     def get_values(self):
-        self.synchronize_birth_date_dependents()
         values = {}
 
         for field_name, variable in self.variables.items():
@@ -2091,7 +2065,6 @@ class PersonForm(tk.Frame):
             self.update_birth_date_display()
             self.update_death_date_visibility()
             self.update_death_overview()
-            self.synchronize_birth_date_dependents()
 
             if self.section_is_current("family_tree"):
                 family_person = deepcopy(current_person)
