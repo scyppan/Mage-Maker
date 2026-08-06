@@ -61,6 +61,30 @@ SORT_OPTIONS = (
 )
 GENERATION_MAX_SPAN_YEARS = 20
 GENERATION_FILTER_PREFIX = "Generation "
+AGE_FILTER_PREFIX = "The "
+AGE_FILTER_SUFFIX = " Age"
+AGE_ORDINAL_WORDS = (
+    "First",
+    "Second",
+    "Third",
+    "Fourth",
+    "Fifth",
+    "Sixth",
+    "Seventh",
+    "Eighth",
+    "Ninth",
+    "Tenth",
+    "Eleventh",
+    "Twelfth",
+    "Thirteenth",
+    "Fourteenth",
+    "Fifteenth",
+    "Sixteenth",
+    "Seventeenth",
+    "Eighteenth",
+    "Nineteenth",
+    "Twentieth",
+)
 
 
 def approximate_generation_map(people):
@@ -143,6 +167,214 @@ def approximate_generation_map(people):
     return generations
 
 
+def person_generation_sort_key(person):
+    values = []
+
+    for field_name, fallback in (
+        ("birth_year", 100000),
+        ("birth_month", 13),
+        ("birth_day", 32),
+    ):
+        value = person.get(field_name)
+
+        try:
+            values.append(int(value))
+        except (TypeError, ValueError):
+            values.append(fallback)
+
+    values.append(
+        str(person.get("displayed_name", "") or "").casefold()
+    )
+    values.append(str(person.get("record_id", "") or ""))
+    return tuple(values)
+
+
+def apply_generation_overrides(
+    people,
+    generation_by_id,
+    generation_overrides,
+):
+    people_by_id = {
+        str(person.get("record_id", "") or "").strip(): person
+        for person in people or []
+        if isinstance(person, dict)
+        and str(person.get("record_id", "") or "").strip()
+    }
+    updated_generations = {}
+
+    for record_id, generation_number in dict(
+        generation_by_id or {}
+    ).items():
+        normalized_record_id = str(record_id or "").strip()
+
+        if (
+            normalized_record_id not in people_by_id
+            or isinstance(generation_number, bool)
+        ):
+            continue
+
+        try:
+            normalized_generation_number = int(generation_number)
+        except (TypeError, ValueError):
+            continue
+
+        if normalized_generation_number <= 0:
+            continue
+
+        updated_generations[normalized_record_id] = (
+            normalized_generation_number
+        )
+    normalized_overrides = {
+        str(record_id or "").strip(): str(
+            target_record_id or ""
+        ).strip()
+        for record_id, target_record_id in dict(
+            generation_overrides or {}
+        ).items()
+        if str(record_id or "").strip() in updated_generations
+        and str(target_record_id or "").strip()
+        in updated_generations
+        and str(record_id or "").strip()
+        != str(target_record_id or "").strip()
+    }
+
+    for _ in range(len(updated_generations)):
+        changed = False
+
+        for record_id, target_record_id in normalized_overrides.items():
+            target_generation = updated_generations.get(
+                target_record_id
+            )
+
+            if (
+                target_generation is not None
+                and updated_generations.get(record_id)
+                != target_generation
+            ):
+                updated_generations[record_id] = target_generation
+                changed = True
+
+        if not changed:
+            break
+
+    group_sort_keys = {}
+
+    for record_id, generation_number in updated_generations.items():
+        person = people_by_id[record_id]
+        person_sort_key = person_generation_sort_key(person)
+        existing_sort_key = group_sort_keys.get(generation_number)
+
+        if (
+            existing_sort_key is None
+            or person_sort_key < existing_sort_key
+        ):
+            group_sort_keys[generation_number] = person_sort_key
+
+    ordered_generation_numbers = [
+        generation_number
+        for _, generation_number in sorted(
+            (
+                person_sort_key,
+                generation_number,
+            )
+            for generation_number, person_sort_key
+            in group_sort_keys.items()
+        )
+    ]
+    renumbered_generations = {
+        generation_number: index
+        for index, generation_number in enumerate(
+            ordered_generation_numbers,
+            start=1,
+        )
+    }
+    return {
+        record_id: renumbered_generations[generation_number]
+        for record_id, generation_number in updated_generations.items()
+    }
+
+
+def age_ordinal_text(age_number):
+    normalized_age_number = max(1, int(age_number))
+
+    if normalized_age_number <= len(AGE_ORDINAL_WORDS):
+        return AGE_ORDINAL_WORDS[normalized_age_number - 1]
+
+    last_two_digits = normalized_age_number % 100
+
+    if 11 <= last_two_digits <= 13:
+        suffix = "th"
+    elif normalized_age_number % 10 == 1:
+        suffix = "st"
+    elif normalized_age_number % 10 == 2:
+        suffix = "nd"
+    elif normalized_age_number % 10 == 3:
+        suffix = "rd"
+    else:
+        suffix = "th"
+
+    return f"{normalized_age_number}{suffix}"
+
+
+def generation_group_labels(people, generation_by_id):
+    people_by_id = {
+        str(person.get("record_id", "") or "").strip(): person
+        for person in people or []
+        if isinstance(person, dict)
+        and str(person.get("record_id", "") or "").strip()
+    }
+    birth_years_by_generation = {}
+
+    for record_id, generation_number in dict(
+        generation_by_id or {}
+    ).items():
+        person = people_by_id.get(str(record_id or "").strip())
+
+        if person is None:
+            continue
+
+        birth_year = person.get("birth_year")
+
+        if isinstance(birth_year, bool):
+            continue
+
+        try:
+            normalized_birth_year = int(birth_year)
+        except (TypeError, ValueError):
+            continue
+
+        birth_years_by_generation.setdefault(
+            int(generation_number),
+            [],
+        ).append(normalized_birth_year)
+
+    labels_by_generation = {}
+    age_number = 0
+    generation_number = 0
+
+    for group_number in sorted(set(generation_by_id.values())):
+        birth_years = birth_years_by_generation.get(group_number, [])
+        spans_more_than_twenty_years = bool(
+            birth_years
+            and max(birth_years) - min(birth_years)
+            > GENERATION_MAX_SPAN_YEARS
+        )
+
+        if spans_more_than_twenty_years:
+            age_number += 1
+            labels_by_generation[group_number] = (
+                f"{AGE_FILTER_PREFIX}{age_ordinal_text(age_number)}"
+                f"{AGE_FILTER_SUFFIX}"
+            )
+        else:
+            generation_number += 1
+            labels_by_generation[group_number] = (
+                f"{GENERATION_FILTER_PREFIX}{generation_number}"
+            )
+
+    return labels_by_generation
+
+
 class PeopleList(tk.Frame):
     def __init__(
         self,
@@ -152,6 +384,10 @@ class PeopleList(tk.Frame):
         period_provider=None,
         initial_period_filter="",
         period_filter_change_command=None,
+        initial_generation_filter="",
+        generation_filter_change_command=None,
+        generation_override_provider=None,
+        generation_move_command=None,
     ):
         super().__init__(parent, bg=SURFACE)
         self.selection_command = selection_command
@@ -160,6 +396,13 @@ class PeopleList(tk.Frame):
         self.period_filter_change_command = (
             period_filter_change_command
         )
+        self.generation_filter_change_command = (
+            generation_filter_change_command
+        )
+        self.generation_override_provider = (
+            generation_override_provider
+        )
+        self.generation_move_command = generation_move_command
         self.people = []
         self.periods = []
         self.periods_by_name = {}
@@ -175,6 +418,11 @@ class PeopleList(tk.Frame):
         self.initial_values_complete_by_id = {}
         self.unfinished_by_id = {}
         self.generation_by_id = {}
+        self.generation_labels_by_number = {}
+        self.generation_numbers_by_filter_label = {}
+        self.generation_group_members = {}
+        self.generation_overrides = {}
+        self.generation_scope_name = None
         self.generation_filter_options = [FILTER_SHOW_ALL]
         self.selected_record_id = None
         self.hovered_record_id = None
@@ -242,7 +490,10 @@ class PeopleList(tk.Frame):
             value=initial_period_label
         )
         self.generation_filter_value = tk.StringVar(
-            value=FILTER_SHOW_ALL
+            value=(
+                str(initial_generation_filter or "").strip()
+                or FILTER_SHOW_ALL
+            )
         )
         self.unfinished_only_value = tk.BooleanVar(value=False)
         self.sort_value = tk.StringVar(
@@ -326,7 +577,7 @@ class PeopleList(tk.Frame):
         )
         self.generation_filter_value.trace_add(
             "write",
-            self.filter_people,
+            self.generation_filter_changed,
         )
         self.unfinished_only_value.trace_add(
             "write",
@@ -371,11 +622,12 @@ class PeopleList(tk.Frame):
         self.period_filter_select.grid(
             row=0,
             column=1,
+            columnspan=2,
             sticky="ew",
         )
         generation_filter_label = tk.Label(
             period_filter,
-            text="Generation",
+            text="Generation / Age",
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
@@ -402,6 +654,26 @@ class PeopleList(tk.Frame):
             sticky="ew",
             pady=(7, 0),
         )
+        self.generation_move_button = SoftButton(
+            period_filter,
+            text="Move person",
+            command=self.show_generation_move_menu,
+            background=SURFACE,
+            fill=BUTTON_SOFT,
+            hover_fill=PRIMARY_HOVER,
+            foreground=TEXT_DARK,
+            width=92,
+            height=34,
+            font=app_font(8, "bold"),
+        )
+        self.generation_move_button.grid(
+            row=1,
+            column=2,
+            sticky="e",
+            padx=(6, 0),
+            pady=(7, 0),
+        )
+        self.generation_move_button.set_enabled(False)
         self.unfinished_only_check = tk.Checkbutton(
             period_filter,
             text="Only show unfinished",
@@ -418,7 +690,7 @@ class PeopleList(tk.Frame):
         self.unfinished_only_check.grid(
             row=2,
             column=0,
-            columnspan=2,
+            columnspan=3,
             sticky="w",
             pady=(7, 0),
         )
@@ -492,10 +764,11 @@ class PeopleList(tk.Frame):
         selected_record_id=None,
         mage_groups=None,
     ):
+        self.people = list(people or [])
+
         if hasattr(self, "period_provider"):
             self.refresh_periods(rebuild=False)
 
-        self.people = people
         self.labels_by_id = {}
         self.search_text_by_id = {}
         self.group_colors_by_id = {}
@@ -513,7 +786,7 @@ class PeopleList(tk.Frame):
         if hasattr(self, "filter_menu"):
             self.rebuild_filter_menu()
 
-        for person in people:
+        for person in self.people:
             record_id = person["record_id"]
             name = str(person.get("displayed_name", "")).strip() or "Unnamed magician"
             birth_text = self.format_birth_date(person)
@@ -769,7 +1042,7 @@ class PeopleList(tk.Frame):
             menu=period_menu,
         )
         self.filter_menu.add_cascade(
-            label="Generation",
+            label="Generation / Age",
             menu=generation_menu,
         )
         self.filter_menu.add_cascade(
@@ -832,6 +1105,13 @@ class PeopleList(tk.Frame):
         self.refresh_generation_assignments()
         self.filter_people()
 
+    def generation_filter_changed(self, *arguments):
+        if self.filter_updates_paused:
+            return
+
+        self.remember_generation_filter()
+        self.filter_people()
+
     def remember_period_filter(self):
         period_filter_change_command = getattr(
             self,
@@ -855,7 +1135,88 @@ class PeopleList(tk.Frame):
             period_filter_change_command(selected_period_name)
         )
 
+    def remember_generation_filter(self):
+        generation_filter_change_command = getattr(
+            self,
+            "generation_filter_change_command",
+            None,
+        )
+
+        if not callable(generation_filter_change_command):
+            return False
+
+        selected_generation = str(
+            self.generation_filter_value.get() or ""
+        ).strip()
+
+        if selected_generation == FILTER_SHOW_ALL:
+            selected_generation = ""
+
+        return bool(
+            generation_filter_change_command(selected_generation)
+        )
+
+    def selected_period_scope_name(self):
+        selected_period = (
+            self.period_filter_value.get()
+            if hasattr(self, "period_filter_value")
+            else FILTER_SHOW_ALL
+        )
+
+        if selected_period == FILTER_SHOW_ALL:
+            return ""
+
+        return self.period_names_by_filter_label.get(
+            selected_period,
+            selected_period,
+        )
+
+    def generation_override_values(self):
+        generation_override_provider = getattr(
+            self,
+            "generation_override_provider",
+            None,
+        )
+
+        if not callable(generation_override_provider):
+            return {}
+
+        try:
+            overrides = generation_override_provider(
+                self.selected_period_scope_name()
+            )
+        except (KeyError, OSError, TypeError, ValueError):
+            return {}
+
+        if not isinstance(overrides, dict):
+            return {}
+
+        return {
+            str(record_id or "").strip(): str(
+                target_record_id or ""
+            ).strip()
+            for record_id, target_record_id in overrides.items()
+            if str(record_id or "").strip()
+            and str(target_record_id or "").strip()
+        }
+
     def refresh_generation_assignments(self):
+        generation_scope_name = self.selected_period_scope_name()
+        previous_scope_name = getattr(
+            self,
+            "generation_scope_name",
+            None,
+        )
+        previous_selected_label = (
+            self.generation_filter_value.get()
+            if hasattr(self, "generation_filter_value")
+            else FILTER_SHOW_ALL
+        )
+        previous_selected_group = getattr(
+            self,
+            "generation_numbers_by_filter_label",
+            {},
+        ).get(previous_selected_label)
         selected_period = (
             self.period_filter_value.get()
             if hasattr(self, "period_filter_value")
@@ -866,29 +1227,73 @@ class PeopleList(tk.Frame):
             for person in getattr(self, "people", [])
             if self.matches_period_filter(person, selected_period)
         ]
-        self.generation_by_id = approximate_generation_map(
-            generation_people
+        automatic_generation_by_id = approximate_generation_map(
+            generation_people,
         )
-        generation_numbers = sorted(
-            set(self.generation_by_id.values())
+        self.generation_overrides = self.generation_override_values()
+        self.generation_by_id = apply_generation_overrides(
+            generation_people,
+            automatic_generation_by_id,
+            self.generation_overrides,
         )
+        self.generation_labels_by_number = generation_group_labels(
+            generation_people,
+            self.generation_by_id,
+        )
+        self.generation_numbers_by_filter_label = {
+            label: generation_number
+            for generation_number, label
+            in self.generation_labels_by_number.items()
+        }
+        self.generation_group_members = {}
+
+        for record_id, generation_number in self.generation_by_id.items():
+            self.generation_group_members.setdefault(
+                generation_number,
+                [],
+            ).append(record_id)
+
+        for generation_number in self.generation_group_members:
+            self.generation_group_members[generation_number].sort(
+                key=self.record_generation_sort_key
+            )
+
         self.generation_filter_options = [
             FILTER_SHOW_ALL,
             *[
-                f"{GENERATION_FILTER_PREFIX}{generation_number}"
-                for generation_number in generation_numbers
+                self.generation_labels_by_number[generation_number]
+                for generation_number
+                in sorted(self.generation_labels_by_number)
             ],
         ]
 
         if (
+            previous_scope_name == generation_scope_name
+            and previous_selected_group
+            in self.generation_labels_by_number
+        ):
+            selected_generation_label = (
+                self.generation_labels_by_number[
+                    previous_selected_group
+                ]
+            )
+        elif previous_selected_label in self.generation_filter_options:
+            selected_generation_label = previous_selected_label
+        else:
+            selected_generation_label = FILTER_SHOW_ALL
+
+        self.generation_scope_name = generation_scope_name
+
+        if (
             hasattr(self, "generation_filter_value")
             and self.generation_filter_value.get()
-            not in self.generation_filter_options
+            != selected_generation_label
         ):
             previous_filter_pause = self.filter_updates_paused
             self.filter_updates_paused = True
-            self.generation_filter_value.set(FILTER_SHOW_ALL)
+            self.generation_filter_value.set(selected_generation_label)
             self.filter_updates_paused = previous_filter_pause
+            self.remember_generation_filter()
 
         if hasattr(self, "generation_filter_select"):
             self.generation_filter_select.set_values(
@@ -898,7 +1303,190 @@ class PeopleList(tk.Frame):
         if hasattr(self, "filter_menu"):
             self.rebuild_filter_menu()
 
+        self.update_generation_move_button()
+
         return dict(self.generation_by_id)
+
+    def record_generation_sort_key(self, record_id):
+        for person in self.people:
+            if str(person.get("record_id", "") or "") == str(
+                record_id or ""
+            ):
+                return person_generation_sort_key(person)
+
+        return 100000, 13, 32, "", str(record_id or "")
+
+    def update_generation_move_button(self):
+        if not hasattr(self, "generation_move_button"):
+            return False
+
+        selected_record_id = str(
+            self.selected_record_id or ""
+        ).strip()
+        can_move = bool(
+            callable(getattr(self, "generation_move_command", None))
+            and selected_record_id in self.generation_by_id
+            and (
+                len(self.generation_group_members) > 1
+                or selected_record_id in self.generation_overrides
+            )
+        )
+        self.generation_move_button.set_enabled(can_move)
+        return can_move
+
+    def show_generation_move_menu(self):
+        if not self.update_generation_move_button():
+            return False
+
+        selected_record_id = str(
+            self.selected_record_id or ""
+        ).strip()
+        current_generation = self.generation_by_id.get(
+            selected_record_id
+        )
+        person_name = self.labels_by_id.get(
+            selected_record_id,
+            "Selected person",
+        ).split("\n", 1)[0]
+        current_label = self.generation_labels_by_number.get(
+            current_generation,
+            "Current group",
+        )
+        move_menu = tk.Menu(
+            self,
+            tearoff=False,
+            bg=FIELD_BACKGROUND,
+            fg=TEXT_DARK,
+            activebackground=LIST_HOVER,
+            activeforeground=TEXT_DARK,
+            relief="solid",
+            borderwidth=1,
+            font=app_font(10),
+        )
+        move_menu.add_command(
+            label=f"{person_name} · {current_label}",
+            state="disabled",
+        )
+        move_menu.add_separator()
+
+        for generation_number in sorted(
+            self.generation_labels_by_number
+        ):
+            if generation_number == current_generation:
+                continue
+
+            move_menu.add_command(
+                label=(
+                    "Move to "
+                    + self.generation_labels_by_number[
+                        generation_number
+                    ]
+                ),
+                command=partial(
+                    self.move_selected_person_to_group,
+                    generation_number,
+                ),
+            )
+
+        if selected_record_id in self.generation_overrides:
+            move_menu.add_separator()
+            move_menu.add_command(
+                label="Use automatic assignment",
+                command=self.use_automatic_generation_assignment,
+            )
+
+        self.generation_move_button.update_idletasks()
+
+        try:
+            move_menu.tk_popup(
+                self.generation_move_button.winfo_rootx(),
+                self.generation_move_button.winfo_rooty()
+                + self.generation_move_button.winfo_height(),
+            )
+        finally:
+            move_menu.grab_release()
+
+        return True
+
+    def move_selected_person_to_group(self, generation_number):
+        generation_move_command = getattr(
+            self,
+            "generation_move_command",
+            None,
+        )
+        selected_record_id = str(
+            self.selected_record_id or ""
+        ).strip()
+        target_members = list(
+            self.generation_group_members.get(generation_number, [])
+        )
+        target_record_id = next(
+            (
+                record_id
+                for record_id in target_members
+                if record_id != selected_record_id
+            ),
+            "",
+        )
+
+        if (
+            not callable(generation_move_command)
+            or not selected_record_id
+            or not target_record_id
+        ):
+            return False
+
+        changed = generation_move_command(
+            self.selected_period_scope_name(),
+            selected_record_id,
+            target_record_id,
+        )
+        self.refresh_after_generation_move()
+        return changed is not False
+
+    def use_automatic_generation_assignment(self):
+        generation_move_command = getattr(
+            self,
+            "generation_move_command",
+            None,
+        )
+        selected_record_id = str(
+            self.selected_record_id or ""
+        ).strip()
+
+        if not callable(generation_move_command) or not selected_record_id:
+            return False
+
+        changed = generation_move_command(
+            self.selected_period_scope_name(),
+            selected_record_id,
+            "",
+        )
+        self.refresh_after_generation_move()
+        return changed is not False
+
+    def refresh_after_generation_move(self):
+        selected_generation_label = self.generation_filter_value.get()
+        self.refresh_generation_assignments()
+
+        if selected_generation_label != FILTER_SHOW_ALL:
+            selected_generation = self.generation_by_id.get(
+                str(self.selected_record_id or "").strip()
+            )
+            replacement_label = self.generation_labels_by_number.get(
+                selected_generation,
+                FILTER_SHOW_ALL,
+            )
+
+            if self.generation_filter_value.get() != replacement_label:
+                previous_filter_pause = self.filter_updates_paused
+                self.filter_updates_paused = True
+                self.generation_filter_value.set(replacement_label)
+                self.filter_updates_paused = previous_filter_pause
+                self.remember_generation_filter()
+
+        self.filter_people()
+        return True
 
     def format_birth_date(self, person):
         birth_year = person.get("birth_year")
@@ -921,12 +1509,9 @@ class PeopleList(tk.Frame):
 
     def set_selected_record(self, record_id):
         self.selected_record_id = record_id
-
-        if record_id not in self.visible_record_ids:
-            self.show_all_people()
-
         self.refresh_row_colors()
         self.scroll_selected_into_view()
+        self.update_generation_move_button()
 
     def set_initial_values_status(
         self,
@@ -1000,6 +1585,9 @@ class PeopleList(tk.Frame):
 
         if hasattr(self, "generation_filter_value"):
             self.refresh_generation_assignments()
+
+        if hasattr(self, "generation_filter_value"):
+            self.remember_generation_filter()
 
         if hasattr(self, "filter_summary_value"):
             self.update_filter_summary()
@@ -1123,15 +1711,13 @@ class PeopleList(tk.Frame):
             return True
 
         generation_text = str(selected_generation or "").strip()
+        requested_generation = getattr(
+            self,
+            "generation_numbers_by_filter_label",
+            {},
+        ).get(generation_text)
 
-        if not generation_text.startswith(GENERATION_FILTER_PREFIX):
-            return True
-
-        try:
-            requested_generation = int(
-                generation_text[len(GENERATION_FILTER_PREFIX):]
-            )
-        except (TypeError, ValueError):
+        if requested_generation is None:
             return True
 
         record_id = str(person.get("record_id", "") or "").strip()
@@ -1350,6 +1936,7 @@ class PeopleList(tk.Frame):
             self.selected_record_id = record_id
 
         self.refresh_row_colors()
+        self.update_generation_move_button()
 
     def enter_row(self, record_id, event=None):
         self.hovered_record_id = record_id

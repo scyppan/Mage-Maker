@@ -380,9 +380,10 @@ class OrganizationEventDialog(tk.Toplevel):
             pady=(14, 0),
         )
         people_frame.grid_columnconfigure(0, weight=1)
+        self.people_summary_value = tk.StringVar()
         people_label = tk.Label(
             people_frame,
-            text="People linked to this event",
+            textvariable=self.people_summary_value,
             bg=SURFACE,
             fg=TEXT_MUTED,
             font=app_font(9, "bold"),
@@ -413,7 +414,7 @@ class OrganizationEventDialog(tk.Toplevel):
         )
         add_person_button = SoftButton(
             people_frame,
-            text="Add person",
+            text="Select people",
             command=self.open_person_picker,
             background=SURFACE,
             width=104,
@@ -603,6 +604,18 @@ class OrganizationEventDialog(tk.Toplevel):
                 ),
             )
 
+        selected_count = len(self.selected_person_ids)
+        self.people_summary_value.set(
+            (
+                "People linked to this event · 1 selected"
+                if selected_count == 1
+                else (
+                    "People linked to this event · "
+                    f"{selected_count} selected"
+                )
+            )
+        )
+
     def selected_linked_person_ids(self):
         return list(
             dict.fromkeys(
@@ -779,12 +792,26 @@ class OrganizationEventDialog(tk.Toplevel):
         if self.event_controller is None:
             return
 
+        suggestion_provider = getattr(
+            self.event_controller,
+            "event_people_suggestion_options",
+            None,
+        )
+        suggested_people_options = (
+            suggestion_provider(self.selected_person_ids)
+            if callable(suggestion_provider)
+            else self.event_controller.recent_people_options()
+        )
         EventPersonPickerDialog(
             self,
             self.event_controller.people_options(),
             self.event_controller.recent_people_options(),
-            "",
-            self.add_selected_person,
+            (
+                self.selected_person_ids[-1]
+                if self.selected_person_ids
+                else ""
+            ),
+            self.people_chosen,
             create_person_command=getattr(
                 self.event_controller,
                 "create_event_person",
@@ -795,7 +822,49 @@ class OrganizationEventDialog(tk.Toplevel):
                 if hasattr(self.event_controller, "mage_groups")
                 else []
             ),
+            allow_multiple=True,
+            selected_person_ids=self.selected_person_ids,
+            suggested_people_options=suggested_people_options,
+            action_text="Use selected",
         )
+
+    def people_chosen(self, person_ids):
+        normalized_person_ids = []
+
+        for person_id in person_ids or ():
+            normalized_person_id = str(person_id or "").strip()
+
+            if (
+                normalized_person_id
+                and normalized_person_id not in normalized_person_ids
+            ):
+                normalized_person_ids.append(normalized_person_id)
+
+        conflicting_person_ids = set(normalized_person_ids).intersection(
+            {
+                *self.selected_witness_person_ids,
+                *self.selected_affected_person_ids,
+            }
+        )
+
+        if conflicting_person_ids:
+            messagebox.showerror(
+                "Choose a different role",
+                "A selected person is already witnessed or affected by "
+                "the event.",
+                parent=self,
+            )
+            return False
+
+        self.selected_person_ids = normalized_person_ids
+        self.refresh_people_list()
+
+        if hasattr(self, "eminence_picker"):
+            self.eminence_picker.update_people(
+                self.selected_linked_person_ids()
+            )
+
+        return True
 
     def add_selected_person(self, person_id):
         normalized_person_id = str(person_id or "").strip()

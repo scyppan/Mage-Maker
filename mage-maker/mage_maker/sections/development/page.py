@@ -101,7 +101,9 @@ from mage_maker.sections.development.school_years import (
     ensure_adult_year_records_with_improvements,
     ensure_school_year_records,
     random_school_year_skill,
+    reconcile_school_year_electives,
     rebuild_school_year_records,
+    school_curriculum_year,
 )
 from mage_maker.sections.ledger.models import (
     normalize_ledger_entries,
@@ -258,6 +260,16 @@ class DevelopmentView(tk.Frame):
             value=CHARACTERISTIC_NAMES[0].title()
         )
         self.year_characteristic_summary_value = tk.StringVar()
+        self.year_core_courses_value = tk.StringVar(
+            value="Core classes: None listed"
+        )
+        self.year_elective_heading_value = tk.StringVar(
+            value="Electives: None available"
+        )
+        self.year_elective_variables = {}
+        self.year_elective_checkbuttons = {}
+        self.year_approved_electives = []
+        self.year_elective_limit = 0
         self.year_skill_values = [
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
             tk.StringVar(value=DEVELOPMENT_SKILL_OPTIONS[0]),
@@ -411,6 +423,7 @@ class DevelopmentView(tk.Frame):
             and self.game_database.loaded
             else []
         )
+        self.school_records = school_records
         self.school_field = SchoolField(
             academic_row,
             school_records,
@@ -1626,6 +1639,73 @@ class DevelopmentView(tk.Frame):
                 sticky="ew",
             )
             self.year_skill_selects.append(skill_select)
+
+        year_curriculum_divider = tk.Frame(
+            self.year_detail_panel,
+            bg=BORDER_SOFT,
+            height=1,
+        )
+        year_curriculum_divider.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(12, 9),
+        )
+        self.year_curriculum_frame = tk.Frame(
+            self.year_detail_panel,
+            bg=SURFACE_MUTED,
+        )
+        self.year_curriculum_frame.grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+        )
+        self.year_curriculum_frame.grid_columnconfigure(0, weight=1)
+        year_core_courses = tk.Label(
+            self.year_curriculum_frame,
+            textvariable=self.year_core_courses_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(9),
+            anchor="w",
+            justify="left",
+            wraplength=540,
+        )
+        year_core_courses.grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        year_elective_heading = tk.Label(
+            self.year_curriculum_frame,
+            textvariable=self.year_elective_heading_value,
+            bg=SURFACE_MUTED,
+            fg=TEXT_DARK,
+            font=app_font(9, "bold"),
+            anchor="w",
+        )
+        year_elective_heading.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(8, 2),
+        )
+        self.year_elective_options_frame = tk.Frame(
+            self.year_curriculum_frame,
+            bg=SURFACE_MUTED,
+        )
+        self.year_elective_options_frame.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+        )
+        self.year_elective_options_frame.grid_columnconfigure(
+            (0, 1, 2),
+            weight=1,
+            uniform="school_year_electives",
+        )
 
         self.adult_detail_panel = tk.Frame(
             self.year_tabs_container,
@@ -3156,6 +3236,198 @@ class DevelopmentView(tk.Frame):
 
         return None
 
+    def school_curriculum_for_record(self, record):
+        if not isinstance(record, dict):
+            return None
+
+        schools = getattr(self, "school_records", [])
+        school_name = str(
+            record.get("school", "") or ""
+        ).strip()
+
+        if not school_name:
+            school_field = getattr(self, "school_field", None)
+            school_name = (
+                str(school_field.get_value() or "").strip()
+                if school_field is not None
+                else ""
+            )
+
+        return school_curriculum_year(
+            schools,
+            school_name,
+            record.get("year"),
+        )
+
+    def render_school_year_curriculum(self, record):
+        if not hasattr(self, "year_elective_options_frame"):
+            return
+
+        for child in self.year_elective_options_frame.winfo_children():
+            child.destroy()
+
+        self.year_elective_variables = {}
+        self.year_elective_checkbuttons = {}
+        self.year_approved_electives = []
+        self.year_elective_limit = 0
+
+        if bool(record.get("skipped", False)):
+            self.year_core_courses_value.set(
+                "Core classes: None (school skipped)"
+            )
+            self.year_elective_heading_value.set(
+                "Electives: None (school skipped)"
+            )
+            return
+
+        curriculum_year = self.school_curriculum_for_record(record)
+
+        if curriculum_year is None:
+            self.year_core_courses_value.set(
+                "Core classes: None listed"
+            )
+            self.year_elective_heading_value.set(
+                "Electives: None listed"
+            )
+            return
+
+        core_courses = curriculum_year.get("core", [])
+        approved_electives = curriculum_year.get(
+            "electives",
+            [],
+        )
+        elective_limit = int(
+            curriculum_year.get("elective_limit", 0) or 0
+        )
+        selected_electives = reconcile_school_year_electives(
+            record.get("electives", []),
+            approved_electives,
+            elective_limit,
+        )
+        self.year_core_courses_value.set(
+            "Core classes: "
+            + (", ".join(core_courses) if core_courses else "None")
+        )
+        self.year_approved_electives = list(approved_electives)
+        self.year_elective_limit = elective_limit
+
+        if not approved_electives or elective_limit == 0:
+            self.year_elective_heading_value.set(
+                "Electives: None available"
+            )
+            return
+
+        self.year_elective_heading_value.set(
+            f"Electives (choose up to {elective_limit})"
+        )
+
+        for index, elective in enumerate(approved_electives):
+            elective_value = tk.BooleanVar(
+                self,
+                value=elective in selected_electives,
+            )
+            elective_checkbutton = tk.Checkbutton(
+                self.year_elective_options_frame,
+                text=elective,
+                variable=elective_value,
+                command=partial(
+                    self.elective_selection_changed,
+                    elective,
+                ),
+                bg=SURFACE_MUTED,
+                activebackground=SURFACE_MUTED,
+                fg=TEXT_DARK,
+                activeforeground=TEXT_DARK,
+                disabledforeground=TEXT_MUTED,
+                selectcolor=FIELD_BACKGROUND,
+                font=app_font(9),
+                anchor="w",
+                justify="left",
+                borderwidth=0,
+                highlightthickness=0,
+                padx=0,
+                pady=1,
+            )
+            elective_checkbutton.grid(
+                row=index // 3,
+                column=index % 3,
+                sticky="w",
+                padx=(0, 10),
+            )
+            self.year_elective_variables[elective] = (
+                elective_value
+            )
+            self.year_elective_checkbuttons[elective] = (
+                elective_checkbutton
+            )
+
+        self.update_elective_checkbutton_states()
+
+    def update_elective_checkbutton_states(self):
+        selected_count = sum(
+            1
+            for elective_value in getattr(
+                self,
+                "year_elective_variables",
+                {},
+            ).values()
+            if bool(elective_value.get())
+        )
+        elective_limit = max(
+            0,
+            int(getattr(self, "year_elective_limit", 0) or 0),
+        )
+        selection_limit_reached = selected_count >= elective_limit
+
+        for elective, checkbutton in getattr(
+            self,
+            "year_elective_checkbuttons",
+            {},
+        ).items():
+            elective_value = self.year_elective_variables[elective]
+            checkbutton.configure(
+                state=(
+                    "normal"
+                    if bool(elective_value.get())
+                    or not selection_limit_reached
+                    else "disabled"
+                )
+            )
+
+    def elective_selection_changed(self, elective):
+        if self.loading:
+            return
+
+        elective_values = getattr(
+            self,
+            "year_elective_variables",
+            {},
+        )
+        selected_count = sum(
+            1
+            for elective_value in elective_values.values()
+            if bool(elective_value.get())
+        )
+        elective_limit = max(
+            0,
+            int(getattr(self, "year_elective_limit", 0) or 0),
+        )
+
+        if selected_count > elective_limit:
+            selected_value = elective_values.get(elective)
+
+            if selected_value is not None:
+                previous_loading = self.loading
+                self.loading = True
+                selected_value.set(False)
+                self.loading = previous_loading
+
+            self.update_elective_checkbutton_states()
+            return
+
+        self.update_elective_checkbutton_states()
+        self.school_year_selection_changed()
+
     def render_school_year_record(self):
         record = self.school_year_record()
 
@@ -3274,6 +3546,9 @@ class DevelopmentView(tk.Frame):
                 self.year_skill_values
             ):
                 skill_value.set(record["skills"][index])
+
+        if hasattr(self, "year_core_courses_value"):
+            self.render_school_year_curriculum(record)
 
         self.refresh_eminence_lists(
             record.get("eminence", [])
@@ -3868,6 +4143,40 @@ class DevelopmentView(tk.Frame):
             if hasattr(self, "year_skipped_value")
             else bool(record.get("skipped", False))
         )
+        elective_variables = getattr(
+            self,
+            "year_elective_variables",
+            {},
+        )
+        approved_electives = getattr(
+            self,
+            "year_approved_electives",
+            [],
+        )
+        selected_electives = (
+            [
+                elective
+                for elective in approved_electives
+                if elective in elective_variables
+                and bool(elective_variables[elective].get())
+            ]
+            if elective_variables
+            else deepcopy(record.get("electives", []))
+        )
+        electives_initialized = bool(
+            record.get("electives_initialized", False)
+        )
+
+        if elective_variables:
+            electives_initialized = True
+
+        if skipped:
+            selected_electives = []
+            electives_initialized = False
+        elif bool(record.get("skipped", False)):
+            selected_electives = []
+            electives_initialized = False
+
         updated_record = normalize_school_year_records(
             [
                 {
@@ -3886,6 +4195,10 @@ class DevelopmentView(tk.Frame):
                             "year_characteristic_value",
                         )
                         else record.get("characteristic", "")
+                    ),
+                    "electives": selected_electives,
+                    "electives_initialized": (
+                        electives_initialized
                     ),
                     "assigned_books": record.get(
                         "assigned_books",
@@ -3988,6 +4301,7 @@ class DevelopmentView(tk.Frame):
                 or ""
             ).strip()
         )
+        school_records = getattr(self, "school_records", None)
         generated_records = ensure_school_year_records(
             previous_records,
             target_year_count,
@@ -3999,6 +4313,7 @@ class DevelopmentView(tk.Frame):
                 None,
             ),
             manage_books=False,
+            schools=school_records,
         )
         self.school_year_records = generated_records
         initial_bonuses = getattr(
@@ -4178,15 +4493,17 @@ class DevelopmentView(tk.Frame):
             (
                 f"Rebuild all developmental years for {person_name} "
                 f"using {strategy_name}?\n\n"
-                "Ability, skill, and characteristic choices will be "
-                "rerolled. School attendance, books, eminence, jobs, "
-                "and ledger history will be retained."
+                "Ability, skill, characteristic, and elective choices "
+                "will be rerolled. School attendance, books, eminence, "
+                "jobs, and ledger history will be retained."
             ),
             parent=self,
         )
 
         if not confirmed:
             return False
+
+        school_records = getattr(self, "school_records", None)
 
         rebuilt_records = rebuild_school_year_records(
             existing_records,
@@ -4196,6 +4513,7 @@ class DevelopmentView(tk.Frame):
                 "characteristics",
                 None,
             ),
+            schools=school_records,
         )
         self.school_year_records = rebuilt_records
         self.development_plan["school_years"] = deepcopy(

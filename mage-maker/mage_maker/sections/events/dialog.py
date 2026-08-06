@@ -342,9 +342,10 @@ class WorldEventDialog(tk.Toplevel):
         )
         panel.grid_rowconfigure(2, weight=1)
         panel.grid_columnconfigure(0, weight=1)
+        self.people_heading_value = tk.StringVar()
         heading = tk.Label(
             panel,
-            text="People",
+            textvariable=self.people_heading_value,
             bg=SURFACE_MUTED,
             fg=TEXT_DARK,
             font=app_font(10, "bold"),
@@ -393,7 +394,7 @@ class WorldEventDialog(tk.Toplevel):
         buttons.grid(row=4, column=0, sticky="e", pady=(8, 0))
         add_button = SoftButton(
             buttons,
-            text="Find person",
+            text="Select people",
             command=self.open_person_picker,
             background=SURFACE_MUTED,
             fill=PRIMARY,
@@ -496,18 +497,38 @@ class WorldEventDialog(tk.Toplevel):
                 people_labels.get(person_id, "Missing person"),
             )
 
+        if hasattr(self, "people_heading_value"):
+            selected_count = len(self.selected_person_ids)
+            self.people_heading_value.set(
+                (
+                    "People · 1 selected"
+                    if selected_count == 1
+                    else f"People · {selected_count} selected"
+                )
+            )
+
     def open_person_picker(self):
         selected_id = (
             self.selected_person_ids[-1]
             if self.selected_person_ids
             else ""
         )
+        suggestion_provider = getattr(
+            self.controller,
+            "event_people_suggestion_options",
+            None,
+        )
+        suggested_people_options = (
+            suggestion_provider(self.selected_person_ids)
+            if callable(suggestion_provider)
+            else self.recent_people_options
+        )
         EventPersonPickerDialog(
             self,
             self.people_options,
             self.recent_people_options,
             selected_id,
-            self.person_chosen,
+            self.people_chosen,
             create_person_command=getattr(
                 self.controller,
                 "create_event_person",
@@ -518,7 +539,31 @@ class WorldEventDialog(tk.Toplevel):
                 if hasattr(self.controller, "mage_groups")
                 else []
             ),
+            allow_multiple=True,
+            selected_person_ids=self.selected_person_ids,
+            suggested_people_options=suggested_people_options,
+            action_text="Use selected",
         )
+
+    def people_chosen(self, person_ids):
+        self.people_options = self.controller.people_options()
+        available_person_ids = {
+            str(option.get("value", "") or "").strip()
+            for option in self.people_options
+            if str(option.get("value", "") or "").strip()
+        }
+        self.selected_person_ids = []
+
+        for person_id in person_ids or ():
+            normalized_id = str(person_id or "").strip()
+
+            if (
+                normalized_id in available_person_ids
+                and normalized_id not in self.selected_person_ids
+            ):
+                self.selected_person_ids.append(normalized_id)
+
+        self.render_selected_people()
 
     def person_chosen(self, person_id):
         normalized_id = str(person_id or "").strip()
@@ -852,13 +897,18 @@ class EventPersonPickerDialog(tk.Toplevel):
         dialog_title="Add event person",
         heading_text="Choose a person",
         explanation_text=(
-            "Recently viewed people appear first. Type any part of a "
-            "name to search everyone."
+            "Likely participants appear first. Type any part of a name "
+            "to search everyone."
         ),
         selection_prompt="Select a person to add.",
         action_text="Add person",
+        allow_multiple=False,
+        selected_person_ids=None,
+        locked_person_ids=None,
+        suggested_people_options=None,
     ):
         super().__init__(parent)
+        self.allow_multiple = bool(allow_multiple)
         self.people_options = [
             deepcopy(option)
             for option in people_options
@@ -871,10 +921,77 @@ class EventPersonPickerDialog(tk.Toplevel):
             if isinstance(option, dict)
             and str(option.get("value", "") or "").strip()
         ]
+        known_person_ids = {
+            str(option.get("value", "") or "").strip()
+            for option in self.people_options
+            if str(option.get("value", "") or "").strip()
+        }
+        requested_suggestions = (
+            suggested_people_options
+            if suggested_people_options is not None
+            else self.recent_people_options
+        )
+        self.suggested_people_options = []
+        used_suggestion_ids = set()
+
+        for option in requested_suggestions or ():
+            if not isinstance(option, dict):
+                continue
+
+            person_id = str(option.get("value", "") or "").strip()
+
+            if (
+                person_id not in known_person_ids
+                or person_id in used_suggestion_ids
+            ):
+                continue
+
+            self.suggested_people_options.append(deepcopy(option))
+            used_suggestion_ids.add(person_id)
         self.visible_options = []
         self.selected_person_id = str(
             selected_person_id or ""
         ).strip()
+        self.selected_person_ids = []
+        self.locked_person_order = []
+
+        for person_id in locked_person_ids or ():
+            normalized_person_id = str(person_id or "").strip()
+
+            if (
+                normalized_person_id
+                and normalized_person_id not in self.locked_person_order
+            ):
+                self.locked_person_order.append(normalized_person_id)
+
+        self.locked_person_ids = set(self.locked_person_order)
+
+        for person_id in selected_person_ids or ():
+            normalized_person_id = str(person_id or "").strip()
+
+            if (
+                normalized_person_id
+                and normalized_person_id not in self.selected_person_ids
+            ):
+                self.selected_person_ids.append(normalized_person_id)
+
+        if (
+            self.allow_multiple
+            and self.selected_person_id
+            and self.selected_person_id not in self.selected_person_ids
+        ):
+            self.selected_person_ids.append(self.selected_person_id)
+
+        for person_id in self.locked_person_order:
+            if person_id not in self.selected_person_ids:
+                self.selected_person_ids.append(person_id)
+
+        if not self.allow_multiple:
+            self.selected_person_ids = (
+                [self.selected_person_id]
+                if self.selected_person_id
+                else []
+            )
         self.save_command = save_command
         self.create_person_command = create_person_command
         self.dialog_title = str(
@@ -906,13 +1023,22 @@ class EventPersonPickerDialog(tk.Toplevel):
         )
         self.filter_updates_paused = False
         self.show_all_requested = False
-        self.result_heading_value = tk.StringVar(value="Recently viewed")
+        self.result_heading_value = tk.StringVar(value="Suggestions")
         self.selection_value = tk.StringVar(
-            value=self.selection_prompt
+            value=(
+                "0 people selected"
+                if self.allow_multiple
+                else self.selection_prompt
+            )
         )
         self.title(self.dialog_title)
-        self.geometry("560x620")
-        self.minsize(460, 500)
+        self.geometry(
+            "620x680" if self.allow_multiple else "560x620"
+        )
+        self.minsize(
+            500 if self.allow_multiple else 460,
+            540 if self.allow_multiple else 500,
+        )
         self.configure(bg=APP_BACKGROUND)
         self.transient(parent.winfo_toplevel())
         self.grab_set()
@@ -1046,7 +1172,21 @@ class EventPersonPickerDialog(tk.Toplevel):
         )
         self.results_list.grid(row=0, column=0, sticky="nsew")
         self.results_list.bind("<<ListboxSelect>>", self.person_selected)
-        self.results_list.bind("<Double-Button-1>", self.choose_person)
+
+        if self.allow_multiple:
+            self.results_list.bind(
+                "<ButtonRelease-1>",
+                self.toggle_person_selection,
+            )
+            self.results_list.bind(
+                "<space>",
+                self.toggle_person_selection,
+            )
+        else:
+            self.results_list.bind(
+                "<Double-Button-1>",
+                self.choose_person,
+            )
         scrollbar = tk.Scrollbar(
             results_frame,
             command=self.results_list.yview,
@@ -1062,8 +1202,68 @@ class EventPersonPickerDialog(tk.Toplevel):
             anchor="w",
         )
         selected_label.grid(row=6, column=0, sticky="ew", pady=(10, 0))
+        self.bulk_actions = tk.Frame(card, bg=SURFACE)
+        self.bulk_actions.grid(
+            row=7,
+            column=0,
+            sticky="ew",
+            pady=(8, 0),
+        )
+        self.bulk_actions.grid_columnconfigure(3, weight=1)
+        select_visible_button = SoftButton(
+            self.bulk_actions,
+            text="Select visible",
+            command=self.select_visible_people,
+            background=SURFACE,
+            fill=FIELD_BACKGROUND,
+            hover_fill=LIST_SELECTED,
+            foreground=TEXT_DARK,
+            width=104,
+            height=30,
+            font=app_font(8, "bold"),
+        )
+        select_visible_button.grid(row=0, column=0, sticky="w")
+        clear_visible_button = SoftButton(
+            self.bulk_actions,
+            text="Clear visible",
+            command=self.clear_visible_people,
+            background=SURFACE,
+            width=98,
+            height=30,
+            font=app_font(8, "bold"),
+        )
+        clear_visible_button.grid(
+            row=0,
+            column=1,
+            sticky="w",
+            padx=(6, 0),
+        )
+        clear_all_button = SoftButton(
+            self.bulk_actions,
+            text="Clear all",
+            command=self.clear_all_people,
+            background=SURFACE,
+            width=80,
+            height=30,
+            font=app_font(8, "bold"),
+        )
+        clear_all_button.grid(
+            row=0,
+            column=2,
+            sticky="w",
+            padx=(6, 0),
+        )
+
+        if not self.allow_multiple:
+            self.bulk_actions.grid_remove()
+
         footer = tk.Frame(card, bg=SURFACE)
-        footer.grid(row=7, column=0, sticky="ew", pady=(14, 0))
+        footer.grid(
+            row=8 if self.allow_multiple else 7,
+            column=0,
+            sticky="ew",
+            pady=(14, 0),
+        )
         footer.grid_columnconfigure(1, weight=1)
 
         if self.create_person_command is not None:
@@ -1101,7 +1301,7 @@ class EventPersonPickerDialog(tk.Toplevel):
             height=36,
         )
         self.add_button.grid(row=0, column=3)
-        self.add_button.set_enabled(False)
+        self.add_button.set_enabled(self.allow_multiple)
         self.after_idle(self.search_control.focus_set)
 
     def build_filter_menu(self):
@@ -1406,6 +1606,13 @@ class EventPersonPickerDialog(tk.Toplevel):
             if group_name
             else birth_text
         )
+        suggestion_reason = str(
+            option.get("suggestion_reason", "") or ""
+        ).strip()
+
+        if suggestion_reason:
+            details = f"{details} · {suggestion_reason}"
+
         return (
             f"{option.get('label', 'Unnamed person')}"
             f"  ·  {details}"
@@ -1453,24 +1660,76 @@ class EventPersonPickerDialog(tk.Toplevel):
                 f"People ({len(self.visible_options)})"
             )
         else:
-            self.visible_options = list(self.recent_people_options)
-            self.result_heading_value.set(
-                (
-                    "Recently viewed"
-                    if self.visible_options
-                    else "Start typing to search"
+            suggestion_options = list(
+                getattr(
+                    self,
+                    "suggested_people_options",
+                    self.recent_people_options,
                 )
             )
+
+            if self.allow_multiple and self.selected_person_ids:
+                options_by_person_id = {
+                    str(option.get("value", "") or "").strip(): option
+                    for option in self.people_options
+                    if str(option.get("value", "") or "").strip()
+                }
+                self.visible_options = [
+                    options_by_person_id[person_id]
+                    for person_id in self.selected_person_ids
+                    if person_id in options_by_person_id
+                ]
+
+                for option in suggestion_options:
+                    person_id = str(
+                        option.get("value", "") or ""
+                    ).strip()
+
+                    if (
+                        person_id
+                        and all(
+                            str(
+                                visible_option.get("value", "") or ""
+                            ).strip()
+                            != person_id
+                            for visible_option in self.visible_options
+                        )
+                    ):
+                        self.visible_options.append(option)
+
+                self.result_heading_value.set(
+                    "Selected people and suggestions"
+                )
+            else:
+                self.visible_options = suggestion_options
+                self.result_heading_value.set(
+                    (
+                        "Suggestions"
+                        if self.visible_options
+                        else "Start typing to search"
+                    )
+                )
 
         self.results_list.delete(0, "end")
 
         for index, option in enumerate(self.visible_options):
+            person_id = str(option.get("value", "") or "").strip()
+            display_text = self.person_display_text(option)
+
+            if self.allow_multiple:
+                if person_id in self.locked_person_ids:
+                    display_text = f"✓ {display_text} · fixed"
+                elif person_id in self.selected_person_ids:
+                    display_text = f"✓ {display_text}"
+                else:
+                    display_text = f"  {display_text}"
+
             self.results_list.insert(
                 "end",
-                self.person_display_text(option),
+                display_text,
             )
 
-            if option.get("value") == self.selected_person_id:
+            if person_id == self.selected_person_id:
                 self.results_list.selection_set(index)
                 self.results_list.see(index)
 
@@ -1494,6 +1753,18 @@ class EventPersonPickerDialog(tk.Toplevel):
         self.update_selection_display()
 
     def update_selection_display(self):
+        if self.allow_multiple:
+            selected_count = len(self.selected_person_ids)
+            self.selection_value.set(
+                (
+                    "1 person selected"
+                    if selected_count == 1
+                    else f"{selected_count} people selected"
+                )
+            )
+            self.add_button.set_enabled(True)
+            return
+
         selected_label = ""
 
         for option in self.people_options:
@@ -1514,15 +1785,88 @@ class EventPersonPickerDialog(tk.Toplevel):
             self.results_list.selection_clear(0, "end")
             self.results_list.selection_set(0)
 
+        if self.allow_multiple:
+            self.toggle_person_selection()
+            return "break"
+
         self.choose_person()
         return "break"
 
     def choose_person(self, event=None):
+        if self.allow_multiple:
+            self.save_command(list(self.selected_person_ids))
+            self.destroy()
+            return
+
         if not self.selected_person_id:
             return
 
         self.save_command(self.selected_person_id)
         self.destroy()
+
+    def toggle_person_selection(self, event=None):
+        if not self.allow_multiple:
+            return
+
+        selection = self.results_list.curselection()
+
+        if selection:
+            self.selected_person_id = str(
+                self.visible_options[selection[0]].get("value", "") or ""
+            ).strip()
+
+        if not self.selected_person_id:
+            return "break"
+
+        if self.selected_person_id in self.locked_person_ids:
+            return "break"
+
+        if self.selected_person_id in self.selected_person_ids:
+            self.selected_person_ids = [
+                person_id
+                for person_id in self.selected_person_ids
+                if person_id != self.selected_person_id
+            ]
+        else:
+            self.selected_person_ids.append(self.selected_person_id)
+
+        first_visible_fraction = self.results_list.yview()[0]
+        self.refresh_results()
+        self.results_list.yview_moveto(first_visible_fraction)
+        return "break"
+
+    def select_visible_people(self):
+        for option in self.visible_options:
+            person_id = str(option.get("value", "") or "").strip()
+
+            if person_id and person_id not in self.selected_person_ids:
+                self.selected_person_ids.append(person_id)
+
+        self.refresh_results()
+
+    def clear_visible_people(self):
+        visible_person_ids = {
+            str(option.get("value", "") or "").strip()
+            for option in self.visible_options
+            if str(option.get("value", "") or "").strip()
+        }
+        self.selected_person_ids = [
+            person_id
+            for person_id in self.selected_person_ids
+            if (
+                person_id not in visible_person_ids
+                or person_id in self.locked_person_ids
+            )
+        ]
+        self.refresh_results()
+
+    def clear_all_people(self):
+        self.selected_person_ids = [
+            person_id
+            for person_id in self.selected_person_ids
+            if person_id in self.locked_person_ids
+        ]
+        self.refresh_results()
 
     def open_quick_person(self):
         if self.create_person_command is None:
@@ -1562,7 +1906,49 @@ class EventPersonPickerDialog(tk.Toplevel):
             "person": deepcopy(person),
             "group_name": group_name,
         }
+        self.people_options = [
+            existing_option
+            for existing_option in self.people_options
+            if str(existing_option.get("value", "") or "").strip()
+            != person_id
+        ]
         self.people_options.append(option)
+
+        if self.allow_multiple:
+            self.recent_people_options = [
+                option,
+                *(
+                    recent_option
+                    for recent_option in self.recent_people_options
+                    if str(
+                        recent_option.get("value", "") or ""
+                    ).strip()
+                    != person_id
+                ),
+            ]
+            self.suggested_people_options = [
+                option,
+                *(
+                    suggested_option
+                    for suggested_option in getattr(
+                        self,
+                        "suggested_people_options",
+                        (),
+                    )
+                    if str(
+                        suggested_option.get("value", "") or ""
+                    ).strip()
+                    != person_id
+                ),
+            ]
+            self.selected_person_id = person_id
+
+            if person_id not in self.selected_person_ids:
+                self.selected_person_ids.append(person_id)
+
+            self.refresh_results()
+            return
+
         self.save_command(person_id)
         self.after_idle(self.destroy)
 

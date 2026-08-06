@@ -111,6 +111,7 @@ class EventAssociationPicker(tk.Frame):
         self.select_button_text = str(
             select_button_text or ""
         ).strip()
+        self.heading_base_text = ""
         self.options = []
         self.options_by_id = {}
         self.options_loaded = False
@@ -149,6 +150,8 @@ class EventAssociationPicker(tk.Frame):
 
         if self.heading_text:
             self.heading_value.set(self.heading_text)
+
+        self.heading_base_text = self.heading_value.get()
 
         heading = tk.Label(
             heading_row,
@@ -268,7 +271,44 @@ class EventAssociationPicker(tk.Frame):
             else:
                 self.selected_ids = self.selected_ids[-1:]
 
+        if (
+            self.association_kind == "people"
+            and not getattr(self, "select_button_text", "")
+            and hasattr(self, "select_button")
+        ):
+            self.select_button.set_text(
+                "Select a person"
+                if self.single_selection
+                else "Select people"
+            )
+
+        self.update_heading_value()
         self.refresh_options()
+
+    def update_heading_value(self):
+        if not hasattr(self, "heading_value"):
+            return
+
+        heading_text = str(
+            getattr(self, "heading_base_text", "") or "Records"
+        )
+
+        if self.association_kind != "people":
+            self.heading_value.set(heading_text)
+            return
+
+        selected_count = len(
+            list(
+                dict.fromkeys(
+                    str(person_id or "").strip()
+                    for person_id in self.selected_ids
+                    if str(person_id or "").strip()
+                )
+            )
+        )
+        self.heading_value.set(
+            f"{heading_text} · {selected_count} selected"
+        )
 
     def set_instruction(self, instruction=""):
         self.instruction_text = str(instruction or "").strip()
@@ -336,6 +376,7 @@ class EventAssociationPicker(tk.Frame):
         return self.controller.recent_location_options(limit=limit)
 
     def refresh_results(self, *arguments):
+        self.update_heading_value()
         options_by_id = getattr(self, "options_by_id", {})
 
         if not options_by_id and self.options:
@@ -517,18 +558,34 @@ class EventAssociationPicker(tk.Frame):
         )
 
         if self.association_kind == "people":
+            people_options = self.controller.people_options()
+            self.options = list(people_options)
             recent_options = [
                 option
                 for option in self.recent_options(limit=12)
                 if str(option.get("value", "") or "").strip()
                 not in self.locked_ids
             ][:5]
+            suggestion_provider = getattr(
+                self.controller,
+                "event_people_suggestion_options",
+                None,
+            )
+            suggested_people_options = (
+                suggestion_provider(self.selected_ids)
+                if callable(suggestion_provider)
+                else recent_options
+            )
             EventPersonPickerDialog(
                 self,
-                self.options,
+                people_options,
                 recent_options,
                 selected_id,
-                self.selector_chosen,
+                (
+                    self.selector_chosen
+                    if self.single_selection
+                    else self.selectors_chosen
+                ),
                 create_person_command=getattr(
                     self.controller,
                     "create_event_person",
@@ -538,6 +595,15 @@ class EventAssociationPicker(tk.Frame):
                     self.controller.mage_groups()
                     if hasattr(self.controller, "mage_groups")
                     else []
+                ),
+                allow_multiple=not self.single_selection,
+                selected_person_ids=self.selected_ids,
+                locked_person_ids=self.locked_order,
+                suggested_people_options=suggested_people_options,
+                action_text=(
+                    "Add person"
+                    if self.single_selection
+                    else "Use selected"
                 ),
             )
         elif self.association_kind == "locations":
@@ -583,19 +649,6 @@ class EventAssociationPicker(tk.Frame):
         if not normalized_id:
             return False
 
-        if self.association_kind == "people":
-            self.options = self.controller.people_options()
-        elif self.association_kind == "organizations":
-            self.options = self.controller.organization_options()
-        else:
-            if getattr(self, "foundation_only", False):
-                self.options = self.controller.location_options(
-                    available_for_founding=True,
-                    include_ids=(*self.selected_ids, normalized_id),
-                )
-            else:
-                self.options = self.controller.location_options()
-
         if self.single_selection:
             self.selected_ids = [
                 locked_id
@@ -605,7 +658,10 @@ class EventAssociationPicker(tk.Frame):
         if normalized_id not in self.selected_ids:
             self.selected_ids.append(normalized_id)
 
-        self.refresh_results()
+        self.options_loaded = False
+        self.options_revision = None
+        self.options_mode = None
+        self.refresh_options()
 
         for index, option in enumerate(self.visible_options):
             if str(option.get("value", "") or "") != normalized_id:
@@ -617,6 +673,26 @@ class EventAssociationPicker(tk.Frame):
             break
 
         self.selection_changed()
+
+        if self.change_command is not None:
+            self.change_command()
+
+        return True
+
+    def selectors_chosen(self, association_ids):
+        selected_ids = list(self.locked_order)
+
+        for association_id in association_ids or ():
+            normalized_id = str(association_id or "").strip()
+
+            if normalized_id and normalized_id not in selected_ids:
+                selected_ids.append(normalized_id)
+
+        self.selected_ids = selected_ids
+        self.options_loaded = False
+        self.options_revision = None
+        self.options_mode = None
+        self.refresh_options()
 
         if self.change_command is not None:
             self.change_command()
@@ -1538,6 +1614,38 @@ class EventEditor(tk.Frame):
         self.after_idle(self.update_scrollbar_visibility)
 
     def update_scrollbar_visibility(self):
+        bounds_command = getattr(self.canvas, "bbox", None)
+
+        if not callable(bounds_command):
+            if self.compact_no_scroll and self.scrollbar_visible:
+                self.scrollbar.grid_remove()
+                self.scrollbar_visible = False
+
+            if self.compact_no_scroll:
+                self.canvas.yview_moveto(0)
+
+            return
+
+        bounds = bounds_command("all")
+        content_height = (
+            max(0, bounds[3] - bounds[1])
+            if bounds
+            else 0
+        )
+        available_height = max(1, self.canvas.winfo_height())
+        available_width = max(1, self.canvas.winfo_width())
+
+        if (
+            hasattr(self, "eminence_picker")
+            and self.eminence_picker.fit_to_available_space(
+                content_height,
+                available_height,
+                available_width,
+            )
+        ):
+            self.after_idle(self.update_scrollbar_visibility)
+            return
+
         if self.compact_no_scroll:
             if self.scrollbar_visible:
                 self.scrollbar.grid_remove()
@@ -1546,13 +1654,6 @@ class EventEditor(tk.Frame):
             self.canvas.yview_moveto(0)
             return
 
-        bounds = self.canvas.bbox("all")
-        content_height = (
-            max(0, bounds[3] - bounds[1])
-            if bounds
-            else 0
-        )
-        available_height = max(1, self.canvas.winfo_height())
         needs_scrollbar = content_height > available_height + 2
 
         if needs_scrollbar and not self.scrollbar_visible:
@@ -2808,6 +2909,7 @@ class EventEditor(tk.Frame):
                         item_options_command(
                             possessor_person_ids=possessor_person_ids,
                             on_date=event_date,
+                            include_all=True,
                         )
                     )
                     if callable(item_options_command)
@@ -2818,9 +2920,9 @@ class EventEditor(tk.Frame):
                 return False
 
             item_link_explanation = (
-                "Only items possessed during this event by its people, "
-                "witnesses, or affected people are available. Select why "
-                "each item is linked and what the event does to it."
+                "Items possessed during this event by its people, witnesses, "
+                "or affected people appear first. Every other item remains "
+                "available so this event can establish a new connection."
             )
         else:
             item_options = (
@@ -3789,39 +3891,6 @@ class EventEditor(tk.Frame):
                 "Taken item link."
             )
             return False
-
-        if self.context == "person" and values["item_ids"]:
-            possessor_person_ids = list(
-                dict.fromkeys(
-                    [
-                        *values["person_ids"],
-                        *values["witness_person_ids"],
-                        *values["affected_person_ids"],
-                    ]
-                )
-            )
-
-            try:
-                eligible_item_ids = {
-                    option["value"]
-                    for option in self.controller.item_options(
-                        possessor_person_ids=possessor_person_ids,
-                        on_date=values["date"],
-                    )
-                }
-            except (KeyError, TypeError, ValueError) as error:
-                self.show_error(str(error))
-                return False
-
-            if any(
-                item_id not in eligible_item_ids
-                for item_id in values["item_ids"]
-            ):
-                self.show_error(
-                    "Every linked item must be possessed during this event "
-                    "by one of its people, witnesses, or affected people."
-                )
-                return False
 
         if (
             values["event_type"] in ("died", "murder")

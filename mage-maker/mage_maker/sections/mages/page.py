@@ -110,6 +110,10 @@ class MagesPage(tk.Frame):
         list_card.grid_columnconfigure(0, weight=1)
         initial_period_filter = ""
         period_filter_change_command = None
+        initial_generation_filter = ""
+        generation_filter_change_command = None
+        generation_override_provider = None
+        generation_move_command = None
 
         if self.settings_provider is not None:
             period_filter_provider = getattr(
@@ -122,6 +126,26 @@ class MagesPage(tk.Frame):
                 "set_people_period_filter",
                 None,
             )
+            generation_filter_provider = getattr(
+                self.settings_provider,
+                "people_generation_filter",
+                None,
+            )
+            stored_generation_change_command = getattr(
+                self.settings_provider,
+                "set_people_generation_filter",
+                None,
+            )
+            stored_generation_override_provider = getattr(
+                self.settings_provider,
+                "people_generation_overrides",
+                None,
+            )
+            stored_generation_move_command = getattr(
+                self.settings_provider,
+                "set_people_generation_override",
+                None,
+            )
 
             if callable(period_filter_provider):
                 initial_period_filter = period_filter_provider()
@@ -129,6 +153,26 @@ class MagesPage(tk.Frame):
             if callable(stored_period_change_command):
                 period_filter_change_command = (
                     stored_period_change_command
+                )
+
+            if callable(generation_filter_provider):
+                initial_generation_filter = (
+                    generation_filter_provider()
+                )
+
+            if callable(stored_generation_change_command):
+                generation_filter_change_command = (
+                    stored_generation_change_command
+                )
+
+            if callable(stored_generation_override_provider):
+                generation_override_provider = (
+                    stored_generation_override_provider
+                )
+
+            if callable(stored_generation_move_command):
+                generation_move_command = (
+                    stored_generation_move_command
                 )
 
         self.people_list = PeopleList(
@@ -140,6 +184,14 @@ class MagesPage(tk.Frame):
             period_filter_change_command=(
                 period_filter_change_command
             ),
+            initial_generation_filter=initial_generation_filter,
+            generation_filter_change_command=(
+                generation_filter_change_command
+            ),
+            generation_override_provider=(
+                generation_override_provider
+            ),
+            generation_move_command=generation_move_command,
         )
         self.people_list.grid(row=0, column=0, sticky="nsew")
         editor_card = tk.Frame(

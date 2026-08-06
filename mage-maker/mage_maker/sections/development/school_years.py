@@ -24,6 +24,7 @@ from mage_maker.sections.development.models import (
     normalize_development_plan,
     normalize_development_skill,
     normalize_school_year_book,
+    normalize_school_year_electives,
     normalize_school_year_record,
     normalize_school_year_records,
     school_year_book_identity,
@@ -57,6 +58,189 @@ def strategy_weighted_choice(options, preferred_options, randomizer=None):
         if use_preferred
         else random_options or available_options
     )
+
+
+def school_curriculum_year(schools, school_name, year_number):
+    selected_school_name = str(school_name or "").strip()
+
+    if not selected_school_name:
+        return None
+
+    try:
+        selected_year_number = int(year_number)
+    except (TypeError, ValueError):
+        return None
+
+    school_records = (
+        list(schools)
+        if isinstance(schools, (list, tuple))
+        else []
+    )
+
+    for school in school_records:
+        if not isinstance(school, dict):
+            continue
+
+        candidate_school_name = str(
+            school.get("name", "") or ""
+        ).strip()
+
+        if (
+            candidate_school_name.casefold()
+            != selected_school_name.casefold()
+        ):
+            continue
+
+        curriculum = school.get("curriculum", []) or []
+
+        if not isinstance(curriculum, (list, tuple)):
+            return None
+
+        for curriculum_year in curriculum:
+            if not isinstance(curriculum_year, dict):
+                continue
+
+            try:
+                candidate_year_number = int(
+                    curriculum_year.get("year")
+                )
+            except (TypeError, ValueError):
+                continue
+
+            if candidate_year_number != selected_year_number:
+                continue
+
+            core_courses = normalize_school_year_electives(
+                curriculum_year.get("core", [])
+            )
+            elective_courses = normalize_school_year_electives(
+                curriculum_year.get("electives", [])
+            )
+
+            try:
+                elective_limit = int(
+                    curriculum_year.get("elective_limit", 0)
+                    or 0
+                )
+            except (TypeError, ValueError):
+                elective_limit = 0
+
+            return {
+                "year": selected_year_number,
+                "core": core_courses,
+                "electives": elective_courses,
+                "elective_limit": min(
+                    max(0, elective_limit),
+                    len(elective_courses),
+                ),
+            }
+
+        return None
+
+    return None
+
+
+def reconcile_school_year_electives(
+    selected_electives,
+    approved_electives,
+    elective_limit,
+):
+    normalized_approved_electives = (
+        normalize_school_year_electives(approved_electives)
+    )
+    approved_by_identity = {
+        elective.casefold(): elective
+        for elective in normalized_approved_electives
+    }
+    normalized_selected_electives = (
+        normalize_school_year_electives(selected_electives)
+    )
+
+    try:
+        normalized_limit = int(elective_limit or 0)
+    except (TypeError, ValueError):
+        normalized_limit = 0
+
+    normalized_limit = min(
+        max(0, normalized_limit),
+        len(normalized_approved_electives),
+    )
+
+    if normalized_limit == 0:
+        return []
+
+    reconciled_electives = []
+
+    for selected_elective in normalized_selected_electives:
+        approved_elective = approved_by_identity.get(
+            selected_elective.casefold()
+        )
+
+        if (
+            approved_elective is None
+            or approved_elective in reconciled_electives
+        ):
+            continue
+
+        reconciled_electives.append(approved_elective)
+
+        if len(reconciled_electives) >= normalized_limit:
+            break
+
+    return reconciled_electives
+
+
+def select_school_year_electives(
+    approved_electives,
+    elective_limit,
+    development_plan,
+    randomizer=None,
+):
+    available_electives = normalize_school_year_electives(
+        approved_electives
+    )
+
+    try:
+        normalized_limit = int(elective_limit or 0)
+    except (TypeError, ValueError):
+        normalized_limit = 0
+
+    normalized_limit = min(
+        max(0, normalized_limit),
+        len(available_electives),
+    )
+    preferred_skills = set(
+        preferred_development_skills(development_plan)
+    )
+    selected_electives = []
+    remaining_electives = list(available_electives)
+
+    while (
+        remaining_electives
+        and len(selected_electives) < normalized_limit
+    ):
+        preferred_electives = []
+
+        for elective in remaining_electives:
+            try:
+                elective_skill = normalize_development_skill(
+                    elective
+                )
+            except ValueError:
+                continue
+
+            if elective_skill in preferred_skills:
+                preferred_electives.append(elective)
+
+        selected_elective = strategy_weighted_choice(
+            remaining_electives,
+            preferred_electives,
+            randomizer,
+        )
+        selected_electives.append(selected_elective)
+        remaining_electives.remove(selected_elective)
+
+    return selected_electives
 
 
 def preferred_development_abilities(development_plan):
@@ -758,10 +942,26 @@ def random_school_year_record(
     assigned_books=None,
     excluded_book_identities=None,
     characteristic_options=None,
+    curriculum_year=None,
 ):
     improvements = random_annual_improvements(
         development_plan,
         randomizer,
+    )
+    curriculum = (
+        curriculum_year
+        if isinstance(curriculum_year, dict)
+        else None
+    )
+    selected_electives = (
+        select_school_year_electives(
+            curriculum.get("electives", []),
+            curriculum.get("elective_limit", 0),
+            development_plan,
+            randomizer,
+        )
+        if curriculum is not None
+        else []
     )
     record = {
         "year": int(year_number),
@@ -773,6 +973,8 @@ def random_school_year_record(
             characteristic_options or CHARACTERISTIC_NAMES,
             randomizer,
         ),
+        "electives": selected_electives,
+        "electives_initialized": curriculum is not None,
         "assigned_books": deepcopy(assigned_books or []),
         "books": select_school_year_books(
             development_plan,
@@ -792,6 +994,7 @@ def rebuild_school_year_records(
     development_plan,
     randomizer=None,
     initial_characteristics=None,
+    schools=None,
 ):
     normalized_records = normalize_school_year_records(records)
     rebuilt_records = []
@@ -807,6 +1010,20 @@ def rebuild_school_year_records(
             if initial_characteristics not in (None, "", {})
             else CHARACTERISTIC_NAMES
         )
+        curriculum_year = None
+
+        if schools is not None:
+            curriculum_year = school_curriculum_year(
+                schools,
+                existing_record.get("school", ""),
+                year_number,
+            ) or {
+                "year": year_number,
+                "core": [],
+                "electives": [],
+                "elective_limit": 0,
+            }
+
         rebuilt_record = random_school_year_record(
             year_number,
             development_plan,
@@ -817,10 +1034,27 @@ def rebuild_school_year_records(
                 [],
             ),
             characteristic_options=characteristic_options,
+            curriculum_year=curriculum_year,
         )
         rebuilt_record["skipped"] = bool(
             existing_record.get("skipped", False)
         )
+
+        if schools is None:
+            rebuilt_record["electives"] = deepcopy(
+                existing_record.get("electives", [])
+            )
+            rebuilt_record["electives_initialized"] = bool(
+                existing_record.get(
+                    "electives_initialized",
+                    False,
+                )
+            )
+
+        if rebuilt_record["skipped"]:
+            rebuilt_record["electives"] = []
+            rebuilt_record["electives_initialized"] = False
+
         rebuilt_record["books"] = deepcopy(
             existing_record.get("books", [])
         )
@@ -846,6 +1080,7 @@ def ensure_school_year_records(
     assigned_books_by_year=None,
     initial_characteristics=None,
     manage_books=True,
+    schools=None,
 ):
     normalized_records = normalize_school_year_records(records)
     records_by_year = {
@@ -890,6 +1125,20 @@ def ensure_school_year_records(
                     school_year_book_identity(assigned_book)
                 )
 
+            curriculum_year = None
+
+            if schools is not None:
+                curriculum_year = school_curriculum_year(
+                    schools,
+                    selected_school_name,
+                    year_number,
+                ) or {
+                    "year": year_number,
+                    "core": [],
+                    "electives": [],
+                    "elective_limit": 0,
+                }
+
             records_by_year[year_number] = random_school_year_record(
                 year_number,
                 development_plan,
@@ -901,6 +1150,7 @@ def ensure_school_year_records(
                 assigned_books,
                 assigned_identities | intentional_identities,
                 characteristic_options,
+                curriculum_year,
             )
             intentional_identities.update(
                 school_year_book_identity(book)
@@ -914,6 +1164,7 @@ def ensure_school_year_records(
         record_school = str(
             existing_record.get("school", "") or ""
         ).strip()
+        school_changed = False
         existing_characteristic = normalize_characteristic_name(
             existing_record.get("characteristic"),
             allow_blank=True,
@@ -928,7 +1179,13 @@ def ensure_school_year_records(
             )
 
         if bool(existing_record.get("skipped", False)):
+            school_changed = (
+                record_school.casefold()
+                != selected_school_name.casefold()
+            )
             existing_record["school"] = selected_school_name
+            existing_record["electives"] = []
+            existing_record["electives_initialized"] = False
 
             if manage_books:
                 for assigned_book in assignments.get(
@@ -967,6 +1224,10 @@ def ensure_school_year_records(
             or record_school.casefold()
             == selected_school_name.casefold()
         ):
+            school_changed = (
+                record_school.casefold()
+                != selected_school_name.casefold()
+            )
             existing_record["school"] = selected_school_name
 
             if manage_books:
@@ -992,6 +1253,46 @@ def ensure_school_year_records(
                 assigned_identities | intentional_identities,
                 existing_record.get("books", []),
             )
+
+        if schools is not None:
+            curriculum_year = school_curriculum_year(
+                schools,
+                existing_record.get("school", ""),
+                year_number,
+            ) or {
+                "year": year_number,
+                "core": [],
+                "electives": [],
+                "elective_limit": 0,
+            }
+
+            if (
+                school_changed
+                or not bool(
+                    existing_record.get(
+                        "electives_initialized",
+                        False,
+                    )
+                )
+            ):
+                existing_record["electives"] = (
+                    select_school_year_electives(
+                        curriculum_year["electives"],
+                        curriculum_year["elective_limit"],
+                        development_plan,
+                        randomizer,
+                    )
+                )
+            else:
+                existing_record["electives"] = (
+                    reconcile_school_year_electives(
+                        existing_record.get("electives", []),
+                        curriculum_year["electives"],
+                        curriculum_year["elective_limit"],
+                    )
+                )
+
+            existing_record["electives_initialized"] = True
 
         records_by_year[year_number] = normalize_school_year_record(
             existing_record

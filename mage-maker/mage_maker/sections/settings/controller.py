@@ -24,6 +24,11 @@ from mage_maker.sections.settings.simulation import (
 
 
 PEOPLE_PERIOD_FILTER_SETTING_KEY = "people_period_filter"
+PEOPLE_GENERATION_FILTER_SETTING_KEY = "people_generation_filter"
+PEOPLE_GENERATION_OVERRIDES_SETTING_KEY = (
+    "people_generation_overrides"
+)
+PEOPLE_GENERATION_ALL_SCOPE_KEY = "__all__"
 
 
 class ApplicationSettingsController:
@@ -71,6 +76,141 @@ class ApplicationSettingsController:
 
         settings[PEOPLE_PERIOD_FILTER_SETTING_KEY] = (
             normalized_period_name
+        )
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True
+
+    def people_generation_filter(self):
+        settings = self.application_settings()
+        return str(
+            settings.get(
+                PEOPLE_GENERATION_FILTER_SETTING_KEY,
+                "",
+            )
+            or ""
+        ).strip()
+
+    def set_people_generation_filter(self, generation_label):
+        normalized_generation_label = str(
+            generation_label or ""
+        ).strip()
+        settings = self.application_settings()
+
+        if (
+            str(
+                settings.get(
+                    PEOPLE_GENERATION_FILTER_SETTING_KEY,
+                    "",
+                )
+                or ""
+            ).strip()
+            == normalized_generation_label
+        ):
+            return False
+
+        settings[PEOPLE_GENERATION_FILTER_SETTING_KEY] = (
+            normalized_generation_label
+        )
+        self.database.data["_application_settings"] = settings
+        self.database.dirty = True
+        return True
+
+    def people_generation_overrides(self, period_name=""):
+        normalized_period_name = str(period_name or "").strip()
+        scope_key = (
+            normalized_period_name
+            if normalized_period_name
+            else PEOPLE_GENERATION_ALL_SCOPE_KEY
+        )
+        settings = self.application_settings()
+        overrides_by_scope = settings.get(
+            PEOPLE_GENERATION_OVERRIDES_SETTING_KEY,
+            {},
+        )
+
+        if not isinstance(overrides_by_scope, dict):
+            return {}
+
+        overrides = overrides_by_scope.get(scope_key, {})
+
+        if not isinstance(overrides, dict):
+            return {}
+
+        return {
+            str(record_id or "").strip(): str(
+                target_record_id or ""
+            ).strip()
+            for record_id, target_record_id in overrides.items()
+            if str(record_id or "").strip()
+            and str(target_record_id or "").strip()
+            and str(record_id or "").strip()
+            != str(target_record_id or "").strip()
+        }
+
+    def set_people_generation_override(
+        self,
+        period_name,
+        record_id,
+        target_record_id,
+    ):
+        normalized_period_name = str(period_name or "").strip()
+        normalized_record_id = str(record_id or "").strip()
+        normalized_target_record_id = str(
+            target_record_id or ""
+        ).strip()
+
+        if not normalized_record_id:
+            return False
+
+        if normalized_record_id == normalized_target_record_id:
+            return False
+
+        scope_key = (
+            normalized_period_name
+            if normalized_period_name
+            else PEOPLE_GENERATION_ALL_SCOPE_KEY
+        )
+        settings = self.application_settings()
+        stored_overrides = settings.get(
+            PEOPLE_GENERATION_OVERRIDES_SETTING_KEY,
+            {},
+        )
+        overrides_by_scope = (
+            deepcopy(stored_overrides)
+            if isinstance(stored_overrides, dict)
+            else {}
+        )
+        stored_scope_overrides = overrides_by_scope.get(scope_key, {})
+        scope_overrides = (
+            dict(stored_scope_overrides)
+            if isinstance(stored_scope_overrides, dict)
+            else {}
+        )
+
+        if normalized_target_record_id:
+            if (
+                str(scope_overrides.get(normalized_record_id, "") or "")
+                == normalized_target_record_id
+            ):
+                return False
+
+            scope_overrides[normalized_record_id] = (
+                normalized_target_record_id
+            )
+        else:
+            if normalized_record_id not in scope_overrides:
+                return False
+
+            scope_overrides.pop(normalized_record_id, None)
+
+        if scope_overrides:
+            overrides_by_scope[scope_key] = scope_overrides
+        else:
+            overrides_by_scope.pop(scope_key, None)
+
+        settings[PEOPLE_GENERATION_OVERRIDES_SETTING_KEY] = (
+            overrides_by_scope
         )
         self.database.data["_application_settings"] = settings
         self.database.dirty = True

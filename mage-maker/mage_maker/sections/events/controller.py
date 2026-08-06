@@ -264,10 +264,12 @@ class EventController:
         self,
         possessor_person_ids=None,
         on_date="",
+        include_all=False,
     ):
         items = self.item_records()
         items.sort(key=self.item_option_sort_key)
-        options = []
+        preferred_options = []
+        remaining_options = []
         restricted_person_ids = (
             {
                 str(person_id or "").strip()
@@ -292,26 +294,52 @@ class EventController:
         )
 
         for item in items:
+            preferred_item = False
+
             if restricted_person_ids is not None:
                 possessor_ids = item_possessor_ids_on_date(
                     item,
                     on_date,
                 )
-
-                if not restricted_person_ids.intersection(possessor_ids):
-                    continue
-
-                holder_names = [
-                    people_names_by_id.get(
-                        person_id,
-                        "Unknown person",
-                    )
+                matching_person_ids = [
+                    person_id
                     for person_id in possessor_ids
                     if person_id in restricted_person_ids
                 ]
-                holder_detail = (
-                    "Held by " + ", ".join(holder_names)
-                )
+
+                if not matching_person_ids and not include_all:
+                    continue
+
+                if matching_person_ids:
+                    preferred_item = True
+                    holder_names = [
+                        people_names_by_id.get(
+                            person_id,
+                            "Unknown person",
+                        )
+                        for person_id in matching_person_ids
+                    ]
+                    holder_detail = (
+                        "Held by "
+                        + ", ".join(holder_names)
+                        + " during event"
+                    )
+                else:
+                    event_holder_names = [
+                        people_names_by_id.get(
+                            person_id,
+                            "Unknown person",
+                        )
+                        for person_id in possessor_ids
+                        if person_id
+                    ]
+                    holder_detail = (
+                        "Held by "
+                        + ", ".join(event_holder_names)
+                        + " during event"
+                        if event_holder_names
+                        else "Unpossessed during event"
+                    )
             else:
                 holder = item_current_holder(item)
                 holder_detail = str(
@@ -319,18 +347,21 @@ class EventController:
                     or "Unpossessed"
                 ).strip()
 
-            options.append(
-                {
-                    "value": item["record_id"],
-                    "label": item["name"],
-                    "detail": (
-                        f"{item['category']} · "
-                        f"{holder_detail}"
-                    ),
-                }
-            )
+            option = {
+                "value": item["record_id"],
+                "label": item["name"],
+                "detail": (
+                    f"{item['category']} · "
+                    f"{holder_detail}"
+                ),
+            }
 
-        return options
+            if preferred_item:
+                preferred_options.append(option)
+            else:
+                remaining_options.append(option)
+
+        return [*preferred_options, *remaining_options]
 
     def item_records(self):
         if self.database is None:
@@ -3129,6 +3160,283 @@ class EventController:
             ),
             options_by_id=self._people_options_by_id_cache,
         )
+
+    def add_event_people_suggestion(
+        self,
+        suggestions,
+        used_person_ids,
+        options_by_id,
+        person_id,
+        reason,
+        limit,
+    ):
+        normalized_person_id = str(person_id or "").strip()
+
+        if (
+            not normalized_person_id
+            or normalized_person_id in used_person_ids
+            or normalized_person_id not in options_by_id
+            or len(suggestions) >= limit
+        ):
+            return False
+
+        suggestion = deepcopy(options_by_id[normalized_person_id])
+        suggestion["suggestion_reason"] = str(reason or "").strip()
+        suggestions.append(suggestion)
+        used_person_ids.add(normalized_person_id)
+        return True
+
+    def event_people_suggestion_options(
+        self,
+        focus_person_ids=(),
+        recent_limit=3,
+        limit=30,
+    ):
+        options = self.people_options()
+        options_by_id = {
+            str(option.get("value", "") or "").strip(): option
+            for option in options
+            if str(option.get("value", "") or "").strip()
+        }
+        normalized_focus_ids = []
+
+        for person_id in focus_person_ids or ():
+            normalized_person_id = str(person_id or "").strip()
+
+            if (
+                normalized_person_id in options_by_id
+                and normalized_person_id not in normalized_focus_ids
+            ):
+                normalized_focus_ids.append(normalized_person_id)
+
+        suggestion_limit = max(1, int(limit))
+        recent_suggestion_limit = max(0, min(3, int(recent_limit)))
+        used_person_ids = set(normalized_focus_ids)
+        suggestions = []
+        recent_suggestion_count = 0
+
+        recent_people_options = (
+            self.recent_people_options(
+                limit=RECENT_ASSOCIATION_STORAGE_LIMIT
+            )
+            if recent_suggestion_limit > 0
+            else []
+        )
+
+        for option in recent_people_options:
+            person_id = str(option.get("value", "") or "").strip()
+
+            if self.add_event_people_suggestion(
+                suggestions,
+                used_person_ids,
+                options_by_id,
+                person_id,
+                "Recently used",
+                suggestion_limit,
+            ):
+                recent_suggestion_count += 1
+
+            if recent_suggestion_count >= recent_suggestion_limit:
+                break
+
+        if not normalized_focus_ids or len(suggestions) >= suggestion_limit:
+            return suggestions
+
+        people = [
+            option.get("person", {})
+            for option in options
+            if isinstance(option.get("person"), dict)
+        ]
+        relationships = FamilyRelationshipMap(people)
+        focus_names_by_id = {
+            person_id: str(
+                options_by_id[person_id].get("label", "")
+                or "Selected person"
+            ).strip()
+            for person_id in normalized_focus_ids
+        }
+
+        for focus_person_id in normalized_focus_ids:
+            focus_name = focus_names_by_id[focus_person_id]
+
+            for mate_id in relationships.mates_of(focus_person_id):
+                self.add_event_people_suggestion(
+                    suggestions,
+                    used_person_ids,
+                    options_by_id,
+                    mate_id,
+                    f"Spouse or partner of {focus_name}",
+                    suggestion_limit,
+                )
+
+        for focus_person_id in normalized_focus_ids:
+            focus_name = focus_names_by_id[focus_person_id]
+
+            for child_id in relationships.children_of(focus_person_id):
+                self.add_event_people_suggestion(
+                    suggestions,
+                    used_person_ids,
+                    options_by_id,
+                    child_id,
+                    f"Child of {focus_name}",
+                    suggestion_limit,
+                )
+
+        existing_events = self.list_events()
+        existing_events.sort(key=world_event_sort_key, reverse=True)
+        focus_person_id_set = set(normalized_focus_ids)
+        friend_person_ids = []
+        friend_focus_names_by_id = {}
+        shared_event_counts = {}
+        shared_event_focus_names_by_id = {}
+
+        for event in existing_events:
+            linked_person_ids = list(
+                dict.fromkeys(event_linked_person_ids(event))
+            )
+            matching_focus_ids = [
+                person_id
+                for person_id in linked_person_ids
+                if person_id in focus_person_id_set
+            ]
+
+            if not matching_focus_ids:
+                continue
+
+            focus_name = focus_names_by_id[matching_focus_ids[0]]
+
+            for linked_person_id in linked_person_ids:
+                if (
+                    linked_person_id in focus_person_id_set
+                    or linked_person_id not in options_by_id
+                ):
+                    continue
+
+                shared_event_counts[linked_person_id] = (
+                    shared_event_counts.get(linked_person_id, 0) + 1
+                )
+                shared_event_focus_names_by_id.setdefault(
+                    linked_person_id,
+                    focus_name,
+                )
+
+                if (
+                    event.get("event_type") == "began_friendship"
+                    and linked_person_id not in friend_person_ids
+                ):
+                    friend_person_ids.append(linked_person_id)
+                    friend_focus_names_by_id[linked_person_id] = focus_name
+
+        for friend_person_id in friend_person_ids:
+            self.add_event_people_suggestion(
+                suggestions,
+                used_person_ids,
+                options_by_id,
+                friend_person_id,
+                "Friend of "
+                + friend_focus_names_by_id[friend_person_id],
+                suggestion_limit,
+            )
+
+        shared_event_rankings = [
+            (
+                -shared_event_count,
+                str(
+                    options_by_id[person_id].get("label", "") or ""
+                ).casefold(),
+                person_id,
+            )
+            for person_id, shared_event_count
+            in shared_event_counts.items()
+            if person_id not in used_person_ids
+        ]
+        shared_event_rankings.sort()
+
+        for _, _, person_id in shared_event_rankings:
+            shared_event_count = shared_event_counts[person_id]
+            event_word = "event" if shared_event_count == 1 else "events"
+            self.add_event_people_suggestion(
+                suggestions,
+                used_person_ids,
+                options_by_id,
+                person_id,
+                (
+                    f"Shared {shared_event_count} previous {event_word} with "
+                    + shared_event_focus_names_by_id[person_id]
+                ),
+                suggestion_limit,
+            )
+
+        focus_birth_years = []
+
+        for focus_person_id in normalized_focus_ids:
+            focus_person = options_by_id[focus_person_id].get("person", {})
+            birth_year = (
+                focus_person.get("birth_year")
+                if isinstance(focus_person, dict)
+                else None
+            )
+
+            if isinstance(birth_year, bool):
+                continue
+
+            try:
+                focus_birth_years.append(int(birth_year))
+            except (TypeError, ValueError):
+                continue
+
+        similar_age_rankings = []
+
+        if focus_birth_years:
+            for person_id, option in options_by_id.items():
+                if person_id in used_person_ids:
+                    continue
+
+                person = option.get("person", {})
+                birth_year = (
+                    person.get("birth_year")
+                    if isinstance(person, dict)
+                    else None
+                )
+
+                if isinstance(birth_year, bool):
+                    continue
+
+                try:
+                    normalized_birth_year = int(birth_year)
+                except (TypeError, ValueError):
+                    continue
+
+                age_gap = min(
+                    abs(normalized_birth_year - focus_birth_year)
+                    for focus_birth_year in focus_birth_years
+                )
+
+                if age_gap > 7:
+                    continue
+
+                similar_age_rankings.append(
+                    (
+                        age_gap,
+                        str(option.get("label", "") or "").casefold(),
+                        person_id,
+                    )
+                )
+
+        similar_age_rankings.sort()
+        age_focus_name = focus_names_by_id[normalized_focus_ids[0]]
+
+        for _, _, person_id in similar_age_rankings:
+            self.add_event_people_suggestion(
+                suggestions,
+                used_person_ids,
+                options_by_id,
+                person_id,
+                f"Similar age to {age_focus_name}",
+                suggestion_limit,
+            )
+
+        return suggestions
 
     def recent_location_options(self, limit=5):
         return self.recent_association_options(

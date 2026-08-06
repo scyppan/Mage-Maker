@@ -1050,6 +1050,32 @@ def ensure_adult_year_records(records, target_year_count):
     ]
 
 
+def normalize_school_year_electives(value):
+    if value in (None, ""):
+        candidate_values = []
+    elif isinstance(value, str):
+        candidate_values = value.split(",")
+    elif isinstance(value, (list, tuple)):
+        candidate_values = list(value)
+    else:
+        raise TypeError("School-year electives must be a list.")
+
+    electives = []
+    seen_electives = set()
+
+    for candidate_value in candidate_values:
+        elective = str(candidate_value or "").strip()
+        elective_identity = elective.casefold()
+
+        if not elective or elective_identity in seen_electives:
+            continue
+
+        electives.append(elective)
+        seen_electives.add(elective_identity)
+
+    return electives
+
+
 def normalize_school_year_record(value):
     if not isinstance(value, dict):
         raise TypeError("A school-year record must be an object.")
@@ -1089,6 +1115,15 @@ def normalize_school_year_record(value):
             "Every school year must have exactly two skill improvements."
         )
 
+    electives_were_stored = (
+        "electives" in value
+        or "selected_electives" in value
+    )
+    elective_values = value.get(
+        "electives",
+        value.get("selected_electives", []),
+    )
+
     return {
         "year": year_number,
         "school": str(value.get("school", "") or "").strip(),
@@ -1098,6 +1133,15 @@ def normalize_school_year_record(value):
         "characteristic": normalize_characteristic_name(
             value.get("characteristic"),
             allow_blank=True,
+        ),
+        "electives": normalize_school_year_electives(
+            elective_values
+        ),
+        "electives_initialized": bool(
+            value.get(
+                "electives_initialized",
+                electives_were_stored,
+            )
         ),
         "assigned_books": normalize_assigned_school_year_books(
             value.get("assigned_books", [])
